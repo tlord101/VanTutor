@@ -126,6 +126,7 @@ interface SubscriptionProps {
 export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, onProfileUpdate }) => {
   const [processingPlan, setProcessingPlan] = useState<UserPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleUpgrade = (planKey: UserPlan) => {
     if (!user?.email) {
@@ -147,6 +148,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
 
     setProcessingPlan(planKey);
     setError(null);
+    setSuccessMessage(null);
 
     const handler = PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
@@ -159,11 +161,13 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
         // to verify the subscription status with Paystack before updating the user's plan.
         if (response.status === 'success') {
           const result = await onProfileUpdate({ plan: planKey });
-          if (!result.success) {
-            setError(result.error || "Payment successful, but we couldn't update your plan. Please contact support.");
+          if (result.success) {
+            setSuccessMessage(`Successfully upgraded to the ${planDetails[planKey].name} plan! Your new features are now active.`);
+          } else {
+            setError(result.error || "Payment successful, but we couldn't update your plan. Please contact support with your payment reference.");
           }
         } else {
-            setError("Subscription was not successful. Please try again.");
+            setError("Subscription was not successful. Please try again or contact your bank.");
         }
         setProcessingPlan(null);
       },
@@ -181,6 +185,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
               Choose a plan to unlock more features and accelerate your learning journey with VANTUTOR.
           </p>
           {error && <div className="bg-red-500/20 border border-red-500 text-red-300 text-center p-3 rounded-lg mb-6">{error}</div>}
+          {successMessage && <div className="bg-green-500/20 border border-green-500 text-green-300 text-center p-3 rounded-lg mb-6">{successMessage}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(Object.keys(planDetails) as UserPlan[]).map(planKey => (
                   <PlanCard
