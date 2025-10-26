@@ -1,8 +1,3 @@
-It sounds like you're looking for a professionally styled and structured README that incorporates your team members and relevant project details.
-
-Here is a modified and enhanced README design, using clear headings, bold text, and lists for a clean look:
-
-````markdown
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
@@ -78,4 +73,3 @@ This project is maintained and supported by the dedicated team at Vant Lab:
 ## 🌐 Deployment (Coming Soon)
 
 *(You can add instructions here for deploying your app, e.g., to Vercel, Netlify, or a custom host.)*
-````
