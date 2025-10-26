@@ -118,6 +118,16 @@ function App() {
 
   }, [user]);
 
+  useEffect(() => {
+    if (isMobileSidebarOpen) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isMobileSidebarOpen]);
 
   useEffect(() => {
     if (!userProfile) {
@@ -402,7 +412,7 @@ function App() {
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans p-4 md:p-6 lg:p-8 flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
+    <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans p-4 md:p-6 lg:p-8 flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
       <Sidebar
         activeItem={activePage}
         onItemClick={handleNavItemClick}

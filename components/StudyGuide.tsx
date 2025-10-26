@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs } from 'firebase/firestore';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
@@ -70,6 +70,8 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, topi
     const [fileData, setFileData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const hasInitiatedAutoTeach = useRef(false);
     const { attemptApiCall } = useApiLimiter(userProfile.plan);
@@ -85,6 +87,42 @@ Your Method:
 
 Use simple language, analogies, and Markdown for clarity. Be patient and encouraging.`;
 
+    const generateSuggestions = async (tutorMessage: string) => {
+        if (isGeneratingSuggestions) return;
+        setIsGeneratingSuggestions(true);
+        setSuggestions([]);
+        try {
+            const prompt = `Based on this tutor question: "${tutorMessage}", generate three distinct, very short, one-sentence replies for a student. The student's level is "${userProfile.level}". The replies should be things a student would likely ask or say next to continue the conversation. Return a JSON object with a single key "suggestions" containing an array of 3 strings.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            suggestions: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                                description: "An array of three distinct, one-sentence suggested replies for the student."
+                            }
+                        },
+                        required: ['suggestions']
+                    }
+                }
+            });
+            const responseData = JSON.parse(response.text);
+            if (responseData.suggestions && Array.isArray(responseData.suggestions)) {
+                setSuggestions(responseData.suggestions.slice(0, 3));
+            }
+        } catch (error) {
+            console.error("Failed to generate suggestions:", error);
+        } finally {
+            setIsGeneratingSuggestions(false);
+        }
+    };
+    
     const initiateAutoTeach = async () => {
         setIsLoading(true);
         setError(null);
@@ -146,6 +184,15 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
     }, [userProfile.uid, topic.topicId]);
 
     useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.sender === 'bot' && !isLoading && lastMessage.text.trim().endsWith('?')) {
+            generateSuggestions(lastMessage.text);
+        } else if (lastMessage?.sender === 'user' || isLoading) {
+            setSuggestions([]);
+        }
+    }, [messages, isLoading]);
+
+    useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
@@ -159,13 +206,14 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         }
     };
     
-    const handleSend = async () => {
-        if (!input.trim() || isLoading) return;
+    const handleSend = async (messageText?: string) => {
+        const textToSend = messageText || input;
+        if (!textToSend.trim() || isLoading) return;
         
-        const userMessageText = file ? `${input}\n\n[Attached file: ${file.name}]` : input;
+        const userMessageText = file ? `${textToSend}\n\n[Attached file: ${file.name}]` : textToSend;
         const userMessage: Omit<Message, 'id'> = { text: userMessageText, sender: 'user', timestamp: Date.now() };
         
-        const tempInput = input;
+        const tempInput = textToSend;
         const tempFile = file;
         const tempFileData = fileData;
 
@@ -174,6 +222,7 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         setFileData(null);
         setIsLoading(true);
         setError(null);
+        setSuggestions([]);
 
         try {
             const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
@@ -263,12 +312,26 @@ Student: "${tempInput}"
                 <div ref={messagesEndRef} />
             </div>
             <div className="mt-6">
+                {suggestions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3 justify-end">
+                      {suggestions.map((suggestion, index) => (
+                          <button
+                              key={index}
+                              onClick={() => handleSend(suggestion)}
+                              disabled={isLoading}
+                              className="px-3 py-1.5 text-sm bg-white/10 text-gray-300 rounded-full hover:bg-white/20 transition-colors disabled:opacity-50"
+                          >
+                              {suggestion}
+                          </button>
+                      ))}
+                  </div>
+                )}
                 {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
                 <div className="relative">
                     <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask a question..." className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-4 pr-28 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" rows={1} disabled={isLoading} />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                         <label className="cursor-pointer text-gray-400 hover:text-white transition-colors disabled:opacity-50"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} /></label>
-                        <button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-lime-600 rounded-md p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><SendIcon className="w-5 h-5" /></button>
+                        <button onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="bg-lime-600 rounded-md p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><SendIcon className="w-5 h-5" /></button>
                     </div>
                 </div>
                  {file && <div className="text-xs text-gray-400 mt-2 flex items-center gap-2"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-400 hover:text-red-300">&times;</button></div>}

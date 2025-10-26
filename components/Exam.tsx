@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore';
@@ -6,6 +6,8 @@ import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserPr
 
 declare var __app_id: string;
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+
+const TIME_PER_QUESTION_SECONDS = 30;
 
 const mockCourses = [
   { id: 'math_algebra_1', name: 'Math - Algebra 1' },
@@ -93,6 +95,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [completedTopicNames, setCompletedTopicNames] = useState<string[]>([]);
   const [isTopicDataLoading, setIsTopicDataLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  const userAnswersRef = useRef(userAnswers);
+  useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
+  
+  const scoreRef = useRef(score);
+  useEffect(() => { scoreRef.current = score; }, [score]);
 
   useEffect(() => {
     const fetchCompletedTopics = async () => {
@@ -134,6 +143,70 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     fetchCompletedTopics();
   }, [userProgress, userProfile.courseId]);
 
+  const finishExam = useCallback(async () => {
+      setExamState(currentState => {
+          if (currentState !== 'in_progress') {
+              return currentState; // Prevent multiple submissions
+          }
+
+          const currentScore = scoreRef.current;
+          const currentAnswers = userAnswersRef.current;
+          
+          const xpEarned = currentScore * 10;
+          
+          const filledUserAnswers = [...currentAnswers];
+          while (filledUserAnswers.length < questions.length) {
+              filledUserAnswers.push("Unanswered");
+          }
+
+          const examResult: Omit<ExamHistoryItem, 'id'> = {
+              courseId: userProfile.courseId,
+              score: currentScore,
+              totalQuestions: questions.length,
+              xpEarned,
+              timestamp: Date.now(),
+              questions: questions.map((q, i) => ({
+                  ...q,
+                  userAnswer: filledUserAnswers[i],
+                  isCorrect: filledUserAnswers[i] === q.correctAnswer,
+              })),
+          };
+
+          const saveResults = async () => {
+              try {
+                  const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
+                  await addDoc(historyRef, examResult);
+                  onXPEarned(xpEarned);
+              } catch (error) {
+                  console.error("Failed to save exam results:", error);
+              }
+          };
+
+          saveResults();
+          setFeedback(null);
+          setSelectedOption(null);
+          
+          return 'completed';
+      });
+  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned]);
+
+  useEffect(() => {
+      if (examState !== 'in_progress' || timeLeft <= 0) {
+          return;
+      }
+      const timerId = setInterval(() => {
+          setTimeLeft(prevTime => prevTime - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+  }, [examState, timeLeft]);
+
+  useEffect(() => {
+      if (timeLeft <= 0 && examState === 'in_progress') {
+          finishExam();
+      }
+  }, [timeLeft, examState, finishExam]);
+
+
   const generateQuestions = async () => {
     setExamState('generating');
     setGenerationError(null);
@@ -166,7 +239,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
       const responseData = JSON.parse(response.text);
       if (responseData.questions && responseData.questions.length > 0) {
-        setQuestions(responseData.questions);
+        const newQuestions = responseData.questions;
+        setQuestions(newQuestions);
+        setTimeLeft(newQuestions.length * TIME_PER_QUESTION_SECONDS);
         setExamState('in_progress');
       } else {
         throw new Error("Failed to generate valid questions from AI response.");
@@ -187,6 +262,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     setScore(0);
     setExamState('start');
     setGenerationError(null);
+    setTimeLeft(0);
   };
 
   const handleAnswerSubmit = async () => {
@@ -195,10 +271,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     const currentQuestion = questions[currentQuestionIndex];
     const isCorrect = selectedOption === currentQuestion.correctAnswer;
     
-    // The user answer must be recorded before moving on.
-    // Since state updates can be async, we'll create the next state array directly.
-    const updatedAnswers = [...userAnswers, selectedOption];
-    setUserAnswers(updatedAnswers);
+    setUserAnswers(prev => [...prev, selectedOption]);
 
     if (isCorrect) {
       setScore(prev => prev + 1);
@@ -212,38 +285,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
       setSelectedOption(null);
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-      // Exam finished, save results
-      const xpEarned = score * 10;
-      const finalAnswers = userAnswers;
-      if(finalAnswers.length !== questions.length) {
-          // This ensures the last answer is captured before saving.
-          // This case should be rare due to handleAnswerSubmit's logic, but it's a safeguard.
-          finalAnswers.push(selectedOption!); 
-      }
-
-      const examResult: Omit<ExamHistoryItem, 'id'> = {
-          courseId: userProfile.courseId,
-          score,
-          totalQuestions: questions.length,
-          xpEarned,
-          timestamp: Date.now(),
-          questions: questions.map((q, i) => ({
-              ...q,
-              userAnswer: finalAnswers[i],
-              isCorrect: finalAnswers[i] === q.correctAnswer
-          }))
-      };
-
-      try {
-          const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
-          await addDoc(historyRef, examResult);
-          onXPEarned(xpEarned);
-      } catch (error) {
-          console.error("Failed to save exam results:", error);
-      }
-      setFeedback(null);
-      setSelectedOption(null);
-      setExamState('completed');
+      finishExam();
     }
   };
 
@@ -257,11 +299,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
       case 'in_progress':
         return (
           <div>
-            <div className="mb-4">
-              <p className="text-gray-400">Question {currentQuestionIndex + 1} of {questions.length}</p>
-              <h3 className="text-xl font-semibold text-white mt-2">{currentQuestion.question}</h3>
+            <div className="flex justify-between items-center mb-4">
+                <p className="text-gray-400">Question {currentQuestionIndex + 1} of {questions.length}</p>
+                <div className="flex items-center gap-2 font-mono text-lg font-bold bg-white/10 px-3 py-1 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>
+                        {Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}
+                    </span>
+                </div>
             </div>
-            <div className="space-y-3">
+            <h3 className="text-xl font-semibold text-white mt-2">{currentQuestion.question}</h3>
+            <div className="space-y-3 mt-4">
               {currentQuestion.options.map((option, index) => (
                 <button
                   key={index}
