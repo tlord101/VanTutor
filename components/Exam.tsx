@@ -1,0 +1,404 @@
+import React, { useState, useEffect } from 'react';
+import { GoogleGenAI, Type } from '@google/genai';
+import { db } from '../firebase';
+import { collection, addDoc, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore';
+import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Subject } from '../types';
+
+declare var __app_id: string;
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+
+const mockCourses = [
+  { id: 'math_algebra_1', name: 'Math - Algebra 1' },
+  { id: 'science_biology', name: 'Science - Biology' },
+  { id: 'history_us', name: 'History - U.S. History' },
+];
+
+const getCourseNameById = (id: string) => {
+    return mockCourses.find(c => c.id === id)?.name || 'your course';
+}
+
+const LoadingSpinner: React.FC<{ text: string }> = ({ text }) => (
+  <div className="flex flex-col items-center justify-center text-center p-8">
+    <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+    <p className="mt-4 text-gray-300">{text}</p>
+  </div>
+);
+
+
+const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHistoryItem) => void }> = ({ userProfile, onReview }) => {
+    const [history, setHistory] = useState<ExamHistoryItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
+                const q = query(historyRef, orderBy('timestamp', 'desc'));
+                const querySnapshot = await getDocs(q);
+                const fetchedHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExamHistoryItem));
+                setHistory(fetchedHistory);
+            } catch (error) {
+                console.error("Error fetching exam history: ", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchHistory();
+    }, [userProfile.uid]);
+
+    if (isLoading) {
+        return <LoadingSpinner text="Loading exam history..." />;
+    }
+
+    if (history.length === 0) {
+        return <p className="text-gray-400 text-center">You haven't completed any exams yet.</p>;
+    }
+
+    return (
+        <div className="space-y-4">
+            {history.map(exam => (
+                <div key={exam.id} className="bg-white/5 p-4 rounded-lg border border-white/10 flex justify-between items-center">
+                    <div>
+                        <p className="font-semibold text-white">{getCourseNameById(exam.courseId)}</p>
+                        <p className="text-sm text-gray-400">
+                            {new Date(exam.timestamp).toLocaleString()}
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="font-bold text-lime-400">{exam.score}/{exam.totalQuestions}</p>
+                        <button onClick={() => onReview(exam)} className="text-sm text-lime-500 hover:underline">Review</button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+
+interface ExamProps {
+  userProfile: UserProfile;
+  onXPEarned: (xp: number) => void;
+  userProgress: UserProgress;
+}
+
+export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgress }) => {
+  const [examState, setExamState] = useState<'start' | 'generating' | 'in_progress' | 'completed' | 'history' | 'review'>('start');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [userAnswers, setUserAnswers] = useState<string[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ isCorrect: boolean; explanation: string } | null>(null);
+  const [score, setScore] = useState(0);
+  const [reviewExam, setReviewExam] = useState<ExamHistoryItem | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [completedTopicNames, setCompletedTopicNames] = useState<string[]>([]);
+  const [isTopicDataLoading, setIsTopicDataLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCompletedTopics = async () => {
+        setIsTopicDataLoading(true);
+        const completedTopicIds = Object.keys(userProgress).filter(
+            topicId => userProgress[topicId]?.isComplete
+        );
+
+        if (completedTopicIds.length === 0) {
+            setCompletedTopicNames([]);
+            setIsTopicDataLoading(false);
+            return;
+        }
+        
+        try {
+            const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
+            const courseSnap = await getDoc(courseDocRef);
+
+            if (courseSnap.exists()) {
+                const subjects: Subject[] = courseSnap.data().subjectList || [];
+                const topicNames: string[] = [];
+                subjects.forEach(subject => {
+                    subject.topics?.forEach(topic => {
+                        if (completedTopicIds.includes(topic.topicId)) {
+                            topicNames.push(topic.topicName);
+                        }
+                    });
+                });
+                setCompletedTopicNames(topicNames);
+            }
+        } catch (error) {
+            console.error("Error fetching course data for exam generation:", error);
+            setGenerationError("Could not load topic data to create your exam.");
+        } finally {
+            setIsTopicDataLoading(false);
+        }
+    };
+
+    fetchCompletedTopics();
+  }, [userProgress, userProfile.courseId]);
+
+  const generateQuestions = async () => {
+    setExamState('generating');
+    setGenerationError(null);
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: `Generate 10 multiple-choice questions for a student studying "${getCourseNameById(userProfile.courseId)}" at a "${userProfile.level}" level, focusing on the following topics they have completed: ${completedTopicNames.join(', ')}. Ensure the options are distinct and the correct answer is one of the options.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              questions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    question: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    correctAnswer: { type: Type.STRING },
+                    explanation: { type: Type.STRING }
+                  },
+                  required: ['question', 'options', 'correctAnswer', 'explanation']
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const responseData = JSON.parse(response.text);
+      if (responseData.questions && responseData.questions.length > 0) {
+        setQuestions(responseData.questions);
+        setExamState('in_progress');
+      } else {
+        throw new Error("Failed to generate valid questions from AI response.");
+      }
+    } catch (error) {
+      console.error("Error generating exam questions:", error);
+      setGenerationError("Sorry, we couldn't create an exam for you right now. Please try again in a moment.");
+      setExamState('start');
+    }
+  };
+  
+  const resetExam = () => {
+    setQuestions([]);
+    setUserAnswers([]);
+    setCurrentQuestionIndex(0);
+    setSelectedOption(null);
+    setFeedback(null);
+    setScore(0);
+    setExamState('start');
+    setGenerationError(null);
+  };
+
+  const handleAnswerSubmit = async () => {
+    if (!selectedOption) return;
+
+    const currentQuestion = questions[currentQuestionIndex];
+    const isCorrect = selectedOption === currentQuestion.correctAnswer;
+    
+    // The user answer must be recorded before moving on.
+    // Since state updates can be async, we'll create the next state array directly.
+    const updatedAnswers = [...userAnswers, selectedOption];
+    setUserAnswers(updatedAnswers);
+
+    if (isCorrect) {
+      setScore(prev => prev + 1);
+    }
+    setFeedback({ isCorrect, explanation: currentQuestion.explanation });
+  };
+  
+  const handleNextQuestion = async () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setFeedback(null);
+      setSelectedOption(null);
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      // Exam finished, save results
+      const xpEarned = score * 10;
+      const finalAnswers = userAnswers;
+      if(finalAnswers.length !== questions.length) {
+          // This ensures the last answer is captured before saving.
+          // This case should be rare due to handleAnswerSubmit's logic, but it's a safeguard.
+          finalAnswers.push(selectedOption!); 
+      }
+
+      const examResult: Omit<ExamHistoryItem, 'id'> = {
+          courseId: userProfile.courseId,
+          score,
+          totalQuestions: questions.length,
+          xpEarned,
+          timestamp: Date.now(),
+          questions: questions.map((q, i) => ({
+              ...q,
+              userAnswer: finalAnswers[i],
+              isCorrect: finalAnswers[i] === q.correctAnswer
+          }))
+      };
+
+      try {
+          const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
+          await addDoc(historyRef, examResult);
+          onXPEarned(xpEarned);
+      } catch (error) {
+          console.error("Failed to save exam results:", error);
+      }
+      setFeedback(null);
+      setSelectedOption(null);
+      setExamState('completed');
+    }
+  };
+
+  const currentQuestion = questions[currentQuestionIndex];
+  
+  const renderContent = () => {
+    switch (examState) {
+      case 'generating':
+        return <LoadingSpinner text="Generating your exam based on completed topics..." />;
+      
+      case 'in_progress':
+        return (
+          <div>
+            <div className="mb-4">
+              <p className="text-gray-400">Question {currentQuestionIndex + 1} of {questions.length}</p>
+              <h3 className="text-xl font-semibold text-white mt-2">{currentQuestion.question}</h3>
+            </div>
+            <div className="space-y-3">
+              {currentQuestion.options.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => !feedback && setSelectedOption(option)}
+                  className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200
+                    ${feedback ? 
+                        (option === currentQuestion.correctAnswer ? 'bg-green-500/20 border-green-500' : (option === selectedOption ? 'bg-red-500/20 border-red-500' : 'bg-white/5 border-white/10'))
+                        : 
+                        (selectedOption === option ? 'bg-lime-500/20 border-lime-500' : 'bg-white/5 border-white/10 hover:border-lime-500/50')
+                    }`}
+                  disabled={!!feedback}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            {feedback && (
+                <div className={`mt-4 p-4 rounded-lg ${feedback.isCorrect ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                    <h4 className={`font-bold ${feedback.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                        {feedback.isCorrect ? 'Correct!' : 'Incorrect'}
+                    </h4>
+                    <p className="text-sm text-gray-300 mt-1">{feedback.explanation}</p>
+                </div>
+            )}
+            <div className="mt-6">
+                {feedback ? (
+                    <button onClick={handleNextQuestion} className="w-full bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors">
+                        {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Exam'}
+                    </button>
+                ) : (
+                    <button onClick={handleAnswerSubmit} disabled={!selectedOption} className="w-full bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Submit Answer
+                    </button>
+                )}
+            </div>
+          </div>
+        );
+      
+      case 'completed':
+          const xpEarned = score * 10;
+        return (
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-white">Exam Completed!</h3>
+            <p className="text-gray-300 mt-2">Here's how you did:</p>
+            <div className="my-6">
+              <p className="text-5xl font-bold text-lime-400">{score} / {questions.length}</p>
+              <p className="mt-2 text-lg font-semibold text-white">+{xpEarned} XP Earned</p>
+            </div>
+            <div className="flex gap-4">
+                <button onClick={() => setExamState('history')} className="flex-1 bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                    View History
+                </button>
+                <button onClick={resetExam} className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors">
+                    Take Another Exam
+                </button>
+            </div>
+          </div>
+        );
+
+      case 'history':
+          return (
+              <div>
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold text-white">Exam History</h3>
+                      <button onClick={resetExam} className="text-lime-500 hover:underline">Back to Exam</button>
+                  </div>
+                  <ExamHistory userProfile={userProfile} onReview={(exam) => { setReviewExam(exam); setExamState('review'); }} />
+              </div>
+          );
+
+      case 'review':
+        if (!reviewExam) return null;
+          return (
+              <div>
+                  <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-white">Reviewing Exam</h3>
+                        <p className="text-sm text-gray-400">{new Date(reviewExam.timestamp).toLocaleString()}</p>
+                      </div>
+                      <button onClick={() => setExamState('history')} className="text-lime-500 hover:underline">Back to History</button>
+                  </div>
+                  <div className="space-y-6">
+                      {reviewExam.questions.map((q, index) => (
+                          <div key={index} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                              <p className="text-gray-400 text-sm">Question {index + 1}</p>
+                              <p className="font-semibold text-white mt-1">{q.question}</p>
+                              <div className="mt-3 space-y-2 text-sm">
+                                  <p><span className="font-semibold text-gray-300">Your Answer: </span><span className={q.isCorrect ? 'text-green-400' : 'text-red-400'}>{q.userAnswer}</span></p>
+                                  {!q.isCorrect && <p><span className="font-semibold text-gray-300">Correct Answer: </span><span className="text-green-400">{q.correctAnswer}</span></p>}
+                                  <p className="text-gray-400 pt-2 border-t border-white/10 mt-2">{q.explanation}</p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          );
+      
+      default: // 'start'
+        if (isTopicDataLoading) {
+            return <LoadingSpinner text="Checking your completed topics..." />;
+        }
+        
+        const canStartExam = completedTopicNames.length > 0;
+
+        return (
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-white">Ready for your exam?</h3>
+            {canStartExam ? (
+                <p className="text-gray-300 mt-2">You'll be tested on topics you've completed in the Study Guide.</p>
+            ) : (
+                <p className="text-yellow-400 bg-yellow-500/10 p-3 rounded-lg mt-4">
+                    Please complete at least one topic in the Study Guide before starting an exam.
+                </p>
+            )}
+            {generationError && <p className="text-red-400 mt-4">{generationError}</p>}
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                <button
+                    onClick={generateQuestions}
+                    className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!canStartExam || isTopicDataLoading}
+                >
+                    Start Exam
+                </button>
+                <button onClick={() => setExamState('history')} className="flex-1 bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                    View Exam History
+                </button>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-full w-full">
+      <div className="flex-1 bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto">
+        {renderContent()}
+      </div>
+    </div>
+  );
+};

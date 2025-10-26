@@ -1,0 +1,164 @@
+import React, { useState } from 'react';
+import { auth, googleProvider } from '../firebase';
+import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { LogoIcon } from './icons/LogoIcon';
+import { GoogleIcon } from './icons/GoogleIcon';
+
+interface SignUpProps {
+    onSwitchToLogin: () => void;
+}
+
+export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleSubmitting(true);
+    setError(null);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      // On successful sign-in, onAuthStateChanged will trigger in App.tsx
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('Failed to sign in with Google. Please try again.');
+        console.error('Google sign in failed:', err);
+      }
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      // On successful signup, onAuthStateChanged in App.tsx will handle the state change.
+    } catch (err: any) {
+      let errorMessage = 'Failed to create an account. Please try again.';
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already in use. Please log in instead.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'The password must be at least 6 characters long.';
+      }
+      console.error('Sign up failed:', err);
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-black p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          <div className="flex justify-center items-center mb-6">
+              <LogoIcon className="w-12 h-12 text-lime-400" />
+              <h1 className="text-3xl font-bold bg-gradient-to-b from-lime-300 to-lime-500 text-transparent bg-clip-text tracking-wider ml-3">
+                  VANTUTOR
+              </h1>
+          </div>
+
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">Create Account</h2>
+            <p className="text-gray-400 mt-2">Join VANTUTOR to start learning.</p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-8">
+              <button
+                type="submit"
+                disabled={isSubmitting || isGoogleSubmitting}
+                className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                    <span>Creating Account...</span>
+                  </>
+                ) : (
+                  'Sign Up'
+                )}
+              </button>
+            </div>
+          </form>
+
+          <div className="relative flex py-5 items-center">
+              <div className="flex-grow border-t border-white/10"></div>
+              <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase">Or continue with</span>
+              <div className="flex-grow border-t border-white/10"></div>
+          </div>
+
+          <button
+              onClick={handleGoogleSignIn}
+              disabled={isSubmitting || isGoogleSubmitting}
+              className="w-full bg-white/10 border border-white/20 text-white font-semibold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+              {isGoogleSubmitting ? (
+                  <>
+                      <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                      <span>Signing In...</span>
+                  </>
+              ) : (
+                  <>
+                      <GoogleIcon className="w-5 h-5 mr-3" />
+                      Sign Up with Google
+                  </>
+              )}
+          </button>
+          
+          {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+
+          <p className="text-center text-sm text-gray-400 mt-6">
+            Already have an account?{' '}
+            <button onClick={onSwitchToLogin} className="font-medium text-lime-400 hover:text-lime-300">
+              Log In
+            </button>
+          </p>
+
+        </div>
+      </div>
+    </div>
+  );
+};
