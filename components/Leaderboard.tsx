@@ -18,7 +18,7 @@ const LoadingSpinner: React.FC = () => (
 );
 
 const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: boolean}> = ({ rank, user, isCurrentUser }) => (
-    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 ${isCurrentUser ? 'bg-lime-500/20 border-lime-500 border' : 'bg-white/5'}`}>
+    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-900/50 border-lime-500' : 'bg-gradient-to-r from-white/10 to-white/5 border-transparent'}`}>
         <div className="flex-shrink-0 w-8 text-center font-bold text-lg text-gray-400">
             {rank <= 3 ? (
                 <span className={rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-gray-300' : 'text-yellow-600'}>{rank}</span>
@@ -103,7 +103,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 flex flex-col bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto">
+      <div className="flex-1 flex flex-col bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto">
         <div className="flex-shrink-0 mb-4 bg-black/20 p-1 rounded-lg flex">
           <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
             Overall

@@ -95,7 +95,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ planKey, plan, currentPlan, onSelec
   };
 
   return (
-    <div className={`flex flex-col bg-white/5 p-6 rounded-2xl border ${plan.highlight ? 'border-lime-500' : 'border-white/10'}`}>
+    <div className={`flex flex-col bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-6 rounded-2xl border ${plan.highlight ? 'border-lime-500' : 'border-white/10'}`}>
       {plan.highlight && <div className="text-center mb-4 text-sm font-bold text-lime-400 bg-lime-500/10 py-1 px-3 rounded-full self-center">Most Popular</div>}
       <h3 className="text-2xl font-bold text-white text-center">{plan.name}</h3>
       <p className="text-center mt-2">

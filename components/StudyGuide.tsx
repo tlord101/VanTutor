@@ -387,7 +387,7 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
     const progressPercentage = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
 
     return (
-        <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+        <div className="bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isLocked}

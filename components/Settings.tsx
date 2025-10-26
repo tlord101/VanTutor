@@ -73,11 +73,11 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-2">Profile Information</h3>
-          <div className="bg-white/5 rounded-lg p-4 space-y-3">
+        <div className="bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Profile Information</h3>
+          <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-400">Display Name</span>
               {isEditingName ? (
@@ -86,7 +86,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                     type="text"
                     value={newDisplayName}
                     onChange={(e) => setNewDisplayName(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-md py-1 px-2 text-white font-medium focus:ring-1 focus:ring-lime-500 focus:outline-none"
+                    className="bg-black/30 border border-white/20 rounded-md py-1 px-2 text-white font-medium focus:ring-1 focus:ring-lime-500 focus:outline-none"
                     disabled={isSaving}
                   />
                   <button onClick={handleSaveName} disabled={isSaving || newDisplayName.trim() === ''} className="text-sm font-semibold text-lime-400 hover:text-lime-300 disabled:opacity-50">
@@ -106,24 +106,24 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
               )}
             </div>
             {error && <p className="text-red-400 text-xs mt-1 text-right">{error}</p>}
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center border-t border-white/10 pt-4">
               <span className="text-gray-400">Email</span>
               <span className="text-white font-medium">{user?.email}</span>
             </div>
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center border-t border-white/10 pt-4">
               <span className="text-gray-400">Current Course</span>
               <span className="text-white font-medium">{isCourseLoading ? 'Loading...' : courseName}</span>
             </div>
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center border-t border-white/10 pt-4">
               <span className="text-gray-400">Level</span>
               <span className="text-white font-medium">{userProfile.level}</span>
             </div>
           </div>
         </div>
 
-        <div>
+        <div className="bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10">
           <h3 className="text-lg font-semibold text-white mb-2">Account Actions</h3>
-           <div className="bg-white/5 rounded-lg p-4">
+           <div>
              <button
                 onClick={onLogout}
                 className="w-full text-left p-3 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors duration-200"

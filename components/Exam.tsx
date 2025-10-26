@@ -444,7 +444,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {renderContent()}
       </div>
     </div>
