@@ -1,31 +1,18 @@
 import React from 'react';
-import { MenuIcon } from './icons/MenuIcon';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
 
 interface HeaderProps {
   currentPageLabel: string;
-  onMenuClick: () => void;
   onNotificationsClick: () => void;
   unreadCount: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onMenuClick, onNotificationsClick, unreadCount }) => {
+export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotificationsClick, unreadCount }) => {
     return (
         <header className="flex-shrink-0 flex items-center justify-between pb-6">
-            {/* Left side: Menu button for mobile and Page Title for desktop */}
+            {/* Left side: Page Title */}
             <div className="flex items-center">
-                <button
-                    onClick={onMenuClick}
-                    className="md:hidden text-gray-400 hover:text-white mr-4"
-                    aria-label="Open menu"
-                >
-                    <MenuIcon />
-                </button>
-                <h2 className="hidden md:block text-3xl font-bold text-white">
-                    {currentPageLabel}
-                </h2>
-                 {/* Page title for mobile, since it's not shown next to the menu icon */}
-                <h2 className="md:hidden text-2xl font-bold text-white">
+                <h2 className="text-2xl md:text-3xl font-bold text-white">
                     {currentPageLabel}
                 </h2>
             </div>

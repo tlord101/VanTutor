@@ -87,6 +87,7 @@ Your Method:
 
 Use simple language, analogies, and Markdown for clarity. Be patient and encouraging.`;
 
+    // FIX: Moved all component logic (functions, useEffects) inside the component scope.
     const generateSuggestions = async (tutorMessage: string) => {
         if (isGeneratingSuggestions) return;
         setIsGeneratingSuggestions(true);
@@ -275,16 +276,20 @@ Student: "${tempInput}"
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full w-full">
-            <div className="flex items-center gap-4 mb-4">
-                <button onClick={onClose} className="text-gray-400 hover:text-white"><ArrowLeftIcon /></button>
-                <h2 className="text-xl sm:text-2xl font-bold text-white truncate">{topic.topicName}</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2 sm:pr-4 space-y-4 bg-black/20 p-4 sm:p-6 rounded-xl border border-white/10">
+        <div className="flex flex-col h-full w-full bg-black/20 rounded-xl border border-white/10 overflow-hidden">
+            {/* Sticky Header */}
+            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg border-b border-white/10 z-10">
+                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <h2 className="text-lg font-bold text-white truncate mx-4 flex-1 text-center">{topic.topicName}</h2>
+                <div className="w-8 h-8"></div> {/* Spacer for balance */}
+            </header>
+
+            {/* Scrollable Message Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 {messages.map((message) => (
-                    <div key={message.id} className={`flex items-start gap-3 ${message.sender === 'user' ? 'justify-end' : ''}`}>
+                    <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
                         {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 rounded-lg ${message.sender === 'user' ? 'bg-lime-600 text-white' : 'bg-white/10 text-gray-300'}`}>
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-900/70 text-white' : 'bg-white/5 text-gray-300'}`}>
                             {message.sender === 'user' ? (
                                 <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                             ) : (
@@ -308,10 +313,12 @@ Student: "${tempInput}"
                         </div>
                     </div>
                 ))}
-                {isLoading && <div className="flex items-start gap-3"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 rounded-lg bg-white/10 text-gray-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
+                {isLoading && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white/5 text-gray-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="mt-6">
+            
+            {/* Fixed Input Area */}
+            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-white/10 bg-gray-900/30 backdrop-blur-lg">
                 {suggestions.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 mb-3 justify-end">
                       {suggestions.map((suggestion, index) => (
@@ -327,16 +334,34 @@ Student: "${tempInput}"
                   </div>
                 )}
                 {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
-                <div className="relative">
-                    <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask a question..." className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-4 pr-28 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" rows={1} disabled={isLoading} />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <label className="cursor-pointer text-gray-400 hover:text-white transition-colors disabled:opacity-50"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} /></label>
-                        <button onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="bg-lime-600 rounded-md p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><SendIcon className="w-5 h-5" /></button>
-                    </div>
+                
+                <div className="relative flex items-center">
+                    <textarea 
+                        value={input} 
+                        onChange={(e) => setInput(e.target.value)} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
+                        placeholder="Ask a question..." 
+                        className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-12 pr-14 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
+                        rows={1}
+                        style={{ fieldSizing: 'content' }}
+                        disabled={isLoading} 
+                    />
+                    <label className="absolute left-4 cursor-pointer text-gray-400 hover:text-white transition-colors disabled:opacity-50">
+                        <PaperclipIcon className="w-5 h-5" />
+                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} />
+                    </label>
+                    <button 
+                        onClick={() => handleSend()} 
+                        disabled={isLoading || !input.trim()} 
+                        className="absolute right-3 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <SendIcon className="w-5 h-5" />
+                    </button>
                 </div>
-                 {file && <div className="text-xs text-gray-400 mt-2 flex items-center gap-2"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-400 hover:text-red-300">&times;</button></div>}
-            </div>
-            {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} className="mt-4 w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">Mark as Complete (+2 XP)</button>}
+                {file && <div className="text-xs text-gray-400 mt-2 flex items-center gap-2 bg-black/30 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-400 hover:text-red-300">&times;</button></div>}
+                
+                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} className="mt-4 w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">Mark as Complete (+2 XP)</button>}
+            </footer>
         </div>
     );
 };

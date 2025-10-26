@@ -19,6 +19,7 @@ import { Settings } from './components/Settings';
 import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
 import { Subscription } from './components/Subscription';
+import { MenuIcon } from './components/icons/MenuIcon';
 
 declare var __app_id: string;
 
@@ -36,6 +37,17 @@ const LoadingSpinner: React.FC = () => (
     <div className="w-16 h-16 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
   </div>
 );
+
+const MobileMenuButton: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => (
+  <button
+    onClick={onMenuClick}
+    className="fixed top-6 left-4 md:hidden z-30 w-12 h-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+    aria-label="Open menu"
+  >
+    <MenuIcon />
+  </button>
+);
+
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -413,6 +425,7 @@ function App() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans p-4 md:p-6 lg:p-8 flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
+      <MobileMenuButton onMenuClick={() => setIsMobileSidebarOpen(true)} />
       <Sidebar
         activeItem={activePage}
         onItemClick={handleNavItemClick}
@@ -427,7 +440,6 @@ function App() {
       <main className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col relative">
         <Header
           currentPageLabel={currentPageLabel}
-          onMenuClick={() => setIsMobileSidebarOpen(true)}
           onNotificationsClick={() => setIsNotificationsOpen(prev => !prev)}
           unreadCount={unreadNotificationsCount}
         />
