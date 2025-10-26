@@ -19,7 +19,6 @@ import { Settings } from './components/Settings';
 import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
 import { Subscription } from './components/Subscription';
-import { MenuIcon } from './components/icons/MenuIcon';
 
 declare var __app_id: string;
 
@@ -37,17 +36,6 @@ const LoadingSpinner: React.FC = () => (
     <div className="w-16 h-16 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
   </div>
 );
-
-const MobileMenuButton: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => (
-  <button
-    onClick={onMenuClick}
-    className="fixed top-6 left-4 md:hidden z-30 w-12 h-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-    aria-label="Open menu"
-  >
-    <MenuIcon />
-  </button>
-);
-
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -89,7 +77,21 @@ function App() {
         const userProfileRef = doc(db, 'users', user.uid);
         unsubscribeProfile = onSnapshot(userProfileRef, (docSnap) => {
             if (docSnap.exists()) {
-                setUserProfile(docSnap.data() as UserProfile);
+                const data = docSnap.data();
+                // FIX: Provide default values for fields that may not exist on older user documents
+                // to prevent 'undefined' values from being passed to Firestore transactions.
+                const profile: UserProfile = {
+                    uid: data.uid,
+                    displayName: data.displayName,
+                    courseId: data.courseId,
+                    level: data.level,
+                    totalXP: data.totalXP || 0,
+                    totalTestXP: data.totalTestXP || 0,
+                    plan: data.plan || 'free',
+                    currentStreak: data.currentStreak || 0,
+                    lastActivityDate: data.lastActivityDate || 0,
+                };
+                setUserProfile(profile);
             } else {
                 setUserProfile(null); // Onboarding needed
             }
@@ -424,8 +426,7 @@ function App() {
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans p-4 md:p-6 lg:p-8 flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
-      <MobileMenuButton onMenuClick={() => setIsMobileSidebarOpen(true)} />
+    <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans md:p-6 lg:p-8 flex md:gap-6 lg:gap-8">
       <Sidebar
         activeItem={activePage}
         onItemClick={handleNavItemClick}
@@ -437,11 +438,12 @@ function App() {
         isMobileSidebarOpen={isMobileSidebarOpen}
         onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
       />
-      <main className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col relative">
+      <main className="flex-1 bg-white/5 backdrop-blur-xl md:border border-white/10 md:rounded-2xl flex flex-col relative overflow-hidden">
         <Header
           currentPageLabel={currentPageLabel}
           onNotificationsClick={() => setIsNotificationsOpen(prev => !prev)}
           unreadCount={unreadNotificationsCount}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
         />
         <NotificationsPanel
             notifications={notifications}
@@ -450,7 +452,7 @@ function App() {
             onMarkAllAsRead={handleMarkAllNotificationsAsRead}
             onMarkAsRead={handleMarkNotificationAsRead}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0">
           {renderContent()}
         </div>
       </main>

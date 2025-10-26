@@ -112,7 +112,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
             This Week
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto pr-2">
+        <div className="flex-1 overflow-y-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {renderList()}
         </div>
       </div>

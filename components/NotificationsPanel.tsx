@@ -65,7 +65,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
                         </button>
                     )}
                 </div>
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="max-h-[60vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {notifications.length > 0 ? (
                         <ul>
                             {notifications.map(notification => (

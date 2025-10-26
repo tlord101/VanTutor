@@ -73,7 +73,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto space-y-6">
+      <div className="flex-1 bg-white/5 p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         
         <div>
           <h3 className="text-lg font-semibold text-white mb-2">Profile Information</h3>

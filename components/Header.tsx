@@ -1,23 +1,30 @@
 import React from 'react';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
+import { MenuIcon } from './icons/MenuIcon';
 
 interface HeaderProps {
   currentPageLabel: string;
   onNotificationsClick: () => void;
   unreadCount: number;
+  onMenuClick: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotificationsClick, unreadCount }) => {
+export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotificationsClick, unreadCount, onMenuClick }) => {
     return (
-        <header className="flex-shrink-0 flex items-center justify-between pb-6">
-            {/* Left side: Page Title */}
+        <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6">
             <div className="flex items-center">
+                <button
+                  onClick={onMenuClick}
+                  className="md:hidden mr-4 w-10 h-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                  aria-label="Open menu"
+                >
+                  <MenuIcon />
+                </button>
                 <h2 className="text-2xl md:text-3xl font-bold text-white">
                     {currentPageLabel}
                 </h2>
             </div>
 
-            {/* Right side: Notification Bell */}
             <div className="flex items-center">
                 <button 
                     onClick={onNotificationsClick}

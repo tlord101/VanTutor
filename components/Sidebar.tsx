@@ -72,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
       </div>
       
       {/* Middle Section: Navigation */}
-      <nav className="flex-grow">
+      <nav className="flex-grow overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <p className={`text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 transition-opacity duration-300 ease-in-out ${isExpanded ? 'pl-3 opacity-100' : 'opacity-0'}`}>Menu</p>
         <ul className="space-y-2">
           {navigationItems.map((item) => (
@@ -156,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
                 </h1>
             </div>
 
-            <nav className="flex-grow">
+            <nav className="flex-grow overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 pl-3">Menu</p>
                 <ul className="space-y-2">
                     {navigationItems.map((item) => (

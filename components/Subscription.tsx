@@ -176,7 +176,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 overflow-y-auto pr-2">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <p className="text-center text-gray-300 mb-8 max-w-2xl mx-auto">
               Choose a plan to unlock more features and accelerate your learning journey with VANTUTOR.
           </p>

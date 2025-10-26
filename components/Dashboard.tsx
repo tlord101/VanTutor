@@ -68,7 +68,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userProgress,
     : 0;
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full">
+    <div className="flex-1 flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 md:p-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex flex-wrap gap-4 md:gap-6 mb-8">
         <StatCard title="Current Level" value={userProfile.level} description="Your selected difficulty" />
         <StatCard title="Total XP" value={(userProfile.totalXP + userProfile.totalTestXP).toLocaleString()} description="From lessons & exams" />

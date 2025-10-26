@@ -30,6 +30,11 @@ const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) =
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
+const SearchIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+);
 
 // --- HELPER & MOCK DATA ---
 const mockCourses = [
@@ -41,7 +46,7 @@ const getCourseNameById = (id: string) => mockCourses.find(c => c.id === id)?.na
 
 // --- SKELETON LOADER ---
 const StudyGuideSkeleton: React.FC = () => (
-    <div className="space-y-4 animate-pulse">
+    <div className="space-y-4 animate-pulse p-4 sm:p-6 md:p-8">
         {[...Array(3)].map((_, i) => (
             <div key={i} className="bg-white/5 p-4 rounded-xl">
                 <div className="h-6 bg-gray-600 rounded w-1/3"></div>
@@ -93,7 +98,7 @@ Use simple language, analogies, and Markdown for clarity. Be patient and encoura
         setIsGeneratingSuggestions(true);
         setSuggestions([]);
         try {
-            const prompt = `Based on this tutor question: "${tutorMessage}", generate three distinct, very short, one-sentence replies for a student. The student's level is "${userProfile.level}". The replies should be things a student would likely ask or say next to continue the conversation. Return a JSON object with a single key "suggestions" containing an array of 3 strings.`;
+            const prompt = `Based on this tutor's last message: "${tutorMessage}", generate three distinct, extremely concise replies for a student. The student's level is "${userProfile.level}". The replies should be things a student would say to continue the conversation. Each reply MUST be a single short sentence, a phrase, or even a single word (e.g., "Why?", "Tell me more", "Okay"). Return a JSON object with a single key "suggestions" containing an array of these 3 short strings.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -106,7 +111,7 @@ Use simple language, analogies, and Markdown for clarity. Be patient and encoura
                             suggestions: {
                                 type: Type.ARRAY,
                                 items: { type: Type.STRING },
-                                description: "An array of three distinct, one-sentence suggested replies for the student."
+                                description: "An array of three distinct, extremely concise suggested replies for the student (single sentence, phrase, or one word)."
                             }
                         },
                         required: ['suggestions']
@@ -276,7 +281,7 @@ Student: "${tempInput}"
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-black/20 rounded-xl border border-white/10 overflow-hidden">
+        <div className="flex flex-col h-full w-full bg-black/20 md:rounded-xl border border-white/10 overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg border-b border-white/10 z-10">
                 <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
@@ -285,7 +290,7 @@ Student: "${tempInput}"
             </header>
 
             {/* Scrollable Message Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map((message) => (
                     <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
                         {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
@@ -374,8 +379,8 @@ const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => 
     </button>
 );
 
-const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onTopicSelect: (topic: Topic) => void, isLocked: boolean, isStarterLocked: boolean }> = ({ subject, userProgress, onTopicSelect, isLocked, isStarterLocked }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onTopicSelect: (topic: Topic) => void, isLocked: boolean, isStarterLocked: boolean, isInitiallyOpen: boolean }> = ({ subject, userProgress, onTopicSelect, isLocked, isStarterLocked, isInitiallyOpen }) => {
+    const [isOpen, setIsOpen] = useState(isInitiallyOpen);
 
     const totalTopics = subject.topics?.length || 0;
     const completedTopics = totalTopics > 0 ? subject.topics.filter(topic => userProgress[topic.topicId]?.isComplete).length : 0;
@@ -392,33 +397,36 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
             >
                 <div className="flex justify-between items-center">
                     <h3 className={`text-lg font-semibold ${isLocked ? 'text-gray-500' : 'text-white'}`}>{subject.subjectName}</h3>
-                    <div className="flex items-center gap-4">
-                        {!isLocked && <span className="text-sm font-medium text-gray-400">{completedTopics}/{totalTopics}</span>}
-                        {isLocked ? 
-                            <LockIcon className="w-5 h-5 text-gray-500" /> : 
-                            <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-                        }
-                    </div>
+                    {isLocked ? 
+                        <LockIcon className="w-5 h-5 text-gray-500" /> : 
+                        <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                    }
                 </div>
                 {!isLocked && (
-                    <div className="mt-3" aria-hidden="true">
-                        <div className="w-full bg-black/30 rounded-full h-1.5 overflow-hidden">
+                    <div className="mt-3 flex items-center gap-3">
+                        <div
+                            className="flex-1 bg-black/30 rounded-full h-2 overflow-hidden"
+                            role="progressbar"
+                            aria-valuenow={progressPercentage}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuetext={`${completedTopics} of ${totalTopics} topics completed`}
+                            aria-label={`${subject.subjectName} progress`}
+                        >
                             <div
-                                className="bg-gradient-to-r from-teal-500 to-lime-500 h-1.5 rounded-full transition-all duration-500"
+                                className="bg-gradient-to-r from-teal-500 to-lime-500 h-2 rounded-full transition-all duration-500"
                                 style={{ width: `${progressPercentage}%` }}
-                                role="progressbar"
-                                aria-valuenow={progressPercentage}
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-label={`${subject.subjectName} progress`}
                             />
                         </div>
+                        <span className="text-sm font-medium text-gray-400 w-24 text-right tabular-nums" aria-hidden="true">
+                            {completedTopics}/{totalTopics} ({Math.round(progressPercentage)}%)
+                        </span>
                     </div>
                 )}
             </button>
             <div
                 id={`subject-content-${subject.subjectId}`}
-                className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96' : 'max-h-0'}`}
+                className={`transition-all duration-300 ease-in-out overflow-y-auto ${isOpen ? 'max-h-96' : 'max-h-0'} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
             >
                 <div className="px-4 pb-2">
                     {subject.topics.map((topic, index) => (
@@ -449,6 +457,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
     const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         setIsLoading(true);
@@ -493,6 +502,25 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
         }
     };
     
+    const filteredSubjects = searchQuery.trim() === ''
+      ? subjects
+      : subjects.map(subject => {
+            const lowerCaseQuery = searchQuery.toLowerCase();
+            const subjectNameMatch = subject.subjectName.toLowerCase().includes(lowerCaseQuery);
+            const matchingTopics = subject.topics?.filter(topic =>
+                topic.topicName.toLowerCase().includes(lowerCaseQuery)
+            ) || [];
+
+            if (subjectNameMatch) {
+                return subject;
+            }
+            if (matchingTopics.length > 0) {
+                return { ...subject, topics: matchingTopics };
+            }
+            return null;
+        }).filter((subject): subject is Subject => subject !== null);
+
+
     if (selectedTopic) {
         return <LearningInterface 
             userProfile={userProfile} 
@@ -506,27 +534,54 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
     return (
         <div className="flex-1 flex flex-col h-full w-full">
             {isLoading && <StudyGuideSkeleton />}
-            {error && <p className="text-center text-red-400">{error}</p>}
+            {error && <p className="text-center text-red-400 p-4 sm:p-6 md:p-8">{error}</p>}
             {!isLoading && !error && (
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    {subjects.map((subject, subjectIndex) => {
-                        const isFreePlan = userProfile.plan === 'free';
-                        const isStarterPlan = userProfile.plan === 'starter';
-                        
-                        const isSubjectLocked = (isFreePlan && subjectIndex > 0) || (isStarterPlan && subjectIndex > 4);
-                        const isTopicLockedForFreePlan = isFreePlan && subjectIndex === 0;
-
-                        return (
-                            <SubjectAccordion 
-                                key={subject.subjectId} 
-                                subject={subject} 
-                                userProgress={userProgress} 
-                                onTopicSelect={(topic) => setSelectedTopic({ ...topic, subjectName: subject.subjectName })} 
-                                isLocked={isSubjectLocked}
-                                isStarterLocked={isTopicLockedForFreePlan}
+                <div className="flex-1 flex flex-col min-h-0">
+                    <div className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-4">
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                <SearchIcon className="text-gray-500" />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Search for a topic..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                             />
-                        );
-                    })}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 sm:px-6 md:px-8 sm:pt-0 sm:pb-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                         {filteredSubjects.length > 0 ? (
+                            filteredSubjects.map((subject) => {
+                                const isFreePlan = userProfile.plan === 'free';
+                                const isStarterPlan = userProfile.plan === 'starter';
+                                
+                                const originalSubjectIndex = subjects.findIndex(s => s.subjectId === subject.subjectId);
+
+                                const isSubjectLocked = (isFreePlan && originalSubjectIndex > 0) || (isStarterPlan && originalSubjectIndex > 4);
+                                const isTopicLockedForFreePlan = isFreePlan && originalSubjectIndex === 0;
+
+                                return (
+                                    <SubjectAccordion 
+                                        key={subject.subjectId + searchQuery} 
+                                        subject={subject} 
+                                        userProgress={userProgress} 
+                                        onTopicSelect={(topic) => setSelectedTopic({ ...topic, subjectName: subject.subjectName })} 
+                                        isLocked={isSubjectLocked}
+                                        isStarterLocked={isTopicLockedForFreePlan}
+                                        isInitiallyOpen={searchQuery.length > 0}
+                                    />
+                                );
+                            })
+                        ) : (
+                             <div className="text-center text-gray-400 py-16">
+                                <h3 className="text-lg font-semibold">No results found</h3>
+                                <p>Try adjusting your search query for '{searchQuery}'.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

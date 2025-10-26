@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import type { UserProfile, Message } from '../types';
@@ -28,11 +28,49 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     const [fileData, setFileData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const { attemptApiCall } = useApiLimiter(userProfile.plan);
 
     // This is the conversation ID for the general chat.
     const conversationId = 'general_chat';
+
+    const generateSuggestions = async (tutorMessage: string) => {
+        if (isGeneratingSuggestions) return;
+        setIsGeneratingSuggestions(true);
+        setSuggestions([]);
+        try {
+            const prompt = `Based on this tutor's last message: "${tutorMessage}", generate three distinct, extremely concise replies for a student. The student's level is "${userProfile.level}". The replies should be things a student would say to continue the conversation. Each reply MUST be a single short sentence, a phrase, or even a single word (e.g., "Why?", "Tell me more", "Okay"). Return a JSON object with a single key "suggestions" containing an array of these 3 short strings.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            suggestions: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                                description: "An array of three distinct, extremely concise suggested replies for the student (single sentence, phrase, or one word)."
+                            }
+                        },
+                        required: ['suggestions']
+                    }
+                }
+            });
+            const responseData = JSON.parse(response.text);
+            if (responseData.suggestions && Array.isArray(responseData.suggestions)) {
+                setSuggestions(responseData.suggestions.slice(0, 3));
+            }
+        } catch (error) {
+            console.error("Failed to generate suggestions:", error);
+        } finally {
+            setIsGeneratingSuggestions(false);
+        }
+    };
 
     useEffect(() => {
         const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', conversationId, 'messages');
@@ -58,6 +96,15 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
+    useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.sender === 'bot' && !isLoading && lastMessage.text.trim().endsWith('?')) {
+            generateSuggestions(lastMessage.text);
+        } else if (lastMessage?.sender === 'user' || isLoading) {
+            setSuggestions([]);
+        }
+    }, [messages, isLoading]);
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
@@ -68,13 +115,14 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         }
     };
     
-    const handleSend = async () => {
-        if (!input.trim() || isLoading) return;
+    const handleSend = async (messageText?: string) => {
+        const textToSend = messageText || input;
+        if (!textToSend.trim() || isLoading) return;
         
-        const userMessageText = file ? `${input}\n\n[Attached file: ${file.name}]` : input;
+        const userMessageText = file ? `${textToSend}\n\n[Attached file: ${file.name}]` : textToSend;
         const userMessage: Omit<Message, 'id'> = { text: userMessageText, sender: 'user', timestamp: Date.now() };
 
-        const tempInput = input;
+        const tempInput = textToSend;
         const tempFile = file;
         const tempFileData = fileData;
         
@@ -83,6 +131,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         setFileData(null);
         setIsLoading(true);
         setError(null);
+        setSuggestions([]);
 
         try {
             const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', conversationId, 'messages');
@@ -129,12 +178,12 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full w-full">
-            <div className="flex-1 overflow-y-auto pr-2 sm:pr-4 space-y-4 bg-black/20 p-4 sm:p-6 rounded-xl border border-white/10">
+        <div className="flex flex-col h-full w-full">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map((message) => (
                     <div key={message.id} className={`flex items-start gap-3 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                         {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 rounded-lg ${message.sender === 'user' ? 'bg-lime-600 text-white' : 'bg-white/10 text-gray-300'}`}>
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-900/70 text-white' : 'bg-white/5 text-gray-300'}`}>
                             {message.sender === 'user' ? (
                                 <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                             ) : (
@@ -161,7 +210,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 {isLoading && (
                     <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>
-                        <div className="max-w-lg p-3 rounded-lg bg-white/10 text-gray-300">
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white/5 text-gray-300">
                             <div className="flex items-center space-x-2">
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
@@ -173,7 +222,21 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="mt-6">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t border-white/10 bg-gray-900/30 backdrop-blur-lg">
+                {suggestions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3 justify-end">
+                      {suggestions.map((suggestion, index) => (
+                          <button
+                              key={index}
+                              onClick={() => handleSend(suggestion)}
+                              disabled={isLoading}
+                              className="px-3 py-1.5 text-sm bg-white/10 text-gray-300 rounded-full hover:bg-white/20 transition-colors disabled:opacity-50"
+                          >
+                              {suggestion}
+                          </button>
+                      ))}
+                  </div>
+                )}
                 {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
                 <div className="relative">
                     <textarea 
@@ -181,26 +244,29 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                         onChange={(e) => setInput(e.target.value)} 
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
                         placeholder="Ask anything..." 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-4 pr-28 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
-                        rows={1} 
+                        className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-12 pr-14 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
+                        rows={1}
+                        style={{ fieldSizing: 'content' }}
                         disabled={isLoading} 
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
                         <label className="cursor-pointer text-gray-400 hover:text-white transition-colors disabled:opacity-50">
                             <PaperclipIcon className="w-5 h-5" />
                             <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} />
                         </label>
-                        <button 
-                            onClick={handleSend} 
+                    </div>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                         <button 
+                            onClick={() => handleSend()} 
                             disabled={isLoading || !input.trim()} 
-                            className="bg-lime-600 rounded-md p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <SendIcon className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
                  {file && (
-                    <div className="text-xs text-gray-400 mt-2 flex items-center gap-2 bg-white/5 px-2 py-1 rounded-md">
+                    <div className="text-xs text-gray-400 mt-2 flex items-center gap-2 bg-black/30 px-2 py-1 rounded-md w-fit">
                         <FileIcon />
                         <span className="truncate">{file.name}</span>
                         <button onClick={() => { setFile(null); setFileData(null); }} className="text-red-400 hover:text-red-300 ml-auto">&times;</button>
