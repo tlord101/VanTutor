@@ -79,7 +79,7 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 const imagePart = { inlineData: { data: base64Data, mimeType: 'image/jpeg' } };
                 const textPart = { text: initialPrompt };
                 
-                const responseStream = await chat.sendMessageStream({ contents: { parts: [imagePart, textPart] } });
+                const responseStream = await chat.sendMessageStream([textPart, imagePart]);
 
                 let botResponseText = '';
                 const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };
@@ -87,7 +87,7 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
 
                 for await (const chunk of responseStream) {
                     botResponseText += chunk.text;
-                    setMessages([{ ...botMessage, text: botResponseText }]);
+                    setMessages(prev => prev.map(m => m.id === botMessage.id ? { ...m, text: botResponseText } : m));
                 }
             });
 
@@ -117,7 +117,7 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
         
         try {
             const result = await attemptApiCall(async () => {
-                const responseStream = await chatSessionRef.current!.sendMessageStream({ message: textToSend });
+                const responseStream = await chatSessionRef.current!.sendMessageStream(textToSend);
                 
                 let botResponseText = '';
                 const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };
@@ -202,17 +202,26 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
 
 // --- MAIN VISUAL SOLVER COMPONENT ---
 type CameraState = 'initializing' | 'denied' | 'error' | 'ready' | 'scanning' | 'preview' | 'analyzing' | 'showingAnswer' | 'showingTutorial';
+interface CropBox {
+    x: number; y: number; width: number; height: number;
+}
+const MIN_CROP_SIZE = 0.2; // 20%
 
 export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
     const [cameraState, setCameraState] = useState<CameraState>('initializing');
     const [scannedImage, setScannedImage] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<string>('');
     const [error, setError] = useState<string>('');
+    const [cropBox, setCropBox] = useState<CropBox>({ x: 0.05, y: 0.125, width: 0.9, height: 0.75 });
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const guideFrameRef = useRef<HTMLDivElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const interactionRef = useRef<{
+        startX: number; startY: number; initialCropBox: CropBox; videoRect: DOMRect;
+        type: 'drag' | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'resize-t' | 'resize-b' | 'resize-l' | 'resize-r';
+    } | null>(null);
+
 
     const { attemptApiCall } = useApiLimiter(userProfile.plan);
 
@@ -225,6 +234,73 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             videoRef.current.srcObject = null;
         }
     }, []);
+
+    const handleInteractionEnd = useCallback(() => {
+        interactionRef.current = null;
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('touchmove', handleMove);
+        window.removeEventListener('mouseup', handleInteractionEnd);
+        window.removeEventListener('touchend', handleInteractionEnd);
+    }, []);
+
+    const handleMove = useCallback((e: MouseEvent | TouchEvent) => {
+        if (!interactionRef.current) return;
+        if (e.cancelable) e.preventDefault();
+
+        const { startX, startY, initialCropBox, videoRect, type } = interactionRef.current;
+        const currentX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const currentY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const dx = (currentX - startX) / videoRect.width;
+        const dy = (currentY - startY) / videoRect.height;
+
+        let { x, y, width, height } = initialCropBox;
+
+        if (type === 'drag') {
+            x += dx; y += dy;
+        } else {
+            if (type.includes('l')) { x += dx; width -= dx; }
+            if (type.includes('r')) { width += dx; }
+            if (type.includes('t')) { y += dy; height -= dy; }
+            if (type.includes('b')) { height += dy; }
+        }
+        
+        if (width < 0) { x += width; width = Math.abs(width); }
+        if (height < 0) { y += height; height = Math.abs(height); }
+
+        width = Math.max(MIN_CROP_SIZE, width);
+        height = Math.max(MIN_CROP_SIZE, height);
+
+        x = Math.max(0, Math.min(x, 1 - width));
+        y = Math.max(0, Math.min(y, 1 - height));
+        
+        if (x + width > 1) width = 1 - x;
+        if (y + height > 1) height = 1 - y;
+
+        setCropBox({ x, y, width, height });
+    }, []);
+
+    const handleInteractionStart = useCallback((
+        e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+        type: NonNullable<typeof interactionRef.current>['type']
+    ) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const video = videoRef.current;
+        if (!video) return;
+
+        interactionRef.current = {
+            startX: 'touches' in e ? e.touches[0].clientX : e.clientX,
+            startY: 'touches' in e ? e.touches[0].clientY : e.clientY,
+            initialCropBox: cropBox,
+            videoRect: video.getBoundingClientRect(),
+            type,
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('mouseup', handleInteractionEnd);
+        window.addEventListener('touchend', handleInteractionEnd);
+    }, [cropBox, handleMove, handleInteractionEnd]);
 
     const initializeCamera = useCallback(async () => {
         cleanupCamera();
@@ -263,9 +339,8 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     const handleScan = useCallback(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const guideFrame = guideFrameRef.current;
 
-        if (!video || !canvas || !guideFrame || video.readyState < 2) {
+        if (!video || !canvas || video.readyState < 2) {
              setError('Camera not ready. Please wait a moment.');
              setCameraState('error');
              return;
@@ -277,15 +352,10 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const videoHeight = video.videoHeight;
         const videoElWidth = video.offsetWidth;
         const videoElHeight = video.offsetHeight;
-
         const videoAspectRatio = videoWidth / videoHeight;
         const videoElAspectRatio = videoElWidth / videoElHeight;
 
-        let sWidth = videoWidth;
-        let sHeight = videoHeight;
-        let sX = 0;
-        let sY = 0;
-
+        let sWidth = videoWidth, sHeight = videoHeight, sX = 0, sY = 0;
         if (videoAspectRatio > videoElAspectRatio) {
             sWidth = videoHeight * videoElAspectRatio;
             sX = (videoWidth - sWidth) / 2;
@@ -294,38 +364,26 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             sY = (videoHeight - sHeight) / 2;
         }
 
-        const guideRect = guideFrame.getBoundingClientRect();
-        const videoRect = video.getBoundingClientRect();
-
-        const relativeX = (guideRect.left - videoRect.left) / videoElWidth;
-        const relativeY = (guideRect.top - videoRect.top) / videoElHeight;
-        const relativeWidth = guideRect.width / videoElWidth;
-        const relativeHeight = guideRect.height / videoElHeight;
-
-        const cropX = sX + relativeX * sWidth;
-        const cropY = sY + relativeY * sHeight;
-        const cropWidth = relativeWidth * sWidth;
-        const cropHeight = relativeHeight * sHeight;
+        const { x: relX, y: relY, width: relW, height: relH } = cropBox;
+        const cropX = sX + relX * sWidth;
+        const cropY = sY + relY * sHeight;
+        const cropWidth = relW * sWidth;
+        const cropHeight = relH * sHeight;
 
         canvas.width = cropWidth;
         canvas.height = cropHeight;
-
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             setError('Could not process image.');
             setCameraState('error');
             return;
         }
-
         ctx.filter = 'contrast(1.5) brightness(1.1) grayscale(0.2)';
         ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setScannedImage(imageDataUrl);
-
         setTimeout(() => setCameraState('preview'), 500);
-
-    }, []);
+    }, [cropBox]);
 
     const handleAnalyze = useCallback(async (mode: 'answer' | 'tutorial') => {
         if (!scannedImage) return;
@@ -384,17 +442,43 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             
             case 'ready':
             case 'scanning':
+                const resizeHandles = [
+                    { type: 'resize-tl', cursor: 'cursor-nwse-resize', pos: 'top-[-8px] left-[-8px] w-4 h-4' },
+                    { type: 'resize-tr', cursor: 'cursor-nesw-resize', pos: 'top-[-8px] right-[-8px] w-4 h-4' },
+                    { type: 'resize-bl', cursor: 'cursor-nesw-resize', pos: 'bottom-[-8px] left-[-8px] w-4 h-4' },
+                    { type: 'resize-br', cursor: 'cursor-nwse-resize', pos: 'bottom-[-8px] right-[-8px] w-4 h-4' },
+                    { type: 'resize-t', cursor: 'cursor-ns-resize', pos: 'top-[-5px] left-1/2 -translate-x-1/2 w-10 h-2.5' },
+                    { type: 'resize-b', cursor: 'cursor-ns-resize', pos: 'bottom-[-5px] left-1/2 -translate-x-1/2 w-10 h-2.5' },
+                    { type: 'resize-l', cursor: 'cursor-ew-resize', pos: 'left-[-5px] top-1/2 -translate-y-1/2 h-10 w-2.5' },
+                    { type: 'resize-r', cursor: 'cursor-ew-resize', pos: 'right-[-5px] top-1/2 -translate-y-1/2 h-10 w-2.5' },
+                ] as const;
                 return (
-                    <div className="relative w-full h-full flex flex-col items-center justify-center">
-                        <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-cover absolute top-0 left-0"></video>
-                        <div className="absolute inset-0 bg-black/40"></div>
-                        
-                        <div ref={guideFrameRef} className={`relative w-[90%] max-w-md aspect-[4/3] border-4 border-dashed border-white/50 rounded-lg transition-all duration-300 ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : ''}`}>
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-white bg-black/50 px-2 py-1 text-xs rounded">
-                                Position the problem inside the frame
-                            </div>
+                    <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
+                        <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-cover"></video>
+                        <div 
+                            style={{ 
+                                left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`,
+                                width: `${cropBox.width * 100}%`, height: `${cropBox.height * 100}%`
+                            }}
+                            className={`absolute border-4 border-dashed rounded-lg cursor-move transition-colors duration-300 
+                                ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/50'}`}
+                            onMouseDown={(e) => handleInteractionStart(e, 'drag')}
+                            onTouchStart={(e) => handleInteractionStart(e, 'drag')}
+                        >
+                             <div className="absolute inset-0" style={{ boxShadow: '0 0 0 2000px rgba(0,0,0,0.5)' }}></div>
+                            {resizeHandles.map(handle => (
+                                <div key={handle.type} 
+                                    className={`absolute ${handle.pos} ${handle.cursor} z-10`}
+                                    onMouseDown={(e) => handleInteractionStart(e, handle.type)}
+                                    onTouchStart={(e) => handleInteractionStart(e, handle.type)}
+                                >
+                                    <div className="w-full h-full bg-lime-400/80 rounded-full border-2 border-white/50"></div>
+                                </div>
+                            ))}
                         </div>
-
+                        <div className="absolute top-4 text-white bg-black/50 px-3 py-1 text-sm rounded-full pointer-events-none">
+                            Drag and resize to frame the problem
+                        </div>
                         <div className="absolute bottom-8 flex justify-center w-full">
                             <button onClick={handleScan} aria-label="Scan problem" className="p-2 bg-black/20 rounded-full transition-transform active:scale-95">
                                 <ShutterIcon />
