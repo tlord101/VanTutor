@@ -26,7 +26,6 @@ type CameraState = 'initializing' | 'denied' | 'error' | 'ready' | 'scanning' | 
 
 export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
     const [cameraState, setCameraState] = useState<CameraState>('initializing');
-    const [stream, setStream] = useState<MediaStream | null>(null);
     const [scannedImage, setScannedImage] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<string>('');
     const [error, setError] = useState<string>('');
@@ -34,32 +33,33 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const guideFrameRef = useRef<HTMLDivElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
     const { attemptApiCall } = useApiLimiter(userProfile.plan);
 
     const cleanupCamera = useCallback(() => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
         }
-    }, [stream]);
+        if(videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    }, []);
 
     const initializeCamera = useCallback(async () => {
-        // Ensure any existing camera stream is stopped before starting a new one.
         cleanupCamera();
         setCameraState('initializing');
         setError('');
 
         try {
-            // Request video stream from the rear camera ('environment').
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' }
             });
-            setStream(mediaStream);
+            streamRef.current = mediaStream;
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
             }
-            setCameraState('ready');
         } catch (err) {
             console.error("Error accessing camera:", err);
             if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
@@ -72,16 +72,11 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         }
     }, [cleanupCamera]);
 
-    // Effect to initialize the camera on component mount and clean up on unmount.
     useEffect(() => {
         initializeCamera();
         return cleanupCamera;
-    }, [initializeCamera]);
+    }, [initializeCamera, cleanupCamera]);
 
-    /**
-     * Captures the current video frame, crops it to the guide frame area,
-     * applies readability enhancements, and prepares it for analysis.
-     */
     const handleScan = useCallback(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -100,9 +95,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const videoElWidth = video.offsetWidth;
         const videoElHeight = video.offsetHeight;
 
-        // --- Crop Calculation for `object-fit: cover` ---
-        // This math ensures we crop the correct part of the original video stream,
-        // even if the browser has scaled and cropped the video to fit its container.
         const videoAspectRatio = videoWidth / videoHeight;
         const videoElAspectRatio = videoElWidth / videoElHeight;
 
@@ -111,10 +103,10 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         let sX = 0;
         let sY = 0;
 
-        if (videoAspectRatio > videoElAspectRatio) { // Video is wider than the element (cropped left/right)
+        if (videoAspectRatio > videoElAspectRatio) {
             sWidth = videoHeight * videoElAspectRatio;
             sX = (videoWidth - sWidth) / 2;
-        } else { // Video is taller than the element (cropped top/bottom)
+        } else {
             sHeight = videoWidth / videoElAspectRatio;
             sY = (videoHeight - sHeight) / 2;
         }
@@ -127,7 +119,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const relativeWidth = guideRect.width / videoElWidth;
         const relativeHeight = guideRect.height / videoElHeight;
 
-        // Calculate the crop dimensions relative to the source video stream
         const cropX = sX + relativeX * sWidth;
         const cropY = sY + relativeY * sHeight;
         const cropWidth = relativeWidth * sWidth;
@@ -143,14 +134,12 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             return;
         }
 
-        // Apply enhancement filters for better readability
         ctx.filter = 'contrast(1.5) brightness(1.1) grayscale(0.2)';
         ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setScannedImage(imageDataUrl);
 
-        // A brief delay to make the "scanning" animation feel intentional
         setTimeout(() => setCameraState('preview'), 500);
 
     }, []);
@@ -181,7 +170,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             setCameraState('result');
         } else {
             setError(result.message || "Failed to analyze the image. Please try again.");
-            setCameraState('preview'); // Go back to preview on failure
+            setCameraState('preview');
         }
     }, [scannedImage, attemptApiCall, userProfile.level]);
 
@@ -189,18 +178,17 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         setScannedImage(null);
         setAnalysisResult('');
         setError('');
-        setCameraState('ready');
+        initializeCamera();
     };
 
-    /**
-     * Renders the main content area based on the current camera state.
-     */
     const renderContent = () => {
         switch (cameraState) {
             case 'initializing':
                 return <div className="flex flex-col items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div><p className="mt-4 text-gray-300">Starting camera...</p></div>;
 
             case 'denied':
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-yellow-400 mb-4" /><h3 className="text-xl font-semibold">Camera Access Denied</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
+
             case 'error':
                 return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-400 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
 
@@ -208,9 +196,15 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             case 'scanning':
                 return (
                     <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                        <video 
+                            ref={videoRef} 
+                            autoPlay 
+                            playsInline 
+                            muted 
+                            onCanPlay={() => setCameraState('ready')}
+                            className="w-full h-full object-cover" 
+                        />
                         <div className="absolute inset-0 bg-black/30"></div>
-                        {/* This is a UI guide for the user. The scanned image will be cropped to this area. */}
                         <div ref={guideFrameRef} className={`absolute w-[90%] h-[70%] max-w-3xl max-h-[50vh] border-4 border-dashed border-white/50 rounded-2xl transition-all duration-300 pointer-events-none ${cameraState === 'scanning' ? 'border-solid border-lime-400 scale-105 animate-[scan-pulse_1.5s_ease-in-out_infinite]' : ''}`}>
                             <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
                             <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
@@ -248,9 +242,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         }
     };
     
-    /**
-     * Renders the control buttons at the bottom based on the current camera state.
-     */
     const renderControls = () => {
          switch (cameraState) {
             case 'ready':
@@ -276,7 +267,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         }
     };
 
-
     return (
         <div className="flex-1 flex flex-col h-full w-full">
             <div className="flex-1 bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg rounded-xl border border-white/10 flex flex-col overflow-hidden">
@@ -287,7 +277,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                     {renderControls()}
                 </div>
             </div>
-            {/* The canvas is used for processing but not displayed directly */}
             <canvas ref={canvasRef} className="hidden"></canvas>
         </div>
     );
