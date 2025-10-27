@@ -19,6 +19,7 @@ import { Settings } from './components/Settings';
 import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
 import { Subscription } from './components/Subscription';
+import { VisualSolver } from './components/VisualSolver';
 
 declare var __app_id: string;
 
@@ -399,6 +400,8 @@ function App() {
         return <StudyGuide userProfile={userProfile} onStudyXPEarned={handleStudyXPEarned} />;
       case 'chat':
         return <Chat userProfile={userProfile} />;
+      case 'visual_solver':
+        return <VisualSolver userProfile={userProfile} />;
       case 'exam':
         return <Exam userProfile={userProfile} onXPEarned={handleXPEarned} userProgress={userProgress} />;
       case 'leaderboard':

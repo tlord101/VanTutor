@@ -6,6 +6,7 @@ import { ChatIcon } from './components/icons/ChatIcon';
 import { ExamIcon } from './components/icons/ExamIcon';
 import { LeaderboardIcon } from './components/icons/LeaderboardIcon';
 import { PremiumIcon } from './components/icons/PremiumIcon';
+import { CameraIcon } from './components/icons/CameraIcon';
 
 // Define SVG icons for secondary navigation
 const SettingsIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
@@ -36,6 +37,7 @@ export const navigationItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: React.createElement(DashboardIcon) },
   { id: 'study_guide', label: 'Study Guide', icon: React.createElement(StudyGuideIcon) },
   { id: 'chat', label: 'Chat', icon: React.createElement(ChatIcon) },
+  { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
   { id: 'exam', label: 'Exam', icon: React.createElement(ExamIcon) },
   { id: 'leaderboard', label: 'Leaderboard', icon: React.createElement(LeaderboardIcon) },
   { id: 'subscription', label: 'Subscription', icon: React.createElement(PremiumIcon) },
