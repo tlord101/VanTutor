@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import type { UserProfile } from '../types';
@@ -7,24 +6,52 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { CameraIcon } from './icons/CameraIcon';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-type VisualSolverState = 'initializing' | 'ready' | 'analyzing' | 'result' | 'error';
+// --- INLINE ICONS ---
+const ShutterIcon: React.FC<{ className?: string }> = ({ className = 'w-16 h-16' }) => (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <circle cx="32" cy="32" r="30" fill="white" fillOpacity="0.2" />
+        <circle cx="32" cy="32" r="26" stroke="white" strokeWidth="4" />
+    </svg>
+);
+const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+     </svg>
+);
+
+type CameraState = 'initializing' | 'denied' | 'error' | 'ready' | 'scanning' | 'preview' | 'analyzing' | 'result';
 
 export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
-    const [currentState, setCurrentState] = useState<VisualSolverState>('initializing');
+    const [cameraState, setCameraState] = useState<CameraState>('initializing');
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const [scannedImage, setScannedImage] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<string>('');
     const [error, setError] = useState<string>('');
+    
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const guideFrameRef = useRef<HTMLDivElement>(null);
+
     const { attemptApiCall } = useApiLimiter(userProfile.plan);
 
-    const startCamera = useCallback(async () => {
+    const cleanupCamera = useCallback(() => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+    }, [stream]);
+
+    const initializeCamera = useCallback(async () => {
+        // Ensure any existing camera stream is stopped before starting a new one.
+        cleanupCamera();
+        setCameraState('initializing');
+        setError('');
+
         try {
+            // Request video stream from the rear camera ('environment').
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' }
             });
@@ -32,212 +59,235 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
             }
-            setCurrentState('ready');
-            setError('');
+            setCameraState('ready');
         } catch (err) {
             console.error("Error accessing camera:", err);
-            setError("Camera access was denied or is not available. Please check your browser permissions.");
-            setCurrentState('error');
-        }
-    }, []);
-
-    useEffect(() => {
-        startCamera();
-        return () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+            if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+                setError("Camera permission denied. Please enable camera access in your browser settings to use this feature.");
+                setCameraState('denied');
+            } else {
+                setError("Could not access camera. It might be in use by another application or not available on this device.");
+                setCameraState('error');
             }
-        };
-    }, [startCamera]);
+        }
+    }, [cleanupCamera]);
 
-    const handleAnalyze = async () => {
-        if (!videoRef.current || !canvasRef.current) return;
+    // Effect to initialize the camera on component mount and clean up on unmount.
+    useEffect(() => {
+        initializeCamera();
+        return cleanupCamera;
+    }, [initializeCamera]);
 
-        setCurrentState('analyzing');
-        
+    /**
+     * Captures the current video frame, crops it to the guide frame area,
+     * applies readability enhancements, and prepares it for analysis.
+     */
+    const handleScan = useCallback(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        if(!context) return;
+        const guideFrame = guideFrameRef.current;
 
-        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        const imageDataUrl = canvas.toDataURL('image/jpeg');
-        setCapturedImage(imageDataUrl);
+        if (!video || !canvas || !guideFrame || video.readyState < 2) {
+             setError('Camera not ready. Please wait a moment.');
+             setCameraState('error');
+             return;
+        }
 
-        // Promise for a minimum 5-second delay for the animation
-        const minDelayPromise = new Promise(resolve => setTimeout(resolve, 5000));
+        setCameraState('scanning');
+        
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        const videoElWidth = video.offsetWidth;
+        const videoElHeight = video.offsetHeight;
 
-        let apiSuccess = false;
-        let apiErrorMessage = '';
+        // --- Crop Calculation for `object-fit: cover` ---
+        // This math ensures we crop the correct part of the original video stream,
+        // even if the browser has scaled and cropped the video to fit its container.
+        const videoAspectRatio = videoWidth / videoHeight;
+        const videoElAspectRatio = videoElWidth / videoElHeight;
 
+        let sWidth = videoWidth;
+        let sHeight = videoHeight;
+        let sX = 0;
+        let sY = 0;
+
+        if (videoAspectRatio > videoElAspectRatio) { // Video is wider than the element (cropped left/right)
+            sWidth = videoHeight * videoElAspectRatio;
+            sX = (videoWidth - sWidth) / 2;
+        } else { // Video is taller than the element (cropped top/bottom)
+            sHeight = videoWidth / videoElAspectRatio;
+            sY = (videoHeight - sHeight) / 2;
+        }
+
+        const guideRect = guideFrame.getBoundingClientRect();
+        const videoRect = video.getBoundingClientRect();
+
+        const relativeX = (guideRect.left - videoRect.left) / videoElWidth;
+        const relativeY = (guideRect.top - videoRect.top) / videoElHeight;
+        const relativeWidth = guideRect.width / videoElWidth;
+        const relativeHeight = guideRect.height / videoElHeight;
+
+        // Calculate the crop dimensions relative to the source video stream
+        const cropX = sX + relativeX * sWidth;
+        const cropY = sY + relativeY * sHeight;
+        const cropWidth = relativeWidth * sWidth;
+        const cropHeight = relativeHeight * sHeight;
+
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            setError('Could not process image.');
+            setCameraState('error');
+            return;
+        }
+
+        // Apply enhancement filters for better readability
+        ctx.filter = 'contrast(1.5) brightness(1.1) grayscale(0.2)';
+        ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        setScannedImage(imageDataUrl);
+
+        // A brief delay to make the "scanning" animation feel intentional
+        setTimeout(() => setCameraState('preview'), 500);
+
+    }, []);
+
+    const handleAnalyze = useCallback(async () => {
+        if (!scannedImage) return;
+
+        setCameraState('analyzing');
+        
         const apiCallPromise = attemptApiCall(async () => {
-            const base64Data = imageDataUrl.split(',')[1];
-            if (!base64Data) {
-                throw new Error("Could not extract image data.");
-            }
-            const imagePart = {
-                inlineData: { data: base64Data, mimeType: 'image/jpeg' },
-            };
-            const textPart = {
-                text: "You are VANTUTOR, an expert AI educator. Analyze this image and provide a detailed explanation. If it's a problem, solve it step-by-step with clear reasoning. If it's a diagram, explain its components and function. Keep the tone helpful and educational for a student at this level: " + userProfile.level
-            };
+            const base64Data = scannedImage.split(',')[1];
+            if (!base64Data) throw new Error("Could not extract image data.");
             
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: { parts: [imagePart, textPart] },
+                contents: { parts: [
+                    { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                    { text: `You are VANTUTOR, an expert AI educator. Analyze this image of a problem and provide a detailed, step-by-step solution. Explain the reasoning clearly for a student at this level: ${userProfile.level}. If it is not a solvable problem, describe what you see in an educational context. Format your response using Markdown, including LaTeX for any mathematical equations.` }
+                ]},
             });
 
             setAnalysisResult(response.text);
-        }).then(result => {
-            apiSuccess = result.success;
-            if (!result.success) {
-                apiErrorMessage = result.message;
-            }
         });
 
-        // Wait for both the minimum delay and the API call to complete
-        await Promise.all([minDelayPromise, apiCallPromise]);
+        const result = await apiCallPromise;
         
-        if (apiSuccess) {
-            setCurrentState('result');
+        if (result.success) {
+            setCameraState('result');
         } else {
-            setError(apiErrorMessage || "Failed to analyze the image. Please try again.");
-            setCurrentState('error');
+            setError(result.message || "Failed to analyze the image. Please try again.");
+            setCameraState('preview'); // Go back to preview on failure
         }
-    };
+    }, [scannedImage, attemptApiCall, userProfile.level]);
 
-    const handleReset = () => {
-        setCapturedImage(null);
+    const handleRetake = () => {
+        setScannedImage(null);
         setAnalysisResult('');
         setError('');
-        setCurrentState('ready');
+        setCameraState('ready');
     };
 
-    const renderCameraView = () => (
-        <div className="absolute inset-0 flex items-center justify-center">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/30"></div>
-            <div className="absolute inset-8 border-4 border-dashed border-white/50 rounded-2xl flex flex-col items-center justify-center p-4">
-                 <p className="text-white font-bold text-lg text-center drop-shadow-lg">Position the problem inside the frame</p>
-                 <p className="text-white/80 text-sm text-center drop-shadow-md mt-1">Ensure good lighting for the best results.</p>
-            </div>
-        </div>
-    );
-    
-    const renderAnalysisView = () => (
-        <div className="absolute inset-0 flex items-center justify-center">
-            <img src={capturedImage || ''} alt="Captured problem" className="w-full h-full object-contain" />
-            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
-                 <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin mb-4"></div>
-                 <p className="text-lg font-semibold">Analyzing Image...</p>
-                 <p className="text-sm text-gray-300">The AI tutor is examining your query.</p>
-            </div>
-            <div className="scanner-animation absolute inset-0 overflow-hidden"></div>
-        </div>
-    );
-
-    const renderResultView = () => (
-        <div className="flex-1 flex flex-col lg:flex-row h-full">
-            <div className="w-full lg:w-1/2 bg-black/20 p-4 flex items-center justify-center">
-                <img src={capturedImage || ''} alt="Analyzed problem" className="max-w-full max-h-full object-contain rounded-lg" />
-            </div>
-            <div className="w-full lg:w-1/2 p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-lime-300 to-teal-400 text-transparent bg-clip-text">Analysis Result</h3>
-                <div className="prose prose-invert prose-sm text-gray-300">
-                    <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                            strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-                            ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
-                            ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                        }}
-                    >
-                        {analysisResult}
-                    </ReactMarkdown>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderMessageView = (icon: React.ReactNode, title: string, message: string) => (
-         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 text-white">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">{icon}</div>
-            <h3 className="text-xl font-semibold">{title}</h3>
-            <p className="text-gray-400 mt-2">{message}</p>
-        </div>
-    );
-
+    /**
+     * Renders the main content area based on the current camera state.
+     */
     const renderContent = () => {
-        switch (currentState) {
+        switch (cameraState) {
             case 'initializing':
-                return renderMessageView(<div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>, "Initializing Camera", "Please wait...");
-            case 'ready':
-                return renderCameraView();
-            case 'analyzing':
-                return renderAnalysisView();
-            case 'result':
-                return renderResultView();
+                return <div className="flex flex-col items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div><p className="mt-4 text-gray-300">Starting camera...</p></div>;
+
+            case 'denied':
             case 'error':
-                 return renderMessageView(
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-                    "An Error Occurred",
-                     error
-                 );
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-400 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
+
+            case 'ready':
+            case 'scanning':
+                return (
+                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30"></div>
+                        {/* This is a UI guide for the user. The scanned image will be cropped to this area. */}
+                        <div ref={guideFrameRef} className={`absolute w-[90%] h-[70%] max-w-3xl max-h-[50vh] border-4 border-dashed border-white/50 rounded-2xl transition-all duration-300 pointer-events-none ${cameraState === 'scanning' ? 'border-solid border-lime-400 scale-105 animate-[scan-pulse_1.5s_ease-in-out_infinite]' : ''}`}>
+                            <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
+                            <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
+                            <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-xl"></div>
+                            <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-xl"></div>
+                             <div className="absolute inset-0 flex items-center justify-center">
+                                <p className="text-white bg-black/50 px-3 py-1 rounded-md text-sm">Position document in frame</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'preview':
+            case 'analyzing':
+                return (
+                    <div className="w-full h-full flex items-center justify-center p-4 bg-black/50 relative">
+                        <img src={scannedImage || ''} alt="Scanned document" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+                        {cameraState === 'analyzing' && 
+                             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
+                                 <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin mb-4"></div>
+                                 <p className="text-lg font-semibold">Analyzing Image...</p>
+                                 <p className="text-sm text-gray-400">This may take a moment.</p>
+                             </div>
+                        }
+                    </div>
+                );
+
+            case 'result':
+                return (
+                    <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
+                        <div className="w-full lg:w-1/2 bg-black/20 p-4 flex items-center justify-center flex-shrink-0"><img src={scannedImage || ''} alt="Analyzed problem" className="max-w-full max-h-full object-contain rounded-lg" /></div>
+                        <div className="w-full lg:w-1/2 p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-lime-300 to-teal-400 text-transparent bg-clip-text">Step-by-Step Solution</h3><div className="prose prose-invert prose-sm text-gray-300 max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{analysisResult}</ReactMarkdown></div></div>
+                    </div>
+                );
+        }
+    };
+    
+    /**
+     * Renders the control buttons at the bottom based on the current camera state.
+     */
+    const renderControls = () => {
+         switch (cameraState) {
+            case 'ready':
+                return <button onClick={handleScan} aria-label="Scan Document" className="p-2 text-white rounded-full transition-transform active:scale-90 animate-[glow-pulse_2.5s_ease-in-out_infinite]"><ShutterIcon /></button>;
+            case 'scanning':
+                return <button disabled aria-label="Scanning" className="p-2 text-white rounded-full cursor-not-allowed"><ShutterIcon className="w-16 h-16 opacity-50" /></button>;
+            case 'preview':
+                return (
+                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+                        {error && <p className="text-red-400 text-sm order-first sm:order-none">{error}</p>}
+                        <div className="flex items-center gap-4">
+                             <button onClick={handleRetake} className="bg-white/10 text-white font-bold py-3 px-8 rounded-full hover:bg-white/20 transition-colors">Retake</button>
+                             <button onClick={handleAnalyze} className="bg-lime-600 text-white font-bold py-3 px-8 rounded-full hover:bg-lime-700 transition-colors flex items-center gap-2">Analyze</button>
+                        </div>
+                    </div>
+                );
+            case 'analyzing':
+                 return <button disabled className="bg-gray-500 text-white font-bold py-3 px-8 rounded-full cursor-not-allowed">Analyzing...</button>;
+            case 'result':
+                 return <button onClick={handleRetake} className="bg-white/10 text-white font-bold py-3 px-8 rounded-full hover:bg-white/20 transition-colors">Scan Another</button>;
             default:
                 return null;
         }
-    }
+    };
+
 
     return (
         <div className="flex-1 flex flex-col h-full w-full">
-            <style>{`
-                .scanner-animation::after {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 4px;
-                    background: linear-gradient(90deg, transparent, rgba(163, 230, 53, 0.7), transparent);
-                    box-shadow: 0 0 10px 2px rgba(163, 230, 53, 0.5);
-                    animation: scan 3s ease-in-out infinite;
-                    border-radius: 2px;
-                }
-
-                @keyframes scan {
-                    0% { top: 0; }
-                    50% { top: calc(100% - 4px); }
-                    100% { top: 0; }
-                }
-            `}</style>
-
             <div className="flex-1 bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg rounded-xl border border-white/10 flex flex-col overflow-hidden">
                 <div className="flex-1 relative">
                     {renderContent()}
                 </div>
-                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20 flex items-center justify-center">
-                    {currentState === 'ready' && (
-                        <button onClick={handleAnalyze} className="bg-lime-600 text-white font-bold py-3 px-6 rounded-full hover:bg-lime-700 transition-colors flex items-center gap-2">
-                            <CameraIcon className="w-5 h-5" />
-                            <span>Capture & Analyze</span>
-                        </button>
-                    )}
-                    {(currentState === 'result' || currentState === 'error') && (
-                         <button onClick={handleReset} className="bg-white/10 text-white font-bold py-3 px-6 rounded-full hover:bg-white/20 transition-colors">
-                            Scan Another
-                        </button>
-                    )}
-                     {currentState === 'analyzing' && (
-                         <button disabled className="bg-gray-500 text-white font-bold py-3 px-6 rounded-full cursor-not-allowed">
-                            Analyzing...
-                        </button>
-                    )}
+                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20 flex items-center justify-center h-24">
+                    {renderControls()}
                 </div>
             </div>
+            {/* The canvas is used for processing but not displayed directly */}
             <canvas ref={canvasRef} className="hidden"></canvas>
         </div>
     );
