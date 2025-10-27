@@ -9,6 +9,8 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { LockIcon } from './icons/LockIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 
 declare var __app_id: string;
@@ -90,7 +92,7 @@ Your Method:
 4. After explaining a small concept, you MUST end your message with a simple question to check for understanding before proceeding. This is crucial.
 5. NEVER deliver long lectures. Keep it interactive and conversational.
 
-Use simple language, analogies, and Markdown for clarity. Be patient and encouraging.`;
+Use simple language, analogies, and Markdown for clarity. For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block). Be patient and encouraging.`;
 
     // FIX: Moved all component logic (functions, useEffects) inside the component scope.
     const generateSuggestions = async (tutorMessage: string) => {
@@ -300,7 +302,8 @@ Student: "${tempInput}"
                             ) : (
                                 <div className="text-sm">
                                     <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
+                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                        rehypePlugins={[rehypeKatex]}
                                         components={{
                                             p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                                             strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,

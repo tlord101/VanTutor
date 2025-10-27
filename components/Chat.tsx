@@ -7,6 +7,8 @@ import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -140,7 +142,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
             const result = await attemptApiCall(async () => {
                 const history = messages.map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n');
                 
-                const systemInstruction = `You are VANTUTOR, a friendly and knowledgeable AI tutor. Your primary goal is to be conversational and interactive. Keep your responses VERY short and break down information into small, digestible chunks. NEVER provide long explanations. Always end your message with a question to check for understanding or to encourage the student to ask the next question. Use Markdown for formatting (lists, bold, etc.) to keep the text engaging and clear.`;
+                const systemInstruction = `You are VANTUTOR, a friendly and knowledgeable AI tutor. Your primary goal is to be conversational and interactive. Keep your responses VERY short and break down information into small, digestible chunks. NEVER provide long explanations. Always end your message with a question to check for understanding or to encourage the student to ask the next question. Use Markdown for formatting (lists, bold, etc.). For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block) to keep the text engaging and clear.`;
                 const prompt = `
     Conversation History:
     ${history}
@@ -189,7 +191,8 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                             ) : (
                                 <div className="text-sm">
                                     <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
+                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                        rehypePlugins={[rehypeKatex]}
                                         components={{
                                             p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                                             strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
