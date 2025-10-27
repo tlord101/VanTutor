@@ -54,12 +54,10 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
 
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
+                video: { facingMode: { ideal: "environment" } }
             });
             streamRef.current = mediaStream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
+            setCameraState('ready');
         } catch (err) {
             console.error("Error accessing camera:", err);
             if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
@@ -71,6 +69,12 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             }
         }
     }, [cleanupCamera]);
+    
+    useEffect(() => {
+        if (cameraState === 'ready' && videoRef.current && streamRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+        }
+    }, [cameraState]);
 
     useEffect(() => {
         initializeCamera();
@@ -200,8 +204,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                             ref={videoRef} 
                             autoPlay 
                             playsInline 
-                            muted 
-                            onCanPlay={() => setCameraState('ready')}
+                            muted
                             className="w-full h-full object-cover" 
                         />
                         <div className="absolute inset-0 bg-black/30"></div>
