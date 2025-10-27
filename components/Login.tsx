@@ -44,7 +44,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
     } catch (err: any) {
       let errorMessage = 'An unexpected error occurred. Please try again.';
       if (err.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid email or password. Please try again.';
+        errorMessage = 'Incorrect email or password. Please try again.';
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = 'Please enter a valid email address.';
       }

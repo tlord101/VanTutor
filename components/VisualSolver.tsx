@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
-import type { UserProfile } from '../types';
+import { GoogleGenAI, Chat } from '@google/genai';
+import type { UserProfile, Message } from '../types';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { SendIcon } from './icons/SendIcon';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -21,8 +22,186 @@ const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) 
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
      </svg>
 );
+const ArrowUturnLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+    </svg>
+);
+const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
+);
 
-type CameraState = 'initializing' | 'denied' | 'error' | 'ready' | 'scanning' | 'preview' | 'analyzing' | 'result';
+// --- TUTORIAL INTERFACE COMPONENT ---
+interface TutorialInterfaceProps {
+    userProfile: UserProfile;
+    scannedImage: string;
+    onClose: () => void;
+}
+
+const TutorialInterface: React.FC<TutorialInterfaceProps> = ({ userProfile, scannedImage, onClose }) => {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const chatSessionRef = useRef<Chat | null>(null);
+    const messagesEndRef = useRef<null | HTMLDivElement>(null);
+    const { attemptApiCall } = useApiLimiter(userProfile.plan);
+
+    const systemInstruction = `You are VANTUTOR, an expert AI educator. Your primary goal is to provide a comprehensive and complete understanding of the problem presented in the user's image.
+
+Your Method:
+1.  You have been given an image of a problem. Your task is to teach the user how to solve it.
+2.  Begin by giving a simple, clear introduction to the problem.
+3.  Break the solution into very small, bite-sized chunks. Each message you send must be short and focus on a single, simple idea.
+4.  After explaining a small concept, you MUST end your message with a simple question to check for understanding before proceeding. This is crucial.
+5.  NEVER deliver long lectures. Keep it interactive and conversational.
+
+Use simple language, analogies, and Markdown for clarity. For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block). Be patient and encouraging.`;
+
+    useEffect(() => {
+        const initializeChat = async () => {
+            setError(null);
+            setIsLoading(true);
+
+            const result = await attemptApiCall(async () => {
+                const chat = ai.chats.create({
+                    model: 'gemini-2.5-flash',
+                    config: { systemInstruction }
+                });
+                chatSessionRef.current = chat;
+                
+                const base64Data = scannedImage.split(',')[1];
+                if (!base64Data) throw new Error("Could not extract image data.");
+
+                const initialPrompt = "Please start teaching me how to solve the problem in this image. Give me a simple and clear introduction to the topic shown.";
+                const imagePart = { inlineData: { data: base64Data, mimeType: 'image/jpeg' } };
+                const textPart = { text: initialPrompt };
+                
+                const responseStream = await chat.sendMessageStream({ contents: { parts: [imagePart, textPart] } });
+
+                let botResponseText = '';
+                const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };
+                setMessages([botMessage]);
+
+                for await (const chunk of responseStream) {
+                    botResponseText += chunk.text;
+                    setMessages([{ ...botMessage, text: botResponseText }]);
+                }
+            });
+
+            if (!result.success) {
+                setError(result.message || 'Sorry, I had trouble starting the lesson. Please try again.');
+            }
+            setIsLoading(false);
+        };
+
+        initializeChat();
+    }, []);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isLoading]);
+
+    const handleSend = async () => {
+        if (!input.trim() || isLoading || !chatSessionRef.current) return;
+        
+        const textToSend = input;
+        const userMessage: Message = { id: `user-${Date.now()}`, text: textToSend, sender: 'user', timestamp: Date.now() };
+        setMessages(prev => [...prev, userMessage]);
+        
+        setInput('');
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+            const result = await attemptApiCall(async () => {
+                const responseStream = await chatSessionRef.current!.sendMessageStream({ message: textToSend });
+                
+                let botResponseText = '';
+                const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };
+                setMessages(prev => [...prev, botMessage]);
+
+                for await (const chunk of responseStream) {
+                    botResponseText += chunk.text;
+                    setMessages(prev => prev.map(m => m.id === botMessage.id ? { ...m, text: botResponseText } : m));
+                }
+            });
+            if (!result.success) {
+                setError(result.message);
+            }
+        } catch (err) {
+            console.error('Error in chat:', err);
+            setError('Sorry, something went wrong. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+     return (
+        <div className="flex flex-col h-full w-full bg-black/20 md:rounded-xl border border-white/10 overflow-hidden">
+            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg border-b border-white/10 z-10">
+                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <h2 className="text-lg font-bold text-white truncate mx-4 flex-1 text-center">Interactive Tutorial</h2>
+                <div className="w-8 h-8"></div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {messages.map((message) => (
+                    <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
+                        {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-900/70 text-white' : 'bg-white/5 text-gray-300'}`}>
+                             <div className="text-sm">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                    components={{
+                                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                                        li: ({node, ...props}) => <li className="text-gray-300" {...props} />,
+                                    }}
+                                >
+                                    {message.text}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+                {isLoading && !messages.some(m => m.sender === 'bot' && m.text) && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white/5 text-gray-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
+                <div ref={messagesEndRef} />
+            </div>
+            
+            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-white/10 bg-gray-900/30 backdrop-blur-lg">
+                {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
+                <div className="relative flex items-center">
+                    <textarea 
+                        value={input} 
+                        onChange={(e) => setInput(e.target.value)} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
+                        placeholder="Ask a question or reply..." 
+                        className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-6 pr-14 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
+                        rows={1}
+                        style={{ fieldSizing: 'content' }}
+                        disabled={isLoading} 
+                    />
+                    <button 
+                        onClick={() => handleSend()} 
+                        disabled={isLoading || !input.trim()} 
+                        className="absolute right-3 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <SendIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+
+// --- MAIN VISUAL SOLVER COMPONENT ---
+type CameraState = 'initializing' | 'denied' | 'error' | 'ready' | 'scanning' | 'preview' | 'analyzing' | 'showingAnswer' | 'showingTutorial';
 
 export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
     const [cameraState, setCameraState] = useState<CameraState>('initializing');
@@ -148,8 +327,13 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
 
     }, []);
 
-    const handleAnalyze = useCallback(async () => {
+    const handleAnalyze = useCallback(async (mode: 'answer' | 'tutorial') => {
         if (!scannedImage) return;
+
+        if (mode === 'tutorial') {
+            setCameraState('showingTutorial');
+            return;
+        }
 
         setCameraState('analyzing');
         
@@ -157,11 +341,13 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             const base64Data = scannedImage.split(',')[1];
             if (!base64Data) throw new Error("Could not extract image data.");
             
+            const promptText = `You are VANTUTOR, an expert AI educator. Provide a direct and concise answer to the problem in this image. Do not show your work or provide a step-by-step explanation. Only give the final answer. Format the response using Markdown and LaTeX for any mathematical equations.`;
+
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: { parts: [
                     { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
-                    { text: `You are VANTUTOR, an expert AI educator. Analyze this image of a problem and provide a detailed, step-by-step solution. Explain the reasoning clearly for a student at this level: ${userProfile.level}. If it is not a solvable problem, describe what you see in an educational context. Format your response using Markdown, including LaTeX for any mathematical equations.` }
+                    { text: promptText }
                 ]},
             });
 
@@ -171,7 +357,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const result = await apiCallPromise;
         
         if (result.success) {
-            setCameraState('result');
+            setCameraState('showingAnswer');
         } else {
             setError(result.message || "Failed to analyze the image. Please try again.");
             setCameraState('preview');
@@ -195,92 +381,108 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
 
             case 'error':
                 return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-400 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
-
+            
             case 'ready':
             case 'scanning':
                 return (
-                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                        <video 
-                            ref={videoRef} 
-                            autoPlay 
-                            playsInline 
-                            muted
-                            className="w-full h-full object-cover" 
-                        />
-                        <div className="absolute inset-0 bg-black/30"></div>
-                        <div ref={guideFrameRef} className={`absolute w-[90%] h-[70%] max-w-3xl max-h-[50vh] border-4 border-dashed border-white/50 rounded-2xl transition-all duration-300 pointer-events-none ${cameraState === 'scanning' ? 'border-solid border-lime-400 scale-105 animate-[scan-pulse_1.5s_ease-in-out_infinite]' : ''}`}>
-                            <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
-                            <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
-                            <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-xl"></div>
-                            <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-xl"></div>
-                             <div className="absolute inset-0 flex items-center justify-center">
-                                <p className="text-white bg-black/50 px-3 py-1 rounded-md text-sm">Position document in frame</p>
+                    <div className="relative w-full h-full flex flex-col items-center justify-center">
+                        <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-cover absolute top-0 left-0"></video>
+                        <div className="absolute inset-0 bg-black/40"></div>
+                        
+                        <div ref={guideFrameRef} className={`relative w-[90%] max-w-md aspect-[4/3] border-4 border-dashed border-white/50 rounded-lg transition-all duration-300 ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : ''}`}>
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-white bg-black/50 px-2 py-1 text-xs rounded">
+                                Position the problem inside the frame
                             </div>
                         </div>
-                    </div>
-                );
 
-            case 'preview':
-            case 'analyzing':
-                return (
-                    <div className="w-full h-full flex items-center justify-center p-4 bg-black/50 relative">
-                        <img src={scannedImage || ''} alt="Scanned document" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-                        {cameraState === 'analyzing' && 
-                             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
-                                 <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin mb-4"></div>
-                                 <p className="text-lg font-semibold">Analyzing Image...</p>
-                                 <p className="text-sm text-gray-400">This may take a moment.</p>
-                             </div>
-                        }
-                    </div>
-                );
-
-            case 'result':
-                return (
-                    <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
-                        <div className="w-full lg:w-1/2 bg-black/20 p-4 flex items-center justify-center flex-shrink-0"><img src={scannedImage || ''} alt="Analyzed problem" className="max-w-full max-h-full object-contain rounded-lg" /></div>
-                        <div className="w-full lg:w-1/2 p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-lime-300 to-teal-400 text-transparent bg-clip-text">Step-by-Step Solution</h3><div className="prose prose-invert prose-sm text-gray-300 max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{analysisResult}</ReactMarkdown></div></div>
-                    </div>
-                );
-        }
-    };
-    
-    const renderControls = () => {
-         switch (cameraState) {
-            case 'ready':
-                return <button onClick={handleScan} aria-label="Scan Document" className="p-2 text-white rounded-full transition-transform active:scale-90 animate-[glow-pulse_2.5s_ease-in-out_infinite]"><ShutterIcon /></button>;
-            case 'scanning':
-                return <button disabled aria-label="Scanning" className="p-2 text-white rounded-full cursor-not-allowed"><ShutterIcon className="w-16 h-16 opacity-50" /></button>;
-            case 'preview':
-                return (
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-                        {error && <p className="text-red-400 text-sm order-first sm:order-none">{error}</p>}
-                        <div className="flex items-center gap-4">
-                             <button onClick={handleRetake} className="bg-white/10 text-white font-bold py-3 px-8 rounded-full hover:bg-white/20 transition-colors">Retake</button>
-                             <button onClick={handleAnalyze} className="bg-lime-600 text-white font-bold py-3 px-8 rounded-full hover:bg-lime-700 transition-colors flex items-center gap-2">Analyze</button>
+                        <div className="absolute bottom-8 flex justify-center w-full">
+                            <button onClick={handleScan} aria-label="Scan problem" className="p-2 bg-black/20 rounded-full transition-transform active:scale-95">
+                                <ShutterIcon />
+                            </button>
                         </div>
                     </div>
                 );
+            
+            case 'preview':
             case 'analyzing':
-                 return <button disabled className="bg-gray-500 text-white font-bold py-3 px-8 rounded-full cursor-not-allowed">Analyzing...</button>;
-            case 'result':
-                 return <button onClick={handleRetake} className="bg-white/10 text-white font-bold py-3 px-8 rounded-full hover:bg-white/20 transition-colors">Scan Another</button>;
+                return (
+                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-black">
+                        {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
+                        {cameraState === 'analyzing' && (
+                            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
+                                <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+                                <p className="mt-4 text-lg font-semibold">Analyzing...</p>
+                                <p className="text-gray-400">This may take a moment.</p>
+                            </div>
+                        )}
+                        {cameraState === 'preview' && (
+                            <>
+                                <div className="absolute top-4 left-4">
+                                    <button onClick={handleRetake} className="flex items-center gap-2 p-2 px-4 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors">
+                                        <ArrowUturnLeftIcon />
+                                        <span>Back</span>
+                                    </button>
+                                </div>
+                                <div className="absolute bottom-8 flex flex-col items-center justify-center w-full px-4 gap-3">
+                                     {error && <p className="absolute bottom-full text-red-400 text-sm bg-red-900/50 p-2 rounded-md mb-2">{error}</p>}
+                                    <button onClick={() => handleAnalyze('answer')} className="w-full max-w-sm bg-white/10 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white/20 transition-colors">
+                                        Answer Only
+                                    </button>
+                                    <button onClick={() => handleAnalyze('tutorial')} className="w-full max-w-sm bg-lime-600 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-lime-700 transition-colors">
+                                        Detailed Tutorial
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                );
+            
+            case 'showingAnswer':
+                return (
+                    <div className="w-full h-full flex flex-col">
+                        <div className="flex-shrink-0 h-[40vh] bg-black border-b border-white/10">
+                            {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            <div className="max-w-none text-gray-300">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                    components={{
+                                        p: ({node, ...props}) => <p className="mb-4 text-base leading-relaxed" {...props} />,
+                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-white mb-4 border-b border-white/10 pb-2" {...props} />,
+                                        h2: ({node, ...props}) => <h2 className="text-xl font-bold text-white mb-3" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 my-4 pl-2" {...props} />,
+                                    }}
+                                >
+                                    {analysisResult}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-gray-900/50 backdrop-blur-sm">
+                            <button onClick={handleRetake} className="w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                                Scan Another Problem
+                            </button>
+                        </div>
+                    </div>
+                );
+            
+            case 'showingTutorial':
+                if (!scannedImage) return null; // Should not happen
+                return <TutorialInterface userProfile={userProfile} scannedImage={scannedImage} onClose={handleRetake} />;
+
             default:
                 return null;
         }
     };
-
+    
     return (
         <div className="flex-1 flex flex-col h-full w-full">
-            <div className="flex-1 bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg rounded-xl border border-white/10 flex flex-col overflow-hidden">
-                <div className="flex-1 relative">
-                    {renderContent()}
-                </div>
-                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20 flex items-center justify-center h-24">
-                    {renderControls()}
-                </div>
+            <div className="flex-1 bg-black rounded-xl border border-white/10 overflow-hidden relative">
+                <canvas ref={canvasRef} className="hidden"></canvas>
+                {renderContent()}
             </div>
-            <canvas ref={canvasRef} className="hidden"></canvas>
         </div>
     );
 };

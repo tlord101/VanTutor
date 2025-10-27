@@ -25,6 +25,7 @@ export interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: number; // Use number for Firestore compatibility
+  image?: string; // Optional image data URL for visual context
 }
 
 // Types for the new Exam System
