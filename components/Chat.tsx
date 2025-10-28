@@ -16,6 +16,7 @@ import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 import { ListIcon } from './icons/ListIcon';
 import { LogoIcon } from './icons/LogoIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
+import { GraduationCapIcon } from './icons/GraduationCapIcon';
 
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -152,8 +153,11 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
             text: tempInput, 
             sender: 'user', 
             timestamp: Date.now(),
-            ...(tempImagePreview && { image: tempImagePreview }),
         };
+
+        if (tempImagePreview) {
+            userMessage.image = tempImagePreview;
+        }
 
         setInput('');
         setFile(null);
@@ -352,7 +356,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                                         <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             {message.sender === 'bot' && 
                                                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                                                   <LogoIcon className="w-full h-full p-1.5 text-white" />
+                                                   <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                                                 </div>
                                             }
                                             <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
@@ -373,7 +377,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                                     {isLoading && 
                                         <div className="flex items-start gap-3 animate-fade-in-up">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                                               <LogoIcon className="w-full h-full p-1.5 text-white" />
+                                               <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                                             </div>
                                             <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
                                                 <div className="flex items-center space-x-2">
