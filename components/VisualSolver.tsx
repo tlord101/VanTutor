@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { UserProfile, Message } from '../types';
@@ -237,6 +238,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
 
     const handleInteractionEnd = useCallback(() => {
         interactionRef.current = null;
+        document.body.style.overflow = '';
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('touchmove', handleMove);
         window.removeEventListener('mouseup', handleInteractionEnd);
@@ -287,6 +289,8 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         e.preventDefault();
         const video = videoRef.current;
         if (!video) return;
+
+        document.body.style.overflow = 'hidden';
 
         interactionRef.current = {
             startX: 'touches' in e ? e.touches[0].clientX : e.clientX,
@@ -524,11 +528,11 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             case 'showingAnswer':
                 return (
                     <div className="w-full h-full flex flex-col bg-white">
-                        <div className="flex-shrink-0 h-[40vh] bg-gray-100 border-b border-gray-200">
+                        <div className="flex-shrink-0 h-[33vh] bg-gray-100 border-b border-gray-200">
                             {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                            <div className="max-w-none text-gray-800">
+                        <div className="flex-1 p-4 sm:p-6 overflow-hidden min-h-0">
+                            <div className="max-w-none text-gray-800 h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { UserProfile, UserPlan } from '../types';
@@ -8,15 +9,44 @@ const PAYSTACK_PUBLIC_KEY = 'pk_live_9ca8fd7f800eb630f535045b6a0467fc95e47f18';
 
 declare var PaystackPop: any;
 
+// --- TYPE DEFINITIONS ---
+const statusColors: { [key: string]: { bg: string; text: string; } } = {
+  success: { bg: 'bg-green-100', text: 'text-green-800' },
+  failed: { bg: 'bg-red-100', text: 'text-red-800' },
+  abandoned: { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+  pending: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  processing: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  queued: { bg: 'bg-gray-100', text: 'text-gray-800' },
+  reversed: { bg: 'bg-purple-100', text: 'text-purple-800' },
+  ongoing: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+};
+
+interface TransactionDetails {
+  status: keyof typeof statusColors;
+  reference: string;
+  amount: number;
+  currency: string;
+  gateway_response: string;
+  paid_at: string | null;
+  channel: string;
+  customer: {
+    email: string;
+  };
+}
+
+interface PaystackApiResponse {
+    status: boolean;
+    message: string;
+    data: TransactionDetails;
+}
+
+// --- HELPER & PLAN DATA ---
 const CheckIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
   </svg>
 );
 
-// IMPORTANT: Replace these placeholder plan codes with the actual codes from your Paystack Dashboard.
-// You must create these subscription plans in Paystack for this to work.
-// See: https://paystack.com/docs/payments/subscriptions/
 const planDetails: { [key in UserPlan]: { name: string; price: number; features: string[], highlight?: boolean; planCode?: string; } } = {
   free: {
     name: 'Free',
@@ -31,7 +61,7 @@ const planDetails: { [key in UserPlan]: { name: string; price: number; features:
   starter: {
     name: 'Starter',
     price: 1000, // NGN
-    planCode: 'PLN_3s5lsaohhz4qrgg', // Updated plan code
+    planCode: 'PLN_3s5lsaohhz4qrgg',
     features: [
       'Access to first 5 subjects',
       'Unlimited topics within subjects',
@@ -43,7 +73,7 @@ const planDetails: { [key in UserPlan]: { name: string; price: number; features:
   smart: {
     name: 'Smart',
     price: 3000, // NGN
-    planCode: 'PLN_mo4w3qu1nq539h0', // Updated plan code
+    planCode: 'PLN_mo4w3qu1nq539h0',
     features: [
       'Access to all subjects',
       'Unlimited topics',
@@ -53,6 +83,40 @@ const planDetails: { [key in UserPlan]: { name: string; price: number; features:
   },
 };
 
+// --- API FUNCTION ---
+const verifyTransaction = async (reference: string): Promise<TransactionDetails> => {
+    // SECURITY WARNING: In a real-world production application, this API call
+    // MUST be made from a secure backend server. Exposing your secret key in
+    // client-side code is a major security risk.
+    const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+    
+    if (!PAYSTACK_SECRET_KEY) {
+        throw new Error("Payment provider key is not configured.");
+    }
+    
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`API call failed with status: ${response.status}`);
+    }
+
+    const result: PaystackApiResponse = await response.json();
+    
+    if (!result.status) {
+        throw new Error(result.message || 'Transaction verification failed.');
+    }
+
+    return result.data;
+};
+
+
+// --- COMPONENTS ---
 interface PlanCardProps {
   planKey: UserPlan;
   plan: typeof planDetails[UserPlan];
@@ -63,9 +127,6 @@ interface PlanCardProps {
 
 const PlanCard: React.FC<PlanCardProps> = ({ planKey, plan, currentPlan, onSelectPlan, isProcessing }) => {
   const isCurrent = planKey === currentPlan;
-
-  // FIX: Safeguard against cases where `currentPlan` might be undefined or invalid in a user's profile.
-  // Default to the 'free' plan's details for comparison purposes.
   const currentPlanDetails = planDetails[currentPlan] || planDetails.free;
   const isUpgrade = plan.price > currentPlanDetails.price;
 
@@ -125,51 +186,63 @@ interface SubscriptionProps {
 
 export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, onProfileUpdate }) => {
   const [processingPlan, setProcessingPlan] = useState<UserPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [verificationState, setVerificationState] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
 
   const handleUpgrade = (planKey: UserPlan) => {
     if (!user?.email) {
-      setError("Your email is not available for payment. Please try again or contact support.");
+      setVerificationState('error');
+      setVerificationMessage("Your email is not available for payment. Please try again or contact support.");
       return;
     }
 
     const selectedPlan = planDetails[planKey];
     if (!selectedPlan || !selectedPlan.planCode) {
-        setError("Invalid subscription plan selected or plan code is missing.");
+        setVerificationState('error');
+        setVerificationMessage("Invalid subscription plan selected or plan code is missing.");
         return;
     }
 
     if (typeof PaystackPop === 'undefined' || !PaystackPop) {
-        setError("Payment service failed to load. Please check your internet connection or try again later.");
-        setProcessingPlan(null);
+        setVerificationState('error');
+        setVerificationMessage("Payment service failed to load. Please check your internet connection or try again later.");
         return;
     }
 
     setProcessingPlan(planKey);
-    setError(null);
-    setSuccessMessage(null);
+    setVerificationState('idle');
+    setVerificationMessage(null);
 
     const handler = PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: user.email,
-      plan: selectedPlan.planCode, // Use the plan code for subscriptions
-      // 'amount' is not needed when a 'plan' is specified
+      plan: selectedPlan.planCode,
       ref: `VANTUTOR-SUB-${user.uid}-${Date.now()}`,
-      async callback(response: any) {
-        // In a real application, you would send the 'response.reference' to your backend
-        // to verify the subscription status with Paystack before updating the user's plan.
-        if (response.status === 'success') {
-          const result = await onProfileUpdate({ plan: planKey });
-          if (result.success) {
-            setSuccessMessage(`Successfully upgraded to the ${planDetails[planKey].name} plan! Your new features are now active.`);
-          } else {
-            setError(result.error || "Payment successful, but we couldn't update your plan. Please contact support with your payment reference.");
-          }
-        } else {
-            setError("Subscription was not successful. Please try again or contact your bank.");
-        }
+      async callback(response: { reference: string, status: string }) {
         setProcessingPlan(null);
+        setVerificationState('verifying');
+        setVerificationMessage('Verifying your payment, please wait...');
+
+        try {
+            const transactionDetails = await verifyTransaction(response.reference);
+
+            if (transactionDetails.status === 'success') {
+                const result = await onProfileUpdate({ plan: planKey });
+                if (result.success) {
+                    setVerificationState('success');
+                    setVerificationMessage(`Successfully upgraded to the ${planDetails[planKey].name} plan! Your new features are now active.`);
+                } else {
+                    setVerificationState('error');
+                    setVerificationMessage(result.error || "Payment successful, but we couldn't update your plan. Please contact support with your payment reference.");
+                }
+            } else {
+                setVerificationState('error');
+                setVerificationMessage(`Your payment status is '${transactionDetails.status}'. Please contact support for assistance.`);
+            }
+        } catch (error: any) {
+            setVerificationState('error');
+            setVerificationMessage(error.message || 'An unexpected error occurred while verifying your transaction.');
+        }
       },
       onClose() {
         setProcessingPlan(null);
@@ -177,6 +250,8 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
     });
     handler.openIframe();
   };
+  
+  const isDuringProcess = !!processingPlan || verificationState === 'verifying';
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
@@ -184,8 +259,16 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
           <p className="text-center text-gray-600 mb-8 max-w-2xl mx-auto">
               Choose a plan to unlock more features and accelerate your learning journey with VANTUTOR.
           </p>
-          {error && <div className="bg-red-100 border border-red-300 text-red-700 text-center p-3 rounded-lg mb-6">{error}</div>}
-          {successMessage && <div className="bg-green-100 border border-green-300 text-green-700 text-center p-3 rounded-lg mb-6">{successMessage}</div>}
+          {verificationMessage && (
+            <div className={`text-center p-3 rounded-lg mb-6 border flex items-center justify-center ${
+                verificationState === 'success' ? 'bg-green-100 border-green-300 text-green-700' :
+                verificationState === 'error' ? 'bg-red-100 border-red-300 text-red-700' :
+                'bg-blue-100 border-blue-300 text-blue-700'
+            }`}>
+                {verificationState === 'verifying' && <div className="w-4 h-4 border-2 border-t-transparent border-current rounded-full animate-spin mr-2"></div>}
+                {verificationMessage}
+            </div>
+           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(Object.keys(planDetails) as UserPlan[]).map(planKey => (
                   <PlanCard
@@ -194,7 +277,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
                       plan={planDetails[planKey]}
                       currentPlan={userProfile.plan}
                       onSelectPlan={handleUpgrade}
-                      isProcessing={processingPlan === planKey}
+                      isProcessing={processingPlan === planKey || verificationState === 'verifying'}
                   />
               ))}
           </div>
