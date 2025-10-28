@@ -214,7 +214,8 @@ async function updateUserPlan(userId, newPlan) {
                             <p><strong>Note:</strong> If you update a user's <code>displayName</code>, remember to also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
 
                             <SubSectionTitle>Course Management</SubSectionTitle>
-                            <p>Course content is stored in Firestore under the path <code>artifacts/{appId}/public/data/courses/{courseId}</code>. Each course document contains a <code>subjectList</code> array, where each object represents a subject and contains a nested <code>topics</code> array.</p>
+                            {/* FIX: Escaped curly braces in the Firestore path to prevent JSX from interpreting them as variables. */}
+                            <p>Course content is stored in Firestore under the path <code>artifacts/&#123;appId&#125;/public/data/courses/&#123;courseId&#125;</code>. Each course document contains a <code>subjectList</code> array, where each object represents a subject and contains a nested <code>topics</code> array.</p>
                             <p>To add a new subject, you must read the entire <code>subjectList</code>, append your new subject object, and write the modified array back to the document.</p>
                             <CodeBlock title="Example: Add a New Subject" code={`
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -260,7 +261,6 @@ import { db } from './firebase'; // Your firebase config
 declare var __app_id: string;
 
 async function addTopicToSubject(courseId, subjectId, newTopicName) {
-  // FIX: Corrected typo from `appId` to `__app_id` to match the declared variable.
   const courseRef = doc(db, \`artifacts/\${__app_id}/public/data/courses\`, courseId);
   try {
     const courseSnap = await getDoc(courseRef);
