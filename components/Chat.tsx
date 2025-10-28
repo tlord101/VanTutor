@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -141,7 +141,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
 
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        if (!textToSend.trim() && !file || isLoading) return;
+        if ((!textToSend.trim() && !file) || isLoading) return;
         
         let currentConversationId = activeConversationId;
         const tempInput = textToSend;
@@ -152,7 +152,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
             text: tempInput, 
             sender: 'user', 
             timestamp: Date.now(),
-            image: tempImagePreview || undefined, // Add image data if present
+            ...(tempImagePreview && { image: tempImagePreview }),
         };
 
         setInput('');
@@ -209,10 +209,81 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         }
     };
 
-    const confirmDelete = (id: string) => { /* ... identical to previous implementation ... */ };
-    const confirmClearAll = () => { /* ... identical to previous implementation ... */ };
-    const handleDeleteConversation = async (id: string) => { /* ... identical to previous implementation ... */ };
-    const handleClearAllHistory = async (id: string) => { /* ... identical to previous implementation ... */ };
+    const handleDeleteConversation = async (id: string) => {
+        setIsDeleting(true);
+        try {
+            const batch = writeBatch(db);
+            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', id, 'messages');
+            const messagesSnapshot = await getDocs(messagesRef);
+            messagesSnapshot.forEach(doc => batch.delete(doc.ref));
+            const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', id);
+            batch.delete(conversationRef);
+            await batch.commit();
+
+            if (activeConversationId === id) {
+                handleNewChat();
+            }
+        } catch (error) {
+            console.error("Error deleting conversation:", error);
+            // Handle error feedback to user
+        } finally {
+            setIsDeleting(false);
+            setModalState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
+        }
+    };
+
+    const confirmDelete = (id: string) => {
+        const conversationTitle = conversations.find(c => c.id === id)?.title || "this conversation";
+        setModalState({
+            isOpen: true,
+            title: 'Delete Conversation',
+            message: `Are you sure you want to permanently delete "${conversationTitle}"? This cannot be undone.`,
+            onConfirm: () => handleDeleteConversation(id),
+        });
+    };
+
+    const handleClearAllHistory = async () => {
+        setIsDeleting(true);
+        try {
+            const batch = writeBatch(db);
+            // Firestore batch writes are limited, for large histories, this would need chunking.
+            // For this app's scale, a single batch is likely okay.
+            for (const convo of conversations) {
+                const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', convo.id, 'messages');
+                const messagesSnapshot = await getDocs(messagesRef);
+                messagesSnapshot.forEach(doc => batch.delete(doc.ref));
+                const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', convo.id);
+                batch.delete(conversationRef);
+            }
+            await batch.commit();
+            handleNewChat();
+        } catch (error) {
+            console.error("Error clearing all history:", error);
+        } finally {
+            setIsDeleting(false);
+            setModalState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
+        }
+    };
+
+    const confirmClearAll = () => {
+        if (conversations.length === 0) return;
+        setModalState({
+            isOpen: true,
+            title: 'Clear All History',
+            message: 'Are you sure you want to delete all chat conversations? This is permanent.',
+            onConfirm: handleClearAllHistory,
+        });
+    };
+    
+    const handleRenameConversation = async (id: string, newTitle: string) => {
+        if (!newTitle.trim()) return;
+        const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', id);
+        try {
+            await updateDoc(conversationRef, { title: newTitle.trim() });
+        } catch (error) {
+            console.error("Error renaming conversation:", error);
+        }
+    };
     
     const WelcomeScreen = () => {
         const starters = [
@@ -222,7 +293,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
             { title: "Brainstorm ideas", prompt: "Let's brainstorm some ideas for my science fair project on renewable energy." },
         ];
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-50">
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-4">
                    <LogoIcon className="w-10 h-10 text-white" />
                 </div>
@@ -244,73 +315,6 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
             </div>
         );
     };
-    
-    const ChatInterface = () => (
-      <>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 chat-bg-pattern">
-            {messages.map((message) => (
-                <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {message.sender === 'bot' && 
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                           <LogoIcon className="w-full h-full p-1.5 text-white" />
-                        </div>
-                    }
-                    <div className={`max-w-[85%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
-                        {message.image && <img src={message.image} alt="User attachment" className="rounded-lg mb-2 max-h-48" />}
-                        <div className="text-sm prose">
-                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>
-                                {message.text}
-                            </ReactMarkdown>
-                        </div>
-                    </div>
-                    {message.sender === 'user' && 
-                       <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
-                           {userProfile.displayName.charAt(0).toUpperCase()}
-                       </div>
-                    }
-                </div>
-            ))}
-            {isLoading && 
-                <div className="flex items-start gap-3 animate-fade-in-up">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                       <LogoIcon className="w-full h-full p-1.5 text-white" />
-                    </div>
-                    <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
-                        <div className="flex items-center space-x-2">
-                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                        </div>
-                    </div>
-                </div>
-            }
-            <div ref={messagesEndRef} />
-        </div>
-        <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-            {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
-            {imagePreviewUrl && 
-                <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg">
-                    <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
-                    <button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">&times;</button>
-                </div>
-            }
-            <div className="relative">
-                <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="w-full bg-white border border-gray-300 rounded-2xl py-3 pl-12 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-                    <label className="cursor-pointer text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50">
-                        <PaperclipIcon className="w-5 h-5" />
-                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" />
-                    </label>
-                </div>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                    <button onClick={() => handleSend()} disabled={isLoading || (!input.trim() && !file)} className="bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <SendIcon className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-        </div>
-      </>
-    );
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -331,6 +335,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                     onNewChat={handleNewChat}
                     onDeleteConversation={confirmDelete}
                     onClearAll={confirmClearAll}
+                    onRenameConversation={handleRenameConversation}
                     isDeleting={isDeleting}
                     isMobilePanelOpen={isMobilePanelOpen}
                     onCloseMobilePanel={() => setIsMobilePanelOpen(false)}
@@ -338,10 +343,77 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 <div className="flex-1 flex flex-col bg-white">
                     {isHistoryLoading ? (
                         <div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div></div>
-                    ) : activeConversationId ? (
-                        <ChatInterface />
                     ) : (
-                        <WelcomeScreen />
+                      <>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 chat-bg-pattern min-h-0">
+                            {activeConversationId ? (
+                                <>
+                                    {messages.map((message) => (
+                                        <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            {message.sender === 'bot' && 
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                                                   <LogoIcon className="w-full h-full p-1.5 text-white" />
+                                                </div>
+                                            }
+                                            <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
+                                                {message.image && <img src={message.image} alt="User attachment" className="rounded-lg mb-2 max-h-48" />}
+                                                <div className="text-sm prose max-w-none">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>
+                                                        {message.text}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            </div>
+                                            {message.sender === 'user' && 
+                                               <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
+                                                   {userProfile.displayName.charAt(0).toUpperCase()}
+                                               </div>
+                                            }
+                                        </div>
+                                    ))}
+                                    {isLoading && 
+                                        <div className="flex items-start gap-3 animate-fade-in-up">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
+                                               <LogoIcon className="w-full h-full p-1.5 text-white" />
+                                            </div>
+                                            <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
+                                                <div className="flex items-center space-x-2">
+                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    <div ref={messagesEndRef} />
+                                </>
+                            ) : (
+                                <WelcomeScreen />
+                            )}
+                        </div>
+                        <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
+                            {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
+                            {imagePreviewUrl && 
+                                <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg">
+                                    <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
+                                    <button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">&times;</button>
+                                </div>
+                            }
+                            <div className="relative">
+                                <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="w-full bg-white border border-gray-300 rounded-2xl py-3 pl-12 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                    <label className="cursor-pointer text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50">
+                                        <PaperclipIcon className="w-5 h-5" />
+                                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" />
+                                    </label>
+                                </div>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                    <button onClick={() => handleSend()} disabled={isLoading || (!input.trim() && !file)} className="bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <SendIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                      </>
                     )}
                 </div>
             </div>

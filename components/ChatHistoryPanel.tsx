@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ChatConversation } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
 import { TrashIcon } from './icons/TrashIcon';
+import { MoreVerticalIcon } from './icons/MoreVerticalIcon';
+import { PencilIcon } from './icons/PencilIcon';
 
 const timeAgo = (timestamp: number): string => {
   const now = Date.now();
@@ -29,6 +31,7 @@ interface ChatHistoryPanelProps {
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation: (id: string, newTitle: string) => void;
   onClearAll: () => void;
   isDeleting: boolean;
   isMobilePanelOpen: boolean;
@@ -41,23 +44,75 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
   onSelectConversation,
   onNewChat,
   onDeleteConversation,
+  onRenameConversation,
   onClearAll,
   isDeleting,
   isMobilePanelOpen,
   onCloseMobilePanel,
 }) => {
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, convoId: string } | null>(null);
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState('');
+    const longPressTimer = useRef<number>();
 
-  const handleMobileSelect = (id: string) => {
-    onSelectConversation(id);
-    onCloseMobilePanel();
-  };
+    const openContextMenu = (e: React.MouseEvent | React.TouchEvent, convoId: string) => {
+        e.preventDefault();
+        const touch = 'touches' in e ? e.touches[0] : null;
+        setContextMenu({
+            x: touch ? touch.clientX : e.clientX,
+            y: touch ? touch.clientY : e.clientY,
+            convoId,
+        });
+    };
 
-  const handleMobileNewChat = () => {
-    onNewChat();
-    onCloseMobilePanel();
-  };
+    useEffect(() => {
+        const handleClickOutside = () => setContextMenu(null);
+        if (contextMenu) {
+            window.addEventListener('click', handleClickOutside);
+            window.addEventListener('contextmenu', handleClickOutside, true); // Capture phase
+        }
+        return () => {
+            window.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('contextmenu', handleClickOutside, true);
+        };
+    }, [contextMenu]);
+    
+    const handleTouchStart = (e: React.TouchEvent, convoId: string) => {
+        longPressTimer.current = window.setTimeout(() => {
+            openContextMenu(e, convoId);
+        }, 500); // 500ms for long press
+    };
 
-  const content = (isMobile: boolean) => (
+    const handleTouchEnd = () => {
+        clearTimeout(longPressTimer.current);
+    };
+
+    const startRename = (convo: ChatConversation) => {
+        setRenamingId(convo.id);
+        setRenameValue(convo.title);
+        setContextMenu(null);
+    };
+
+    const handleRenameSubmit = () => {
+        if (renamingId && renameValue.trim()) {
+            onRenameConversation(renamingId, renameValue);
+        }
+        setRenamingId(null);
+    };
+
+    const handleMobileSelect = (id: string) => {
+        if (renamingId !== id) {
+            onSelectConversation(id);
+            onCloseMobilePanel();
+        }
+    };
+
+    const handleMobileNewChat = () => {
+        onNewChat();
+        onCloseMobilePanel();
+    };
+
+    const content = (isMobile: boolean) => (
     <div className="h-full bg-gray-50 flex flex-col p-3">
       <button
         onClick={isMobile ? handleMobileNewChat : onNewChat}
@@ -70,28 +125,46 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
         <ul className="space-y-1">
           {conversations.map((convo) => (
             <li key={convo.id} className="relative group">
-              <button
-                onClick={() => isMobile ? handleMobileSelect(convo.id) : onSelectConversation(convo.id)}
-                className={`w-full text-left p-2.5 rounded-md transition-colors ${
-                  activeConversationId === convo.id
-                    ? 'bg-lime-200 text-lime-900'
-                    : 'text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                    <span className={`flex-1 truncate pr-2 ${activeConversationId === convo.id ? 'font-semibold' : ''}`}>{convo.title}</span>
-                    <span className={`text-xs flex-shrink-0 ${activeConversationId === convo.id ? 'text-lime-700' : 'text-gray-500'}`}>
-                        {timeAgo(convo.lastUpdatedAt)}
-                    </span>
-                </div>
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteConversation(convo.id); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-600 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                aria-label="Delete conversation"
-              >
-                <TrashIcon className="w-4 h-4" />
-              </button>
+                {renamingId === convo.id ? (
+                    <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={handleRenameSubmit}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameSubmit();
+                            if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        autoFocus
+                        className="w-full text-left p-2.5 rounded-md bg-white border-2 border-lime-500 text-gray-800"
+                    />
+                ) : (
+                    <div
+                        onClick={() => isMobile ? handleMobileSelect(convo.id) : onSelectConversation(convo.id)}
+                        onContextMenu={(e) => openContextMenu(e, convo.id)}
+                        onTouchStart={(e) => handleTouchStart(e, convo.id)}
+                        onTouchEnd={handleTouchEnd}
+                        className={`w-full text-left p-2.5 rounded-md transition-colors cursor-pointer flex justify-between items-center ${
+                          activeConversationId === convo.id
+                            ? 'bg-lime-200 text-lime-900'
+                            : 'text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                      <div className="flex-1 overflow-hidden">
+                          <p className={`truncate ${activeConversationId === convo.id ? 'font-semibold' : ''}`}>{convo.title}</p>
+                          <p className={`text-xs ${activeConversationId === convo.id ? 'text-lime-700' : 'text-gray-500'}`}>
+                              {timeAgo(convo.lastUpdatedAt)}
+                          </p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openContextMenu(e, convo.id); }}
+                        className="p-1 text-gray-400 hover:text-gray-700 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity md:opacity-100"
+                        aria-label="More options"
+                      >
+                        <MoreVerticalIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                )}
             </li>
           ))}
         </ul>
@@ -105,6 +178,32 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
           Clear all history
         </button>
       </div>
+      {contextMenu && (
+          <div
+              style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+              className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50 animate-fade-in-up"
+              onClick={(e) => e.stopPropagation()}
+          >
+              <ul className="py-1">
+                  <li>
+                      <button 
+                        onClick={() => startRename(conversations.find(c => c.id === contextMenu.convoId)!)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <PencilIcon className="w-4 h-4" /> Rename
+                      </button>
+                  </li>
+                  <li>
+                      <button 
+                        onClick={() => { onDeleteConversation(contextMenu.convoId); setContextMenu(null); }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <TrashIcon className="w-4 h-4" /> Delete
+                      </button>
+                  </li>
+              </ul>
+          </div>
+      )}
     </div>
   );
 
