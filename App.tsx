@@ -431,7 +431,6 @@ function App() {
   const allNavItems = [...navigationItems, ...secondaryNavigationItems];
   const currentPageLabel = allNavItems.find(item => item.id === activePage)?.label || 'Dashboard';
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
-  const mainPagesForBottomNav = ['dashboard', 'study_guide', 'visual_solver', 'chat', 'exam', 'leaderboard'];
 
   return (
     <div className="h-screen bg-gray-100 text-gray-800 font-sans md:p-6 lg:p-8 flex md:gap-6 lg:gap-8">
@@ -467,7 +466,7 @@ function App() {
       <BottomNavBar
         activeItem={activePage}
         onItemClick={handleNavItemClick}
-        isVisible={!!userProfile && mainPagesForBottomNav.includes(activePage)}
+        isVisible={!!userProfile}
       />
     </div>
   );

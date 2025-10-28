@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { HomeIcon } from './icons/HomeIcon';
 import { CameraIcon } from './icons/CameraIcon';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
+import { ChatIcon } from './icons/ChatIcon';
+import { ExamIcon } from './icons/ExamIcon';
 
 interface BottomNavBarProps {
   activeItem: string;
@@ -11,46 +13,53 @@ interface BottomNavBarProps {
 
 const navItems = [
   { id: 'study_guide', icon: <StudyGuideIcon />, label: 'Guide' },
+  { id: 'chat', icon: <ChatIcon />, label: 'Chat' },
   { id: 'dashboard', icon: <HomeIcon />, label: 'Home' },
   { id: 'visual_solver', icon: <CameraIcon />, label: 'Solver' },
+  { id: 'exam', icon: <ExamIcon />, label: 'Exam' },
 ];
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemClick, isVisible }) => {
-  const [activeIndex, setActiveIndex] = useState(1);
+  const [activeIndex, setActiveIndex] = useState(2); // Default to 'Home'
 
   useEffect(() => {
     const currentIndex = navItems.findIndex(item => item.id === activeItem);
-    if (currentIndex !== -1) {
-      setActiveIndex(currentIndex);
-    }
+    setActiveIndex(currentIndex); // Will be -1 if the activeItem is not in our nav array
   }, [activeItem]);
 
   if (!isVisible) {
       return null;
   }
 
-  // These classes use calc() to position the center of the 3.5rem bubble at 1/6, 3/6 (1/2), and 5/6 of the container width.
+  // Position classes for 5 items. The center of each item is at 10%, 30%, 50%, 70%, 90%.
+  // The bubble is 3.5rem wide, so we offset by half of that (1.75rem).
   const positionClasses = [
-    'left-[calc(16.666%-1.75rem)]', 
-    'left-[calc(50%-1.75rem)]', 
-    'left-[calc(83.333%-1.75rem)]'
+    'left-[calc(10%-1.75rem)]',
+    'left-[calc(30%-1.75rem)]',
+    'left-[calc(50%-1.75rem)]',
+    'left-[calc(70%-1.75rem)]',
+    'left-[calc(90%-1.75rem)]',
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 p-4 flex justify-center z-30 md:hidden animate-fade-in-up">
-      <div className="relative w-full max-w-xs h-16 bg-white/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/30">
+      <div className="relative w-full max-w-sm h-16 bg-white/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/30">
         
         {/* The moving bubble that provides the "cutout" effect */}
-        <div 
-          className={`absolute -top-3 w-14 h-14 bg-gray-100 rounded-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] ${positionClasses[activeIndex]}`}
-        />
+        {activeIndex !== -1 && (
+            <div 
+              className={`absolute -top-3 w-14 h-14 bg-gray-100 rounded-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] ${positionClasses[activeIndex]}`}
+            />
+        )}
 
         {/* The active icon that moves with the bubble */}
-        <div
-          className={`absolute -top-3 w-14 h-14 rounded-full bg-gradient-to-tr from-lime-500 to-teal-500 flex items-center justify-center text-white shadow-lg transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] ${positionClasses[activeIndex]}`}
-        >
-          {React.cloneElement(navItems[activeIndex].icon, { className: 'w-8 h-8' })}
-        </div>
+        {activeIndex !== -1 && (
+            <div
+              className={`absolute -top-3 w-14 h-14 rounded-full bg-gradient-to-tr from-lime-500 to-teal-500 flex items-center justify-center text-white shadow-lg transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] ${positionClasses[activeIndex]}`}
+            >
+              {React.cloneElement(navItems[activeIndex].icon, { className: 'w-8 h-8' })}
+            </div>
+        )}
         
         {/* The static, clickable placeholders */}
         <div className="flex justify-around items-center h-full">

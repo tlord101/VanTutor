@@ -195,10 +195,11 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         <tr><td className="px-6 py-4 font-semibold">React</td><td className="px-6 py-4">Core UI library for building the component-based interface.</td></tr>
                                         <tr><td className="px-6 py-4 font-semibold">TypeScript</td><td className="px-6 py-4">Adds static typing to JavaScript for improved code quality.</td></tr>
-                                        <tr><td className="px-6 py-4 font-semibold">Firebase</td><td className="px-6 py-4">Backend-as-a-Service (BaaS) for Authentication & Database.</td></tr>
+                                        <tr><td className="px-6 py-4 font-semibold">Firebase</td><td className="px-6 py-4">Backend-as-a-Service (BaaS) for Authentication, Firestore Database, etc.</td></tr>
                                         <tr><td className="px-6 py-4 font-semibold">Tailwind CSS</td><td className="px-6 py-4">Utility-first CSS framework for rapid UI development.</td></tr>
                                         <tr><td className="px-6 py-4 font-semibold">@google/genai</td><td className="px-6 py-4">Official SDK for interacting with the Google Gemini API.</td></tr>
-                                        <tr><td className="px-6 py-4 font-semibold">React Markdown</td><td className="px-6 py-4">Renders Markdown content from the AI, including KaTeX for math.</td></tr>
+                                        <tr><td className="px-6 py-4 font-semibold">React Markdown + Plugins</td><td className="px-6 py-4">Renders Markdown from the AI, with plugins (remark-gfm, remark-math, rehype-katex) for tables and LaTeX math support.</td></tr>
+                                        <tr><td className="px-6 py-4 font-semibold">Paystack JS</td><td className="px-6 py-4">Handles subscription payments via the inline checkout iframe.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
