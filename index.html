@@ -28,6 +28,25 @@
           box-shadow: 0 0 30px 10px rgba(163, 230, 53, 0.5);
         }
       }
+      @keyframes fade-in-up {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.4s ease-out forwards;
+      }
+      .chat-bg-pattern {
+        background-color: #f9fafb; /* bg-gray-50 */
+        background-image:
+          radial-gradient(circle at 1px 1px, rgba(0,0,0,0.04) 1px, transparent 0);
+        background-size: 25px 25px;
+      }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNooMCrNH/bbSsBlYCsOuNEtZvrS3MyDGMR4I2A59wscdI1oE7" crossorigin="anonymous">
   <script type="importmap">
