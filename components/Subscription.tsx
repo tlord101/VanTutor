@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import type { UserProfile, UserPlan } from '../types';
 import { PremiumIcon } from './icons/PremiumIcon';
@@ -188,6 +188,56 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
   const [processingPlan, setProcessingPlan] = useState<UserPlan | null>(null);
   const [verificationState, setVerificationState] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [isVerifyingFromRedirect, setIsVerifyingFromRedirect] = useState(false);
+
+  const runVerification = async (reference: string) => {
+    setVerificationState('verifying');
+    setVerificationMessage('Verifying your payment, please wait...');
+
+    const pendingPlan = sessionStorage.getItem('pendingPlanUpgrade') as UserPlan;
+    if (!pendingPlan) {
+        setVerificationState('error');
+        setVerificationMessage("Could not verify payment: session expired or plan information is missing. Please try again.");
+        setIsVerifyingFromRedirect(false);
+        return;
+    }
+
+    try {
+        const transactionDetails = await verifyTransaction(reference);
+
+        if (transactionDetails.status === 'success') {
+            const result = await onProfileUpdate({ plan: pendingPlan });
+            if (result.success) {
+                setVerificationState('success');
+                setVerificationMessage(`Successfully upgraded to the ${planDetails[pendingPlan].name} plan! Your new features are now active.`);
+            } else {
+                setVerificationState('error');
+                setVerificationMessage(result.error || "Payment successful, but we couldn't update your plan. Please contact support with your payment reference.");
+            }
+        } else {
+            setVerificationState('error');
+            setVerificationMessage(`Your payment status is '${transactionDetails.status}'. Please contact support for assistance.`);
+        }
+    } catch (error: any) {
+        setVerificationState('error');
+        setVerificationMessage(error.message || 'An unexpected error occurred while verifying your transaction.');
+    } finally {
+        sessionStorage.removeItem('pendingPlanUpgrade');
+        setIsVerifyingFromRedirect(false);
+    }
+  };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('trxref') || urlParams.get('reference');
+
+    if (reference) {
+      setIsVerifyingFromRedirect(true);
+      runVerification(reference);
+      // Clean the URL to prevent re-triggering on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleUpgrade = (planKey: UserPlan) => {
     if (!user?.email) {
@@ -212,6 +262,8 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
     setProcessingPlan(planKey);
     setVerificationState('idle');
     setVerificationMessage(null);
+    // Store the selected plan in case of a redirect
+    sessionStorage.setItem('pendingPlanUpgrade', planKey);
 
     const handler = PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
@@ -220,32 +272,12 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
       ref: `VANTUTOR-SUB-${user.uid}-${Date.now()}`,
       async callback(response: { reference: string, status: string }) {
         setProcessingPlan(null);
-        setVerificationState('verifying');
-        setVerificationMessage('Verifying your payment, please wait...');
-
-        try {
-            const transactionDetails = await verifyTransaction(response.reference);
-
-            if (transactionDetails.status === 'success') {
-                const result = await onProfileUpdate({ plan: planKey });
-                if (result.success) {
-                    setVerificationState('success');
-                    setVerificationMessage(`Successfully upgraded to the ${planDetails[planKey].name} plan! Your new features are now active.`);
-                } else {
-                    setVerificationState('error');
-                    setVerificationMessage(result.error || "Payment successful, but we couldn't update your plan. Please contact support with your payment reference.");
-                }
-            } else {
-                setVerificationState('error');
-                setVerificationMessage(`Your payment status is '${transactionDetails.status}'. Please contact support for assistance.`);
-            }
-        } catch (error: any) {
-            setVerificationState('error');
-            setVerificationMessage(error.message || 'An unexpected error occurred while verifying your transaction.');
-        }
+        setIsVerifyingFromRedirect(true); // Also show overlay for popup flow for consistency
+        await runVerification(response.reference);
       },
       onClose() {
         setProcessingPlan(null);
+        sessionStorage.removeItem('pendingPlanUpgrade');
       },
     });
     handler.openIframe();
@@ -255,17 +287,22 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
+      {isVerifyingFromRedirect && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+          <div className="w-12 h-12 border-4 border-t-lime-500 border-white rounded-full animate-spin"></div>
+          <p className="mt-4 text-white text-lg">Verifying your payment, please wait...</p>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <p className="text-center text-gray-600 mb-8 max-w-2xl mx-auto">
               Choose a plan to unlock more features and accelerate your learning journey with VANTUTOR.
           </p>
-          {verificationMessage && (
+          {verificationMessage && verificationState !== 'verifying' && (
             <div className={`text-center p-3 rounded-lg mb-6 border flex items-center justify-center ${
                 verificationState === 'success' ? 'bg-green-100 border-green-300 text-green-700' :
                 verificationState === 'error' ? 'bg-red-100 border-red-300 text-red-700' :
                 'bg-blue-100 border-blue-300 text-blue-700'
             }`}>
-                {verificationState === 'verifying' && <div className="w-4 h-4 border-2 border-t-transparent border-current rounded-full animate-spin mr-2"></div>}
                 {verificationMessage}
             </div>
            )}
@@ -277,7 +314,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
                       plan={planDetails[planKey]}
                       currentPlan={userProfile.plan}
                       onSelectPlan={handleUpgrade}
-                      isProcessing={processingPlan === planKey || verificationState === 'verifying'}
+                      isProcessing={processingPlan === planKey || isVerifyingFromRedirect}
                   />
               ))}
           </div>
