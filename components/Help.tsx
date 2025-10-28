@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ReactIcon } from './icons/ReactIcon';
 import { FirebaseIcon } from './icons/FirebaseIcon';
@@ -86,6 +87,7 @@ const Help: React.FC = () => {
         { id: 'frontend', label: 'Frontend Architecture' },
         { id: 'backend', label: 'Backend & Database' },
         { id: 'apis', label: 'API Integrations' },
+        { id: 'admin_panel', label: 'Admin Panel Guide' },
         { id: 'tech_stack', label: 'Technology Stack' },
     ];
     const sectionIds = navItems.map(item => item.id);
@@ -180,6 +182,118 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                            <p>We use the <code>@google/genai</code> library to interact with Gemini models. <code>gemini-2.5-flash</code> is used for real-time chat, and <code>gemini-2.5-pro</code> for high-quality JSON generation for exams. The custom <code>useApiLimiter</code> hook controls API call frequency based on the user's subscription plan to manage costs and prevent abuse.</p>
                            <SubSectionTitle>Paystack API</SubSectionTitle>
                            <p>Used for subscription payments via the <code>PaystackPop</code> inline JS library. In production, transaction verification must be performed on a secure backend server to be secure.</p>
+                        </Section>
+
+                        <Section id="admin_panel" title="Building an Admin Panel" icon={<StackIcon />}>
+                            <p>This section provides guidance for developers on how to perform administrative tasks like managing users and course content. These operations should be performed from a secure admin panel or a backend environment.</p>
+                            
+                            <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800">
+                                <strong className="font-bold">Security Warning:</strong> All administrative actions must be protected. Implement security rules in Firestore or use Firebase Cloud Functions with authentication checks to ensure only authorized admins can modify data. Do not expose these functions directly on the public client application.
+                            </div>
+
+                            <SubSectionTitle>User Management</SubSectionTitle>
+                            <p>User profiles are stored in the <code>users/&#123;userId&#125;</code> documents. You can edit user details such as their display name or subscription plan.</p>
+                            <p>To change a user's plan, update the <code>plan</code> field in their user profile document. The valid values are 'free', 'starter', and 'smart'.</p>
+                            <CodeBlock title="Example: Update User Plan" code={`
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase'; // Your firebase config
+
+async function updateUserPlan(userId, newPlan) {
+  // newPlan should be 'free', 'starter', or 'smart'
+  const userRef = doc(db, 'users', userId);
+  try {
+    await updateDoc(userRef, {
+      plan: newPlan
+    });
+    console.log('User plan updated successfully.');
+  } catch (error) {
+    console.error('Error updating user plan: ', error);
+  }
+}
+`.trim()} language="javascript" />
+                            <p><strong>Note:</strong> If you update a user's <code>displayName</code>, remember to also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
+
+                            <SubSectionTitle>Course Management</SubSectionTitle>
+                            <p>Course content is stored in Firestore under the path <code>artifacts/{appId}/public/data/courses/{courseId}</code>. Each course document contains a <code>subjectList</code> array, where each object represents a subject and contains a nested <code>topics</code> array.</p>
+                            <p>To add a new subject, you must read the entire <code>subjectList</code>, append your new subject object, and write the modified array back to the document.</p>
+                            <CodeBlock title="Example: Add a New Subject" code={`
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase'; // Your firebase config
+
+// Assume __app_id is available
+declare var __app_id: string;
+
+async function addSubjectToCourse(courseId, newSubjectName) {
+  const courseRef = doc(db, \`artifacts/\${__app_id}/public/data/courses\`, courseId);
+  try {
+    const courseSnap = await getDoc(courseRef);
+    if (!courseSnap.exists()) {
+      throw new Error('Course document not found!');
+    }
+
+    const courseData = courseSnap.data();
+    const existingSubjects = courseData.subjectList || [];
+
+    const newSubject = {
+      subjectId: \`subj_\${Date.now()}\`, // Generate a unique ID
+      subjectName: newSubjectName,
+      topics: [] // Initialize with an empty topics array
+    };
+
+    const updatedSubjects = [...existingSubjects, newSubject];
+
+    await updateDoc(courseRef, {
+      subjectList: updatedSubjects
+    });
+    console.log('New subject added successfully.');
+  } catch (error) {
+    console.error('Error adding new subject: ', error);
+  }
+}
+`.trim()} language="javascript" />
+                            <p>Adding a topic to an existing subject follows a similar pattern. You read the array, find the specific subject to modify, add the new topic to its <code>topics</code> array, and then update the document with the modified <code>subjectList</code>.</p>
+                            <CodeBlock title="Example: Add a New Topic to a Subject" code={`
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase'; // Your firebase config
+
+// Assume __app_id is available
+declare var __app_id: string;
+
+async function addTopicToSubject(courseId, subjectId, newTopicName) {
+  // FIX: Corrected typo from `appId` to `__app_id` to match the declared variable.
+  const courseRef = doc(db, \`artifacts/\${__app_id}/public/data/courses\`, courseId);
+  try {
+    const courseSnap = await getDoc(courseRef);
+    if (!courseSnap.exists()) {
+        throw new Error('Course document not found!');
+    }
+
+    const courseData = courseSnap.data();
+    const subjects = courseData.subjectList || [];
+
+    const updatedSubjects = subjects.map(subject => {
+      if (subject.subjectId === subjectId) {
+        const newTopic = {
+          topicId: \`topic_\${Date.now()}\`, // Generate a unique ID
+          topicName: newTopicName
+        };
+        return {
+          ...subject,
+          topics: [...(subject.topics || []), newTopic]
+        };
+      }
+      return subject;
+    });
+
+    await updateDoc(courseRef, {
+      subjectList: updatedSubjects
+    });
+    console.log('New topic added successfully.');
+  } catch (error) {
+    console.error('Error adding new topic: ', error);
+  }
+}
+`.trim()} language="javascript" />
                         </Section>
 
                         <Section id="tech_stack" title="Technology Stack" icon={<StackIcon />}>

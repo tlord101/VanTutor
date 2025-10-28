@@ -248,42 +248,54 @@ function App() {
   };
 
   const createXpUpdateTransaction = (xp: number, isTestXp: boolean) => async (transaction: any) => {
-      if (!user || !userProfile) throw new Error("User not available");
+      if (!user) throw new Error("User not available");
 
+      const userProfileRef = doc(db, 'users', user.uid);
+      const weeklyLeaderboardRef = doc(db, 'leaderboardWeekly', user.uid);
+
+      // --- All READS must happen first ---
+      const userProfileDoc = await transaction.get(userProfileRef);
+      const weeklyDoc = await transaction.get(weeklyLeaderboardRef);
+      
+      if (!userProfileDoc.exists()) {
+        throw new Error("User profile document not found during transaction.");
+      }
+      const currentProfile: UserProfile = userProfileDoc.data() as UserProfile;
+
+      // --- Calculations based on read data ---
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const lastActivityDate = new Date(userProfile.lastActivityDate);
+      const lastActivityDate = new Date(currentProfile.lastActivityDate || 0);
       lastActivityDate.setHours(0, 0, 0, 0);
       
-      let newStreak = userProfile.currentStreak;
+      let newStreak = currentProfile.currentStreak || 0;
       if (lastActivityDate.getTime() < today.getTime()) {
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
           newStreak = lastActivityDate.getTime() === yesterday.getTime() ? newStreak + 1 : 1;
       }
       
-      const newTotalCombinedXP = userProfile.totalXP + userProfile.totalTestXP + xp;
+      const newTotalCombinedXP = (currentProfile.totalXP || 0) + (currentProfile.totalTestXP || 0) + xp;
       const todayDateString = new Date().toISOString().split('T')[0];
       const currentWeekId = getWeekId(new Date());
 
-      const userProfileRef = doc(db, 'users', user.uid);
       const overallLeaderboardRef = doc(db, 'leaderboardOverall', user.uid);
-      const weeklyLeaderboardRef = doc(db, 'leaderboardWeekly', user.uid);
       const xpHistoryRef = doc(db, 'users', user.uid, 'xpHistory', todayDateString);
 
+      // --- All WRITES happen last ---
       transaction.update(userProfileRef, {
           [isTestXp ? 'totalTestXP' : 'totalXP']: increment(xp),
           currentStreak: newStreak,
           lastActivityDate: Date.now()
       });
-      transaction.set(overallLeaderboardRef, { uid: user.uid, displayName: userProfile.displayName, xp: newTotalCombinedXP }, { merge: true });
+      transaction.set(overallLeaderboardRef, { uid: user.uid, displayName: currentProfile.displayName, xp: newTotalCombinedXP }, { merge: true });
       transaction.set(xpHistoryRef, { totalCombinedXP: newTotalCombinedXP }, { merge: true });
 
-      const weeklyDoc = await transaction.get(weeklyLeaderboardRef);
-      if (weeklyDoc.exists() && weeklyDoc.data().weekId === currentWeekId) {
+      const weeklyData = weeklyDoc.data();
+      if (weeklyDoc.exists() && weeklyData?.weekId === currentWeekId) {
           transaction.update(weeklyLeaderboardRef, { xp: increment(xp) });
       } else {
-          transaction.set(weeklyLeaderboardRef, { uid: user.uid, displayName: userProfile.displayName, xp: xp, weekId: currentWeekId });
+          transaction.set(weeklyLeaderboardRef, { uid: user.uid, displayName: currentProfile.displayName, xp: xp, weekId: currentWeekId });
       }
 
       return newStreak;
