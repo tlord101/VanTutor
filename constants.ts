@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { NavItem } from './types';
 import { DashboardIcon } from './components/icons/DashboardIcon';
@@ -8,6 +9,7 @@ import { ExamIcon } from './components/icons/ExamIcon';
 import { LeaderboardIcon } from './components/icons/LeaderboardIcon';
 import { PremiumIcon } from './components/icons/PremiumIcon';
 import { CameraIcon } from './components/icons/CameraIcon';
+import { HelpIcon } from './components/icons/HelpIcon';
 
 // Define SVG icons for secondary navigation
 const SettingsIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
@@ -46,4 +48,5 @@ export const navigationItems: NavItem[] = [
 
 export const secondaryNavigationItems: NavItem[] = [
     { id: 'settings', label: 'Settings', icon: React.createElement(SettingsIcon) },
+    { id: 'help', label: 'Help', icon: React.createElement(HelpIcon) },
 ];

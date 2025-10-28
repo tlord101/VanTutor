@@ -16,6 +16,7 @@ import { Chat } from './components/Chat';
 import { Exam } from './components/Exam';
 import { Leaderboard } from './components/Leaderboard';
 import { Settings } from './components/Settings';
+import Help from './components/Help';
 import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
 import { Subscription } from './components/Subscription';
@@ -411,6 +412,8 @@ function App() {
         return <Subscription user={user} userProfile={userProfile} onProfileUpdate={handleProfileUpdate} />;
       case 'settings':
         return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
+      case 'help':
+        return <Help />;
       default:
         return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
     }
