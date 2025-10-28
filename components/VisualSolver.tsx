@@ -80,7 +80,7 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 const imagePart = { inlineData: { data: base64Data, mimeType: 'image/jpeg' } };
                 const textPart = { text: initialPrompt };
                 
-                const responseStream = await chat.sendMessageStream({ message: [textPart, imagePart] });
+                const responseStream = await chat.sendMessageStream([textPart, imagePart]);
 
                 let botResponseText = '';
                 const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };

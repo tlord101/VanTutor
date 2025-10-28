@@ -50,6 +50,18 @@
           radial-gradient(circle at 1px 1px, rgba(0,0,0,0.04) 1px, transparent 0);
         background-size: 25px 25px;
       }
+      @keyframes voice-pulse {
+        50% {
+          transform: scale(1.08);
+          box-shadow: 0 0 40px 10px rgba(163, 230, 53, 0.4);
+        }
+      }
+      @keyframes speaking-glow {
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 50px 15px rgba(45, 212, 191, 0.5);
+        }
+      }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNooMCrNH/bbSsBlYCsOuNEtZvrS3MyDGMR4I2A59wscdI1oE7" crossorigin="anonymous">
   <script type="importmap">

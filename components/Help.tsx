@@ -72,7 +72,7 @@ const Section: React.FC<{ id: string, title: string, icon: React.ReactNode, chil
             <span className="w-10 h-10 flex items-center justify-center bg-lime-100 text-lime-600 rounded-lg">{icon}</span>
             <h2 className="text-3xl font-bold text-gray-800">{title}</h2>
         </div>
-        <div className="pl-13 space-y-4 text-gray-700">{children}</div>
+        <div className="pl-12 space-y-4 text-gray-700">{children}</div>
     </section>
 );
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import type { UserProfile, Message, ChatConversation } from '../types';
@@ -22,17 +22,273 @@ import { GraduationCapIcon } from './icons/GraduationCapIcon';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
+// --- INLINE ICONS ---
 const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
+const LiveMicrophoneIcon: React.FC<{ className?: string }> = ({ className = 'w-24 h-24' }) => (
+    <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg" fill="none">
+        <defs>
+            <linearGradient id="micGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{ stopColor: '#84CC16' }} /> 
+                <stop offset="100%" style={{ stopColor: '#2DD4BF' }} />
+            </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="50" fill="url(#micGradient)" />
+        <g stroke="white" strokeWidth="5" strokeLinecap="round">
+            <path d="M50 62V70" />
+            <path d="M50 28C45.5817 28 42 31.5817 42 36V48C42 52.4183 45.5817 56 50 56C54.4183 56 58 52.4183 58 48V36C58 31.5817 54.4183 28 50 28Z" />
+            <path d="M65 48C65 56.2843 58.2843 63 50 63C41.7157 63 35 56.2843 35 48" />
+        </g>
+    </svg>
+);
+const StopIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clipRule="evenodd" />
+    </svg>
+);
 
-interface ChatProps {
-    userProfile: UserProfile;
+// --- AUDIO HELPER FUNCTIONS ---
+function encode(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+function createBlob(data: Float32Array): GenAIBlob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    int16[i] = data[i] * 32768;
+  }
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: 'audio/pcm;rate=16000',
+  };
 }
 
-export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
+// --- LIVE CONVERSATION COMPONENT ---
+interface LiveConversationProps {
+    userProfile: UserProfile;
+}
+const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
+    const [sessionState, setSessionState] = useState<'idle' | 'connecting' | 'active' | 'error'>('idle');
+    const [statusMessage, setStatusMessage] = useState('');
+    const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+    
+    const sessionPromise = useRef<Promise<any> | null>(null);
+    const inputAudioContext = useRef<AudioContext | null>(null);
+    const outputAudioContext = useRef<AudioContext | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const outputSources = useRef(new Set<AudioBufferSourceNode>());
+    const nextStartTime = useRef(0);
+    
+    const handleEndSession = useCallback(async (isError: boolean = false) => {
+        if (!sessionPromise.current && !streamRef.current) return;
+        if (!isError) setStatusMessage('Ending session...');
+
+        if (sessionPromise.current) {
+            try {
+                const session = await sessionPromise.current;
+                session.close();
+            } catch (e) {
+                console.error("Error closing session", e);
+            }
+        }
+        streamRef.current?.getTracks().forEach(track => track.stop());
+        scriptProcessorRef.current?.disconnect();
+        inputAudioContext.current?.close();
+        outputAudioContext.current?.close();
+
+        sessionPromise.current = null;
+        streamRef.current = null;
+        scriptProcessorRef.current = null;
+        inputAudioContext.current = null;
+        outputAudioContext.current = null;
+
+        if (!isError) setSessionState('idle');
+    }, []);
+
+    useEffect(() => () => { handleEndSession(true); }, [handleEndSession]);
+
+    const handleStartSession = async () => {
+        setSessionState('connecting');
+        setStatusMessage('Requesting microphone access...');
+
+        try {
+            streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setStatusMessage('Connecting to VANTUTOR...');
+
+            inputAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            outputAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+            sessionPromise.current = ai.live.connect({
+              model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+              callbacks: {
+                onopen: () => {
+                    setStatusMessage('Listening...');
+                    setSessionState('active');
+                    const source = inputAudioContext.current!.createMediaStreamSource(streamRef.current!);
+                    const scriptProcessor = inputAudioContext.current!.createScriptProcessor(4096, 1, 1);
+                    scriptProcessorRef.current = scriptProcessor;
+                    scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                        const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                        const pcmBlob = createBlob(inputData);
+                        sessionPromise.current?.then((session) => {
+                          session.sendRealtimeInput({ media: pcmBlob });
+                        });
+                    };
+                    source.connect(scriptProcessor);
+                    scriptProcessor.connect(inputAudioContext.current!.destination);
+                },
+                onmessage: async (message: LiveServerMessage) => {
+                    if (message.serverContent?.outputTranscription) {
+                        setStatusMessage('VANTUTOR is speaking...');
+                    }
+                    if (message.serverContent?.turnComplete) {
+                        setStatusMessage('Listening...');
+                    }
+                    const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                    if (base64Audio && outputAudioContext.current) {
+                        setIsBotSpeaking(true);
+                        nextStartTime.current = Math.max(nextStartTime.current, outputAudioContext.current.currentTime);
+                        const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContext.current, 24000, 1);
+                        const source = outputAudioContext.current.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(outputAudioContext.current.destination);
+                        source.addEventListener('ended', () => { 
+                            outputSources.current.delete(source);
+                            if (outputSources.current.size === 0) {
+                                setIsBotSpeaking(false);
+                            }
+                        });
+                        source.start(nextStartTime.current);
+                        nextStartTime.current += audioBuffer.duration;
+                        outputSources.current.add(source);
+                    }
+                    if (message.serverContent?.interrupted) {
+                        for (const source of outputSources.current.values()) {
+                            source.stop();
+                            outputSources.current.delete(source);
+                        }
+                        setIsBotSpeaking(false);
+                        nextStartTime.current = 0;
+                    }
+                },
+                onerror: (e: ErrorEvent) => {
+                    console.error('Session error:', e);
+                    setStatusMessage('Session error. Please try again.');
+                    setSessionState('error');
+                    handleEndSession(true);
+                },
+                onclose: (e: CloseEvent) => {
+                    handleEndSession(true);
+                },
+              },
+              config: {
+                responseModalities: [Modality.AUDIO],
+                inputAudioTranscription: {},
+                outputAudioTranscription: {},
+                systemInstruction: 'You are VANTUTOR, a friendly and helpful AI tutor. Keep your responses concise and conversational.',
+              },
+            });
+        } catch (err) {
+            console.error('Failed to start session:', err);
+            setStatusMessage('Failed to access microphone. Please check permissions and try again.');
+            setSessionState('error');
+        }
+    };
+    
+    if (sessionState === 'idle' || sessionState === 'error') {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-50">
+                 <button
+                    onClick={handleStartSession}
+                    className="mb-6 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-lime-300"
+                    aria-label="Start Speaking"
+                >
+                    <LiveMicrophoneIcon className="w-32 h-32" />
+                </button>
+                <h2 className="text-3xl font-bold text-gray-800">Live Conversation</h2>
+                <p className="text-gray-600 mt-2 max-w-sm">Click the microphone to start talking with your AI tutor in real-time.</p>
+                {sessionState === 'error' && <p className="mt-4 text-red-600 font-semibold">{statusMessage}</p>}
+            </div>
+        );
+    }
+    
+    if (sessionState === 'connecting') {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-900 text-white">
+                <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-500 rounded-full animate-spin"></div>
+                <p className="mt-4 text-gray-300">{statusMessage}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col h-full bg-gray-900 text-white justify-between items-center p-8 overflow-hidden">
+            <div className="w-full text-center">
+                <span className="text-lg text-gray-300 h-6 transition-opacity duration-300">{statusMessage}</span>
+            </div>
+            
+            <div className="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
+                <div className={`absolute inset-0 rounded-full bg-gradient-to-br transition-all duration-700
+                    ${isBotSpeaking 
+                        ? 'from-teal-500 via-sky-500 to-purple-600 animate-[speaking-glow_1.5s_ease-in-out_infinite]' 
+                        : 'from-lime-500 to-teal-600 animate-[voice-pulse_2s_ease-in-out_infinite]'
+                    }`}
+                ></div>
+                
+                <div className="absolute inset-2 rounded-full bg-gray-900"></div>
+
+                <LogoIcon className={`w-1/2 h-1/2 text-white/80 transition-transform duration-500 ${isBotSpeaking ? 'scale-110' : ''}`} />
+            </div>
+
+            <div className="flex flex-col items-center">
+                <button
+                    onClick={() => handleEndSession()}
+                    className="w-16 h-16 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg active:scale-95"
+                    aria-label="End session"
+                >
+                    <StopIcon className="w-8 h-8" />
+                </button>
+                <p className="text-xs text-gray-500 mt-2">End session</p>
+            </div>
+        </div>
+    );
+};
+
+// --- TEXT CHAT COMPONENT ---
+interface TextChatProps {
+    userProfile: UserProfile;
+}
+const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
     const [conversations, setConversations] = useState<ChatConversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -41,7 +297,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     const [file, setFile] = useState<File | null>(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
     
-    const [isLoading, setIsLoading] = useState(false); // AI response loading
+    const [isLoading, setIsLoading] = useState(false);
     const [isHistoryLoading, setIsHistoryLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     
@@ -251,8 +507,6 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         setIsDeleting(true);
         try {
             const batch = writeBatch(db);
-            // Firestore batch writes are limited, for large histories, this would need chunking.
-            // For this app's scale, a single batch is likely okay.
             for (const convo of conversations) {
                 const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', convo.id, 'messages');
                 const messagesSnapshot = await getDocs(messagesRef);
@@ -322,7 +576,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     };
 
     return (
-        <div className="flex flex-col h-full w-full">
+        <>
             <div className="md:hidden flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
                 <button onClick={() => setIsMobilePanelOpen(true)} className="text-gray-600 hover:text-gray-900">
                     <ListIcon />
@@ -431,6 +685,42 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 confirmText="Delete"
                 isConfirming={isDeleting}
             />
+        </>
+    );
+};
+
+// --- MAIN CHAT CONTAINER COMPONENT ---
+interface ChatProps {
+    userProfile: UserProfile;
+}
+export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
+    const [chatMode, setChatMode] = useState<'text' | 'live'>('text');
+
+    return (
+        <div className="flex flex-col h-full w-full">
+            <div className="flex-shrink-0 p-2 border-b border-gray-200 bg-white/80 backdrop-blur-sm flex justify-center sticky top-0 z-10">
+                <div className="bg-gray-200 p-1 rounded-full flex items-center">
+                    <button
+                        onClick={() => setChatMode('text')}
+                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'text' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`}
+                        aria-pressed={chatMode === 'text'}
+                    >
+                        Text Chat
+                    </button>
+                    <button
+                        onClick={() => setChatMode('live')}
+                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'live' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`}
+                        aria-pressed={chatMode === 'live'}
+                    >
+                        Live Chat
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 min-h-0">
+                {chatMode === 'text' && <TextChat userProfile={userProfile} />}
+                {chatMode === 'live' && <LiveConversation userProfile={userProfile} />}
+            </div>
         </div>
     );
 };
