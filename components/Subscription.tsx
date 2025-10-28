@@ -71,7 +71,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ planKey, plan, currentPlan, onSelec
 
   const getButton = () => {
     if (isCurrent) {
-      return <button disabled className="w-full py-3 px-4 rounded-lg bg-white/10 text-white font-bold cursor-not-allowed">Your Current Plan</button>;
+      return <button disabled className="w-full py-3 px-4 rounded-lg bg-gray-200 text-gray-800 font-bold cursor-not-allowed">Your Current Plan</button>;
     }
     if (isUpgrade) {
       return (
@@ -91,22 +91,22 @@ const PlanCard: React.FC<PlanCardProps> = ({ planKey, plan, currentPlan, onSelec
         </button>
       );
     }
-    return <button disabled className="w-full py-3 px-4 rounded-lg bg-white/5 text-gray-500 font-bold cursor-not-allowed">Downgrade not supported</button>;
+    return <button disabled className="w-full py-3 px-4 rounded-lg bg-gray-100 text-gray-500 font-bold cursor-not-allowed">Downgrade not supported</button>;
   };
 
   return (
-    <div className={`flex flex-col bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-6 rounded-2xl border ${plan.highlight ? 'border-lime-500' : 'border-white/10'}`}>
-      {plan.highlight && <div className="text-center mb-4 text-sm font-bold text-lime-400 bg-lime-500/10 py-1 px-3 rounded-full self-center">Most Popular</div>}
-      <h3 className="text-2xl font-bold text-white text-center">{plan.name}</h3>
+    <div className={`flex flex-col bg-white p-6 rounded-2xl border ${plan.highlight ? 'border-lime-500' : 'border-gray-200'}`}>
+      {plan.highlight && <div className="text-center mb-4 text-sm font-bold text-lime-700 bg-lime-100 py-1 px-3 rounded-full self-center">Most Popular</div>}
+      <h3 className="text-2xl font-bold text-gray-900 text-center">{plan.name}</h3>
       <p className="text-center mt-2">
-        <span className="text-4xl font-extrabold text-white">₦{plan.price.toLocaleString()}</span>
-        <span className="text-gray-400">/month</span>
+        <span className="text-4xl font-extrabold text-gray-900">₦{plan.price.toLocaleString()}</span>
+        <span className="text-gray-600">/month</span>
       </p>
       <ul className="mt-6 space-y-3 flex-grow">
         {plan.features.map((feature, index) => (
           <li key={index} className="flex items-start">
-            <CheckIcon className="w-5 h-5 text-lime-400 flex-shrink-0 mt-0.5 mr-3" />
-            <span className="text-gray-300">{feature}</span>
+            <CheckIcon className="w-5 h-5 text-lime-500 flex-shrink-0 mt-0.5 mr-3" />
+            <span className="text-gray-700">{feature}</span>
           </li>
         ))}
       </ul>
@@ -181,11 +181,11 @@ export const Subscription: React.FC<SubscriptionProps> = ({ user, userProfile, o
   return (
     <div className="flex-1 flex flex-col h-full w-full">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <p className="text-center text-gray-300 mb-8 max-w-2xl mx-auto">
+          <p className="text-center text-gray-600 mb-8 max-w-2xl mx-auto">
               Choose a plan to unlock more features and accelerate your learning journey with VANTUTOR.
           </p>
-          {error && <div className="bg-red-500/20 border border-red-500 text-red-300 text-center p-3 rounded-lg mb-6">{error}</div>}
-          {successMessage && <div className="bg-green-500/20 border border-green-500 text-green-300 text-center p-3 rounded-lg mb-6">{successMessage}</div>}
+          {error && <div className="bg-red-100 border border-red-300 text-red-700 text-center p-3 rounded-lg mb-6">{error}</div>}
+          {successMessage && <div className="bg-green-100 border border-green-300 text-green-700 text-center p-3 rounded-lg mb-6">{successMessage}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(Object.keys(planDetails) as UserPlan[]).map(planKey => (
                   <PlanCard

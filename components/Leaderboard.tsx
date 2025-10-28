@@ -13,21 +13,21 @@ const getWeekId = (date: Date): string => {
 
 const LoadingSpinner: React.FC = () => (
   <div className="flex justify-center items-center p-8">
-    <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+    <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
   </div>
 );
 
 const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: boolean}> = ({ rank, user, isCurrentUser }) => (
-    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-900/50 border-lime-500' : 'bg-gradient-to-r from-white/10 to-white/5 border-transparent'}`}>
-        <div className="flex-shrink-0 w-8 text-center font-bold text-lg text-gray-400">
+    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-100 border-lime-300' : 'bg-gray-50 border-gray-100'}`}>
+        <div className="flex-shrink-0 w-8 text-center font-bold text-lg text-gray-500">
             {rank <= 3 ? (
-                <span className={rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-gray-300' : 'text-yellow-600'}>{rank}</span>
+                <span className={rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-600'}>{rank}</span>
             ) : rank}
         </div>
         <div className="flex-1 ml-4">
-            <p className="font-semibold text-white">{user.displayName}</p>
+            <p className="font-semibold text-gray-800">{user.displayName}</p>
         </div>
-        <div className="font-bold text-lime-400 text-lg">
+        <div className="font-bold text-lime-600 text-lg">
             {user.xp.toLocaleString()} XP
         </div>
     </div>
@@ -83,8 +83,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
 
   const renderList = () => {
       if(isLoading) return <LoadingSpinner />;
-      if(error) return <p className="text-center text-red-400">{error}</p>
-      if(data.length === 0) return <p className="text-center text-gray-400">The leaderboard is empty. Be the first to set a score!</p>;
+      if(error) return <p className="text-center text-red-600">{error}</p>
+      if(data.length === 0) return <p className="text-center text-gray-500">The leaderboard is empty. Be the first to set a score!</p>;
 
       return (
           <div className="space-y-3">
@@ -103,12 +103,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 flex flex-col bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto">
-        <div className="flex-shrink-0 mb-4 bg-black/20 p-1 rounded-lg flex">
-          <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
+      <div className="flex-1 flex flex-col bg-white p-4 sm:p-6 rounded-xl border border-gray-200 overflow-y-auto">
+        <div className="flex-shrink-0 mb-4 bg-gray-100 p-1 rounded-lg flex">
+          <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
             Overall
           </button>
-          <button onClick={() => setActiveTab('weekly')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'weekly' ? 'bg-lime-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
+          <button onClick={() => setActiveTab('weekly')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'weekly' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
             This Week
           </button>
         </div>

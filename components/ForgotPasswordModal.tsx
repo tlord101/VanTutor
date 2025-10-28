@@ -41,33 +41,33 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative"
+        className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors text-2xl"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors text-2xl"
           aria-label="Close"
         >
           &times;
         </button>
-        <h2 className="text-2xl font-bold text-white text-center mb-2">Reset Password</h2>
-        <p className="text-gray-400 text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Reset Password</h2>
+        <p className="text-gray-600 text-center mb-6">
           Enter your email and we'll send you a link to reset your password.
         </p>
         
         {message ? (
           <div className="text-center">
-            <p className="text-green-400 bg-green-500/10 p-3 rounded-lg mb-4">{message}</p>
+            <p className="text-green-700 bg-green-100 p-3 rounded-lg mb-4">{message}</p>
             <button
               onClick={onClose}
-              className="w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors"
+              className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Close
             </button>
@@ -76,7 +76,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
           <form onSubmit={handleSendResetLink}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address
                 </label>
                 <input
@@ -87,11 +87,11 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
             </div>
-            {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+            {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
             <div className="mt-6">
               <button
                 type="submit"

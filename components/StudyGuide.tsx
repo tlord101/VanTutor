@@ -50,11 +50,11 @@ const getCourseNameById = (id: string) => mockCourses.find(c => c.id === id)?.na
 const StudyGuideSkeleton: React.FC = () => (
     <div className="space-y-4 animate-pulse p-4 sm:p-6 md:p-8">
         {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white/5 p-4 rounded-xl">
-                <div className="h-6 bg-gray-600 rounded w-1/3"></div>
+            <div key={i} className="bg-white p-4 rounded-xl border border-gray-200">
+                <div className="h-6 bg-gray-200 rounded w-1/3"></div>
                 <div className="mt-4 space-y-3">
-                    <div className="h-8 bg-gray-700 rounded w-full"></div>
-                    <div className="h-8 bg-gray-700 rounded w-full"></div>
+                    <div className="h-8 bg-gray-300 rounded w-full"></div>
+                    <div className="h-8 bg-gray-300 rounded w-full"></div>
                 </div>
             </div>
         ))}
@@ -283,11 +283,11 @@ Student: "${tempInput}"
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-black/20 md:rounded-xl border border-white/10 overflow-hidden">
+        <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
-            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg border-b border-white/10 z-10">
-                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
-                <h2 className="text-lg font-bold text-white truncate mx-4 flex-1 text-center">{topic.topicName}</h2>
+            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{topic.topicName}</h2>
                 <div className="w-8 h-8"></div> {/* Spacer for balance */}
             </header>
 
@@ -296,7 +296,7 @@ Student: "${tempInput}"
                 {messages.map((message) => (
                     <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
                         {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-900/70 text-white' : 'bg-white/5 text-gray-300'}`}>
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
                             {message.sender === 'user' ? (
                                 <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                             ) : (
@@ -306,12 +306,12 @@ Student: "${tempInput}"
                                         rehypePlugins={[rehypeKatex]}
                                         components={{
                                             p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                            strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                                            strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                                             em: ({node, ...props}) => <em className="italic" {...props} />,
                                             ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
                                             ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                                            li: ({node, ...props}) => <li className="text-gray-300" {...props} />,
-                                            a: ({node, ...props}) => <a className="text-lime-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                            li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
+                                            a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                                         }}
                                     >
                                         {message.text}
@@ -321,12 +321,12 @@ Student: "${tempInput}"
                         </div>
                     </div>
                 ))}
-                {isLoading && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white/5 text-gray-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
+                {isLoading && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-gray-200 text-gray-800"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
             
             {/* Fixed Input Area */}
-            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-white/10 bg-gray-900/30 backdrop-blur-lg">
+            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
                 {suggestions.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 mb-3 justify-end">
                       {suggestions.map((suggestion, index) => (
@@ -334,14 +334,14 @@ Student: "${tempInput}"
                               key={index}
                               onClick={() => handleSend(suggestion)}
                               disabled={isLoading}
-                              className="px-3 py-1.5 text-sm bg-white/10 text-gray-300 rounded-full hover:bg-white/20 transition-colors disabled:opacity-50"
+                              className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
                           >
                               {suggestion}
                           </button>
                       ))}
                   </div>
                 )}
-                {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
+                {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
                 
                 <div className="relative flex items-center">
                     <textarea 
@@ -349,12 +349,12 @@ Student: "${tempInput}"
                         onChange={(e) => setInput(e.target.value)} 
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
                         placeholder="Ask a question..." 
-                        className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-12 pr-14 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
+                        className="w-full bg-white border border-gray-300 rounded-full py-3 pl-12 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
                         rows={1}
                         style={{ fieldSizing: 'content' }}
                         disabled={isLoading} 
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-400 hover:text-white transition-colors disabled:opacity-50">
+                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50">
                         <PaperclipIcon className="w-5 h-5" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} />
                     </label>
@@ -366,9 +366,9 @@ Student: "${tempInput}"
                         <SendIcon className="w-5 h-5" />
                     </button>
                 </div>
-                {file && <div className="text-xs text-gray-400 mt-2 flex items-center gap-2 bg-black/30 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-400 hover:text-red-300">&times;</button></div>}
+                {file && <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-500 hover:text-red-400">&times;</button></div>}
                 
-                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} className="mt-4 w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">Mark as Complete (+2 XP)</button>}
+                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} className="mt-4 w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Mark as Complete (+2 XP)</button>}
             </footer>
         </div>
     );
@@ -376,8 +376,8 @@ Student: "${tempInput}"
 
 // --- TOPIC & SUBJECT COMPONENTS ---
 const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void, isLocked: boolean }> = ({ topic, isCompleted, onSelect, isLocked }) => (
-    <button onClick={onSelect} disabled={isLocked} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-        <span className={isLocked ? "text-gray-500" : "text-gray-300"}>{topic.topicName}</span>
+    <button onClick={onSelect} disabled={isLocked} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <span className={isLocked ? "text-gray-500" : "text-gray-700"}>{topic.topicName}</span>
         {isLocked ? <LockIcon className="w-4 h-4 text-gray-500" /> : isCompleted && <CheckCircleIcon className="w-5 h-5 text-lime-500" />}
     </button>
 );
@@ -390,7 +390,7 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
     const progressPercentage = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
 
     return (
-        <div className="bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isLocked}
@@ -399,16 +399,16 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
                 aria-controls={`subject-content-${subject.subjectId}`}
             >
                 <div className="flex justify-between items-center">
-                    <h3 className={`text-lg font-semibold ${isLocked ? 'text-gray-500' : 'text-white'}`}>{subject.subjectName}</h3>
+                    <h3 className={`text-lg font-semibold ${isLocked ? 'text-gray-500' : 'text-gray-900'}`}>{subject.subjectName}</h3>
                     {isLocked ? 
                         <LockIcon className="w-5 h-5 text-gray-500" /> : 
-                        <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDownIcon className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                     }
                 </div>
                 {!isLocked && (
                     <div className="mt-3 flex items-center gap-3">
                         <div
-                            className="flex-1 bg-black/30 rounded-full h-2 overflow-hidden"
+                            className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden"
                             role="progressbar"
                             aria-valuenow={progressPercentage}
                             aria-valuemin={0}
@@ -421,7 +421,7 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
                                 style={{ width: `${progressPercentage}%` }}
                             />
                         </div>
-                        <span className="text-sm font-medium text-gray-400 w-24 text-right tabular-nums" aria-hidden="true">
+                        <span className="text-sm font-medium text-gray-600 w-24 text-right tabular-nums" aria-hidden="true">
                             {completedTopics}/{totalTopics} ({Math.round(progressPercentage)}%)
                         </span>
                     </div>
@@ -537,7 +537,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
     return (
         <div className="flex-1 flex flex-col h-full w-full">
             {isLoading && <StudyGuideSkeleton />}
-            {error && <p className="text-center text-red-400 p-4 sm:p-6 md:p-8">{error}</p>}
+            {error && <p className="text-center text-red-600 p-4 sm:p-6 md:p-8">{error}</p>}
             {!isLoading && !error && (
                 <div className="flex-1 flex flex-col min-h-0">
                     <div className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-4">
@@ -550,7 +550,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
                                 placeholder="Search for a topic..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-full py-3 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                             />
                         </div>
                     </div>
@@ -579,7 +579,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
                                 );
                             })
                         ) : (
-                             <div className="text-center text-gray-400 py-16">
+                             <div className="text-center text-gray-600 py-16">
                                 <h3 className="text-lg font-semibold">No results found</h3>
                                 <p>Try adjusting your search query for '{searchQuery}'.</p>
                             </div>

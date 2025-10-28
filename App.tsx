@@ -33,8 +33,8 @@ const getWeekId = (date: Date): string => {
 
 
 const LoadingSpinner: React.FC = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-900">
-    <div className="w-16 h-16 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+  <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="w-16 h-16 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
   </div>
 );
 
@@ -429,7 +429,7 @@ function App() {
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans md:p-6 lg:p-8 flex md:gap-6 lg:gap-8">
+    <div className="h-screen bg-gray-100 text-gray-800 font-sans md:p-6 lg:p-8 flex md:gap-6 lg:gap-8">
       <Sidebar
         activeItem={activePage}
         onItemClick={handleNavItemClick}
@@ -441,7 +441,7 @@ function App() {
         isMobileSidebarOpen={isMobileSidebarOpen}
         onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
       />
-      <main className="flex-1 bg-white/5 backdrop-blur-xl md:border border-white/10 md:rounded-2xl flex flex-col relative overflow-hidden">
+      <main className="flex-1 bg-white md:border border-gray-200 md:rounded-2xl flex flex-col relative overflow-hidden">
         <Header
           currentPageLabel={currentPageLabel}
           onNotificationsClick={() => setIsNotificationsOpen(prev => !prev)}

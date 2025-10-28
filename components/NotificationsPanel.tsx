@@ -52,15 +52,15 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
 
     return (
         <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden="true">
-            <div className="absolute inset-0 bg-black/30"></div>
+            <div className="absolute inset-0 bg-gray-900/30"></div>
             <div
-                className="absolute top-20 right-4 md:right-6 lg:right-8 w-full max-w-sm bg-gray-800/80 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl"
+                className="absolute top-20 right-4 md:right-6 lg:right-8 w-full max-w-sm bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200 shadow-2xl"
                 onClick={e => e.stopPropagation()} // Prevent clicks inside from closing the panel
             >
-                <div className="p-4 border-b border-white/10 flex justify-between items-center">
-                    <h3 className="font-bold text-white text-lg">Notifications</h3>
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-900 text-lg">Notifications</h3>
                     {unreadCount > 0 && (
-                        <button onClick={onMarkAllAsRead} className="text-sm text-lime-400 hover:text-lime-300 font-semibold">
+                        <button onClick={onMarkAllAsRead} className="text-sm text-lime-600 hover:text-lime-500 font-semibold">
                             Mark all as read
                         </button>
                     )}
@@ -69,20 +69,20 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
                     {notifications.length > 0 ? (
                         <ul>
                             {notifications.map(notification => (
-                                <li key={notification.id} className="border-b border-white/5 last:border-b-0">
+                                <li key={notification.id} className="border-b border-gray-100 last:border-b-0">
                                     <button 
                                         onClick={() => onMarkAsRead(notification.id)}
-                                        className="w-full text-left flex items-start gap-4 p-4 hover:bg-white/5 transition-colors"
+                                        className="w-full text-left flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors"
                                     >
                                         {!notification.isRead && (
-                                            <div className="w-2 h-2 rounded-full bg-lime-400 flex-shrink-0 mt-2" aria-label="Unread"></div>
+                                            <div className="w-2 h-2 rounded-full bg-lime-500 flex-shrink-0 mt-2" aria-label="Unread"></div>
                                         )}
-                                        <div className={`text-gray-400 flex-shrink-0 ${notification.isRead ? 'ml-4' : ''}`}>
+                                        <div className={`text-gray-500 flex-shrink-0 ${notification.isRead ? 'ml-4' : ''}`}>
                                            <NotificationTypeIcon type={notification.type} />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="font-semibold text-white">{notification.title}</p>
-                                            <p className="text-sm text-gray-300">{notification.message}</p>
+                                            <p className="font-semibold text-gray-800">{notification.title}</p>
+                                            <p className="text-sm text-gray-600">{notification.message}</p>
                                             <p className="text-xs text-gray-500 mt-1">{timeAgo(notification.timestamp)}</p>
                                         </div>
                                     </button>
@@ -90,8 +90,8 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
                             ))}
                         </ul>
                     ) : (
-                        <div className="text-center p-8 text-gray-400">
-                            <NotificationBellIcon className="w-12 h-12 mx-auto mb-2 text-gray-600" />
+                        <div className="text-center p-8 text-gray-500">
+                            <NotificationBellIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                             <p>No notifications yet.</p>
                         </div>
                     )}

@@ -98,20 +98,20 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
     if (isLoadingData) {
       return (
         <div className="flex justify-center items-center h-48">
-           <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+           <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
         </div>
       );
     }
 
     if (error) {
-        return <p className="text-red-400 text-center py-8">{error}</p>;
+        return <p className="text-red-600 text-center py-8">{error}</p>;
     }
 
     return (
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
           <div>
-            <label htmlFor="course" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="course" className="block text-sm font-medium text-gray-700 mb-2">
               Choose your course
             </label>
             <select
@@ -119,10 +119,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
               name="course"
               value={selectedCourse}
               onChange={handleCourseChange}
-              className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+              className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
             >
               {courses.map((course) => (
-                <option key={course.id} value={course.id} className="bg-gray-800">
+                <option key={course.id} value={course.id} className="bg-white">
                   {course.name}
                 </option>
               ))}
@@ -130,7 +130,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
           </div>
 
           <div>
-            <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
               Select your current level
             </label>
             <select
@@ -139,11 +139,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
               disabled={levels.length === 0}
-              className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {levels.length === 0 && <option disabled value="" className="bg-gray-800">Select a course</option>}
+              {levels.length === 0 && <option disabled value="" className="bg-white">Select a course</option>}
               {levels.map((level) => (
-                <option key={level} value={level} className="bg-gray-800">
+                <option key={level} value={level} className="bg-white">
                   {level}
                 </option>
               ))}
@@ -172,18 +172,18 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
   };
   
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-black p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="flex justify-center items-center mb-6">
-              <LogoIcon className="w-12 h-12 text-lime-400" />
-              <h1 className="text-3xl font-bold bg-gradient-to-b from-lime-300 to-lime-500 text-transparent bg-clip-text tracking-wider ml-3">
+              <LogoIcon className="w-12 h-12 text-lime-500" />
+              <h1 className="text-3xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
                   VANTUTOR
               </h1>
           </div>
           <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">Welcome!</h2>
-            <p className="text-gray-400 mt-2">Let's set up your learning path.</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">Welcome!</h2>
+            <p className="text-gray-600 mt-2">Let's set up your learning path.</p>
           </div>
           {renderFormContent()}
         </div>

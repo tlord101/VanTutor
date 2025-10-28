@@ -79,7 +79,7 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 const imagePart = { inlineData: { data: base64Data, mimeType: 'image/jpeg' } };
                 const textPart = { text: initialPrompt };
                 
-                const responseStream = await chat.sendMessageStream([textPart, imagePart]);
+                const responseStream = await chat.sendMessageStream({ message: [textPart, imagePart] });
 
                 let botResponseText = '';
                 const botMessage: Message = { id: `bot-${Date.now()}`, text: '', sender: 'bot', timestamp: Date.now() };
@@ -140,10 +140,10 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
     };
 
      return (
-        <div className="flex flex-col h-full w-full bg-black/20 md:rounded-xl border border-white/10 overflow-hidden">
-            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/5 backdrop-blur-lg border-b border-white/10 z-10">
-                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
-                <h2 className="text-lg font-bold text-white truncate mx-4 flex-1 text-center">Interactive Tutorial</h2>
+        <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
+            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">Interactive Tutorial</h2>
                 <div className="w-8 h-8"></div>
             </header>
 
@@ -151,16 +151,16 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 {messages.map((message) => (
                     <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
                         {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-900/70 text-white' : 'bg-white/5 text-gray-300'}`}>
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
                              <div className="text-sm">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
                                     components={{
                                         p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                                         ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
-                                        li: ({node, ...props}) => <li className="text-gray-300" {...props} />,
+                                        li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
                                     }}
                                 >
                                     {message.text}
@@ -169,19 +169,19 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                         </div>
                     </div>
                 ))}
-                {isLoading && !messages.some(m => m.sender === 'bot' && m.text) && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white/5 text-gray-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
+                {isLoading && !messages.some(m => m.sender === 'bot' && m.text) && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-gray-200 text-gray-800"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
             
-            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-white/10 bg-gray-900/30 backdrop-blur-lg">
-                {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
+            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
+                {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
                 <div className="relative flex items-center">
                     <textarea 
                         value={input} 
                         onChange={(e) => setInput(e.target.value)} 
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
                         placeholder="Ask a question or reply..." 
-                        className="w-full bg-black/30 border border-white/10 rounded-full py-3 pl-6 pr-14 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
+                        className="w-full bg-white border border-gray-300 rounded-full py-3 pl-6 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
                         rows={1}
                         style={{ fieldSizing: 'content' }}
                         disabled={isLoading} 
@@ -432,13 +432,13 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     const renderContent = () => {
         switch (cameraState) {
             case 'initializing':
-                return <div className="flex flex-col items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div><p className="mt-4 text-gray-300">Starting camera...</p></div>;
+                return <div className="flex flex-col items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div><p className="mt-4 text-gray-700">Starting camera...</p></div>;
 
             case 'denied':
-                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-yellow-400 mb-4" /><h3 className="text-xl font-semibold">Camera Access Denied</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-yellow-500 mb-4" /><h3 className="text-xl font-semibold">Camera Access Denied</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
 
             case 'error':
-                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-400 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-400 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors">Retry</button></div>;
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-500 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
             
             case 'ready':
             case 'scanning':
@@ -461,7 +461,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                                 width: `${cropBox.width * 100}%`, height: `${cropBox.height * 100}%`
                             }}
                             className={`absolute border-4 border-dashed rounded-lg cursor-move transition-colors duration-300 
-                                ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/50'}`}
+                                ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/80'}`}
                             onMouseDown={(e) => handleInteractionStart(e, 'drag')}
                             onTouchStart={(e) => handleInteractionStart(e, 'drag')}
                         >
@@ -472,7 +472,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                                     onMouseDown={(e) => handleInteractionStart(e, handle.type)}
                                     onTouchStart={(e) => handleInteractionStart(e, handle.type)}
                                 >
-                                    <div className="w-full h-full bg-lime-400/80 rounded-full border-2 border-white/50"></div>
+                                    <div className="w-full h-full bg-lime-400/80 rounded-full border-2 border-white/80"></div>
                                 </div>
                             ))}
                         </div>
@@ -490,29 +490,29 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             case 'preview':
             case 'analyzing':
                 return (
-                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-black">
+                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-gray-900">
                         {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
                         {cameraState === 'analyzing' && (
-                            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
-                                <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center text-gray-900">
+                                <div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
                                 <p className="mt-4 text-lg font-semibold">Analyzing...</p>
-                                <p className="text-gray-400">This may take a moment.</p>
+                                <p className="text-gray-600">This may take a moment.</p>
                             </div>
                         )}
                         {cameraState === 'preview' && (
                             <>
                                 <div className="absolute top-4 left-4">
-                                    <button onClick={handleRetake} className="flex items-center gap-2 p-2 px-4 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors">
+                                    <button onClick={handleRetake} className="flex items-center gap-2 p-2 px-4 bg-white/80 text-gray-900 rounded-full hover:bg-white transition-colors shadow">
                                         <ArrowUturnLeftIcon />
                                         <span>Back</span>
                                     </button>
                                 </div>
                                 <div className="absolute bottom-8 flex flex-col items-center justify-center w-full px-4 gap-3">
-                                     {error && <p className="absolute bottom-full text-red-400 text-sm bg-red-900/50 p-2 rounded-md mb-2">{error}</p>}
-                                    <button onClick={() => handleAnalyze('answer')} className="w-full max-w-sm bg-white/10 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white/20 transition-colors">
+                                     {error && <p className="absolute bottom-full text-red-100 text-sm bg-red-800/80 p-2 rounded-md mb-2 shadow">{error}</p>}
+                                    <button onClick={() => handleAnalyze('answer')} className="w-full max-w-sm bg-gray-800 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-900 transition-colors shadow">
                                         Answer Only
                                     </button>
-                                    <button onClick={() => handleAnalyze('tutorial')} className="w-full max-w-sm bg-lime-600 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-lime-700 transition-colors">
+                                    <button onClick={() => handleAnalyze('tutorial')} className="w-full max-w-sm bg-lime-600 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-lime-700 transition-colors shadow">
                                         Detailed Tutorial
                                     </button>
                                 </div>
@@ -523,20 +523,20 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
             
             case 'showingAnswer':
                 return (
-                    <div className="w-full h-full flex flex-col">
-                        <div className="flex-shrink-0 h-[40vh] bg-black border-b border-white/10">
+                    <div className="w-full h-full flex flex-col bg-white">
+                        <div className="flex-shrink-0 h-[40vh] bg-gray-100 border-b border-gray-200">
                             {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                            <div className="max-w-none text-gray-300">
+                            <div className="max-w-none text-gray-800">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
                                     components={{
                                         p: ({node, ...props}) => <p className="mb-4 text-base leading-relaxed" {...props} />,
-                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-white mb-4 border-b border-white/10 pb-2" {...props} />,
-                                        h2: ({node, ...props}) => <h2 className="text-xl font-bold text-white mb-3" {...props} />,
-                                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2" {...props} />,
+                                        h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mb-3" {...props} />,
+                                        strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                                         ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 my-4 pl-2" {...props} />,
                                     }}
                                 >
@@ -544,8 +544,8 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                                 </ReactMarkdown>
                             </div>
                         </div>
-                        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-gray-900/50 backdrop-blur-sm">
-                            <button onClick={handleRetake} className="w-full bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                        <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+                            <button onClick={handleRetake} className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">
                                 Scan Another Problem
                             </button>
                         </div>
@@ -563,7 +563,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     
     return (
         <div className="flex-1 flex flex-col h-full w-full">
-            <div className="flex-1 bg-black rounded-xl border border-white/10 overflow-hidden relative">
+            <div className="flex-1 bg-gray-300 rounded-xl border border-gray-200 overflow-hidden relative">
                 <canvas ref={canvasRef} className="hidden"></canvas>
                 {renderContent()}
             </div>

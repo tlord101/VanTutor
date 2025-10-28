@@ -36,11 +36,11 @@ const NavButton: React.FC<{
             ${isExpanded ? 'justify-start' : 'justify-center'}
             ${
                 isActive
-                ? 'bg-white/10 text-white'
-                : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                ? 'bg-lime-100 text-lime-800 font-semibold'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
         >
-            {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-lime-400 rounded-r-full"></div>}
+            {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-lime-500 rounded-r-full"></div>}
             <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isExpanded ? 'mr-4' : 'mr-0'}`}>{item.icon}</span>
             <span className={`font-medium whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                 {item.label}
@@ -65,8 +65,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
     <div className="h-full p-4 flex flex-col">
       {/* Top Section: Logo */}
       <div className="flex items-center mb-10 flex-shrink-0">
-        <LogoIcon className="w-10 h-10 text-lime-400 flex-shrink-0" />
-        <h1 className={`text-2xl font-bold bg-gradient-to-b from-lime-300 to-lime-500 text-transparent bg-clip-text tracking-wider ml-3 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+        <LogoIcon className="w-10 h-10 text-lime-500 flex-shrink-0" />
+        <h1 className={`text-2xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
           VANTUTOR
         </h1>
       </div>
@@ -83,14 +83,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
       
       {/* Bottom Section: Profile & Logout */}
       <div className="flex-shrink-0">
-         <ul className="space-y-2 pt-4 border-t border-white/10">
+         <ul className="space-y-2 pt-4 border-t border-gray-200">
               {secondaryNavigationItems.map((item) => (
                   <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={isExpanded} onClick={() => onItemClick(item.id)} />
               ))}
                <li>
                   <button
                       onClick={onLogout}
-                      className={`w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-400 hover:bg-red-500/20 hover:text-red-400 group
+                      className={`w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-600 hover:bg-red-100 hover:text-red-600 group
                       ${isExpanded ? 'justify-start' : 'justify-center'}`}
                   >
                       <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isExpanded ? 'mr-4' : 'mr-0'}`}><LogoutIcon /></span>
@@ -101,13 +101,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
               </li>
          </ul>
           <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-24 mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
-              <div className="p-3 rounded-lg bg-black/20">
+              <div className="p-3 rounded-lg bg-gray-100">
                   <div className="flex items-center">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 items-center justify-center flex text-white font-bold">
                         {displayName ? displayName.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div className="ml-3 overflow-hidden">
-                          <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                          <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
                       </div>
                   </div>
               </div>
@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
           isExpanded ? 'w-64' : 'w-20'
         }`}
       >
-        <div className="h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
+        <div className="h-full bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl">
           {sidebarContent}
         </div>
       </aside>
@@ -142,16 +142,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
       >
         {/* Overlay */}
         <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm"
             onClick={onCloseMobileSidebar}
             aria-hidden="true"
         ></div>
 
         {/* Sidebar Panel */}
-        <div className="relative w-64 h-full bg-gray-900/90 backdrop-blur-xl border-r border-white/10 p-4 flex flex-col">
+        <div className="relative w-64 h-full bg-white/95 backdrop-blur-xl border-r border-gray-200 p-4 flex flex-col">
             <div className="flex items-center mb-10 flex-shrink-0">
-                <LogoIcon className="w-10 h-10 text-lime-400 flex-shrink-0" />
-                <h1 id="mobile-menu-title" className="text-2xl font-bold bg-gradient-to-b from-lime-300 to-lime-500 text-transparent bg-clip-text tracking-wider ml-3">
+                <LogoIcon className="w-10 h-10 text-lime-500 flex-shrink-0" />
+                <h1 id="mobile-menu-title" className="text-2xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
                     VANTUTOR
                 </h1>
             </div>
@@ -166,27 +166,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
             </nav>
 
             <div className="flex-shrink-0">
-                <ul className="space-y-2 pt-4 border-t border-white/10">
+                <ul className="space-y-2 pt-4 border-t border-gray-200">
                     {secondaryNavigationItems.map((item) => (
                         <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={true} onClick={() => handleMobileItemClick(item.id)} />
                     ))}
                     <li>
                         <button
                             onClick={handleMobileLogout}
-                            className="w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-400 hover:bg-red-500/20 hover:text-red-400 group justify-start"
+                            className="w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-600 hover:bg-red-100 hover:text-red-600 group justify-start"
                         >
                             <span className="flex-shrink-0 mr-4"><LogoutIcon /></span>
                             <span className="font-medium">Logout</span>
                         </button>
                     </li>
                 </ul>
-                <div className="mt-4 p-3 rounded-lg bg-black/20">
+                <div className="mt-4 p-3 rounded-lg bg-gray-100">
                     <div className="flex items-center">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 items-center justify-center flex text-white font-bold">
                             {displayName ? displayName.charAt(0).toUpperCase() : '?'}
                         </div>
                         <div className="ml-3 overflow-hidden">
-                            <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                            <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
                         </div>
                     </div>
                 </div>

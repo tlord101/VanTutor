@@ -21,8 +21,8 @@ const getCourseNameById = (id: string) => {
 
 const LoadingSpinner: React.FC<{ text: string }> = ({ text }) => (
   <div className="flex flex-col items-center justify-center text-center p-8">
-    <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-600 rounded-full animate-spin"></div>
-    <p className="mt-4 text-gray-300">{text}</p>
+    <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
+    <p className="mt-4 text-gray-600">{text}</p>
   </div>
 );
 
@@ -53,22 +53,22 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
     }
 
     if (history.length === 0) {
-        return <p className="text-gray-400 text-center">You haven't completed any exams yet.</p>;
+        return <p className="text-gray-500 text-center">You haven't completed any exams yet.</p>;
     }
 
     return (
         <div className="space-y-4">
             {history.map(exam => (
-                <div key={exam.id} className="bg-white/5 p-4 rounded-lg border border-white/10 flex justify-between items-center">
+                <div key={exam.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                     <div>
-                        <p className="font-semibold text-white">{getCourseNameById(exam.courseId)}</p>
-                        <p className="text-sm text-gray-400">
+                        <p className="font-semibold text-gray-900">{getCourseNameById(exam.courseId)}</p>
+                        <p className="text-sm text-gray-600">
                             {new Date(exam.timestamp).toLocaleString()}
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="font-bold text-lime-400">{exam.score}/{exam.totalQuestions}</p>
-                        <button onClick={() => onReview(exam)} className="text-sm text-lime-500 hover:underline">Review</button>
+                        <p className="font-bold text-lime-600">{exam.score}/{exam.totalQuestions}</p>
+                        <button onClick={() => onReview(exam)} className="text-sm text-lime-600 hover:underline">Review</button>
                     </div>
                 </div>
             ))}
@@ -300,15 +300,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
         return (
           <div>
             <div className="flex justify-between items-center mb-4">
-                <p className="text-gray-400">Question {currentQuestionIndex + 1} of {questions.length}</p>
-                <div className="flex items-center gap-2 font-mono text-lg font-bold bg-white/10 px-3 py-1 rounded-lg">
+                <p className="text-gray-500">Question {currentQuestionIndex + 1} of {questions.length}</p>
+                <div className="flex items-center gap-2 font-mono text-lg font-bold bg-gray-100 px-3 py-1 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <span>
                         {Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}
                     </span>
                 </div>
             </div>
-            <h3 className="text-xl font-semibold text-white mt-2">{currentQuestion.question}</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mt-2">{currentQuestion.question}</h3>
             <div className="space-y-3 mt-4">
               {currentQuestion.options.map((option, index) => (
                 <button
@@ -316,9 +316,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                   onClick={() => !feedback && setSelectedOption(option)}
                   className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200
                     ${feedback ? 
-                        (option === currentQuestion.correctAnswer ? 'bg-green-500/20 border-green-500' : (option === selectedOption ? 'bg-red-500/20 border-red-500' : 'bg-white/5 border-white/10'))
+                        (option === currentQuestion.correctAnswer ? 'bg-green-100 border-green-500' : (option === selectedOption ? 'bg-red-100 border-red-500' : 'bg-white border-gray-200'))
                         : 
-                        (selectedOption === option ? 'bg-lime-500/20 border-lime-500' : 'bg-white/5 border-white/10 hover:border-lime-500/50')
+                        (selectedOption === option ? 'bg-lime-100 border-lime-500' : 'bg-white border-gray-200 hover:border-lime-400')
                     }`}
                   disabled={!!feedback}
                 >
@@ -327,11 +327,11 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
               ))}
             </div>
             {feedback && (
-                <div className={`mt-4 p-4 rounded-lg ${feedback.isCorrect ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                    <h4 className={`font-bold ${feedback.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                <div className={`mt-4 p-4 rounded-lg ${feedback.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <h4 className={`font-bold ${feedback.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
                         {feedback.isCorrect ? 'Correct!' : 'Incorrect'}
                     </h4>
-                    <p className="text-sm text-gray-300 mt-1">{feedback.explanation}</p>
+                    <p className="text-sm text-gray-700 mt-1">{feedback.explanation}</p>
                 </div>
             )}
             <div className="mt-6">
@@ -352,14 +352,14 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           const xpEarned = score * 10;
         return (
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-white">Exam Completed!</h3>
-            <p className="text-gray-300 mt-2">Here's how you did:</p>
+            <h3 className="text-2xl font-bold text-gray-900">Exam Completed!</h3>
+            <p className="text-gray-600 mt-2">Here's how you did:</p>
             <div className="my-6">
-              <p className="text-5xl font-bold text-lime-400">{score} / {questions.length}</p>
-              <p className="mt-2 text-lg font-semibold text-white">+{xpEarned} XP Earned</p>
+              <p className="text-5xl font-bold text-lime-600">{score} / {questions.length}</p>
+              <p className="mt-2 text-lg font-semibold text-gray-800">+{xpEarned} XP Earned</p>
             </div>
             <div className="flex gap-4">
-                <button onClick={() => setExamState('history')} className="flex-1 bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                <button onClick={() => setExamState('history')} className="flex-1 bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">
                     View History
                 </button>
                 <button onClick={resetExam} className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors">
@@ -373,8 +373,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           return (
               <div>
                   <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-bold text-white">Exam History</h3>
-                      <button onClick={resetExam} className="text-lime-500 hover:underline">Back to Exam</button>
+                      <h3 className="text-xl font-bold text-gray-900">Exam History</h3>
+                      <button onClick={resetExam} className="text-lime-600 hover:underline">Back to Exam</button>
                   </div>
                   <ExamHistory userProfile={userProfile} onReview={(exam) => { setReviewExam(exam); setExamState('review'); }} />
               </div>
@@ -386,20 +386,20 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
               <div>
                   <div className="flex justify-between items-center mb-4">
                       <div>
-                        <h3 className="text-xl font-bold text-white">Reviewing Exam</h3>
-                        <p className="text-sm text-gray-400">{new Date(reviewExam.timestamp).toLocaleString()}</p>
+                        <h3 className="text-xl font-bold text-gray-900">Reviewing Exam</h3>
+                        <p className="text-sm text-gray-600">{new Date(reviewExam.timestamp).toLocaleString()}</p>
                       </div>
-                      <button onClick={() => setExamState('history')} className="text-lime-500 hover:underline">Back to History</button>
+                      <button onClick={() => setExamState('history')} className="text-lime-600 hover:underline">Back to History</button>
                   </div>
                   <div className="space-y-6">
                       {reviewExam.questions.map((q, index) => (
-                          <div key={index} className="bg-white/5 p-4 rounded-lg border border-white/10">
-                              <p className="text-gray-400 text-sm">Question {index + 1}</p>
-                              <p className="font-semibold text-white mt-1">{q.question}</p>
+                          <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                              <p className="text-gray-500 text-sm">Question {index + 1}</p>
+                              <p className="font-semibold text-gray-800 mt-1">{q.question}</p>
                               <div className="mt-3 space-y-2 text-sm">
-                                  <p><span className="font-semibold text-gray-300">Your Answer: </span><span className={q.isCorrect ? 'text-green-400' : 'text-red-400'}>{q.userAnswer}</span></p>
-                                  {!q.isCorrect && <p><span className="font-semibold text-gray-300">Correct Answer: </span><span className="text-green-400">{q.correctAnswer}</span></p>}
-                                  <p className="text-gray-400 pt-2 border-t border-white/10 mt-2">{q.explanation}</p>
+                                  <p><span className="font-semibold text-gray-600">Your Answer: </span><span className={q.isCorrect ? 'text-green-600' : 'text-red-600'}>{q.userAnswer}</span></p>
+                                  {!q.isCorrect && <p><span className="font-semibold text-gray-600">Correct Answer: </span><span className="text-green-600">{q.correctAnswer}</span></p>}
+                                  <p className="text-gray-600 pt-2 border-t border-gray-200 mt-2">{q.explanation}</p>
                               </div>
                           </div>
                       ))}
@@ -416,15 +416,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
         return (
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-white">Ready for your exam?</h3>
+            <h3 className="text-2xl font-bold text-gray-900">Ready for your exam?</h3>
             {canStartExam ? (
-                <p className="text-gray-300 mt-2">You'll be tested on topics you've completed in the Study Guide.</p>
+                <p className="text-gray-600 mt-2">You'll be tested on topics you've completed in the Study Guide.</p>
             ) : (
-                <p className="text-yellow-400 bg-yellow-500/10 p-3 rounded-lg mt-4">
+                <p className="text-yellow-800 bg-yellow-50 p-3 rounded-lg mt-4 border border-yellow-200">
                     Please complete at least one topic in the Study Guide before starting an exam.
                 </p>
             )}
-            {generationError && <p className="text-red-400 mt-4">{generationError}</p>}
+            {generationError && <p className="text-red-600 mt-4">{generationError}</p>}
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <button
                     onClick={generateQuestions}
@@ -433,7 +433,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                 >
                     Start Exam
                 </button>
-                <button onClick={() => setExamState('history')} className="flex-1 bg-white/10 text-white font-bold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors">
+                <button onClick={() => setExamState('history')} className="flex-1 bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">
                     View Exam History
                 </button>
             </div>
@@ -444,7 +444,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 bg-gradient-to-br from-white/[.07] to-white/0 backdrop-blur-lg p-4 sm:p-6 rounded-xl border border-white/10 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {renderContent()}
       </div>
     </div>

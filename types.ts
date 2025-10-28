@@ -98,3 +98,11 @@ export interface Notification {
   isRead: boolean;
   link?: string;
 }
+
+// Type for the new Chat History System
+export interface ChatConversation {
+  id: string;
+  title: string;
+  createdAt: number; // Use number for Firestore compatibility
+  lastUpdatedAt: number; // Use number for Firestore compatibility
+}

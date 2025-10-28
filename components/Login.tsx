@@ -57,24 +57,24 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-black p-4">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
             <div className="flex justify-center items-center mb-6">
-                <LogoIcon className="w-12 h-12 text-lime-400" />
-                <h1 className="text-3xl font-bold bg-gradient-to-b from-lime-300 to-lime-500 text-transparent bg-clip-text tracking-wider ml-3">
+                <LogoIcon className="w-12 h-12 text-lime-500" />
+                <h1 className="text-3xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
                     VANTUTOR
                 </h1>
             </div>
             <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">Welcome Back</h2>
-              <p className="text-gray-400 mt-2">Log in to continue your learning.</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">Welcome Back</h2>
+              <p className="text-gray-600 mt-2">Log in to continue your learning.</p>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email Address
                   </label>
                   <input
@@ -85,19 +85,19 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                       Password
                     </label>
                     <button
                         type="button"
                         onClick={() => setIsForgotPasswordOpen(true)}
-                        className="text-sm font-medium text-lime-400 hover:text-lime-300 hover:underline focus:outline-none"
+                        className="text-sm font-medium text-lime-600 hover:text-lime-500 hover:underline focus:outline-none"
                     >
                         Forgot Password?
                     </button>
@@ -110,7 +110,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -134,20 +134,20 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
             </form>
 
             <div className="relative flex py-5 items-center">
-                <div className="flex-grow border-t border-white/10"></div>
-                <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase">Or continue with</span>
-                <div className="flex-grow border-t border-white/10"></div>
+                <div className="flex-grow border-t border-gray-200"></div>
+                <span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">Or continue with</span>
+                <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
             <button
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting || isGoogleSubmitting}
-                className="w-full bg-white/10 border border-white/20 text-white font-semibold py-3 px-4 rounded-lg hover:bg-white/20 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
                 {isGoogleSubmitting ? (
                     <>
-                        <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
-                        <span>Signing In...</span>
+                      <div className="w-5 h-5 border-2 border-t-transparent border-gray-500 rounded-full animate-spin mr-2"></div>
+                      <span>Signing In...</span>
                     </>
                 ) : (
                     <>
@@ -157,11 +157,11 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                 )}
             </button>
 
-            {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+            {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
 
-            <p className="text-center text-sm text-gray-400 mt-6">
+            <p className="text-center text-sm text-gray-600 mt-6">
               Don't have an account?{' '}
-              <button onClick={onSwitchToSignUp} className="font-medium text-lime-400 hover:text-lime-300">
+              <button onClick={onSwitchToSignUp} className="font-medium text-lime-600 hover:text-lime-500">
                 Sign Up
               </button>
             </p>
