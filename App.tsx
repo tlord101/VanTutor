@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { auth, db } from './firebase';
@@ -21,6 +20,7 @@ import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
 import { Subscription } from './components/Subscription';
 import { VisualSolver } from './components/VisualSolver';
+import { BottomNavBar } from './components/BottomNavBar';
 
 declare var __app_id: string;
 
@@ -428,6 +428,7 @@ function App() {
   const allNavItems = [...navigationItems, ...secondaryNavigationItems];
   const currentPageLabel = allNavItems.find(item => item.id === activePage)?.label || 'Dashboard';
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+  const mainPagesForBottomNav = ['dashboard', 'study_guide', 'visual_solver', 'chat', 'exam', 'leaderboard'];
 
   return (
     <div className="h-screen bg-gray-100 text-gray-800 font-sans md:p-6 lg:p-8 flex md:gap-6 lg:gap-8">
@@ -442,7 +443,7 @@ function App() {
         isMobileSidebarOpen={isMobileSidebarOpen}
         onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
       />
-      <main className="flex-1 bg-white md:border border-gray-200 md:rounded-2xl flex flex-col relative overflow-hidden">
+      <main className="flex-1 bg-white md:border border-gray-200 md:rounded-2xl flex flex-col relative overflow-hidden pb-28 md:pb-0">
         <Header
           currentPageLabel={currentPageLabel}
           onNotificationsClick={() => setIsNotificationsOpen(prev => !prev)}
@@ -460,6 +461,11 @@ function App() {
           {renderContent()}
         </div>
       </main>
+      <BottomNavBar
+        activeItem={activePage}
+        onItemClick={handleNavItemClick}
+        isVisible={!!userProfile && mainPagesForBottomNav.includes(activePage)}
+      />
     </div>
   );
 }

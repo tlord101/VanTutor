@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -331,7 +332,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 </h2>
                 <div className="w-6"></div>
             </div>
-            <div className="flex-1 flex h-full w-full overflow-hidden">
+            <div className="flex-1 flex h-full w-full overflow-hidden relative">
                 <ChatHistoryPanel
                     conversations={conversations}
                     activeConversationId={activeConversationId}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChatConversation } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
@@ -215,7 +216,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
       </aside>
       
       {/* Mobile Panel */}
-      <div className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobilePanelOpen ? 'translate-x-0' : '-translate-x-full'}`} >
+      <div className={`absolute inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobilePanelOpen ? 'translate-x-0' : '-translate-x-full'}`} >
           <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onCloseMobilePanel} aria-hidden="true" ></div>
           <div className="relative w-72 h-full border-r border-gray-200">
               {content(true)}

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -12,6 +13,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useApiLimiter } from '../hooks/useApiLimiter';
+import { GraduationCapIcon } from './icons/GraduationCapIcon';
 
 declare var __app_id: string;
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -292,15 +294,19 @@ Student: "${tempInput}"
             </header>
 
             {/* Scrollable Message Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map((message) => (
-                    <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
-                        {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                    <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {message.sender === 'bot' && 
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                               <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                            </div>
+                        }
+                        <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
                             {message.sender === 'user' ? (
                                 <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                             ) : (
-                                <div className="text-sm">
+                                <div className="text-sm prose max-w-none">
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm, remarkMath]}
                                         rehypePlugins={[rehypeKatex]}
@@ -319,9 +325,27 @@ Student: "${tempInput}"
                                 </div>
                             )}
                         </div>
+                        {message.sender === 'user' && 
+                           <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
+                               {userProfile.displayName.charAt(0).toUpperCase()}
+                           </div>
+                        }
                     </div>
                 ))}
-                {isLoading && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-gray-200 text-gray-800"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
+                {isLoading && 
+                    <div className="flex items-start gap-3 animate-fade-in-up">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
+                           <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                        </div>
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
+                            <div className="flex items-center space-x-2">
+                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
                 <div ref={messagesEndRef} />
             </div>
             
