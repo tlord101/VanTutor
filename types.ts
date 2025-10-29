@@ -69,6 +69,7 @@ export interface Subject {
   subjectId: string;
   subjectName: string;
   topics: Topic[];
+  level?: string; // The difficulty level this subject belongs to
 }
 
 export interface UserProgress {

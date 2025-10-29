@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
 import { db } from '../firebase';
@@ -36,27 +37,26 @@ const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) =
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
-const LiveMicrophoneIcon: React.FC<{ className?: string }> = ({ className = 'w-24 h-24' }) => (
-    <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg" fill="none">
-        <defs>
-            <linearGradient id="micGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: '#84CC16' }} /> 
-                <stop offset="100%" style={{ stopColor: '#2DD4BF' }} />
-            </linearGradient>
-        </defs>
-        <circle cx="50" cy="50" r="50" fill="url(#micGradient)" />
-        <g stroke="white" strokeWidth="5" strokeLinecap="round">
-            <path d="M50 62V70" />
-            <path d="M50 28C45.5817 28 42 31.5817 42 36V48C42 52.4183 45.5817 56 50 56C54.4183 56 58 52.4183 58 48V36C58 31.5817 54.4183 28 50 28Z" />
-            <path d="M65 48C65 56.2843 58.2843 63 50 63C41.7157 63 35 56.2843 35 48" />
-        </g>
+const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+     </svg>
+);
+const MicrophoneIcon: React.FC<{ className?: string, isMuted: boolean }> = ({ className, isMuted }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        {isMuted ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5 6L6.75 12m0 0L3 15.75m-3.75-3.75L6.75 12m0 0h.75m-1.5 6H5.25A2.25 2.25 0 0 1 3 15.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+        ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+        )}
     </svg>
 );
-const StopIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clipRule="evenodd" />
+const XIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
 );
+
 
 // --- AUDIO HELPER FUNCTIONS ---
 function encode(bytes: Uint8Array) {
@@ -103,11 +103,13 @@ function createBlob(data: Float32Array): GenAIBlob {
 // --- LIVE CONVERSATION COMPONENT ---
 interface LiveConversationProps {
     userProfile: UserProfile;
+    onEndSession: () => void;
 }
-const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
+const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndSession }) => {
     const [sessionState, setSessionState] = useState<'idle' | 'connecting' | 'active' | 'error'>('idle');
     const [statusMessage, setStatusMessage] = useState('');
     const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
     const { addToast } = useToast();
     
     const sessionPromise = useRef<Promise<any> | null>(null);
@@ -117,10 +119,12 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
     const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
     const outputSources = useRef(new Set<AudioBufferSourceNode>());
     const nextStartTime = useRef(0);
+    const isMutedRef = useRef(isMuted);
+    useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
     
-    const handleEndSession = useCallback(async (isError: boolean = false) => {
+    const handleEndSession = useCallback(async (isCleanup: boolean = false) => {
         if (!sessionPromise.current && !streamRef.current) return;
-        if (!isError) setStatusMessage('Ending session...');
+        if (!isCleanup) setStatusMessage('Ending session...');
 
         if (sessionPromise.current) {
             try {
@@ -132,21 +136,23 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
         }
         streamRef.current?.getTracks().forEach(track => track.stop());
         scriptProcessorRef.current?.disconnect();
-        inputAudioContext.current?.close();
-        outputAudioContext.current?.close();
+        inputAudioContext.current?.close().catch(console.error);
+        outputAudioContext.current?.close().catch(console.error);
 
         sessionPromise.current = null;
         streamRef.current = null;
         scriptProcessorRef.current = null;
         inputAudioContext.current = null;
         outputAudioContext.current = null;
-
-        if (!isError) setSessionState('idle');
+        
+        if (!isCleanup) setSessionState('idle');
     }, []);
 
-    useEffect(() => () => { handleEndSession(true); }, [handleEndSession]);
-
-    const handleStartSession = async () => {
+    const handleCloseButtonClick = () => {
+        onEndSession();
+    };
+    
+    const handleStartSession = useCallback(async () => {
         setSessionState('connecting');
         setStatusMessage('Requesting microphone access...');
 
@@ -167,22 +173,18 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
                     const scriptProcessor = inputAudioContext.current!.createScriptProcessor(4096, 1, 1);
                     scriptProcessorRef.current = scriptProcessor;
                     scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-                        const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                        const pcmBlob = createBlob(inputData);
-                        sessionPromise.current?.then((session) => {
-                          session.sendRealtimeInput({ media: pcmBlob });
-                        });
+                        if (!isMutedRef.current) {
+                            const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                            const pcmBlob = createBlob(inputData);
+                            sessionPromise.current?.then((session) => {
+                              session.sendRealtimeInput({ media: pcmBlob });
+                            });
+                        }
                     };
                     source.connect(scriptProcessor);
                     scriptProcessor.connect(inputAudioContext.current!.destination);
                 },
                 onmessage: async (message: LiveServerMessage) => {
-                    if (message.serverContent?.outputTranscription) {
-                        setStatusMessage('VANTUTOR is speaking...');
-                    }
-                    if (message.serverContent?.turnComplete) {
-                        setStatusMessage('Listening...');
-                    }
                     const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
                     if (base64Audio && outputAudioContext.current) {
                         setIsBotSpeaking(true);
@@ -218,13 +220,13 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
                     handleEndSession(true);
                 },
                 onclose: (e: CloseEvent) => {
-                    handleEndSession(true);
+                    if (sessionPromise.current) { // Prevent state change on intentional close
+                        handleEndSession(true);
+                    }
                 },
               },
               config: {
                 responseModalities: [Modality.AUDIO],
-                inputAudioTranscription: {},
-                outputAudioTranscription: {},
                 systemInstruction: 'You are VANTUTOR, a friendly and helpful AI tutor. Keep your responses concise and conversational.',
               },
             });
@@ -235,62 +237,70 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
             addToast(errorMsg, 'error');
             setSessionState('error');
         }
-    };
+    }, [addToast, handleEndSession]);
     
-    if (sessionState === 'idle' || sessionState === 'error') {
+    useEffect(() => {
+        handleStartSession();
+        return () => { handleEndSession(true); };
+    }, [handleStartSession, handleEndSession]);
+
+    if (sessionState === 'error') {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-50">
-                 <button
-                    onClick={handleStartSession}
-                    className="mb-6 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-lime-300"
-                    aria-label="Start Speaking"
-                >
-                    <LiveMicrophoneIcon className="w-32 h-32" />
-                </button>
-                <h2 className="text-3xl font-bold text-gray-800">Live Conversation</h2>
-                <p className="text-gray-600 mt-2 max-w-sm">Click the microphone to start talking with your AI tutor in real-time.</p>
-                {sessionState === 'error' && <p className="mt-4 text-red-600 font-semibold">{statusMessage}</p>}
+             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-center p-8 bg-black text-white">
+                <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />
+                <h3 className="text-xl font-semibold">Session Error</h3>
+                <p className="text-gray-300 mt-2 max-w-sm">{statusMessage}</p>
+                <div className="flex gap-4 mt-6">
+                    <button onClick={handleStartSession} className="bg-lime-600 text-white font-bold py-2 px-6 rounded-full hover:bg-lime-700 transition-colors">
+                        Retry
+                    </button>
+                    <button onClick={handleCloseButtonClick} className="bg-gray-700 text-white font-bold py-2 px-6 rounded-full hover:bg-gray-600 transition-colors">
+                        Close
+                    </button>
+                </div>
             </div>
-        );
-    }
-    
-    if (sessionState === 'connecting') {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-900 text-white">
-                <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-500 rounded-full animate-spin"></div>
-                <p className="mt-4 text-gray-300">{statusMessage}</p>
-            </div>
-        );
+        )
     }
 
+    // This covers 'idle', 'connecting', 'active'
     return (
-        <div className="flex flex-col h-full bg-gray-900 text-white justify-between items-center p-8 overflow-hidden">
-            <div className="w-full text-center">
-                <span className="text-lg text-gray-300 h-6 transition-opacity duration-300">{statusMessage}</span>
-            </div>
-            
-            <div className="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
-                <div className={`absolute inset-0 rounded-full bg-gradient-to-br transition-all duration-700
-                    ${isBotSpeaking 
-                        ? 'from-teal-500 via-sky-500 to-purple-600 animate-[speaking-glow_1.5s_ease-in-out_infinite]' 
-                        : 'from-lime-500 to-teal-600 animate-[voice-pulse_2s_ease-in-out_infinite]'
-                    }`}
-                ></div>
-                
-                <div className="absolute inset-2 rounded-full bg-gray-900"></div>
-
-                <LogoIcon className={`w-1/2 h-1/2 text-white/80 transition-transform duration-500 ${isBotSpeaking ? 'scale-110' : ''}`} />
+        <div className="fixed inset-0 z-50 flex flex-col bg-black justify-center items-center p-8 overflow-hidden">
+            <div 
+                className={`moon-sphere relative w-64 h-64 md:w-80 md:h-80 rounded-full transition-all duration-700 ${
+                    sessionState === 'active' && isBotSpeaking ? 'animate-[moon-speaking-pulse_2.5s_ease-in-out_infinite]' : 
+                    'animate-[moon-listening-pulse_3s_ease-in-out_infinite]'
+                }`}
+            >
+                <div className="absolute inset-0 rounded-full" style={{backdropFilter: 'blur(10px)'}}></div>
+                {(sessionState === 'idle' || sessionState === 'connecting') && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+                        <div className="w-12 h-12 border-4 border-t-white/80 border-white/20 rounded-full animate-spin"></div>
+                    </div>
+                )}
             </div>
 
-            <div className="flex flex-col items-center">
+            <p className="absolute top-8 text-white bg-black/50 px-3 py-1 text-sm rounded-full pointer-events-none">
+                {sessionState === 'active' 
+                    ? (isBotSpeaking ? 'VANTUTOR is speaking...' : 'Listening...')
+                    : statusMessage || 'Connecting...'}
+            </p>
+
+            <div className="absolute bottom-8 left-8 right-8 flex justify-between items-center">
                 <button
-                    onClick={() => handleEndSession()}
-                    className="w-16 h-16 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg active:scale-95"
+                    onClick={() => setIsMuted(prev => !prev)}
+                    className="w-16 h-16 bg-gray-800/70 backdrop-blur-sm rounded-full text-white flex items-center justify-center transition-colors hover:bg-gray-700 active:bg-gray-600 disabled:opacity-50"
+                    aria-label={isMuted ? 'Unmute' : 'Mute'}
+                    disabled={sessionState !== 'active'}
+                >
+                    <MicrophoneIcon className="w-8 h-8" isMuted={isMuted} />
+                </button>
+                <button
+                    onClick={handleCloseButtonClick}
+                    className="w-16 h-16 bg-gray-800/70 backdrop-blur-sm rounded-full text-white flex items-center justify-center transition-colors hover:bg-gray-700 active:bg-gray-600"
                     aria-label="End session"
                 >
-                    <StopIcon className="w-8 h-8" />
+                    <XIcon className="w-8 h-8" />
                 </button>
-                <p className="text-xs text-gray-500 mt-2">End session</p>
             </div>
         </div>
     );
@@ -392,7 +402,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             setIsHistoryLoading(false);
         });
         return () => unsubscribe();
-    }, [userProfile.uid]);
+    }, [userProfile.uid, addToast]);
 
     // Effect to fetch messages for the active conversation
     useEffect(() => {
@@ -418,7 +428,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             addToast('Could not load messages for this conversation.', 'error');
         });
         return () => unsubscribe();
-    }, [userProfile.uid, activeConversationId]);
+    }, [userProfile.uid, activeConversationId, addToast]);
     
     // Auto-scroll effect
     useEffect(() => {
@@ -772,7 +782,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
 
             <div className="flex-1 min-h-0">
                 {chatMode === 'text' && <TextChat userProfile={userProfile} />}
-                {chatMode === 'live' && <LiveConversation userProfile={userProfile} />}
+                {chatMode === 'live' && <LiveConversation userProfile={userProfile} onEndSession={() => setChatMode('text')} />}
             </div>
         </div>
     );

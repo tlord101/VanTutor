@@ -196,8 +196,8 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                             <p>User profiles are stored in the <code>users/&#123;userId&#125;</code> documents. You can edit user details such as their display name. Note that if you update a user's <code>displayName</code>, you must also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
                             
                             <SubSectionTitle>Course Management</SubSectionTitle>
-                            {/* FIX: Escaped curly braces in the Firestore path to prevent JSX from interpreting them as variables. */}
-                            <p>Course content is stored in Firestore under the path <code>artifacts/&#123;appId&#125;/public/data/courses/&#123;courseId&#125;</code>. Each course document contains a <code>subjectList</code> array, where each object represents a subject and contains a nested <code>topics</code> array.</p>
+                            {/* FIX: Updated Firestore path to use `__app_id` for consistency with the rest of the application code. */}
+                            <p>Course content is stored in Firestore under the path <code>{'artifacts/{__app_id}/public/data/courses/{courseId}'}</code>.</p>
                             <p>To add a new subject, you must read the entire <code>subjectList</code>, append your new subject object, and write the modified array back to the document.</p>
                             <CodeBlock title="Example: Add a New Subject" code={`
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -207,7 +207,8 @@ import { db } from './firebase'; // Your firebase config
 declare var __app_id: string;
 
 async function addSubjectToCourse(courseId, newSubjectName) {
-  const courseRef = doc(db, \`artifacts/\${__app_id}/public/data/courses\`, courseId);
+  // FIX: Correctly structured the 'doc' call with path segments instead of a single string.
+  const courseRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', courseId);
   try {
     const courseSnap = await getDoc(courseRef);
     if (!courseSnap.exists()) {
@@ -243,7 +244,8 @@ import { db } from './firebase'; // Your firebase config
 declare var __app_id: string;
 
 async function addTopicToSubject(courseId, subjectId, newTopicName) {
-  const courseRef = doc(db, \`artifacts/\${__app_id}/public/data/courses\`, courseId);
+  // FIX: Correctly structured the 'doc' call with path segments instead of a single string.
+  const courseRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', courseId);
   try {
     const courseSnap = await getDoc(courseRef);
     if (!courseSnap.exists()) {

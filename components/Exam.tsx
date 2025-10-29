@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -118,7 +119,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
         }
         
         try {
-            const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
+            const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
             const courseSnap = await getDoc(courseDocRef);
 
             if (courseSnap.exists()) {
@@ -142,7 +143,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     };
 
     fetchCompletedTopics();
-  }, [userProgress, userProfile.courseId]);
+  }, [userProgress, userProfile.courseId, addToast]);
 
   const finishExam = useCallback(async () => {
       setExamState(currentState => {
@@ -190,7 +191,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           
           return 'completed';
       });
-  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned]);
+  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast]);
 
   useEffect(() => {
       if (examState !== 'in_progress' || timeLeft <= 0) {
@@ -314,7 +315,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                 <button
                   key={index}
                   onClick={() => !feedback && setSelectedOption(option)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200
+                  className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 text-gray-900
                     ${feedback ? 
                         (option === currentQuestion.correctAnswer ? 'bg-green-100 border-green-500' : (option === selectedOption ? 'bg-red-100 border-red-500' : 'bg-white border-gray-200'))
                         : 

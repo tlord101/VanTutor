@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { UserProfile } from '../types';
 import type { User } from 'firebase/auth';
@@ -20,34 +21,44 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isSaving, setIsSaving] = useState(false);
   const [courseName, setCourseName] = useState<string>('');
   const [isCourseLoading, setIsCourseLoading] = useState(true);
+  const [levels, setLevels] = useState<string[]>([]);
+  const [isLevelsLoading, setIsLevelsLoading] = useState(true);
   const { addToast } = useToast();
 
   useEffect(() => {
-    const fetchCourseName = async () => {
+    const fetchCourseData = async () => {
       if (!userProfile.courseId) {
         setCourseName('Not Set');
         setIsCourseLoading(false);
+        setIsLevelsLoading(false);
         return;
       }
       setIsCourseLoading(true);
+      setIsLevelsLoading(true);
       try {
-        const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
+        const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
         const courseSnap = await getDoc(courseDocRef);
         if (courseSnap.exists()) {
-          setCourseName(courseSnap.data().courseName || userProfile.courseId.replace(/_/g, ' '));
+          const data = courseSnap.data();
+          setCourseName(data.courseName || userProfile.courseId.replace(/_/g, ' '));
+          setLevels(data.levels || []);
         } else {
           setCourseName(userProfile.courseId.replace(/_/g, ' '));
+          setLevels([]);
         }
       } catch (error) {
-        console.error("Failed to fetch course name:", error);
+        console.error("Failed to fetch course data:", error);
         setCourseName(userProfile.courseId.replace(/_/g, ' '));
+        setLevels([]);
+        addToast("Could not load course details.", "error");
       } finally {
         setIsCourseLoading(false);
+        setIsLevelsLoading(false);
       }
     };
 
-    fetchCourseName();
-  }, [userProfile.courseId]);
+    fetchCourseData();
+  }, [userProfile.courseId, addToast]);
 
   const handleSaveName = async () => {
     if (newDisplayName.trim() === '' || newDisplayName.trim() === userProfile.displayName) {
@@ -69,7 +80,21 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const handleCancelEdit = () => {
     setIsEditingName(false);
     setNewDisplayName(userProfile.displayName);
-  }
+  };
+
+  const handleLevelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLevel = e.target.value;
+    setIsSaving(true);
+    const result = await onProfileUpdate({ level: newLevel });
+    if (result.success) {
+      addToast('Level updated successfully!', 'success');
+    } else {
+      addToast(result.error || "Failed to save new level.", 'error');
+      // Revert select to original value on failure
+      e.target.value = userProfile.level;
+    }
+    setIsSaving(false);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full w-full">
@@ -115,7 +140,27 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
             </div>
              <div className="flex justify-between items-center border-t border-gray-200 pt-4">
               <span className="text-gray-600">Level</span>
-              <span className="text-gray-800 font-medium">{userProfile.level}</span>
+               {isLevelsLoading ? (
+                  <span className="text-gray-500 text-sm">Loading levels...</span>
+              ) : (
+                  <select
+                      value={userProfile.level}
+                      onChange={handleLevelChange}
+                      disabled={isSaving || levels.length === 0}
+                      className="bg-gray-50 border border-gray-300 rounded-md py-1 px-2 text-gray-900 font-medium focus:ring-1 focus:ring-lime-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Change difficulty level"
+                  >
+                      {levels.length > 0 ? (
+                        levels.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={userProfile.level} disabled>{userProfile.level}</option>
+                      )}
+                  </select>
+              )}
             </div>
           </div>
         </div>

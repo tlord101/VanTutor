@@ -20,12 +20,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
 const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
     </svg>
 );
@@ -441,10 +441,10 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
     userProfile: UserProfile;
-    onStudyXPEarned: (xp: number) => void;
+    onXPEarned: (xp: number) => void;
 }
 
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEarned }) => {
+export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -454,10 +454,12 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
     
     useEffect(() => {
         setIsLoading(true);
-        const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
+        const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
         const unsubscribeCourse = onSnapshot(courseDocRef, (docSnap) => {
             if (docSnap.exists()) {
-                setSubjects(docSnap.data().subjectList || []);
+                const allSubjects = docSnap.data().subjectList || [];
+                const subjectsForLevel = allSubjects.filter((subject: Subject) => subject.level === userProfile.level);
+                setSubjects(subjectsForLevel);
             } else {
                 console.error("Course document not found!");
                 addToast("Could not load study guide. Course data is missing.", "error");
@@ -485,7 +487,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
             unsubscribeCourse();
             unsubscribeProgress();
         };
-    }, [userProfile.courseId, userProfile.uid]);
+    }, [userProfile.courseId, userProfile.uid, userProfile.level, addToast]);
 
     const handleMarkComplete = async (topicId: string) => {
         if (userProgress[topicId]?.isComplete) return;
@@ -493,7 +495,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
         try {
             const progressDocRef = doc(db, 'users', userProfile.uid, 'progress', topicId);
             await setDoc(progressDocRef, { isComplete: true, xpEarned: 2 });
-            onStudyXPEarned(2);
+            onXPEarned(2);
             addToast("Topic marked as complete! +2 XP", "success");
         } catch (error) {
             console.error("Failed to mark topic as complete:", error);
@@ -547,8 +549,8 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
                 )}
                  {!isLoading && filteredSubjects.length === 0 && (
                     <div className="text-center text-gray-500 py-10">
-                        <p className="font-semibold">No topics found</p>
-                        <p className="text-sm">Try adjusting your search term.</p>
+                        <p className="font-semibold">No topics found for '{userProfile.level}' level.</p>
+                        <p className="text-sm">Try adjusting your search term or changing your level in Settings.</p>
                     </div>
                  )}
             </div>
