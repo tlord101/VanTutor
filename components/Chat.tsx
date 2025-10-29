@@ -514,9 +514,21 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                     }
                 }
 
-                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts }, config: { systemInstruction }});
-                const botMessage: Omit<Message, 'id'> = { text: response.text, sender: 'bot', timestamp: Date.now() };
-                await addDoc(messagesRef, { ...botMessage, timestamp: serverTimestamp() });
+                const responseStream = await ai.models.generateContentStream({ model: 'gemini-2.5-flash', contents: { parts }, config: { systemInstruction }});
+                
+                let botResponseText = '';
+                const botMessageId = `bot-${Date.now()}`;
+                const tempBotMessage: Message = { id: botMessageId, text: '', sender: 'bot', timestamp: Date.now() };
+                
+                setMessages(prev => [...prev, tempBotMessage]);
+
+                for await (const chunk of responseStream) {
+                    botResponseText += chunk.text;
+                    setMessages(prev => prev.map(m => m.id === botMessageId ? { ...m, text: botResponseText } : m));
+                }
+
+                const finalBotMessage: Omit<Message, 'id'> = { text: botResponseText, sender: 'bot', timestamp: Date.now() };
+                await addDoc(messagesRef, { ...finalBotMessage, timestamp: serverTimestamp() });
             });
 
             if (!result.success) addToast(result.message, 'error');
@@ -606,33 +618,18 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         }
     };
     
-    const WelcomeScreen = () => {
-        const starters = [
-            { title: "Explain a concept", prompt: "Explain the concept of photosynthesis like I'm 12 years old." },
-            { title: "Summarize this", prompt: "Summarize the main points of the following article for me: [paste article here]" },
-            { title: "Draft an email", prompt: "Help me draft a professional email to my professor asking for an extension on my paper." },
-            { title: "Brainstorm ideas", prompt: "Let's brainstorm some ideas for my science fair project on renewable energy." },
-        ];
+    const WelcomeScreen = ({ userProfile }: { userProfile: UserProfile }) => {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-4">
-                   <LogoIcon className="w-10 h-10 text-white" />
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in-up">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-6 shadow-lg">
+                   <LogoIcon className="w-14 h-14 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold text-gray-800">How can I help you today?</h2>
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
-                    {starters.map((starter, index) => (
-                        <button key={index} onClick={() => { setInput(starter.prompt); }}
-                            className="text-left p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-all group">
-                            <p className="font-semibold text-gray-800 flex items-center gap-2">
-                                <SparklesIcon className="w-5 h-5 text-lime-500" />
-                                {starter.title}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1 truncate group-hover:text-gray-700">
-                                {starter.prompt}
-                            </p>
-                        </button>
-                    ))}
-                </div>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 tracking-tight">
+                    Hello, <span className="bg-gradient-to-r from-lime-500 to-teal-500 text-transparent bg-clip-text">{userProfile.displayName}!</span>
+                </h2>
+                <p className="mt-4 text-lg text-gray-600 max-w-md">
+                    How can I help you start your learning journey today?
+                </p>
             </div>
         );
     };
@@ -661,12 +658,12 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                     isMobilePanelOpen={isMobilePanelOpen}
                     onCloseMobilePanel={() => setIsMobilePanelOpen(false)}
                 />
-                <div className="flex-1 flex flex-col bg-white">
+                <div className="flex-1 flex flex-col bg-white relative">
                     {isHistoryLoading ? (
                         <div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div></div>
                     ) : (
                       <>
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 chat-bg-pattern min-h-0">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 chat-bg-pattern min-h-0 pb-28 sm:pb-32">
                             {activeConversationId ? (
                                 <>
                                     {messages.map((message) => (
@@ -708,26 +705,38 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                                     <div ref={messagesEndRef} />
                                 </>
                             ) : (
-                                <WelcomeScreen />
+                                <WelcomeScreen userProfile={userProfile} />
                             )}
                         </div>
-                        <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-                            {imagePreviewUrl && 
-                                <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg">
-                                    <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
-                                    <button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">&times;</button>
-                                </div>
-                            }
-                            <div className="relative">
-                                <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="w-full bg-white border border-gray-300 rounded-2xl py-3 pl-12 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-                                    <label className="cursor-pointer text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50">
+                        <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none">
+                            <div className="pointer-events-auto">
+                                {imagePreviewUrl && 
+                                    <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg bg-white">
+                                        <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
+                                        <button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm shadow-md">&times;</button>
+                                    </div>
+                                }
+                                <div className="relative flex items-center bg-white border border-gray-300 rounded-full shadow-lg py-1 pl-3 pr-1.5">
+                                    <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
                                         <PaperclipIcon className="w-5 h-5" />
                                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" />
                                     </label>
-                                </div>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                                    <button onClick={() => handleSend()} disabled={isLoading || (!input.trim() && !file)} className="bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <textarea
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                        placeholder="Ask anything..."
+                                        className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-2 text-gray-900 placeholder-gray-500"
+                                        rows={1}
+                                        style={{ fieldSizing: 'content' }}
+                                        disabled={isLoading}
+                                    />
+                                    <button
+                                        onClick={() => handleSend()}
+                                        disabled={isLoading || (!input.trim() && !file)}
+                                        className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Send message"
+                                    >
                                         <SendIcon className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -758,7 +767,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     const [chatMode, setChatMode] = useState<'text' | 'live'>('text');
 
     return (
-        <div className="flex-1 flex flex-col w-full">
+        <div className="flex-1 flex flex-col w-full h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex-shrink-0 p-2 border-b border-gray-200 bg-white/80 backdrop-blur-sm flex justify-center sticky top-0 z-10">
                 <div className="bg-gray-200 p-1 rounded-full flex items-center">
                     <button
@@ -778,7 +787,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col">
                 {chatMode === 'text' && <TextChat userProfile={userProfile} />}
                 {chatMode === 'live' && <LiveConversation userProfile={userProfile} onEndSession={() => setChatMode('text')} />}
             </div>

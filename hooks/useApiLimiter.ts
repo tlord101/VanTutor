@@ -20,18 +20,14 @@ export const useApiLimiter = () => {
             return;
         }
 
-        const artificialDelay = config.delay;
-        
-        setTimeout(() => {
-            apiCallFn().then(() => {
-                rateLimiter.current.record();
-                resolve({ success: true, message: '' });
-            }).catch((e) => {
-                // Don't record a failed request
-                console.error("API call failed:", e);
-                resolve({ success: false, message: 'An unexpected error occurred.' });
-            });
-        }, artificialDelay);
+        apiCallFn().then(() => {
+            rateLimiter.current.record();
+            resolve({ success: true, message: '' });
+        }).catch((e) => {
+            // Don't record a failed request
+            console.error("API call failed:", e);
+            resolve({ success: false, message: 'An unexpected error occurred.' });
+        });
     });
   }, []);
 

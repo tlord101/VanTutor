@@ -77,8 +77,6 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, topi
     const [file, setFile] = useState<File | null>(null);
     const [fileData, setFileData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const hasInitiatedAutoTeach = useRef(false);
     const { attemptApiCall } = useApiLimiter();
@@ -95,42 +93,6 @@ Your Method:
 
 Use simple language, analogies, and Markdown for clarity. For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block). Be patient and encouraging.`;
 
-    const generateSuggestions = async (tutorMessage: string) => {
-        if (isGeneratingSuggestions) return;
-        setIsGeneratingSuggestions(true);
-        setSuggestions([]);
-        try {
-            const prompt = `Based on this tutor's last message: "${tutorMessage}", generate three distinct, extremely concise replies for a student. The student's level is "${userProfile.level}". The replies should be things a student would say to continue the conversation. Each reply MUST be a single short sentence, a phrase, or even a single word (e.g., "Why?", "Tell me more", "Okay"). Return a JSON object with a single key "suggestions" containing an array of these 3 short strings.`;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            suggestions: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                                description: "An array of three distinct, extremely concise suggested replies for the student (single sentence, phrase, or one word)."
-                            }
-                        },
-                        required: ['suggestions']
-                    }
-                }
-            });
-            const responseData = JSON.parse(response.text);
-            if (responseData.suggestions && Array.isArray(responseData.suggestions)) {
-                setSuggestions(responseData.suggestions.slice(0, 3));
-            }
-        } catch (error) {
-            console.error("Failed to generate suggestions:", error);
-        } finally {
-            setIsGeneratingSuggestions(false);
-        }
-    };
-    
     const initiateAutoTeach = async () => {
         setIsLoading(true);
         
@@ -194,15 +156,6 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
     }, [userProfile.uid, topic.topicId]);
 
     useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage?.sender === 'bot' && !isLoading && lastMessage.text.trim().endsWith('?')) {
-            generateSuggestions(lastMessage.text);
-        } else if (lastMessage?.sender === 'user' || isLoading) {
-            setSuggestions([]);
-        }
-    }, [messages, isLoading]);
-
-    useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
@@ -231,7 +184,6 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         setFile(null);
         setFileData(null);
         setIsLoading(true);
-        setSuggestions([]);
 
         try {
             const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
@@ -350,21 +302,6 @@ Student: "${tempInput}"
             
             {/* Fixed Input Area */}
             <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-                {suggestions.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2 mb-3 justify-end">
-                      {suggestions.map((suggestion, index) => (
-                          <button
-                              key={index}
-                              onClick={() => handleSend(suggestion)}
-                              disabled={isLoading}
-                              className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
-                          >
-                              {suggestion}
-                          </button>
-                      ))}
-                  </div>
-                )}
-                
                 <div className="relative flex items-center">
                     <textarea 
                         value={input} 

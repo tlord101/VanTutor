@@ -341,7 +341,7 @@ const App: React.FC = () => {
                     onNotificationsClick={() => setIsNotificationsPanelOpen(true)}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
                 />
-                <div className="flex-1 min-h-0 overflow-y-auto pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className={`flex-1 min-h-0 ${activeItem === 'chat' || activeItem === 'visual_solver' ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
                     {renderContent()}
                 </div>
             </main>
