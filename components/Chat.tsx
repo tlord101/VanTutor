@@ -244,7 +244,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndS
 
     if (sessionState === 'error') {
         return (
-             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-center p-8 bg-black text-white">
+             <div className="relative w-full h-full flex flex-col items-center justify-center text-center p-8 bg-black text-white">
                 <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />
                 <h3 className="text-xl font-semibold">Session Error</h3>
                 <p className="text-gray-300 mt-2 max-w-sm">{statusMessage}</p>
@@ -262,7 +262,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndS
 
     // This covers 'idle', 'connecting', 'active'
     return (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black justify-center items-center p-8 overflow-hidden">
+        <div className="relative w-full h-full flex flex-col bg-black justify-center items-center p-8 overflow-hidden">
             <div 
                 className={`moon-sphere relative w-64 h-64 md:w-80 md:h-80 rounded-full transition-all duration-700 ${
                     sessionState === 'active' && isBotSpeaking ? 'animate-[moon-speaking-pulse_2.5s_ease-in-out_infinite]' : 
