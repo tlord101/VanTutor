@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import type { User } from 'firebase/auth';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useToast } from '../hooks/useToast';
 
 declare var __app_id: string;
 
@@ -17,9 +18,9 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isEditingName, setIsEditingName] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState(userProfile.displayName);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>('');
   const [isCourseLoading, setIsCourseLoading] = useState(true);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchCourseName = async () => {
@@ -55,12 +56,12 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
       return;
     }
     setIsSaving(true);
-    setError(null);
     const result = await onProfileUpdate({ displayName: newDisplayName.trim() });
     if (result.success) {
       setIsEditingName(false);
+      addToast('Display name updated successfully!', 'success');
     } else {
-      setError(result.error || "Failed to save new display name.");
+      addToast(result.error || "Failed to save new display name.", 'error');
     }
     setIsSaving(false);
   };
@@ -68,7 +69,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const handleCancelEdit = () => {
     setIsEditingName(false);
     setNewDisplayName(userProfile.displayName);
-    setError(null);
   }
 
   return (
@@ -105,7 +105,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                 </div>
               )}
             </div>
-            {error && <p className="text-red-600 text-xs mt-1 text-right">{error}</p>}
             <div className="flex justify-between items-center border-t border-gray-200 pt-4">
               <span className="text-gray-600">Email</span>
               <span className="text-gray-800 font-medium">{user?.email}</span>

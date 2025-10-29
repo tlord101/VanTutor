@@ -3,6 +3,7 @@ import { auth, googleProvider } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
+import { useToast } from '../hooks/useToast';
 
 interface SignUpProps {
     onSwitchToLogin: () => void;
@@ -13,17 +14,16 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
-    setError(null);
     try {
       await signInWithPopup(auth, googleProvider);
       // On successful sign-in, onAuthStateChanged will trigger in App.tsx
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Failed to sign in with Google. Please try again.');
+        addToast('Failed to sign in with Google. Please try again.', 'error');
         console.error('Google sign in failed:', err);
       }
     } finally {
@@ -34,7 +34,6 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
-    setError(null);
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
@@ -49,7 +48,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         errorMessage = 'The password must be at least 6 characters long.';
       }
       console.error('Sign up failed:', err);
-      setError(errorMessage);
+      addToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -148,8 +147,6 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
               )}
           </button>
           
-          {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
-
           <p className="text-center text-sm text-gray-600 mt-6">
             Already have an account?{' '}
             <button onClick={onSwitchToLogin} className="font-medium text-lime-600 hover:text-lime-500">

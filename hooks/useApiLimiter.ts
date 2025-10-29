@@ -1,5 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
-import type { UserPlan } from '../types';
+import { useRef, useCallback } from 'react';
 import { RateLimiter } from '../utils/rateLimiter';
 
 const planConfigs = {
@@ -8,15 +7,10 @@ const planConfigs = {
   smart: { maxRequests: 1000, intervalMs: 30000, delay: 0 },
 };
 
-export const useApiLimiter = (plan: UserPlan) => {
-  // Fallback to 'free' config if the plan is undefined during initial render, preventing a crash.
-  const initialConfig = planConfigs[plan] || planConfigs.free;
-  const rateLimiter = useRef<RateLimiter>(new RateLimiter(initialConfig.maxRequests, initialConfig.intervalMs));
-  
-  useEffect(() => {
-    const config = planConfigs[plan] || planConfigs.free;
-    rateLimiter.current.updateConfig(config.maxRequests, config.intervalMs);
-  }, [plan]);
+export const useApiLimiter = () => {
+  // Always use the 'smart' plan config for a free app.
+  const config = planConfigs.smart;
+  const rateLimiter = useRef<RateLimiter>(new RateLimiter(config.maxRequests, config.intervalMs));
   
   const attemptApiCall = useCallback((apiCallFn: () => Promise<void>)=> {
     return new Promise<{ success: boolean; message: string }>((resolve) => {
@@ -26,7 +20,7 @@ export const useApiLimiter = (plan: UserPlan) => {
             return;
         }
 
-        const artificialDelay = (planConfigs[plan] || planConfigs.free).delay;
+        const artificialDelay = config.delay;
         
         setTimeout(() => {
             apiCallFn().then(() => {
@@ -39,7 +33,7 @@ export const useApiLimiter = (plan: UserPlan) => {
             });
         }, artificialDelay);
     });
-  }, [plan]);
+  }, []);
 
   return { attemptApiCall };
 };

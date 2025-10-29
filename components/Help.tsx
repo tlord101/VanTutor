@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ReactIcon } from './icons/ReactIcon';
 import { FirebaseIcon } from './icons/FirebaseIcon';
@@ -179,9 +180,9 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                         <Section id="apis" title="API Integrations" icon={<ApiIcon />}>
                            <p>We integrate with external APIs to provide core AI and payment functionalities.</p>
                            <SubSectionTitle>Google Gemini API</SubSectionTitle>
-                           <p>We use the <code>@google/genai</code> library to interact with Gemini models. <code>gemini-2.5-flash</code> is used for real-time chat, and <code>gemini-2.5-pro</code> for high-quality JSON generation for exams. The custom <code>useApiLimiter</code> hook controls API call frequency based on the user's subscription plan to manage costs and prevent abuse.</p>
+                           <p>We use the <code>@google/genai</code> library to interact with Gemini models. <code>gemini-2.5-flash</code> is used for real-time chat, and <code>gemini-2.5-pro</code> for high-quality JSON generation for exams. The custom <code>useApiLimiter</code> hook controls API call frequency to manage costs and prevent abuse. All users share the same generous rate limit.</p>
                            <SubSectionTitle>Paystack API</SubSectionTitle>
-                           <p>Used for subscription payments via the <code>PaystackPop</code> inline JS library. In production, transaction verification must be performed on a secure backend server to be secure.</p>
+                           <p>Previously used for subscription payments, but this feature is now disabled as the application is free. In production, transaction verification must be performed on a secure backend server to be secure.</p>
                         </Section>
 
                         <Section id="admin_panel" title="Building an Admin Panel" icon={<StackIcon />}>
@@ -192,27 +193,8 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                             </div>
 
                             <SubSectionTitle>User Management</SubSectionTitle>
-                            <p>User profiles are stored in the <code>users/&#123;userId&#125;</code> documents. You can edit user details such as their display name or subscription plan.</p>
-                            <p>To change a user's plan, update the <code>plan</code> field in their user profile document. The valid values are 'free', 'starter', and 'smart'.</p>
-                            <CodeBlock title="Example: Update User Plan" code={`
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from './firebase'; // Your firebase config
-
-async function updateUserPlan(userId, newPlan) {
-  // newPlan should be 'free', 'starter', or 'smart'
-  const userRef = doc(db, 'users', userId);
-  try {
-    await updateDoc(userRef, {
-      plan: newPlan
-    });
-    console.log('User plan updated successfully.');
-  } catch (error) {
-    console.error('Error updating user plan: ', error);
-  }
-}
-`.trim()} language="javascript" />
-                            <p><strong>Note:</strong> If you update a user's <code>displayName</code>, remember to also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
-
+                            <p>User profiles are stored in the <code>users/&#123;userId&#125;</code> documents. You can edit user details such as their display name. Note that if you update a user's <code>displayName</code>, you must also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
+                            
                             <SubSectionTitle>Course Management</SubSectionTitle>
                             {/* FIX: Escaped curly braces in the Firestore path to prevent JSX from interpreting them as variables. */}
                             <p>Course content is stored in Firestore under the path <code>artifacts/&#123;appId&#125;/public/data/courses/&#123;courseId&#125;</code>. Each course document contains a <code>subjectList</code> array, where each object represents a subject and contains a nested <code>topics</code> array.</p>

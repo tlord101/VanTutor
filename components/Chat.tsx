@@ -18,9 +18,17 @@ import { ListIcon } from './icons/ListIcon';
 import { LogoIcon } from './icons/LogoIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
+import { useToast } from '../hooks/useToast';
 
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+
+const mockCourses = [
+  { id: 'math_algebra_1', name: 'Math - Algebra 1' },
+  { id: 'science_biology', name: 'Science - Biology' },
+  { id: 'history_us', name: 'History - U.S. History' },
+];
+const getCourseNameById = (id: string) => mockCourses.find(c => c.id === id)?.name || 'their course';
 
 // --- INLINE ICONS ---
 const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
@@ -100,6 +108,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
     const [sessionState, setSessionState] = useState<'idle' | 'connecting' | 'active' | 'error'>('idle');
     const [statusMessage, setStatusMessage] = useState('');
     const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+    const { addToast } = useToast();
     
     const sessionPromise = useRef<Promise<any> | null>(null);
     const inputAudioContext = useRef<AudioContext | null>(null);
@@ -204,6 +213,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
                 onerror: (e: ErrorEvent) => {
                     console.error('Session error:', e);
                     setStatusMessage('Session error. Please try again.');
+                    addToast('Live session encountered an error.', 'error');
                     setSessionState('error');
                     handleEndSession(true);
                 },
@@ -220,7 +230,9 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile }) => {
             });
         } catch (err) {
             console.error('Failed to start session:', err);
-            setStatusMessage('Failed to access microphone. Please check permissions and try again.');
+            const errorMsg = 'Failed to access microphone. Please check permissions and try again.';
+            setStatusMessage(errorMsg);
+            addToast(errorMsg, 'error');
             setSessionState('error');
         }
     };
@@ -301,24 +313,62 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
     const [isHistoryLoading, setIsHistoryLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     
-    const [error, setError] = useState<string | null>(null);
-    
     const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
     const [modalState, setModalState] = useState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
 
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
-    const { attemptApiCall } = useApiLimiter(userProfile.plan);
+    const { attemptApiCall } = useApiLimiter();
+    const { addToast } = useToast();
 
-    const generateTitle = async (firstMessage: string): Promise<string> => {
+    const generateTitle = useCallback(async (firstMessage: string, imageProvided: boolean): Promise<string> => {
         try {
-            const prompt = `Generate a very short, concise title (3-5 words) for a conversation that starts with this user message: "${firstMessage}".`;
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            return response.text.replace(/"/g, '').replace(/\.$/, ''); // Clean up quotes and trailing periods
+            const prompt = `
+            Analyze the following user's first message in a conversation. The user is studying "${getCourseNameById(userProfile.courseId)}".
+            
+            User's first message: "${firstMessage}"
+            ${imageProvided ? "The user also provided an image with this message." : ""}
+    
+            Based on this, generate a very short, concise, and descriptive title for the chat conversation (3-5 words max). The title should capture the main topic or question.
+            
+            Return the response as a JSON object with a single key "title".
+            `;
+    
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: {
+                                type: Type.STRING,
+                                description: "A short, concise title (3-5 words) for the conversation."
+                            }
+                        },
+                        required: ['title']
+                    }
+                }
+            });
+    
+            const responseData = JSON.parse(response.text);
+            if (responseData.title) {
+                return responseData.title;
+            }
+            return "New Chat"; // Fallback
         } catch (error) {
-            console.error("Failed to generate title:", error);
-            return "New Chat";
+            console.error("Failed to generate title with enhanced prompt:", error);
+            // Fallback to a simpler generation if the structured one fails
+            try {
+                const simplePrompt = `Generate a very short, concise title (3-5 words) for a conversation that starts with: "${firstMessage}".`;
+                const simpleResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: simplePrompt });
+                return simpleResponse.text.replace(/"/g, '').replace(/\.$/, '').trim() || "New Chat";
+            } catch (simpleError) {
+                 console.error("Failed to generate title with simple prompt:", simpleError);
+                 return "New Chat";
+            }
         }
-    };
+    }, [userProfile.courseId]);
 
     // Effect to fetch the list of conversations
     useEffect(() => {
@@ -338,6 +388,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             setIsHistoryLoading(false);
         }, (err) => {
             console.error("Error fetching chat history:", err);
+            addToast('Could not load chat history.', 'error');
             setIsHistoryLoading(false);
         });
         return () => unsubscribe();
@@ -364,6 +415,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             setMessages(fetchedMessages);
         }, (err) => {
             console.error("Error fetching messages for conversation:", err);
+            addToast('Could not load messages for this conversation.', 'error');
         });
         return () => unsubscribe();
     }, [userProfile.uid, activeConversationId]);
@@ -394,7 +446,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         setInput('');
         setFile(null);
         setImagePreviewUrl(null);
-        setError(null);
     };
 
     const handleSend = async (messageText?: string) => {
@@ -420,12 +471,11 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         setFile(null);
         setImagePreviewUrl(null);
         setIsLoading(true);
-        setError(null);
 
         try {
             if (!currentConversationId) {
                 const firstMessageContent = tempInput || `Image: ${tempFile?.name}`;
-                const newTitle = await generateTitle(firstMessageContent);
+                const newTitle = await generateTitle(firstMessageContent, !!tempFile);
                 const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
                 const now = Date.now();
                 const newConversationData: Omit<ChatConversation, 'id'> = {
@@ -461,10 +511,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 await addDoc(messagesRef, { ...botMessage, timestamp: serverTimestamp() });
             });
 
-            if (!result.success) setError(result.message);
+            if (!result.success) addToast(result.message, 'error');
         } catch (err) {
             console.error('Error sending message:', err);
-            setError('Sorry, something went wrong.');
+            addToast('Sorry, something went wrong sending your message.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -484,9 +534,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             if (activeConversationId === id) {
                 handleNewChat();
             }
+            addToast('Conversation deleted.', 'success');
         } catch (error) {
             console.error("Error deleting conversation:", error);
-            // Handle error feedback to user
+            addToast('Failed to delete conversation.', 'error');
         } finally {
             setIsDeleting(false);
             setModalState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
@@ -516,8 +567,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             }
             await batch.commit();
             handleNewChat();
+            addToast('All chat history cleared.', 'success');
         } catch (error) {
             console.error("Error clearing all history:", error);
+            addToast('Failed to clear chat history.', 'error');
         } finally {
             setIsDeleting(false);
             setModalState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
@@ -541,6 +594,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             await updateDoc(conversationRef, { title: newTitle.trim() });
         } catch (error) {
             console.error("Error renaming conversation:", error);
+            addToast('Failed to rename conversation.', 'error');
         }
     };
     
@@ -650,7 +704,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                             )}
                         </div>
                         <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-                            {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
                             {imagePreviewUrl && 
                                 <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg">
                                     <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />

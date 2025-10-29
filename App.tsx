@@ -5,6 +5,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, increment, runTransaction, collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, writeBatch } from 'firebase/firestore';
 import type { UserProfile, UserProgress, ExamHistoryItem, Subject, DashboardData, Notification } from './types';
 import { navigationItems, secondaryNavigationItems } from './constants';
+import { useToast } from './hooks/useToast';
 
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -19,7 +20,6 @@ import { Settings } from './components/Settings';
 import Help from './components/Help';
 import { SignUp } from './components/SignUp';
 import { Login } from './components/Login';
-import { Subscription } from './components/Subscription';
 import { VisualSolver } from './components/VisualSolver';
 import { BottomNavBar } from './components/BottomNavBar';
 
@@ -53,6 +53,7 @@ function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [authScreen, setAuthScreen] = useState<'signup' | 'login'>('signup');
   const sidebarLeaveTimer = useRef<number | null>(null);
+  const { addToast } = useToast();
 
 
   useEffect(() => {
@@ -90,7 +91,6 @@ function App() {
                     level: data.level,
                     totalXP: data.totalXP || 0,
                     totalTestXP: data.totalTestXP || 0,
-                    plan: data.plan || 'free',
                     currentStreak: data.currentStreak || 0,
                     lastActivityDate: data.lastActivityDate || 0,
                 };
@@ -220,7 +220,6 @@ function App() {
       ...profileData,
       totalXP: 0,
       totalTestXP: 0,
-      plan: 'free',
       currentStreak: 0,
       lastActivityDate: 0,
     };
@@ -241,9 +240,11 @@ function App() {
       await addDoc(notificationsRef, welcomeNotification);
 
       setUserProfile(newProfile);
+      addToast('Your profile is set up. Welcome to VANTUTOR!', 'success');
 
     } catch (error) {
         console.error("Failed to save user profile:", error);
+        addToast('Could not save your profile. Please try again.', 'error');
     }
   };
 
@@ -401,6 +402,7 @@ function App() {
       await signOut(auth);
     } catch (error) {
       console.error("Error signing out: ", error);
+      addToast('Failed to sign out. Please try again.', 'error');
     }
   };
 
@@ -420,8 +422,6 @@ function App() {
         return <Exam userProfile={userProfile} onXPEarned={handleXPEarned} userProgress={userProgress} />;
       case 'leaderboard':
         return <Leaderboard userProfile={userProfile} />;
-      case 'subscription':
-        return <Subscription user={user} userProfile={userProfile} onProfileUpdate={handleProfileUpdate} />;
       case 'settings':
         return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
       case 'help':

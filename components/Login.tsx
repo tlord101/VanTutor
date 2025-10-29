@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
+import { useToast } from '../hooks/useToast';
 
 interface LoginProps {
     onSwitchToSignUp: () => void;
@@ -14,18 +15,17 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const { addToast } = useToast();
 
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
-    setError(null);
     try {
       await signInWithPopup(auth, googleProvider);
       // On successful sign-in, onAuthStateChanged will trigger in App.tsx
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Failed to sign in with Google. Please try again.');
+        addToast('Failed to sign in with Google. Please try again.', 'error');
         console.error('Google sign in failed:', err);
       }
     } finally {
@@ -36,7 +36,6 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
-    setError(null);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -49,7 +48,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
         errorMessage = 'Please enter a valid email address.';
       }
       console.error('Login failed:', err);
-      setError(errorMessage);
+      addToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -156,8 +155,6 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                     </>
                 )}
             </button>
-
-            {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
 
             <p className="text-center text-sm text-gray-600 mt-6">
               Don't have an account?{' '}

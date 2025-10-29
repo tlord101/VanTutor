@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { UserProfile, Message } from '../types';
@@ -8,6 +9,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { SendIcon } from './icons/SendIcon';
+import { useToast } from '../hooks/useToast';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -45,10 +47,10 @@ const TutorialInterface: React.FC<TutorialInterfaceProps> = ({ userProfile, scan
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const chatSessionRef = useRef<Chat | null>(null);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
-    const { attemptApiCall } = useApiLimiter(userProfile.plan);
+    const { attemptApiCall } = useApiLimiter();
+    const { addToast } = useToast();
 
     const systemInstruction = `You are VANTUTOR, an expert AI educator. Your primary goal is to provide a comprehensive and complete understanding of the problem presented in the user's image.
 
@@ -63,7 +65,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
 
     useEffect(() => {
         const initializeChat = async () => {
-            setError(null);
             setIsLoading(true);
 
             const result = await attemptApiCall(async () => {
@@ -93,7 +94,8 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
             });
 
             if (!result.success) {
-                setError(result.message || 'Sorry, I had trouble starting the lesson. Please try again.');
+                addToast(result.message || 'Sorry, I had trouble starting the lesson. Please try again.', 'error');
+                onClose();
             }
             setIsLoading(false);
         };
@@ -114,7 +116,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
         
         setInput('');
         setIsLoading(true);
-        setError(null);
         
         try {
             const result = await attemptApiCall(async () => {
@@ -130,11 +131,11 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 }
             });
             if (!result.success) {
-                setError(result.message);
+                addToast(result.message, 'error');
             }
         } catch (err) {
             console.error('Error in chat:', err);
-            setError('Sorry, something went wrong. Please try again.');
+            addToast('Sorry, something went wrong. Please try again.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -175,7 +176,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
             </div>
             
             <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-                {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
                 <div className="relative flex items-center">
                     <textarea 
                         value={input} 
@@ -224,7 +224,8 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     } | null>(null);
 
 
-    const { attemptApiCall } = useApiLimiter(userProfile.plan);
+    const { attemptApiCall } = useApiLimiter();
+    const { addToast } = useToast();
 
     const cleanupCamera = useCallback(() => {
         if (streamRef.current) {
@@ -345,7 +346,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const canvas = canvasRef.current;
 
         if (!video || !canvas || video.readyState < 2) {
-             setError('Camera not ready. Please wait a moment.');
+             addToast('Camera not ready. Please wait a moment.', 'error');
              setCameraState('error');
              return;
         }
@@ -378,7 +379,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         canvas.height = cropHeight;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            setError('Could not process image.');
+            addToast('Could not process image.', 'error');
             setCameraState('error');
             return;
         }
@@ -387,7 +388,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setScannedImage(imageDataUrl);
         setTimeout(() => setCameraState('preview'), 500);
-    }, [cropBox]);
+    }, [cropBox, addToast]);
 
     const handleAnalyze = useCallback(async (mode: 'answer' | 'tutorial') => {
         if (!scannedImage) return;
@@ -421,10 +422,10 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         if (result.success) {
             setCameraState('showingAnswer');
         } else {
-            setError(result.message || "Failed to analyze the image. Please try again.");
+            addToast(result.message || "Failed to analyze the image. Please try again.", 'error');
             setCameraState('preview');
         }
-    }, [scannedImage, attemptApiCall, userProfile.level]);
+    }, [scannedImage, attemptApiCall, addToast]);
 
     const handleRetake = () => {
         setScannedImage(null);
@@ -512,7 +513,6 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                                     </button>
                                 </div>
                                 <div className="absolute bottom-8 flex flex-col items-center justify-center w-full px-4 gap-3">
-                                     {error && <p className="absolute bottom-full text-red-100 text-sm bg-red-800/80 p-2 rounded-md mb-2 shadow">{error}</p>}
                                     <button onClick={() => handleAnalyze('answer')} className="w-full max-w-sm bg-gray-800 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-900 transition-colors shadow">
                                         Answer Only
                                     </button>

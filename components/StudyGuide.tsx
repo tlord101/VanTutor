@@ -2,18 +2,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { LockIcon } from './icons/LockIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
+import { useToast } from '../hooks/useToast';
 
 declare var __app_id: string;
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -78,12 +78,12 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, topi
     const [file, setFile] = useState<File | null>(null);
     const [fileData, setFileData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const hasInitiatedAutoTeach = useRef(false);
-    const { attemptApiCall } = useApiLimiter(userProfile.plan);
+    const { attemptApiCall } = useApiLimiter();
+    const { addToast } = useToast();
 
     const systemInstruction = `You are VANTUTOR, an expert AI educator. Your primary goal is to provide a comprehensive and complete understanding of the given topic for a student at their specified level.
 
@@ -96,7 +96,6 @@ Your Method:
 
 Use simple language, analogies, and Markdown for clarity. For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block). Be patient and encouraging.`;
 
-    // FIX: Moved all component logic (functions, useEffects) inside the component scope.
     const generateSuggestions = async (tutorMessage: string) => {
         if (isGeneratingSuggestions) return;
         setIsGeneratingSuggestions(true);
@@ -135,7 +134,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
     
     const initiateAutoTeach = async () => {
         setIsLoading(true);
-        setError(null);
         
         const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
             
@@ -163,7 +161,7 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         });
 
         if (!result.success) {
-            setError(result.message || 'Sorry, I had trouble starting the lesson. You can still ask a question to begin.');
+            addToast(result.message || 'Sorry, I had trouble starting the lesson. You can still ask a question to begin.', 'error');
         }
         setIsLoading(false);
     };
@@ -188,7 +186,10 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
                  } as Message);
             });
             setMessages(fetchedMessages);
-        }, err => console.error("Error fetching conversation:", err));
+        }, err => {
+            console.error("Error fetching conversation:", err);
+            addToast("Failed to load conversation history.", "error");
+        });
 
         return () => unsubscribe();
     }, [userProfile.uid, topic.topicId]);
@@ -231,7 +232,6 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         setFile(null);
         setFileData(null);
         setIsLoading(true);
-        setError(null);
         setSuggestions([]);
 
         try {
@@ -274,11 +274,11 @@ Student: "${tempInput}"
             });
 
             if (!result.success) {
-                setError(result.message);
+                addToast(result.message, 'error');
             }
         } catch (err) {
             console.error('Error in chat:', err);
-            setError('Sorry, something went wrong. Please try again.');
+            addToast('Sorry, something went wrong. Please try again.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -365,7 +365,6 @@ Student: "${tempInput}"
                       ))}
                   </div>
                 )}
-                {error && <p className="text-red-600 text-sm mb-2 text-center">{error}</p>}
                 
                 <div className="relative flex items-center">
                     <textarea 
@@ -399,93 +398,60 @@ Student: "${tempInput}"
 };
 
 // --- TOPIC & SUBJECT COMPONENTS ---
-const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void, isLocked: boolean }> = ({ topic, isCompleted, onSelect, isLocked }) => (
-    <button onClick={onSelect} disabled={isLocked} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-        <span className={isLocked ? "text-gray-500" : "text-gray-700"}>{topic.topicName}</span>
-        {isLocked ? <LockIcon className="w-4 h-4 text-gray-500" /> : isCompleted && <CheckCircleIcon className="w-5 h-5 text-lime-500" />}
+const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void }> = ({ topic, isCompleted, onSelect }) => (
+    <button onClick={onSelect} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+        <span className="text-gray-700">{topic.topicName}</span>
+        {isCompleted && <CheckCircleIcon className="w-5 h-5 text-lime-500" />}
     </button>
 );
 
-const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onTopicSelect: (topic: Topic) => void, isLocked: boolean, isStarterLocked: boolean, isInitiallyOpen: boolean }> = ({ subject, userProgress, onTopicSelect, isLocked, isStarterLocked, isInitiallyOpen }) => {
-    const [isOpen, setIsOpen] = useState(isInitiallyOpen);
-
-    const totalTopics = subject.topics?.length || 0;
-    const completedTopics = totalTopics > 0 ? subject.topics.filter(topic => userProgress[topic.topicId]?.isComplete).length : 0;
-    const progressPercentage = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onSelectTopic: (topic: Topic, subjectName: string) => void }> = ({ subject, userProgress, onSelectTopic }) => {
+    const [isOpen, setIsOpen] = useState(true); // Default to open
+    const completedCount = subject.topics.filter(t => userProgress[t.topicId]?.isComplete).length;
+    const totalCount = subject.topics.length;
+    const isSubjectComplete = completedCount === totalCount;
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                disabled={isLocked}
-                className="w-full text-left p-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-expanded={isOpen}
-                aria-controls={`subject-content-${subject.subjectId}`}
-            >
-                <div className="flex justify-between items-center">
-                    <h3 className={`text-lg font-semibold ${isLocked ? 'text-gray-500' : 'text-gray-900'}`}>{subject.subjectName}</h3>
-                    {isLocked ? 
-                        <LockIcon className="w-5 h-5 text-gray-500" /> : 
-                        <ChevronDownIcon className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-                    }
+        <div className="bg-white p-4 rounded-xl border border-gray-200">
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center">
+                <div className="text-left">
+                    <h3 className="text-lg font-bold text-gray-800">{subject.subjectName}</h3>
+                    <p className="text-sm text-gray-500">{completedCount} / {totalCount} topics completed</p>
                 </div>
-                {!isLocked && (
-                    <div className="mt-3 flex items-center gap-3">
-                        <div
-                            className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden"
-                            role="progressbar"
-                            aria-valuenow={progressPercentage}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuetext={`${completedTopics} of ${totalTopics} topics completed`}
-                            aria-label={`${subject.subjectName} progress`}
-                        >
-                            <div
-                                className="bg-gradient-to-r from-teal-500 to-lime-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${progressPercentage}%` }}
-                            />
-                        </div>
-                        <span className="text-sm font-medium text-gray-600 w-24 text-right tabular-nums" aria-hidden="true">
-                            {completedTopics}/{totalTopics} ({Math.round(progressPercentage)}%)
-                        </span>
-                    </div>
-                )}
+                <div className="flex items-center gap-4">
+                    {isSubjectComplete && <span className="text-xs font-bold text-lime-600 bg-lime-100 px-2 py-1 rounded-full">Complete</span>}
+                    <ChevronDownIcon className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
             </button>
-            <div
-                id={`subject-content-${subject.subjectId}`}
-                className={`transition-all duration-300 ease-in-out overflow-y-auto ${isOpen ? 'max-h-96' : 'max-h-0'} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
-            >
-                <div className="px-4 pb-2">
-                    {subject.topics.map((topic, index) => (
-                        <TopicCard
-                            key={topic.topicId}
-                            topic={topic}
-                            isCompleted={!!userProgress[topic.topicId]?.isComplete}
-                            onSelect={() => onTopicSelect(topic)}
-                            isLocked={isStarterLocked && index > 0}
-                        />
-                    ))}
-                </div>
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen mt-4 pt-4 border-t border-gray-200' : 'max-h-0'}`}>
+                {totalCount > 0 ? (
+                    <div className="space-y-1">
+                        {subject.topics.map(topic => (
+                            <TopicCard key={topic.topicId} topic={topic} isCompleted={userProgress[topic.topicId]?.isComplete || false} onSelect={() => onSelectTopic(topic, subject.subjectName)} />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500 text-sm p-3">No topics available for this subject yet.</p>
+                )}
             </div>
         </div>
     );
 };
 
-
-// --- MAIN STUDY GUIDE PAGE COMPONENT ---
+// --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
-  userProfile: UserProfile;
-  onStudyXPEarned: (xp: number) => void;
+    userProfile: UserProfile;
+    onStudyXPEarned: (xp: number) => void;
 }
 
 export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEarned }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
-    const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-
+    const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const { addToast } = useToast();
+    
     useEffect(() => {
         setIsLoading(true);
         const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
@@ -493,13 +459,12 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
             if (docSnap.exists()) {
                 setSubjects(docSnap.data().subjectList || []);
             } else {
-                setError("Could not find study materials for your course.");
+                console.error("Course document not found!");
+                addToast("Could not load study guide. Course data is missing.", "error");
             }
-            setIsLoading(false);
-        }, (err) => {
+        }, err => {
             console.error("Error fetching course data:", err);
-            setError("Failed to load study guide. Please try again later.");
-            setIsLoading(false);
+            addToast("An error occurred while loading the study guide.", "error");
         });
 
         const progressColRef = collection(db, 'users', userProfile.uid, 'progress');
@@ -509,108 +474,84 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onStudyXPEa
                 progressData[doc.id] = doc.data() as { isComplete: boolean; xpEarned: number; };
             });
             setUserProgress(progressData);
+            setIsLoading(false);
+        }, err => {
+            console.error("Error fetching user progress:", err);
+            addToast("Failed to load your progress.", "error");
+            setIsLoading(false);
         });
 
         return () => {
             unsubscribeCourse();
             unsubscribeProgress();
         };
-    }, [userProfile.uid, userProfile.courseId]);
-    
+    }, [userProfile.courseId, userProfile.uid]);
+
     const handleMarkComplete = async (topicId: string) => {
         if (userProgress[topicId]?.isComplete) return;
 
         try {
             const progressDocRef = doc(db, 'users', userProfile.uid, 'progress', topicId);
             await setDoc(progressDocRef, { isComplete: true, xpEarned: 2 });
-            await onStudyXPEarned(2);
-        } catch (err) {
-            console.error("Failed to mark topic as complete:", err);
+            onStudyXPEarned(2);
+            addToast("Topic marked as complete! +2 XP", "success");
+        } catch (error) {
+            console.error("Failed to mark topic as complete:", error);
+            addToast("Could not save your progress.", "error");
         }
     };
-    
-    const filteredSubjects = searchQuery.trim() === ''
-      ? subjects
-      : subjects.map(subject => {
-            const lowerCaseQuery = searchQuery.toLowerCase();
-            const subjectNameMatch = subject.subjectName.toLowerCase().includes(lowerCaseQuery);
-            const matchingTopics = subject.topics?.filter(topic =>
-                topic.topicName.toLowerCase().includes(lowerCaseQuery)
-            ) || [];
 
-            if (subjectNameMatch) {
-                return subject;
-            }
-            if (matchingTopics.length > 0) {
-                return { ...subject, topics: matchingTopics };
-            }
-            return null;
-        }).filter((subject): subject is Subject => subject !== null);
-
+    const filteredSubjects = subjects
+        .map(subject => ({
+            ...subject,
+            topics: subject.topics.filter(topic =>
+                topic.topicName.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }))
+        .filter(subject => subject.topics.length > 0);
 
     if (selectedTopic) {
-        return <LearningInterface 
-            userProfile={userProfile} 
-            topic={selectedTopic} 
-            isCompleted={!!userProgress[selectedTopic.topicId]?.isComplete}
-            onClose={() => setSelectedTopic(null)} 
-            onMarkComplete={handleMarkComplete} 
-        />;
+        return (
+            <LearningInterface 
+                userProfile={userProfile} 
+                topic={selectedTopic}
+                isCompleted={userProgress[selectedTopic.topicId]?.isComplete || false}
+                onClose={() => setSelectedTopic(null)} 
+                onMarkComplete={handleMarkComplete}
+            />
+        );
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full w-full">
-            {isLoading && <StudyGuideSkeleton />}
-            {error && <p className="text-center text-red-600 p-4 sm:p-6 md:p-8">{error}</p>}
-            {!isLoading && !error && (
-                <div className="flex-1 flex flex-col min-h-0">
-                    <div className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-4">
-                        <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                <SearchIcon className="text-gray-500" />
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search for a topic..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-white border border-gray-300 rounded-full py-3 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-lime-500 focus:outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 sm:px-6 md:px-8 sm:pt-0 sm:pb-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                         {filteredSubjects.length > 0 ? (
-                            filteredSubjects.map((subject) => {
-                                const isFreePlan = userProfile.plan === 'free';
-                                const isStarterPlan = userProfile.plan === 'starter';
-                                
-                                const originalSubjectIndex = subjects.findIndex(s => s.subjectId === subject.subjectId);
-
-                                const isSubjectLocked = (isFreePlan && originalSubjectIndex > 0) || (isStarterPlan && originalSubjectIndex > 4);
-                                const isTopicLockedForFreePlan = isFreePlan && originalSubjectIndex === 0;
-
-                                return (
-                                    <SubjectAccordion 
-                                        key={subject.subjectId + searchQuery} 
-                                        subject={subject} 
-                                        userProgress={userProgress} 
-                                        onTopicSelect={(topic) => setSelectedTopic({ ...topic, subjectName: subject.subjectName })} 
-                                        isLocked={isSubjectLocked}
-                                        isStarterLocked={isTopicLockedForFreePlan}
-                                        isInitiallyOpen={searchQuery.length > 0}
-                                    />
-                                );
-                            })
-                        ) : (
-                             <div className="text-center text-gray-600 py-16">
-                                <h3 className="text-lg font-semibold">No results found</h3>
-                                <p>Try adjusting your search query for '{searchQuery}'.</p>
-                            </div>
-                        )}
+        <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+             <div className="flex-shrink-0 p-4 sm:p-6 md:px-8 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search topics..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-gray-100 border border-gray-300 rounded-full py-2.5 pl-10 pr-4 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <SearchIcon />
                     </div>
                 </div>
-            )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {isLoading && <StudyGuideSkeleton />}
+                {!isLoading && filteredSubjects.length > 0 && (
+                    filteredSubjects.map(subject => (
+                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={(topic, subjectName) => setSelectedTopic({ ...topic, subjectName })} />
+                    ))
+                )}
+                 {!isLoading && filteredSubjects.length === 0 && (
+                    <div className="text-center text-gray-500 py-10">
+                        <p className="font-semibold">No topics found</p>
+                        <p className="text-sm">Try adjusting your search term.</p>
+                    </div>
+                 )}
+            </div>
         </div>
     );
 };

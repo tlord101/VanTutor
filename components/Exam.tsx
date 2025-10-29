@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore';
 import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Subject } from '../types';
+import { useToast } from '../hooks/useToast';
 
 declare var __app_id: string;
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -92,10 +93,10 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; explanation: string } | null>(null);
   const [score, setScore] = useState(0);
   const [reviewExam, setReviewExam] = useState<ExamHistoryItem | null>(null);
-  const [generationError, setGenerationError] = useState<string | null>(null);
   const [completedTopicNames, setCompletedTopicNames] = useState<string[]>([]);
   const [isTopicDataLoading, setIsTopicDataLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
+  const { addToast } = useToast();
 
   const userAnswersRef = useRef(userAnswers);
   useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
@@ -134,7 +135,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
             }
         } catch (error) {
             console.error("Error fetching course data for exam generation:", error);
-            setGenerationError("Could not load topic data to create your exam.");
+            addToast("Could not load topic data to create your exam.", 'error');
         } finally {
             setIsTopicDataLoading(false);
         }
@@ -179,6 +180,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                   onXPEarned(xpEarned);
               } catch (error) {
                   console.error("Failed to save exam results:", error);
+                  addToast("Could not save your exam results.", 'error');
               }
           };
 
@@ -209,7 +211,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
   const generateQuestions = async () => {
     setExamState('generating');
-    setGenerationError(null);
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
@@ -248,7 +249,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
       }
     } catch (error) {
       console.error("Error generating exam questions:", error);
-      setGenerationError("Sorry, we couldn't create an exam for you right now. Please try again in a moment.");
+      addToast("Sorry, we couldn't create an exam for you right now. Please try again in a moment.", 'error');
       setExamState('start');
     }
   };
@@ -261,7 +262,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     setFeedback(null);
     setScore(0);
     setExamState('start');
-    setGenerationError(null);
     setTimeLeft(0);
   };
 
@@ -424,7 +424,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                     Please complete at least one topic in the Study Guide before starting an exam.
                 </p>
             )}
-            {generationError && <p className="text-red-600 mt-4">{generationError}</p>}
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <button
                     onClick={generateQuestions}

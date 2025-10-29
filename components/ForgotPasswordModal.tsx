@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { useToast } from '../hooks/useToast';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -10,8 +11,8 @@ interface ForgotPasswordModalProps {
 export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isSent, setIsSent] = useState(false);
+  const { addToast } = useToast();
 
   if (!isOpen) {
     return null;
@@ -20,18 +21,17 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
   const handleSendResetLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSending(true);
-    setMessage(null);
-    setError(null);
 
     try {
       await sendPasswordResetEmail(auth, email);
-      setMessage('A password reset link has been sent to your email address.');
-      setEmail('');
+      addToast('A password reset link has been sent to your email address.', 'success');
+      setIsSent(true);
+      setTimeout(onClose, 3000); // Close modal after showing success
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
-        setError('Could not find an account with that email address.');
+        addToast('Could not find an account with that email address.', 'error');
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        addToast('An unexpected error occurred. Please try again.', 'error');
       }
       console.error('Password reset failed:', err);
     } finally {
@@ -39,10 +39,19 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     }
   };
 
+  const handleClose = () => {
+      if (!isSending) {
+          // Reset state on close
+          setEmail('');
+          setIsSent(false);
+          onClose();
+      }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
     >
@@ -51,7 +60,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors text-2xl"
           aria-label="Close"
         >
@@ -62,11 +71,11 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
           Enter your email and we'll send you a link to reset your password.
         </p>
         
-        {message ? (
+        {isSent ? (
           <div className="text-center">
-            <p className="text-green-700 bg-green-100 p-3 rounded-lg mb-4">{message}</p>
+            <p className="text-green-700 font-semibold mb-4">Check your inbox for the reset link.</p>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Close
@@ -91,7 +100,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                 />
               </div>
             </div>
-            {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
             <div className="mt-6">
               <button
                 type="submit"

@@ -1,7 +1,5 @@
 import type React from 'react';
 
-export type UserPlan = 'free' | 'starter' | 'smart';
-
 export interface NavItem {
   id: string;
   label: string;
@@ -15,7 +13,6 @@ export interface UserProfile {
   level: string;
   totalXP: number;
   totalTestXP: number;
-  plan: UserPlan;
   currentStreak: number;
   lastActivityDate: number; // Store as timestamp
 }
@@ -105,4 +102,13 @@ export interface ChatConversation {
   title: string;
   createdAt: number; // Use number for Firestore compatibility
   lastUpdatedAt: number; // Use number for Firestore compatibility
+}
+
+// Type for the new Toast Notification System
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface ToastMessage {
+  id: string;
+  type: ToastType;
+  message: string;
 }
