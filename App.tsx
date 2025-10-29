@@ -281,7 +281,7 @@ const App: React.FC = () => {
         if (!userProfile) return null;
         switch (activeItem) {
             case 'dashboard': return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
-            case 'study_guide': return <StudyGuide userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
+            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
             case 'chat': return <Chat userProfile={userProfile} />;
             case 'visual_solver': return <VisualSolver userProfile={userProfile} />;
             case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
@@ -322,7 +322,7 @@ const App: React.FC = () => {
     const currentPage = navigationItems.find(item => item.id === activeItem);
 
     return (
-        <div className="min-h-screen flex flex-col md:flex-row bg-gray-100 p-2 md:p-4 gap-4">
+        <div className="h-full flex flex-col md:flex-row bg-gray-100 p-2 md:p-4 gap-4">
             <Sidebar
                 activeItem={activeItem}
                 onItemClick={setActiveItem}
@@ -334,7 +334,7 @@ const App: React.FC = () => {
                 isMobileSidebarOpen={isMobileSidebarOpen}
                 onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
             />
-            <main className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 flex flex-col min-w-0 pb-24 md:pb-0 overflow-hidden">
                 <Header 
                     currentPageLabel={currentPage?.label || 'Dashboard'}
                     unreadCount={unreadCount}
