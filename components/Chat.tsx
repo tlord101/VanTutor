@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
 import { db } from '../firebase';
@@ -650,7 +648,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 </h2>
                 <div className="w-6"></div>
             </div>
-            <div className="flex-1 flex h-full w-full overflow-hidden relative">
+            <div className="flex-1 flex w-full overflow-hidden relative">
                 <ChatHistoryPanel
                     conversations={conversations}
                     activeConversationId={activeConversationId}
@@ -760,7 +758,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     const [chatMode, setChatMode] = useState<'text' | 'live'>('text');
 
     return (
-        <div className="flex flex-col h-full w-full">
+        <div className="flex-1 flex flex-col w-full">
             <div className="flex-shrink-0 p-2 border-b border-gray-200 bg-white/80 backdrop-blur-sm flex justify-center sticky top-0 z-10">
                 <div className="bg-gray-200 p-1 rounded-full flex items-center">
                     <button
@@ -780,7 +778,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-200 overflow-hidden">
                 {chatMode === 'text' && <TextChat userProfile={userProfile} />}
                 {chatMode === 'live' && <LiveConversation userProfile={userProfile} onEndSession={() => setChatMode('text')} />}
             </div>

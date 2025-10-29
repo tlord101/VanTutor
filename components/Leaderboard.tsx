@@ -102,19 +102,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 flex flex-col bg-white p-4 sm:p-6 rounded-xl border border-gray-200 overflow-y-auto">
-        <div className="flex-shrink-0 mb-4 bg-gray-100 p-1 rounded-lg flex">
-          <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
-            Overall
-          </button>
-          <button onClick={() => setActiveTab('weekly')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'weekly' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
-            This Week
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {renderList()}
-        </div>
+    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+      <div className="flex-shrink-0 mb-4 bg-gray-100 p-1 rounded-lg flex">
+        <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
+          Overall
+        </button>
+        <button onClick={() => setActiveTab('weekly')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'weekly' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
+          This Week
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {renderList()}
       </div>
     </div>
   );

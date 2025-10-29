@@ -16,7 +16,7 @@ const XPIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 const StreakIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7.014A8.003 8.003 0 0122 12c0 3.314-2.01 6.014-4.657 7.143a8.003 8.003 0 01-1.686.514z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7.014A8.003 8.003 0 0122 12c0 3.314-2.01 6.014-4.657 7.143a8.003 8.003 0 01-1.686 .514z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
     </svg>
 );
@@ -105,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userProgress,
     : 0;
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 md:p-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="p-4 sm:p-6 md:p-8">
       <div className="flex flex-wrap gap-4 md:gap-6 mb-8">
         <StatCard title="Current Level" value={userProfile.level} description="Your selected difficulty" icon={<LevelIcon className="w-8 h-8"/>} />
         <StatCard title="Total XP" value={(userProfile.totalXP + userProfile.totalTestXP).toLocaleString()} description="From lessons & exams" icon={<XPIcon className="w-8 h-8"/>} />

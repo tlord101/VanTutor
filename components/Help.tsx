@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ReactIcon } from './icons/ReactIcon';
 import { FirebaseIcon } from './icons/FirebaseIcon';
@@ -95,7 +93,7 @@ const Help: React.FC = () => {
     const activeSection = useScrollSpy(sectionIds, { rootMargin: '-20% 0px -80% 0px' });
     
     return (
-        <div className="flex h-full w-full bg-white">
+        <div className="flex-1 flex w-full bg-white">
             {/* Desktop Sidebar Navigation */}
             <nav className="hidden md:block w-64 flex-shrink-0 border-r border-gray-200 p-4">
                 <div className="sticky top-4">
@@ -116,7 +114,7 @@ const Help: React.FC = () => {
                 </div>
             </nav>
 
-            <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 min-w-0">
                 <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
                     <header className="mb-12">
                         <h1 className="text-5xl font-extrabold bg-gradient-to-r from-lime-600 to-teal-600 text-transparent bg-clip-text pb-2">

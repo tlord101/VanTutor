@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -443,10 +442,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full">
-      <div className="flex-1 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {renderContent()}
-      </div>
+    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+      {renderContent()}
     </div>
   );
 };

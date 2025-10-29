@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -20,12 +19,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
 const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
     </svg>
 );
@@ -525,7 +524,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+        <div className="flex-1 flex flex-col w-full bg-white rounded-xl border border-gray-200 overflow-hidden">
              <div className="flex-shrink-0 p-4 sm:p-6 md:px-8 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
                 <div className="relative">
                     <input
@@ -540,7 +539,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
                     </div>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4">
                 {isLoading && <StudyGuideSkeleton />}
                 {!isLoading && filteredSubjects.length > 0 && (
                     filteredSubjects.map(subject => (

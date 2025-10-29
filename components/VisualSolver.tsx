@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { UserProfile, Message } from '../types';
@@ -568,7 +566,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     };
     
     return (
-        <div className="flex-1 flex flex-col h-full w-full">
+        <div className="flex-1 flex flex-col w-full">
             <div className="flex-1 bg-gray-300 rounded-xl border border-gray-200 overflow-hidden relative">
                 <canvas ref={canvasRef} className="hidden"></canvas>
                 {renderContent()}
