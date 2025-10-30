@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { UserProfile } from '../types';
 import type { User } from 'firebase/auth';
@@ -22,6 +23,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isCourseLoading, setIsCourseLoading] = useState(true);
   const [levels, setLevels] = useState<string[]>([]);
   const [isLevelsLoading, setIsLevelsLoading] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState('Notification' in window ? Notification.permission : 'denied');
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -58,6 +60,47 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
     fetchCourseData();
   }, [userProfile.courseId, addToast]);
+
+  useEffect(() => {
+    if ('Notification' in window && 'permissions' in navigator) {
+      const handlePermissionChange = () => {
+        setNotificationPermission(Notification.permission);
+      };
+      navigator.permissions.query({ name: 'notifications' }).then((permissionStatus) => {
+        permissionStatus.onchange = handlePermissionChange;
+        // Set initial state in case it changed before the component mounted
+        setNotificationPermission(permissionStatus.state);
+      });
+      return () => {
+        navigator.permissions.query({ name: 'notifications' }).then((permissionStatus) => {
+          permissionStatus.onchange = null;
+        });
+      };
+    }
+  }, []);
+
+  const handleRequestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        addToast('Push notifications enabled!', 'success');
+        // Show a test notification
+        const registration = await navigator.serviceWorker.ready;
+        registration.showNotification('VANTUTOR', {
+            body: 'You will now receive important updates.',
+            icon: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20viewBox%3D%220%200%2052%2042%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M4.33331%2017.5L26%204.375L47.6666%2017.5L26%2030.625L4.33331%2017.5Z%22%20stroke%3D%22%23A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M41.5%2021V29.75C41.5%2030.825%2040.85%2032.55%2039.4166%2033.25L27.75%2039.375C26.6666%2039.9%2025.3333%2039.9%2024.25%2039.375L12.5833%2033.25C11.15%2032.55%2010.5%2030.825%2010.5%2029.75V21%22%20stroke%3D%22%23A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M47.6667%2017.5V26.25%22%20stroke%3D%22%23A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E'
+        });
+      } else if (permission === 'denied') {
+        addToast('Push notifications have been blocked.', 'error');
+      } else {
+        addToast('Push notifications were not enabled.', 'info');
+      }
+    } else {
+      addToast('This browser does not support push notifications.', 'error');
+    }
+  };
+
 
   const handleSaveName = async () => {
     if (newDisplayName.trim() === '' || newDisplayName.trim() === userProfile.displayName) {
@@ -160,6 +203,27 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                 </select>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Notifications</h3>
+        <div className="flex justify-between items-center">
+            <div>
+                <span className="text-gray-600">Push Notifications</span>
+                {notificationPermission === 'denied' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                        You've blocked notifications. Enable them in browser settings.
+                    </p>
+                )}
+            </div>
+            {notificationPermission === 'granted' && <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">Enabled</span>}
+            {notificationPermission === 'denied' && <span className="text-sm font-semibold text-red-600 bg-red-100 px-2 py-1 rounded-full">Blocked</span>}
+            {notificationPermission === 'default' && (
+                <button onClick={handleRequestNotificationPermission} className="text-sm font-semibold text-lime-600 hover:text-lime-500">
+                    Enable
+                </button>
+            )}
         </div>
       </div>
 
