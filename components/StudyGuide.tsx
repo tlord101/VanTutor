@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -378,9 +379,10 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
 interface StudyGuideProps {
     userProfile: UserProfile;
     onXPEarned: (xp: number) => void;
+    triggerPushNotification: (title: string, message: string) => void;
 }
 
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned }) => {
+export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned, triggerPushNotification }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -433,6 +435,9 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
             await setDoc(progressDocRef, { isComplete: true, xpEarned: 2 });
             onXPEarned(2);
             addToast("Topic marked as complete! +2 XP", "success");
+            if (selectedTopic && selectedTopic.topicId === topicId) {
+                triggerPushNotification('Topic Complete!', `Great job on finishing "${selectedTopic.topicName}". Keep up the great work!`);
+            }
         } catch (error) {
             console.error("Failed to mark topic as complete:", error);
             addToast("Could not save your progress.", "error");

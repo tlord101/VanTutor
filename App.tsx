@@ -302,10 +302,10 @@ const App: React.FC = () => {
         if (!userProfile) return null;
         switch (activeItem) {
             case 'dashboard': return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
-            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
+            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} triggerPushNotification={triggerPushNotification} />;
             case 'chat': return <Chat userProfile={userProfile} />;
             case 'visual_solver': return <VisualSolver userProfile={userProfile} />;
-            case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
+            case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} triggerPushNotification={triggerPushNotification} />;
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
             case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
             case 'help': return <Help />;

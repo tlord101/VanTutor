@@ -23,17 +23,20 @@ const InfoIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) =
 const TOAST_CONFIG = {
   success: {
     icon: <SuccessIcon />,
-    bgClass: 'bg-green-500',
+    iconColorClass: 'text-green-400',
+    borderColorClass: 'border-green-500',
     title: 'Success',
   },
   error: {
     icon: <ErrorIcon />,
-    bgClass: 'bg-red-500',
+    iconColorClass: 'text-red-400',
+    borderColorClass: 'border-red-500',
     title: 'Error',
   },
   info: {
     icon: <InfoIcon />,
-    bgClass: 'bg-blue-500',
+    iconColorClass: 'text-blue-400',
+    borderColorClass: 'border-blue-500',
     title: 'Info',
   },
 };
@@ -66,17 +69,17 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
 
   return (
     <div
-      className={`relative w-full ${config.bgClass} text-white rounded-xl shadow-2xl flex items-start p-4 overflow-hidden ${isExiting ? 'animate-toast-out' : 'animate-toast-in'}`}
+      className={`relative w-full bg-slate-800/90 backdrop-blur-sm text-white rounded-xl shadow-2xl flex items-start p-4 overflow-hidden border ${config.borderColorClass} ${isExiting ? 'animate-toast-out' : 'animate-toast-in'}`}
       role="alert"
     >
-      <div className="flex-shrink-0">{config.icon}</div>
+      <div className={`flex-shrink-0 ${config.iconColorClass}`}>{config.icon}</div>
       <div className="ml-3 flex-1">
         <p className="font-bold text-md">{config.title}</p>
         <p className="text-sm mt-1">{message}</p>
       </div>
       <button
         onClick={handleDismiss}
-        className="ml-4 flex-shrink-0 p-1 rounded-full hover:bg-white/20 transition-colors"
+        className="ml-4 flex-shrink-0 p-1 rounded-full text-gray-400 hover:bg-white/20 hover:text-white transition-colors"
         aria-label="Close"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

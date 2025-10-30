@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
@@ -82,9 +83,10 @@ interface ExamProps {
   userProfile: UserProfile;
   onXPEarned: (xp: number) => void;
   userProgress: UserProgress;
+  triggerPushNotification: (title: string, message: string) => void;
 }
 
-export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgress }) => {
+export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgress, triggerPushNotification }) => {
   const [examState, setExamState] = useState<'start' | 'generating' | 'in_progress' | 'completed' | 'history' | 'review'>('start');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
@@ -178,6 +180,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
                   const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
                   await addDoc(historyRef, examResult);
                   onXPEarned(xpEarned);
+                  triggerPushNotification('Exam Finished!', `You scored ${currentScore}/${questions.length}. Come back to review your results.`);
               } catch (error) {
                   console.error("Failed to save exam results:", error);
                   addToast("Could not save your exam results.", 'error');
@@ -190,7 +193,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           
           return 'completed';
       });
-  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast]);
+  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast, triggerPushNotification]);
 
   useEffect(() => {
       if (examState !== 'in_progress' || timeLeft <= 0) {
