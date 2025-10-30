@@ -53,7 +53,7 @@ const App: React.FC = () => {
     const { addToast } = useToast();
 
     const triggerPushNotification = useCallback(async (title: string, message: string) => {
-        if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
+        if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 await registration.showNotification(title, {
@@ -64,7 +64,7 @@ const App: React.FC = () => {
                 console.error('Error showing notification:', err);
             }
         }
-    }, []);
+    }, [userProfile]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -180,6 +180,7 @@ const App: React.FC = () => {
             totalTestXP: 0,
             currentStreak: 0,
             lastActivityDate: now,
+            notificationsEnabled: false,
         };
         try {
             const batch = writeBatch(db);

@@ -15,6 +15,7 @@ export interface UserProfile {
   totalTestXP: number;
   currentStreak: number;
   lastActivityDate: number; // Store as timestamp
+  notificationsEnabled: boolean;
 }
 
 export interface Message {
