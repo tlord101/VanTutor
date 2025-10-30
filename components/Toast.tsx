@@ -69,7 +69,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
 
   return (
     <div
-      className={`relative w-full bg-slate-800/90 backdrop-blur-sm text-white rounded-xl shadow-2xl flex items-start p-4 overflow-hidden border ${config.borderColorClass} ${isExiting ? 'animate-toast-out' : 'animate-toast-in'}`}
+      className={`relative w-full bg-slate-800/60 backdrop-blur-sm text-white rounded-xl shadow-2xl flex items-start p-4 overflow-hidden border ${config.borderColorClass} ${isExiting ? 'animate-toast-out' : 'animate-toast-in'}`}
       role="alert"
     >
       <div className={`flex-shrink-0 ${config.iconColorClass}`}>{config.icon}</div>
