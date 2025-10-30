@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ReactIcon } from './icons/ReactIcon';
 import { FirebaseIcon } from './icons/FirebaseIcon';
@@ -154,6 +155,7 @@ const Help: React.FC = () => {
 
                         <Section id="backend" title="Backend & Database" icon={<FirebaseIcon />}>
                             <p>The backend is powered by Google Firebase, providing authentication, database, and other serverless functionalities.</p>
+                            
                             <SubSectionTitle>Firestore Database Structure</SubSectionTitle>
                             <p>Firestore is our NoSQL database. The structure is designed for scalability and efficient querying, with denormalized data in <code>leaderboardOverall</code> and <code>leaderboardWeekly</code> for fast reads.</p>
                             <CodeBlock title="Firestore Data Model" code={`
@@ -171,16 +173,141 @@ leaderboardWeekly/{userId} (collection)
 
 artifacts/{appId}/public/data/courses/{courseId} (collection)
 `.trim()} language="text" />
-                             <SubSectionTitle>Common Database Calls</SubSectionTitle>
-                            <p>The app uses various Firestore methods: <code>getDoc</code> (fetch single docs), <code>onSnapshot</code> (real-time listeners), <code>runTransaction</code> (atomic operations like updating XP and leaderboards), and <code>writeBatch</code> (multiple writes at once).</p>
+
+                            <SubSectionTitle>Data Fetching & Writing Examples</SubSectionTitle>
+                            <p>This section provides practical examples of how the application interacts with Firestore to read and write data for core features.</p>
+
+                            <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-2">User Profiles</h4>
+                            <p>User profiles store essential information about the learner. They are stored in the <code>users</code> collection, with the document ID matching the user's Firebase Auth UID.</p>
+                            <CodeBlock title="Function: Fetch a User's Profile" language="javascript" code={`
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+
+async function getUserProfile(userId) {
+  const userRef = doc(db, 'users', userId);
+  const docSnap = await getDoc(userRef);
+
+  if (docSnap.exists()) {
+    console.log("User data:", docSnap.data());
+    return docSnap.data(); // Returns UserProfile object
+  } else {
+    console.log("No such user profile!");
+    return null;
+  }
+}
+`.trim()} />
+
+                            <p>Updating a user profile can be done using <code>updateDoc</code>. For more complex operations that involve multiple documents (like updating a display name on leaderboards), a transaction is used to ensure data consistency.</p>
+                            <CodeBlock title="Function: Update a User's Profile" language="javascript" code={`
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase';
+
+async function updateUserProfile(userId, dataToUpdate) {
+  const userRef = doc(db, 'users', userId);
+  try {
+    await updateDoc(userRef, dataToUpdate);
+    console.log("Profile updated successfully");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating profile: ", error);
+    return { success: false, error };
+  }
+}
+`.trim()} />
+
+                            <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-2">Courses, Subjects & Topics</h4>
+                            <p>Course data is considered public artifact data. It's structured to hold all subjects and topics for different levels within a single course document.</p>
+                            <CodeBlock title="Function: Fetch Subjects for a User's Level" language="javascript" code={`
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+
+// Assume __app_id is available globally
+declare var __app_id: string;
+
+async function getSubjectsForLevel(courseId, userLevel) {
+    const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', courseId);
+    const docSnap = await getDoc(courseDocRef);
+
+    if (docSnap.exists()) {
+        const allSubjects = docSnap.data().subjectList || [];
+        // Filter subjects that match the user's current level
+        const subjectsForLevel = allSubjects.filter(subject => subject.level === userLevel);
+        return subjectsForLevel;
+    } else {
+        console.log("Course not found!");
+        return [];
+    }
+}
+`.trim()} />
+
+                            <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-2">Experience Points (XP)</h4>
+                            <p>Awarding XP is a critical operation that must update multiple documents atomically to prevent data inconsistencies. This is the perfect use case for a Firestore <code>runTransaction</code>. A transaction reads all necessary documents first, then performs all writes in a single, atomic operation. If any part fails, the entire transaction is rolled back.</p>
+                            <p>The following function updates four different locations in the database: the user's profile, their daily XP log, the overall leaderboard, and the weekly leaderboard.</p>
+                            <CodeBlock title="Function: Award XP using a Transaction" language="javascript" code={`
+import { doc, runTransaction } from 'firebase/firestore';
+import { db } from './firebase';
+
+// Helper to get a consistent week ID string (e.g., "2024-27")
+const getWeekId = (date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return \`\${d.getUTCFullYear()}-\${weekNo}\`;
+};
+
+async function awardXP(userId, displayName, xpAmount, type = 'lesson') {
+  const today = new Date().toISOString().split('T')[0];
+  const weekId = getWeekId(new Date());
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      // 1. Define references to all documents that will be changed.
+      const userRef = doc(db, 'users', userId);
+      const xpHistoryRef = doc(db, 'users', userId, 'xpHistory', today);
+      const overallLeadRef = doc(db, 'leaderboardOverall', userId);
+      const weeklyLeadRef = doc(db, 'leaderboardWeekly', userId);
+
+      // 2. Read the current state of documents within the transaction.
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) throw new Error("User does not exist!");
+      
+      const currentProfile = userSnap.data();
+      const xpHistorySnap = await transaction.get(xpHistoryRef);
+      const weeklyLeadSnap = await transaction.get(weeklyLeadRef);
+
+      // 3. Perform all write operations.
+      // a) Update the user's total XP on their profile.
+      const xpField = type === 'test' ? 'totalTestXP' : 'totalXP';
+      transaction.update(userRef, { [xpField]: currentProfile[xpField] + xpAmount });
+
+      // b) Update the daily XP log for charting.
+      const currentDailyXP = xpHistorySnap.exists() ? xpHistorySnap.data().xp : 0;
+      transaction.set(xpHistoryRef, { date: today, xp: currentDailyXP + xpAmount }, { merge: true });
+
+      // c) Update the overall leaderboard.
+      const newOverallXP = (currentProfile.totalXP + currentProfile.totalTestXP) + xpAmount;
+      transaction.set(overallLeadRef, { uid: userId, displayName, xp: newOverallXP }, { merge: true });
+      
+      // d) Update the weekly leaderboard, resetting if it's a new week.
+      let newWeeklyXP = xpAmount;
+      if (weeklyLeadSnap.exists() && weeklyLeadSnap.data().weekId === weekId) {
+        newWeeklyXP += weeklyLeadSnap.data().xp;
+      }
+      transaction.set(weeklyLeadRef, { uid: userId, displayName, weekId, xp: newWeeklyXP }, { merge: true });
+    });
+    console.log(\`Successfully awarded \${xpAmount} XP to \${displayName}\`);
+  } catch (error) {
+    console.error("Transaction failed: ", error);
+  }
+}
+`.trim()} />
                         </Section>
                         
                         <Section id="apis" title="API Integrations" icon={<ApiIcon />}>
-                           <p>We integrate with external APIs to provide core AI and payment functionalities.</p>
+                           <p>We integrate with external APIs to provide core AI functionalities.</p>
                            <SubSectionTitle>Google Gemini API</SubSectionTitle>
-                           <p>We use the <code>@google/genai</code> library to interact with Gemini models. <code>gemini-2.5-flash</code> is used for real-time chat, and <code>gemini-2.5-pro</code> for high-quality JSON generation for exams. The custom <code>useApiLimiter</code> hook controls API call frequency to manage costs and prevent abuse. All users share the same generous rate limit.</p>
-                           <SubSectionTitle>Paystack API</SubSectionTitle>
-                           <p>Previously used for subscription payments, but this feature is now disabled as the application is free. In production, transaction verification must be performed on a secure backend server to be secure.</p>
+                           <p>We use the <code>@google/genai</code> library to interact with Gemini models. <code>gemini-2.5-flash</code> is used for real-time chat and visual analysis, and <code>gemini-2.5-pro</code> for high-quality JSON generation for exams. The custom <code>useApiLimiter</code> hook controls API call frequency to manage costs and prevent abuse.</p>
                         </Section>
 
                         <Section id="admin_panel" title="Building an Admin Panel" icon={<StackIcon />}>
@@ -194,18 +321,16 @@ artifacts/{appId}/public/data/courses/{courseId} (collection)
                             <p>User profiles are stored in the <code>users/&#123;userId&#125;</code> documents. You can edit user details such as their display name. Note that if you update a user's <code>displayName</code>, you must also update it in the <code>leaderboardOverall/&#123;userId&#125;</code> and <code>leaderboardWeekly/&#123;userId&#125;</code> documents to maintain consistency.</p>
                             
                             <SubSectionTitle>Course Management</SubSectionTitle>
-                            {/* FIX: Updated Firestore path to use `__app_id` for consistency with the rest of the application code. */}
                             <p>Course content is stored in Firestore under the path <code>{'artifacts/{__app_id}/public/data/courses/{courseId}'}</code>.</p>
                             <p>To add a new subject, you must read the entire <code>subjectList</code>, append your new subject object, and write the modified array back to the document.</p>
-                            <CodeBlock title="Example: Add a New Subject" code={`
+                            <CodeBlock title="Example: Add a New Subject" language="javascript" code={`
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase'; // Your firebase config
 
 // Assume __app_id is available
 declare var __app_id: string;
 
-async function addSubjectToCourse(courseId, newSubjectName) {
-  // FIX: Correctly structured the 'doc' call with path segments instead of a single string.
+async function addSubjectToCourse(courseId, newSubjectName, level) {
   const courseRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', courseId);
   try {
     const courseSnap = await getDoc(courseRef);
@@ -219,6 +344,7 @@ async function addSubjectToCourse(courseId, newSubjectName) {
     const newSubject = {
       subjectId: \`subj_\${Date.now()}\`, // Generate a unique ID
       subjectName: newSubjectName,
+      level: level, // Assign the subject to a specific level
       topics: [] // Initialize with an empty topics array
     };
 
@@ -232,9 +358,9 @@ async function addSubjectToCourse(courseId, newSubjectName) {
     console.error('Error adding new subject: ', error);
   }
 }
-`.trim()} language="javascript" />
+`.trim()} />
                             <p>Adding a topic to an existing subject follows a similar pattern. You read the array, find the specific subject to modify, add the new topic to its <code>topics</code> array, and then update the document with the modified <code>subjectList</code>.</p>
-                            <CodeBlock title="Example: Add a New Topic to a Subject" code={`
+                            <CodeBlock title="Example: Add a New Topic to a Subject" language="javascript" code={`
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase'; // Your firebase config
 
@@ -242,7 +368,6 @@ import { db } from './firebase'; // Your firebase config
 declare var __app_id: string;
 
 async function addTopicToSubject(courseId, subjectId, newTopicName) {
-  // FIX: Correctly structured the 'doc' call with path segments instead of a single string.
   const courseRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', courseId);
   try {
     const courseSnap = await getDoc(courseRef);
@@ -275,7 +400,7 @@ async function addTopicToSubject(courseId, subjectId, newTopicName) {
     console.error('Error adding new topic: ', error);
   }
 }
-`.trim()} language="javascript" />
+`.trim()} />
                         </Section>
 
                         <Section id="tech_stack" title="Technology Stack" icon={<StackIcon />}>
@@ -295,7 +420,6 @@ async function addTopicToSubject(courseId, subjectId, newTopicName) {
                                         <tr><td className="px-6 py-4 font-semibold">Tailwind CSS</td><td className="px-6 py-4">Utility-first CSS framework for rapid UI development.</td></tr>
                                         <tr><td className="px-6 py-4 font-semibold">@google/genai</td><td className="px-6 py-4">Official SDK for interacting with the Google Gemini API.</td></tr>
                                         <tr><td className="px-6 py-4 font-semibold">React Markdown + Plugins</td><td className="px-6 py-4">Renders Markdown from the AI, with plugins (remark-gfm, remark-math, rehype-katex) for tables and LaTeX math support.</td></tr>
-                                        <tr><td className="px-6 py-4 font-semibold">Paystack JS</td><td className="px-6 py-4">Handles subscription payments via the inline checkout iframe.</td></tr>
                                     </tbody>
                                 </table>
                             </div>

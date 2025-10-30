@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { UserProfile, Message } from '../types';
@@ -79,7 +80,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                 const imagePart = { inlineData: { data: base64Data, mimeType: 'image/jpeg' } };
                 const textPart = { text: initialPrompt };
                 
-                // FIX: `sendMessageStream` expects an object with a `message` property.
                 const responseStream = await chat.sendMessageStream({ message: [textPart, imagePart] });
 
                 let botResponseText = '';
@@ -118,7 +118,6 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
         
         try {
             const result = await attemptApiCall(async () => {
-                // FIX: `sendMessageStream` expects an object with a `message` property.
                 const responseStream = await chatSessionRef.current!.sendMessageStream({ message: textToSend });
                 
                 let botResponseText = '';
