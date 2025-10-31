@@ -16,6 +16,18 @@ const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+const PlayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.748 1.295 2.536 0 3.284L7.279 20.99c-1.25.72-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+    </svg>
+);
+
+const PauseIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 00-.75.75v12a.75.75 0 00.75.75h.75a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75H6.75zm8.25 0a.75.75 0 00-.75.75v12a.75.75 0 00.75.75h.75a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75h-.75z" clipRule="evenodd" />
+    </svg>
+);
+
 const formatLastSeen = (timestamp: number): string => {
     const now = Date.now();
     const seconds = Math.floor((now - timestamp) / 1000);
@@ -37,6 +49,82 @@ const UserStatusIndicator: React.FC<{ isOnline?: boolean; lastSeen?: number }> =
     }
     return <div className="w-3 h-3 bg-gray-400 rounded-full border-2 border-white"></div>;
 };
+
+// --- Sub-component: AudioPlayer ---
+const AudioPlayer: React.FC<{ src: string, duration: number, theme: 'light' | 'dark' }> = ({ src, duration, theme }) => {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const togglePlay = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!audioRef.current) return;
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play().catch(err => console.error("Audio play failed:", err));
+        }
+    };
+    
+    useEffect(() => {
+        const audio = new Audio(src);
+        audioRef.current = audio;
+
+        const onPlaying = () => setIsPlaying(true);
+        const onPause = () => setIsPlaying(false);
+        const onEnded = () => { setIsPlaying(false); setProgress(0); };
+        const onTimeUpdate = () => {
+            if (audio.duration) {
+                setProgress((audio.currentTime / audio.duration) * 100);
+            }
+        };
+
+        audio.addEventListener('playing', onPlaying);
+        audio.addEventListener('pause', onPause);
+        audio.addEventListener('ended', onEnded);
+        audio.addEventListener('timeupdate', onTimeUpdate);
+        
+        return () => {
+            audio.pause();
+            audio.removeEventListener('playing', onPlaying);
+            audio.removeEventListener('pause', onPause);
+            audio.removeEventListener('ended', onEnded);
+            audio.removeEventListener('timeupdate', onTimeUpdate);
+        };
+    }, [src]);
+
+    const formatDuration = (seconds: number) => {
+        if (isNaN(seconds) || seconds === 0) return '0:00';
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+    
+    const themeClasses = {
+        light: {
+            buttonBg: 'bg-black/10 hover:bg-black/20', buttonIcon: 'text-black/70',
+            progressBg: 'bg-black/10', progressFg: 'bg-black/50', text: 'text-black/60',
+        },
+        dark: {
+            buttonBg: 'bg-white/20 hover:bg-white/30', buttonIcon: 'text-white',
+            progressBg: 'bg-white/20', progressFg: 'bg-white', text: 'text-white/80',
+        }
+    };
+    const colors = theme === 'dark' ? themeClasses.dark : themeClasses.light;
+
+    return (
+        <div className="flex items-center gap-2 w-full max-w-[220px] sm:max-w-xs">
+            <button onClick={togglePlay} className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center transition-colors ${colors.buttonBg} ${colors.buttonIcon}`}>
+                {isPlaying ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
+            </button>
+            <div className={`w-full h-1.5 rounded-full ${colors.progressBg}`}>
+                <div className={`h-full rounded-full ${colors.progressFg}`} style={{ width: `${progress}%` }}></div>
+            </div>
+            <span className={`text-xs font-mono w-12 text-right ${colors.text}`}>{formatDuration(duration)}</span>
+        </div>
+    );
+};
+
 
 // --- Sub-component: PrivateChatView ---
 interface PrivateChatViewProps {
@@ -106,40 +194,6 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
         }
     };
     
-    const handleStartRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
-            audioChunksRef.current = [];
-
-            mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
-            mediaRecorderRef.current.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
-                handleSend(undefined, audioBlob, duration);
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-            recordingStartRef.current = Date.now();
-            recordingIntervalRef.current = window.setInterval(() => setRecordingSeconds(prev => prev + 1), 1000);
-        } catch (error) {
-            console.error("Error starting recording:", error);
-            addToast("Could not access microphone. Please check permissions.", "error");
-        }
-    };
-
-    const handleStopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-            setRecordingSeconds(0);
-        }
-    };
-
-
     const handleSend = async (text?: string, audioBlob?: Blob, audioDuration?: number) => {
         const textToSend = text !== undefined ? text : input;
         if ((!textToSend.trim() && !imageFile && !audioBlob) || isSending || isRecording) return;
@@ -199,6 +253,41 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             setIsSending(false);
         }
     };
+
+    const handleStartRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
+                handleSend(undefined, audioBlob, duration);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+            recordingStartRef.current = Date.now();
+            recordingIntervalRef.current = window.setInterval(() => setRecordingSeconds(prev => prev + 1), 1000);
+        } catch (error) {
+            console.error("Error starting recording:", error);
+            addToast("Could not access microphone. Please check permissions.", "error");
+        }
+    };
+    
+    const handleStopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            setRecordingSeconds(0);
+        }
+    };
+
+
     
     return (
         <div className="h-full flex flex-col bg-white">
@@ -220,10 +309,10 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-24 md:pb-4">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex gap-3 items-end ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-3 rounded-2xl ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-black' : 'bg-gray-200 text-gray-800'}`}>
+                        <div className={`max-w-[80%] p-3 rounded-2xl ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
                             {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
-                            {msg.audioUrl && <audio src={msg.audioUrl} controls className="w-full max-w-xs h-10" />}
-                            {msg.text && <p className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></p>}
+                            {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={msg.senderId === currentUser.uid ? 'dark' : 'light'} />}
+                            {msg.text && <div className="text-sm whitespace-pre-wrap user-select-text"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
                         </div>
                     </div>
                 ))}
@@ -236,12 +325,21 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
                     <div className="relative flex items-center">
                         <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
                         {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
-                        ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend()}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />)}
+                        ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend(input)}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />)}
                         
                         {!input.trim() && !imageFile ? (
-                           <button onMouseDown={handleStartRecording} onMouseUp={handleStopRecording} onTouchStart={handleStartRecording} onTouchEnd={handleStopRecording} disabled={isSending} className={`ml-2 rounded-full p-2 text-white transition-colors disabled:opacity-50 ${isRecording ? 'bg-red-500' : 'bg-lime-600 hover:bg-lime-700'}`}><MicrophoneIcon className="w-5 h-5" /></button>
+                           <button 
+                            onMouseDown={handleStartRecording} 
+                            onMouseUp={handleStopRecording} 
+                            onTouchStart={handleStartRecording} 
+                            onTouchEnd={handleStopRecording} 
+                            disabled={isSending} 
+                            className={`ml-2 rounded-full p-3 transition-transform text-white disabled:opacity-50 ${isRecording ? 'bg-red-500 scale-110 animate-pulse' : 'bg-lime-600 hover:bg-lime-700 active:scale-95'}`}
+                           >
+                               <MicrophoneIcon className="w-6 h-6" />
+                           </button>
                         ) : (
-                           <button onClick={() => handleSend()} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50"><SendIcon className="w-5 h-5" /></button>
+                           <button onClick={() => handleSend(input)} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
                         )}
                     </div>
                 </div>
