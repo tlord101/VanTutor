@@ -278,15 +278,25 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
 
     useEffect(() => {
         const chatsRef = collection(db, 'privateChats');
-        const q = query(chatsRef, where('members', 'array-contains', userProfile.uid), orderBy('lastActivityTimestamp', 'desc'));
+        // A simpler query that is less likely to fail due to missing indexes.
+        const q = query(chatsRef, where('members', 'array-contains', userProfile.uid));
+        
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChats: PrivateChat[] = [];
             snapshot.forEach(doc => fetchedChats.push({ id: doc.id, ...doc.data() } as PrivateChat));
+            
+            // Perform sorting on the client-side for robustness.
+            fetchedChats.sort((a, b) => (b.lastActivityTimestamp || 0) - (a.lastActivityTimestamp || 0));
+
             setChats(fetchedChats);
             setIsDataLoading(false);
-        }, () => setIsDataLoading(false));
+        }, (error) => {
+            console.error("Error fetching chats:", error);
+            addToast("Could not load your chats.", "error");
+            setIsDataLoading(false);
+        });
         return unsubscribe;
-    }, [userProfile.uid]);
+    }, [userProfile.uid, addToast]);
 
     
     const handleStartChat = async (otherUser: UserProfile) => {
@@ -389,7 +399,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-700">{user.displayName}</p>
-                                    <p className="text-xs text-gray-500">{user.isOnline ? 'Online' : (user.lastSeen ? `Active ${formatLastSeen(user.lastSeen)}` : 'Offline')}</p>
+                                    <p className="text-xs text-gray-500">{user.isOnline ? `Online` : (user.lastSeen ? `Active ${formatLastSeen(user.lastSeen)}` : 'Offline')}</p>
                                 </div>
                            </div>
                          )}
