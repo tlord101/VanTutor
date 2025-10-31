@@ -33,6 +33,16 @@ const getWeekId = (date: Date): string => {
   return `${d.getUTCFullYear()}-${weekNo}`;
 };
 
+const AppLoader: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100" role="status" aria-label="Loading application">
+      <svg className="w-24 h-24 loader-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle className="loader-circle" cx="50" cy="50" r="45" />
+      </svg>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -315,11 +325,7 @@ const App: React.FC = () => {
     };
     
     if (isLoading || isProfileLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                <div className="w-12 h-12 border-4 border-t-lime-500 border-gray-300 rounded-full animate-spin"></div>
-            </div>
-        );
+        return <AppLoader />;
     }
 
     if (!user) {
