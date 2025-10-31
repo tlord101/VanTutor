@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
+import { auth, db, storage } from './firebase';
+import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
@@ -457,6 +458,77 @@ const App: React.FC = () => {
         await batch.commit();
     };
 
+    const deleteSubcollection = async (batch: WriteBatch, collectionPath: string) => {
+        const collectionRef = collection(db, collectionPath);
+        const snapshot = await getDocs(collectionRef);
+        snapshot.forEach(doc => batch.delete(doc.ref));
+    };
+
+    const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return { success: false, error: 'User not authenticated.' };
+        
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Delete all subcollections under the user's document
+            // Chat conversations and their messages
+            const convosRef = collection(db, 'users', currentUser.uid, 'chatConversations');
+            const convosSnap = await getDocs(convosRef);
+            for (const convoDoc of convosSnap.docs) {
+                await deleteSubcollection(batch, `users/${currentUser.uid}/chatConversations/${convoDoc.id}/messages`);
+                batch.delete(convoDoc.ref);
+            }
+            // Other subcollections
+            const otherSubcollections = ['progress', 'examHistory', 'xpHistory', 'notifications'];
+            for (const sub of otherSubcollections) {
+                await deleteSubcollection(batch, `users/${currentUser.uid}/${sub}`);
+            }
+
+            // 2. Delete main user document
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            batch.delete(userDocRef);
+
+            // 3. Delete leaderboard entries
+            const overallLeadRef = doc(db, 'leaderboardOverall', currentUser.uid);
+            batch.delete(overallLeadRef);
+            const weeklyLeadRef = doc(db, 'leaderboardWeekly', currentUser.uid);
+            batch.delete(weeklyLeadRef);
+            
+            // 4. Delete private chats
+            const privateChatsQuery = query(collection(db, 'privateChats'), where('members', 'array-contains', currentUser.uid));
+            const privateChatsSnapshot = await getDocs(privateChatsQuery);
+            for (const chatDoc of privateChatsSnapshot.docs) {
+                await deleteSubcollection(batch, `privateChats/${chatDoc.id}/messages`);
+                batch.delete(chatDoc.ref);
+            }
+
+            await batch.commit();
+
+            // 5. Delete storage data (profile picture) - best effort
+            try {
+                const storageRef = ref(storage, `profile-pictures/${currentUser.uid}`);
+                await deleteObject(storageRef);
+            } catch (storageError: any) {
+                if (storageError.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete profile picture:", storageError);
+                }
+            }
+            
+            // 6. Delete Firebase Auth user
+            await deleteUser(currentUser);
+
+            addToast('Your account has been successfully deleted.', 'success');
+            return { success: true };
+        } catch (error: any) {
+            console.error("Error deleting account:", error);
+            if (error.code === 'auth/requires-recent-login') {
+                return { success: false, error: 'This is a sensitive operation. Please log out and log back in before trying again.' };
+            }
+            return { success: false, error: 'An error occurred while deleting your account. Please try again later.' };
+        }
+    };
+
     const renderContent = () => {
         if (!userProfile) return null;
         switch (activeItem) {
@@ -466,7 +538,7 @@ const App: React.FC = () => {
             case 'visual_solver': return <VisualSolver userProfile={userProfile} />;
             case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
-            case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
+            case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleAccountDeletion} />;
             case 'help': return <Help />;
             case 'messenger': return <Messenger userProfile={userProfile} />;
             default: return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;

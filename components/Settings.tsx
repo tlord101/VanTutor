@@ -6,6 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
+import { ConfirmationModal } from './ConfirmationModal';
 
 declare var __app_id: string;
 
@@ -14,6 +15,7 @@ interface SettingsProps {
   userProfile: UserProfile;
   onLogout: () => void;
   onProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
+  onDeleteAccount: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
@@ -35,7 +37,7 @@ const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
   </button>
 );
 
-export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate }) => {
+export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate, onDeleteAccount }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState(userProfile.displayName);
   const [isSaving, setIsSaving] = useState(false);
@@ -47,6 +49,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isNotificationSaving, setIsNotificationSaving] = useState(false);
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setIsNotificationSwitchOn(userProfile.notificationsEnabled);
@@ -227,6 +231,17 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
         }
     };
 
+    const confirmDeletion = async () => {
+      setIsDeleting(true);
+      const result = await onDeleteAccount();
+      if (!result.success) {
+          addToast(result.error || 'Failed to delete account.', 'error');
+          setIsDeleting(false);
+          setIsDeleteModalOpen(false);
+      }
+      // On success, the App component will handle the user state change and redirect.
+    };
+
   const browserPermission = 'Notification' in window ? Notification.permission : 'denied';
 
   return (
@@ -347,16 +362,31 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Actions</h3>
-         <div>
+         <div className="divide-y divide-gray-200">
            <button
               onClick={onLogout}
-              className="w-full text-left p-3 rounded-lg text-red-600 hover:bg-red-100 transition-colors duration-200"
+              className="w-full text-left p-3 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200"
             >
               Logout
+            </button>
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="w-full text-left p-3 text-red-600 font-medium hover:bg-red-50 transition-colors duration-200"
+            >
+              Delete Account
             </button>
          </div>
       </div>
 
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Account"
+        message="Are you sure? This will permanently delete your account and all associated data, including your progress, chat history, and exam results. This action cannot be undone."
+        onConfirm={confirmDeletion}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        confirmText="Yes, delete my account"
+        isConfirming={isDeleting}
+      />
     </div>
   );
 };
