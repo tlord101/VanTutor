@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -461,9 +461,12 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 setActiveConversationId(currentConversationId);
             }
             
-            const storageRef = ref(storage, `chat-conversations/${userProfile.uid}/${currentConversationId}/${Date.now()}.webm`);
-            const snapshot = await uploadBytes(storageRef, audioBlob);
-            const audioUrl = await getDownloadURL(snapshot.ref);
+            const filePath = `chat-media/${userProfile.uid}/${currentConversationId}/${Date.now()}.webm`;
+            const { error: uploadError } = await supabase.storage.from('chat-media').upload(filePath, audioBlob);
+            if (uploadError) throw uploadError;
+            
+            const { data } = supabase.storage.from('chat-media').getPublicUrl(filePath);
+            const audioUrl = data.publicUrl;
 
             const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', currentConversationId, 'messages');
             await addDoc(messagesRef, { sender: 'user', timestamp: serverTimestamp(), audioUrl, audioDuration: duration });
@@ -526,9 +529,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         const tempFile = file;
         const tempImagePreview = imagePreviewUrl;
         
-        const userMessage: Omit<Message, 'id'> = { text: tempInput, sender: 'user', timestamp: Date.now() };
-        if (tempImagePreview) userMessage.image = tempImagePreview;
-
         setInput('');
         setFile(null);
         setImagePreviewUrl(null);
@@ -545,6 +545,18 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 currentConversationId = newConversationRef.id;
                 setActiveConversationId(currentConversationId);
             }
+            
+            let imageUrl: string | undefined;
+            if (tempFile) {
+                const filePath = `chat-media/${userProfile.uid}/${currentConversationId}/${Date.now()}-${tempFile.name}`;
+                const { error: uploadError } = await supabase.storage.from('chat-media').upload(filePath, tempFile);
+                if (uploadError) throw uploadError;
+                const { data } = supabase.storage.from('chat-media').getPublicUrl(filePath);
+                imageUrl = data.publicUrl;
+            }
+
+            const userMessage: Omit<Message, 'id'> = { text: tempInput, sender: 'user', timestamp: Date.now() };
+            if (imageUrl) userMessage.image = imageUrl;
             
             const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', currentConversationId, 'messages');
             await addDoc(messagesRef, { ...userMessage, timestamp: serverTimestamp() });

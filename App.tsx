@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
-import { auth, db, storage } from './firebase';
+import { auth, db } from './firebase';
+import { supabase } from './supabase';
 import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
@@ -507,11 +507,12 @@ const App: React.FC = () => {
 
             // 5. Delete storage data (profile picture) - best effort
             try {
-                const storageRef = ref(storage, `profile-pictures/${currentUser.uid}`);
-                await deleteObject(storageRef);
+                await supabase.storage.from('profile-pictures').remove([currentUser.uid]);
             } catch (storageError: any) {
-                if (storageError.code !== 'storage/object-not-found') {
-                    console.warn("Could not delete profile picture:", storageError);
+                // Supabase client might throw an error if object not found, which is fine.
+                // Log other errors as a warning.
+                if (storageError.message !== 'The resource was not found') {
+                    console.warn("Could not delete profile picture from Supabase:", storageError);
                 }
             }
             

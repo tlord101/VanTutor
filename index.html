@@ -174,7 +174,8 @@
     "remark-math": "https://esm.sh/remark-math@6.0.0",
     "rehype-katex": "https://esm.sh/rehype-katex@7.0.0",
     "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
-    "katex/": "https://aistudiocdn.com/katex@^0.16.25/"
+    "katex/": "https://aistudiocdn.com/katex@^0.16.25/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
   }
 }
 </script>
@@ -193,7 +194,7 @@
         authDomain: "tick-c20ac.firebaseapp.com",
         databaseURL: "https://tick-c20ac-default-rtdb.firebaseio.com",
         projectId: "tick-c20ac",
-        storageBucket: "tick-c20ac.firebasestorage.app",
+        storageBucket: "tick-c20ac.appspot.com",
         messagingSenderId: "717973440095",
         appId: "1:717973440095:web:3e388dc407554ddd15bdea",
         measurementId: "G-B5MQ1LETCL"
@@ -201,6 +202,12 @@
       var __app_id = "vantutor-app";
       // Set to a token string for custom token testing, or undefined/null for anonymous fallback.
       var __initial_auth_token = undefined;
+
+      // NEW: Supabase credentials
+      // Replace with your actual Supabase project URL and Anon Key.
+      // You can find these in your Supabase project dashboard under Settings > API.
+      var __supabase_url = "https://peezefvuggljblippwej.supabase.co";
+      var __supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZXplZnZ1Z2dsamJsaXBwd2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MzI0MDQsImV4cCI6MjA3NzUwODQwNH0.eaJiKM-QMiu9M6VGSFXz4t-GVudGJ-ile9bSxZcjq3E";
     </script>
 
     <script type="module" src="/index.tsx"></script>

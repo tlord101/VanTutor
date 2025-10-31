@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { collection, query, where, onSnapshot, orderBy, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, writeBatch, limit, getDocs } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '../hooks/useToast';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -157,13 +157,17 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             let audioUrl: string | undefined;
 
             if (tempImageFile) {
-                const storageRef = ref(storage, `private-chats/${chatId}/${Date.now()}-${tempImageFile.name}`);
-                const snapshot = await uploadBytes(storageRef, tempImageFile);
-                imageUrl = await getDownloadURL(snapshot.ref);
+                const filePath = `private-chats/${chatId}/${Date.now()}-${tempImageFile.name}`;
+                const { error } = await supabase.storage.from('private-chats').upload(filePath, tempImageFile);
+                if(error) throw error;
+                const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
+                imageUrl = data.publicUrl;
             } else if (audioBlob) {
-                const storageRef = ref(storage, `private-chats/${chatId}/${Date.now()}.webm`);
-                const snapshot = await uploadBytes(storageRef, audioBlob);
-                audioUrl = await getDownloadURL(snapshot.ref);
+                const filePath = `private-chats/${chatId}/${Date.now()}.webm`;
+                const { error } = await supabase.storage.from('private-chats').upload(filePath, audioBlob);
+                if(error) throw error;
+                const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
+                audioUrl = data.publicUrl;
             }
 
             const batch = writeBatch(db);

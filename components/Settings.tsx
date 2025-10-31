@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile } from '../types';
 import type { User } from 'firebase/auth';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { doc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -194,9 +194,19 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
         setIsSaving(true);
         try {
-            const storageRef = ref(storage, `profile-pictures/${user.uid}`);
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
+            const { error: uploadError } = await supabase.storage
+                .from('profile-pictures')
+                .upload(user.uid, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+            
+            const { data } = supabase.storage
+                .from('profile-pictures')
+                .getPublicUrl(user.uid);
+            
+            // Add a timestamp to bust cache for updated images
+            const downloadURL = `${data.publicUrl}?t=${new Date().getTime()}`;
+
             const result = await onProfileUpdate({ photoURL: downloadURL });
             if (result.success) {
                 addToast("Profile picture updated!", "success");
@@ -215,8 +225,9 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
         if (!user || !userProfile.photoURL) return;
         setIsSaving(true);
         try {
-            const storageRef = ref(storage, `profile-pictures/${user.uid}`);
-            await deleteObject(storageRef);
+            const { error } = await supabase.storage.from('profile-pictures').remove([user.uid]);
+            if (error) throw error;
+            
             const result = await onProfileUpdate({ photoURL: "" });
              if (result.success) {
                 addToast("Profile picture removed.", "success");
