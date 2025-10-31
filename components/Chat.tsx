@@ -19,6 +19,7 @@ import { LogoIcon } from './icons/LogoIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { useToast } from '../hooks/useToast';
+import { Avatar } from './Avatar';
 
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -685,7 +686,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                                                 {message.audioUrl && <audio src={message.audioUrl} controls className="w-full max-w-xs h-10" />}
                                                 {message.text && <div className="text-sm prose max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>{message.text}</ReactMarkdown></div>}
                                             </div>
-                                            {message.sender === 'user' && <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">{userProfile.displayName.charAt(0).toUpperCase()}</div>}
+                                            {message.sender === 'user' && <Avatar displayName={userProfile.displayName} photoURL={userProfile.photoURL} className="w-8 h-8 self-start" />}
                                         </div>
                                     ))}
                                     {isLoading && <div className="flex items-start gap-3 animate-fade-in-up"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"><GraduationCapIcon className="w-full h-full p-1.5 text-white" /></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}

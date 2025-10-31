@@ -8,6 +8,7 @@ import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
+import { Avatar } from './Avatar';
 
 const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -41,7 +42,7 @@ const UserStatusIndicator: React.FC<{ isOnline?: boolean; lastSeen?: number }> =
 interface PrivateChatViewProps {
   chatId: string;
   currentUser: UserProfile;
-  otherUser: { uid: string, displayName: string, isOnline?: boolean, lastSeen?: number };
+  otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number };
   onBack: () => void;
 }
 
@@ -202,7 +203,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>
                  <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-400 to-gray-600 flex items-center justify-center text-white font-bold text-lg">{otherUser.displayName.charAt(0).toUpperCase()}</div>
+                    <Avatar displayName={otherUser.displayName} photoURL={otherUser.photoURL} className="w-10 h-10" />
                     <div className="absolute -bottom-1 -right-1">
                         <UserStatusIndicator isOnline={otherUser.isOnline} />
                     </div>
@@ -253,7 +254,7 @@ interface MessengerProps {
 
 export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const [view, setView] = useState<'list' | 'chat'>('list');
-    const [selectedChat, setSelectedChat] = useState<{ chatId: string, otherUser: { uid: string, displayName: string, isOnline?: boolean, lastSeen?: number } } | null>(null);
+    const [selectedChat, setSelectedChat] = useState<{ chatId: string, otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number } } | null>(null);
 
     const [tab, setTab] = useState<'chats' | 'discover'>('chats');
     const [chats, setChats] = useState<PrivateChat[]>([]);
@@ -278,14 +279,12 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
 
     useEffect(() => {
         const chatsRef = collection(db, 'privateChats');
-        // A simpler query that is less likely to fail due to missing indexes.
         const q = query(chatsRef, where('members', 'array-contains', userProfile.uid));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChats: PrivateChat[] = [];
             snapshot.forEach(doc => fetchedChats.push({ id: doc.id, ...doc.data() } as PrivateChat));
             
-            // Perform sorting on the client-side for robustness.
             fetchedChats.sort((a, b) => (b.lastActivityTimestamp || 0) - (a.lastActivityTimestamp || 0));
 
             setChats(fetchedChats);
@@ -310,14 +309,14 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
             await setDoc(chatRef, {
                 members,
                 memberInfo: {
-                    [userProfile.uid]: { displayName: userProfile.displayName },
-                    [otherUser.uid]: { displayName: otherUser.displayName },
+                    [userProfile.uid]: { displayName: userProfile.displayName, photoURL: userProfile.photoURL || '' },
+                    [otherUser.uid]: { displayName: otherUser.displayName, photoURL: otherUser.photoURL || '' },
                 },
                 createdAt: now,
                 lastActivityTimestamp: now,
             });
         }
-        setSelectedChat({ chatId, otherUser });
+        setSelectedChat({ chatId, otherUser: { ...otherUser } });
         setView('chat');
     };
     
@@ -330,6 +329,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
             otherUser: { 
                 uid: otherUserId, 
                 displayName: chat.memberInfo[otherUserId]?.displayName || 'User',
+                photoURL: otherUserInfo?.photoURL || chat.memberInfo[otherUserId]?.photoURL,
                 isOnline: otherUserInfo?.isOnline,
                 lastSeen: otherUserInfo?.lastSeen
             } 
@@ -357,9 +357,14 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                         const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
                         const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
                         const isUnread = chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid);
+                        const otherUserPhotoURL = otherUserInfo?.photoURL || chat.memberInfo[otherUserId]?.photoURL;
                         return <li key={chat.id} onClick={() => handleSelectChat(chat)} className="p-4 hover:bg-gray-50 cursor-pointer flex items-center gap-4">
                             <div className="relative flex-shrink-0">
-                                <div className={`w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-xl ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}>{chat.memberInfo[otherUserId]?.displayName.charAt(0)}</div>
+                                <Avatar 
+                                    displayName={chat.memberInfo[otherUserId]?.displayName} 
+                                    photoURL={otherUserPhotoURL} 
+                                    className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}
+                                />
                                 <div className="absolute -bottom-1 -right-1">
                                     <UserStatusIndicator isOnline={otherUserInfo?.isOnline} />
                                 </div>
@@ -392,7 +397,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                          filteredUsers.map(user => 
                             <div key={user.uid} onClick={() => handleStartChat(user)} className="p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-4 rounded-lg">
                                 <div className="relative flex-shrink-0">
-                                    <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-xl">{user.displayName.charAt(0)}</div>
+                                    <Avatar displayName={user.displayName} photoURL={user.photoURL} className="w-12 h-12" />
                                     <div className="absolute -bottom-1 -right-1">
                                        <UserStatusIndicator isOnline={user.isOnline} />
                                     </div>

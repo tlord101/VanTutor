@@ -297,6 +297,7 @@ const App: React.FC = () => {
         const newUserProfile: UserProfile = {
             uid: user.uid,
             displayName: user.displayName || 'Learner',
+            photoURL: user.photoURL || '',
             courseId: profileData.courseId,
             level: profileData.level,
             totalXP: 0,
@@ -335,18 +336,37 @@ const App: React.FC = () => {
 
     const handleProfileUpdate = async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
         if (!user || !userProfile) return { success: false, error: 'User not authenticated.' };
-
+    
         try {
             await runTransaction(db, async (transaction) => {
                 const userRef = doc(db, 'users', user.uid);
                 transaction.update(userRef, updatedData);
-
+    
+                const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
                 if (updatedData.displayName) {
-                    await updateProfile(user, { displayName: updatedData.displayName });
+                    authUpdatePayload.displayName = updatedData.displayName;
+                }
+                if (updatedData.photoURL !== undefined) {
+                    authUpdatePayload.photoURL = updatedData.photoURL;
+                }
+    
+                if (Object.keys(authUpdatePayload).length > 0) {
+                    await updateProfile(user, authUpdatePayload);
+    
                     const overallLeadRef = doc(db, 'leaderboardOverall', user.uid);
                     const weeklyLeadRef = doc(db, 'leaderboardWeekly', user.uid);
-                    transaction.update(overallLeadRef, { displayName: updatedData.displayName });
-                    transaction.update(weeklyLeadRef, { displayName: updatedData.displayName });
+    
+                    const [overallSnap, weeklySnap] = await Promise.all([
+                        transaction.get(overallLeadRef),
+                        transaction.get(weeklyLeadRef)
+                    ]);
+    
+                    if (overallSnap.exists()) {
+                        transaction.update(overallLeadRef, authUpdatePayload);
+                    }
+                    if (weeklySnap.exists()) {
+                        transaction.update(weeklyLeadRef, authUpdatePayload);
+                    }
                 }
             });
             return { success: true };
@@ -368,7 +388,6 @@ const App: React.FC = () => {
                 const overallLeadRef = doc(db, 'leaderboardOverall', userProfile.uid);
                 const weeklyLeadRef = doc(db, 'leaderboardWeekly', userProfile.uid);
 
-                // FIX: Use `overallLeadRef` and `weeklyLeadRef` in `transaction.get` instead of the `...Snap` variables which are not yet declared.
                 const [userSnap, xpHistorySnap, overallLeadSnap, weeklyLeadSnap] = await Promise.all([
                     transaction.get(userRef),
                     transaction.get(xpHistoryRef),
@@ -386,16 +405,23 @@ const App: React.FC = () => {
                 transaction.set(xpHistoryRef, { date: today, xp: currentDailyXP + xp }, { merge: true });
 
                 const overallXP = (currentProfile.totalXP + currentProfile.totalTestXP) + xp;
+                const leaderboardPayload = { 
+                    uid: userProfile.uid, 
+                    displayName: userProfile.displayName, 
+                    photoURL: userProfile.photoURL || "",
+                    xp: overallXP 
+                };
+
                 if (overallLeadSnap.exists()) {
                     transaction.update(overallLeadRef, { xp: overallXP });
                 } else {
-                    transaction.set(overallLeadRef, { uid: userProfile.uid, displayName: userProfile.displayName, xp: overallXP });
+                    transaction.set(overallLeadRef, leaderboardPayload);
                 }
 
                 if (weeklyLeadSnap.exists() && weeklyLeadSnap.data().weekId === weekId) {
                     transaction.update(weeklyLeadRef, { xp: weeklyLeadSnap.data().xp + xp });
                 } else {
-                    transaction.set(weeklyLeadRef, { uid: userProfile.uid, displayName: userProfile.displayName, xp, weekId });
+                    transaction.set(weeklyLeadRef, { ...leaderboardPayload, xp, weekId });
                 }
             });
         } catch (error) {
@@ -473,7 +499,7 @@ const App: React.FC = () => {
                 isExpanded={isSidebarExpanded}
                 onMouseEnter={() => setIsSidebarExpanded(true)}
                 onMouseLeave={() => setIsSidebarExpanded(false)}
-                displayName={userProfile.displayName}
+                userProfile={userProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
                 onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}

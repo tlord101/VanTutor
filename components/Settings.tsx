@@ -1,10 +1,11 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile } from '../types';
 import type { User } from 'firebase/auth';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '../hooks/useToast';
+import { Avatar } from './Avatar';
 
 declare var __app_id: string;
 
@@ -45,6 +46,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isNotificationSwitchOn, setIsNotificationSwitchOn] = useState(userProfile.notificationsEnabled);
   const [isNotificationSaving, setIsNotificationSaving] = useState(false);
   const { addToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsNotificationSwitchOn(userProfile.notificationsEnabled);
@@ -97,8 +99,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
             return;
         }
 
-        // FIX: The `permission` variable must be of type `NotificationPermission` because
-        // `Notification.requestPermission()` can resolve to 'denied'. This fixes both TypeScript errors.
         let permission: NotificationPermission = browserPermission;
         if (browserPermission === 'default') {
             try {
@@ -179,6 +179,54 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
     setIsSaving(false);
   };
   
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user) return;
+
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            addToast("File is too large. Please select an image under 5MB.", "error");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const storageRef = ref(storage, `profile-pictures/${user.uid}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            const result = await onProfileUpdate({ photoURL: downloadURL });
+            if (result.success) {
+                addToast("Profile picture updated!", "success");
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error("Failed to upload profile picture:", error);
+            addToast("Could not update profile picture.", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRemovePhoto = async () => {
+        if (!user || !userProfile.photoURL) return;
+        setIsSaving(true);
+        try {
+            const storageRef = ref(storage, `profile-pictures/${user.uid}`);
+            await deleteObject(storageRef);
+            const result = await onProfileUpdate({ photoURL: "" });
+             if (result.success) {
+                addToast("Profile picture removed.", "success");
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error("Failed to remove profile picture:", error);
+            addToast("Could not remove profile picture.", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
   const browserPermission = 'Notification' in window ? Notification.permission : 'denied';
 
   return (
@@ -246,6 +294,32 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                 </select>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h3>
+        <div className="flex items-center gap-4">
+            <Avatar displayName={userProfile.displayName} photoURL={userProfile.photoURL} className="w-16 h-16" />
+            <div className="flex flex-col gap-2">
+                <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSaving}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50"
+                >
+                    {isSaving ? 'Uploading...' : 'Upload Picture'}
+                </button>
+                {userProfile.photoURL && (
+                    <button
+                        onClick={handleRemovePhoto}
+                        disabled={isSaving}
+                        className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                    >
+                        Remove
+                    </button>
+                )}
+            </div>
         </div>
       </div>
 

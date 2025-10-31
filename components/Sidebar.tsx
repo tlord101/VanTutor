@@ -1,7 +1,8 @@
 import React from 'react';
-import type { NavItem } from '../types';
+import type { NavItem, UserProfile } from '../types';
 import { LogoIcon } from './icons/LogoIcon';
 import { navigationItems, secondaryNavigationItems } from '../constants';
+import { Avatar } from './Avatar';
 
 
 // SVG icons defined directly in the component to avoid creating new files
@@ -17,7 +18,7 @@ interface SidebarProps {
   isExpanded: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  displayName: string | null;
+  userProfile: UserProfile | null;
   onLogout: () => void;
   isMobileSidebarOpen: boolean;
   onCloseMobileSidebar: () => void;
@@ -49,7 +50,8 @@ const NavButton: React.FC<{
     </li>
 );
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExpanded, onMouseEnter, onMouseLeave, displayName, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExpanded, onMouseEnter, onMouseLeave, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
+  const displayName = userProfile?.displayName ?? null;
   
   const handleMobileItemClick = (id: string) => {
     onItemClick(id);
@@ -103,9 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
           <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-24 mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="p-3 rounded-lg bg-gray-100">
                   <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 items-center justify-center flex text-white font-bold">
-                        {displayName ? displayName.charAt(0).toUpperCase() : '?'}
-                      </div>
+                      <Avatar displayName={displayName} photoURL={userProfile?.photoURL} className="w-8 h-8" />
                       <div className="ml-3 overflow-hidden">
                           <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
                       </div>
@@ -182,9 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
                 </ul>
                 <div className="mt-4 p-3 rounded-lg bg-gray-100">
                     <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 items-center justify-center flex text-white font-bold">
-                            {displayName ? displayName.charAt(0).toUpperCase() : '?'}
-                        </div>
+                        <Avatar displayName={displayName} photoURL={userProfile?.photoURL} className="w-8 h-8" />
                         <div className="ml-3 overflow-hidden">
                             <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
                         </div>

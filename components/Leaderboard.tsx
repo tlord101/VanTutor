@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { UserProfile, LeaderboardEntry, WeeklyLeaderboardEntry } from '../types';
+import { Avatar } from './Avatar';
 
 const getWeekId = (date: Date): string => {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -29,6 +29,7 @@ const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: b
                 <span className={rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-600'}>{rank}</span>
             ) : rank}
         </div>
+        <Avatar displayName={user.displayName} photoURL={user.photoURL} className="w-10 h-10 ml-4" />
         <div className="flex-1 ml-4">
             <p className="font-semibold text-gray-800">{user.displayName}</p>
         </div>

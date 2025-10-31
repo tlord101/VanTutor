@@ -9,6 +9,7 @@ export interface NavItem {
 export interface UserProfile {
   uid: string;
   displayName: string;
+  photoURL?: string;
   courseId: string;
   level: string;
   totalXP: number;
@@ -57,6 +58,7 @@ export interface ExamHistoryItem {
 export interface LeaderboardEntry {
     uid: string;
     displayName: string;
+    photoURL?: string;
     xp: number;
 }
 
@@ -127,6 +129,7 @@ export interface PrivateChat {
     memberInfo: {
         [uid: string]: {
             displayName: string;
+            photoURL?: string;
             isOnline?: boolean;
             lastSeen?: number;
         }
