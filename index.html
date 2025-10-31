@@ -170,6 +170,36 @@
         -ms-user-select: none; /* IE 10+ */
         user-select: none; /* Standard syntax */
       }
+      .secure-view-overlay::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: black;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      @media print {
+        body > *:not(.secure-view-modal) {
+          visibility: hidden;
+          display: none !important;
+        }
+        .secure-view-modal {
+          visibility: visible !important;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 9999;
+        }
+        .secure-view-overlay::after {
+          opacity: 1 !important;
+        }
+      }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNooMCrNH/bbSsBlYCsOuNEtZvrS3MyDGMR4I2A59wscdI1oE7" crossorigin="anonymous">
   <script type="importmap">

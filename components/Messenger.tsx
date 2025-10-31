@@ -33,6 +33,26 @@ const PauseIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) 
     </svg>
 );
 
+const PhotoPlaceholderIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+  </svg>
+);
+
+const OneTimeViewIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+
+// Fix: Define the missing PhotoOpenedIcon component.
+const PhotoOpenedIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+);
+
 const formatLastSeen = (timestamp: number): string => {
     const now = Date.now();
     const seconds = Math.floor((now - timestamp) / 1000);
@@ -140,6 +160,39 @@ interface PrivateChatViewProps {
   onOpenConfirmationModal: (options: { title: string; message: string; onConfirm: () => void; confirmText?: string }) => void;
 }
 
+const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} disabled={disabled} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50 ${ checked ? 'bg-lime-600' : 'bg-gray-200' }`} >
+      <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${ checked ? 'translate-x-6' : 'translate-x-1' }`} />
+    </button>
+);
+
+const OneTimeImageViewer: React.FC<{ imageUrl: string; onClose: () => void }> = ({ imageUrl, onClose }) => {
+    return (
+        <div
+            className="secure-view-modal fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in-up"
+            onClick={onClose}
+        >
+            <div className="relative secure-view-overlay" onClick={(e) => e.stopPropagation()}>
+                <img
+                    src={imageUrl}
+                    alt="One-time view"
+                    className="max-w-[95vw] max-h-[85vh] object-contain select-none"
+                    onContextMenu={(e) => e.preventDefault()}
+                />
+            </div>
+            <button
+                onClick={onClose}
+                className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/80"
+            >
+                <XIcon className="w-8 h-8" />
+            </button>
+            <div className="absolute bottom-4 text-center text-white/70 bg-black/50 px-4 py-2 rounded-full text-sm">
+                This photo can only be viewed once. Screenshots are not allowed.
+            </div>
+        </div>
+    );
+};
+
 const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, otherUser, onBack, onOpenConfirmationModal }) => {
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [input, setInput] = useState('');
@@ -154,6 +207,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
     const [editText, setEditText] = useState('');
     const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ opacity: 0, pointerEvents: 'none' });
+    const [isOneTime, setIsOneTime] = useState(false);
+    const [viewingImage, setViewingImage] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -162,6 +217,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     const recordingStartRef = useRef<number>(0);
     const typingTimeoutRef = useRef<number | null>(null);
     const longPressTimer = useRef<number>();
+    const micLongPressTimer = useRef<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -267,7 +323,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         }
         if (input) {
             updateTypingStatus(true);
-            typingTimeoutRef.current = setTimeout(() => {
+            typingTimeoutRef.current = window.setTimeout(() => {
                 updateTypingStatus(false);
             }, 3000); // User is considered not typing after 3 seconds of inactivity
         } else {
@@ -296,9 +352,11 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
 
         const tempInput = input;
         const tempImageFile = imageFile;
+        const tempIsOneTime = isOneTime;
         setInput('');
         setImageFile(null);
         setImagePreview(null);
+        setIsOneTime(false);
         updateTypingStatus(false);
 
         try {
@@ -329,12 +387,13 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 ...(textToSend && { text: textToSend }),
                 ...(imageUrl && { imageUrl }),
                 ...(audioUrl && { audioUrl, audioDuration }),
+                ...(tempImageFile && tempIsOneTime && { isOneTimeView: true, viewedBy: [] }),
             };
             batch.set(newMessageRef, messageData);
 
             const chatRef = doc(db, 'privateChats', chat.id);
             const now = Date.now();
-            const lastMessageText = textToSend ? textToSend : (imageUrl ? 'Sent an image' : 'Sent a voice message');
+            const lastMessageText = textToSend ? textToSend : (imageUrl ? (tempIsOneTime ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
             const lastMessageData = { text: lastMessageText, timestamp: now, senderId: currentUser.uid, readBy: [currentUser.uid] };
             
             batch.update(chatRef, { lastMessage: lastMessageData, lastActivityTimestamp: now });
@@ -379,6 +438,25 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             setIsRecording(false);
             if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
             setRecordingSeconds(0);
+        }
+    };
+    
+    const handleMicPress = () => {
+        if (isRecording) return;
+        micLongPressTimer.current = window.setTimeout(() => {
+            handleStartRecording();
+        }, 300);
+    };
+
+    const handleMicRelease = () => {
+        if (micLongPressTimer.current) {
+            clearTimeout(micLongPressTimer.current);
+            micLongPressTimer.current = null;
+        }
+        if (isRecording) {
+            handleStopRecording();
+        } else {
+            addToast("Hold to record, release to send", "info");
         }
     };
 
@@ -473,6 +551,65 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         setEditText(msg.text || '');
         setActiveMessageMenu(null);
     };
+    
+    const handleViewOneTimeImage = async (msg: PrivateMessage) => {
+        if (!chat || !msg.imageUrl) return;
+        setViewingImage(msg.imageUrl);
+        const msgRef = doc(db, 'privateChats', chat.id, 'messages', msg.id);
+        try {
+            await updateDoc(msgRef, {
+                viewedBy: arrayUnion(currentUser.uid)
+            });
+        } catch (error) {
+            console.error("Failed to mark one-time view image as read:", error);
+        }
+    };
+    
+    const renderMessageContent = (msg: PrivateMessage) => {
+        const isSender = msg.senderId === currentUser.uid;
+
+        if (msg.isOneTimeView && msg.imageUrl) {
+            const isViewedByCurrentUser = msg.viewedBy?.includes(currentUser.uid);
+
+            if (isSender) {
+                return (
+                    <div className="flex items-center gap-2 p-3 text-white/90 italic">
+                        <OneTimeViewIcon className="w-5 h-5 flex-shrink-0" />
+                        <span>Photo sent (one-time)</span>
+                    </div>
+                );
+            }
+
+            if (isViewedByCurrentUser) {
+                return (
+                    <div className="flex items-center gap-2 p-3 text-gray-500 italic">
+                        <PhotoOpenedIcon className="w-5 h-5" />
+                        <span>Photo opened</span>
+                    </div>
+                );
+            }
+
+            return (
+                <button
+                    onClick={() => handleViewOneTimeImage(msg)}
+                    className="flex items-center gap-3 p-3 bg-gray-300 hover:bg-gray-400/80 transition-colors rounded-lg"
+                >
+                    <PhotoPlaceholderIcon className="w-8 h-8 text-gray-700" />
+                    <div>
+                        <p className="font-bold text-gray-800">Photo</p>
+                        <p className="text-sm text-gray-600">Tap to view</p>
+                    </div>
+                </button>
+            );
+        }
+
+        return <>
+            {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
+            {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={isSender ? 'dark' : 'light'} />}
+            {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
+            {msg.isEdited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
+        </>
+    };
 
     if (!chat) {
       return <div className="h-full flex items-center justify-center text-gray-500">Select a chat to start messaging.</div>;
@@ -480,6 +617,12 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     
     return (
         <div className="h-full flex flex-col bg-white">
+            {viewingImage && (
+                <OneTimeImageViewer
+                    imageUrl={viewingImage}
+                    onClose={() => setViewingImage(null)}
+                />
+            )}
             <header className="flex-shrink-0 flex items-center gap-3 p-3 border-b border-gray-200">
                 <button onClick={onBack} className="p-1 text-gray-500 hover:text-gray-900 rounded-full">
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -499,33 +642,30 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
                        <div 
-                         className={`max-w-[80%] p-3 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}
                          onContextMenu={(e) => msg.senderId === currentUser.uid && openMessageMenu(e, msg)}
                          onTouchStart={(e) => msg.senderId === currentUser.uid && handleTouchStart(e, msg)}
                          onTouchEnd={handleTouchEnd}
                        >
-                            {editingMessage?.id === msg.id ? (
-                                <div>
-                                    <textarea
-                                        value={editText}
-                                        onChange={(e) => setEditText(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); } }}
-                                        className="w-full bg-white/90 text-gray-800 rounded-lg p-2 text-sm border-2 border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400"
-                                        autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2 mt-2 text-xs">
-                                        <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-200 hover:text-white">Cancel</button>
-                                        <button onClick={handleSaveEdit} className="font-semibold text-white hover:underline">Save</button>
+                            <div className="p-2">
+                                {editingMessage?.id === msg.id ? (
+                                    <div>
+                                        <textarea
+                                            value={editText}
+                                            onChange={(e) => setEditText(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); } }}
+                                            className="w-full bg-white/90 text-gray-800 rounded-lg p-2 text-sm border-2 border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400"
+                                            autoFocus
+                                        />
+                                        <div className="flex justify-end gap-2 mt-2 text-xs">
+                                            <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-200 hover:text-white">Cancel</button>
+                                            <button onClick={handleSaveEdit} className="font-semibold text-white hover:underline">Save</button>
+                                        </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <>
-                                    {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
-                                    {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={msg.senderId === currentUser.uid ? 'dark' : 'light'} />}
-                                    {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
-                                    {msg.isEdited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
-                                </>
-                            )}
+                                ) : (
+                                    renderMessageContent(msg)
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -555,7 +695,12 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             )}
             <footer className="md:relative fixed bottom-28 w-full md:w-auto left-0 right-0 p-3 border-t border-gray-200 bg-white/95 backdrop-blur-sm md:backdrop-blur-none md:bg-white">
                  <div className="w-full max-w-md mx-auto">
-                    {imagePreview && <div className="relative w-20 h-20 mb-2 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>}
+                    {imagePreview && (
+                        <div className="relative mb-2">
+                             <div className="relative w-20 h-20 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
+                             <div className="flex items-center gap-2 mt-2 p-2 bg-gray-100 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-gray-700">One-Time View</span></div>
+                        </div>
+                    )}
                     <div className="relative flex items-center">
                         <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
                         {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
@@ -563,10 +708,10 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                         
                         {!input.trim() && !imageFile ? (
                            <button 
-                            onMouseDown={handleStartRecording} 
-                            onMouseUp={handleStopRecording} 
-                            onTouchStart={handleStartRecording} 
-                            onTouchEnd={handleStopRecording} 
+                            onMouseDown={handleMicPress} 
+                            onMouseUp={handleMicRelease} 
+                            onTouchStart={handleMicPress} 
+                            onTouchEnd={handleMicRelease} 
                             disabled={isSending} 
                             className={`ml-2 rounded-full p-3 transition-transform text-white disabled:opacity-50 ${isRecording ? 'bg-red-500 scale-110 animate-pulse' : 'bg-lime-600 hover:bg-lime-700 active:scale-95'}`}
                            >

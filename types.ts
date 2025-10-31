@@ -122,6 +122,8 @@ export interface PrivateMessage {
     audioUrl?: string;
     audioDuration?: number;
     isEdited?: boolean;
+    isOneTimeView?: boolean;
+    viewedBy?: string[];
 }
 
 export interface PrivateChat {
