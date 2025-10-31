@@ -338,35 +338,44 @@ const App: React.FC = () => {
         if (!user || !userProfile) return { success: false, error: 'User not authenticated.' };
     
         try {
+            const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
+            if (updatedData.displayName) {
+                authUpdatePayload.displayName = updatedData.displayName;
+            }
+            if (updatedData.photoURL !== undefined) {
+                authUpdatePayload.photoURL = updatedData.photoURL;
+            }
+    
+            // Perform non-transactional Firebase Auth update first.
+            if (Object.keys(authUpdatePayload).length > 0) {
+                await updateProfile(user, authUpdatePayload);
+            }
+    
+            // Then, run the Firestore transaction.
             await runTransaction(db, async (transaction) => {
                 const userRef = doc(db, 'users', user.uid);
-                transaction.update(userRef, updatedData);
-    
-                const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
-                if (updatedData.displayName) {
-                    authUpdatePayload.displayName = updatedData.displayName;
-                }
-                if (updatedData.photoURL !== undefined) {
-                    authUpdatePayload.photoURL = updatedData.photoURL;
-                }
-    
+                
                 if (Object.keys(authUpdatePayload).length > 0) {
-                    await updateProfile(user, authUpdatePayload);
-    
                     const overallLeadRef = doc(db, 'leaderboardOverall', user.uid);
                     const weeklyLeadRef = doc(db, 'leaderboardWeekly', user.uid);
     
+                    // --- READS FIRST ---
                     const [overallSnap, weeklySnap] = await Promise.all([
                         transaction.get(overallLeadRef),
                         transaction.get(weeklyLeadRef)
                     ]);
-    
+                    
+                    // --- THEN WRITES ---
+                    transaction.update(userRef, updatedData);
                     if (overallSnap.exists()) {
                         transaction.update(overallLeadRef, authUpdatePayload);
                     }
                     if (weeklySnap.exists()) {
                         transaction.update(weeklyLeadRef, authUpdatePayload);
                     }
+                } else {
+                    // No need to read leaderboards if only other data is changing.
+                    transaction.update(userRef, updatedData);
                 }
             });
             return { success: true };

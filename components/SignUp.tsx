@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { auth, googleProvider } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { useToast } from '../hooks/useToast';
@@ -11,6 +12,7 @@ interface SignUpProps {
 }
 
 export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,10 +36,15 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (displayName.trim() === '') {
+        addToast('Please enter your name.', 'error');
+        return;
+    }
     setIsSubmitting(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: displayName.trim() });
       // On successful signup, onAuthStateChanged in App.tsx will handle the state change.
     } catch (err: any) {
       let errorMessage = 'Failed to create an account. Please try again.';
@@ -73,6 +80,22 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
+              <div>
+                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Display Name
+                </label>
+                <input
+                  id="displayName"
+                  name="displayName"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                />
+              </div>
+
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address
