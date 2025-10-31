@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from './firebase';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     
     const { addToast } = useToast();
+    const initialNotificationsLoaded = useRef(false);
 
     const triggerPushNotification = useCallback(async (title: string, message: string) => {
         if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
@@ -155,8 +157,22 @@ const App: React.FC = () => {
                 const notificationsQuery = query(notificationsRef, orderBy('timestamp', 'desc'), limit(20));
                 unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
                     const fetchedNotifications: NotificationType[] = [];
+                    
+                    if (initialNotificationsLoaded.current) {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const newNotif = change.doc.data() as NotificationType;
+                                triggerPushNotification(newNotif.title, newNotif.message);
+                            }
+                        });
+                    }
+
                     snapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as NotificationType));
                     setNotifications(fetchedNotifications);
+
+                    if (!initialNotificationsLoaded.current) {
+                        initialNotificationsLoaded.current = true;
+                    }
                 });
             } catch (error) {
                 console.error("Error setting up dashboard/notification listeners:", error);
@@ -164,8 +180,11 @@ const App: React.FC = () => {
         };
 
         setupListeners();
-        return () => unsubNotifications && unsubNotifications();
-    }, [userProfile]);
+        return () => {
+            unsubNotifications && unsubNotifications();
+            initialNotificationsLoaded.current = false;
+        }
+    }, [userProfile, triggerPushNotification]);
 
 
     const handleLogout = async () => {
@@ -211,8 +230,6 @@ const App: React.FC = () => {
                 isRead: false,
             });
             await batch.commit();
-
-            triggerPushNotification(notificationData.title, notificationData.message);
             
             setUserProfile(newUserProfile);
             setIsOnboarding(false);
@@ -257,6 +274,7 @@ const App: React.FC = () => {
                 const overallLeadRef = doc(db, 'leaderboardOverall', userProfile.uid);
                 const weeklyLeadRef = doc(db, 'leaderboardWeekly', userProfile.uid);
 
+                // FIX: Use `overallLeadRef` and `weeklyLeadRef` in `transaction.get` instead of the `...Snap` variables which are not yet declared.
                 const [userSnap, xpHistorySnap, overallLeadSnap, weeklyLeadSnap] = await Promise.all([
                     transaction.get(userRef),
                     transaction.get(xpHistoryRef),
@@ -286,7 +304,6 @@ const App: React.FC = () => {
                     transaction.set(weeklyLeadRef, { uid: userProfile.uid, displayName: userProfile.displayName, xp, weekId });
                 }
             });
-            addToast(`+${xp} XP earned!`, 'success');
         } catch (error) {
             console.error("Failed to update XP:", error);
             addToast("There was an issue recording your XP.", "error");
@@ -315,10 +332,10 @@ const App: React.FC = () => {
         if (!userProfile) return null;
         switch (activeItem) {
             case 'dashboard': return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
-            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} triggerPushNotification={triggerPushNotification} />;
+            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
             case 'chat': return <Chat userProfile={userProfile} />;
             case 'visual_solver': return <VisualSolver userProfile={userProfile} />;
-            case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} triggerPushNotification={triggerPushNotification} />;
+            case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
             case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
             case 'help': return <Help />;

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -379,10 +379,9 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
 interface StudyGuideProps {
     userProfile: UserProfile;
     onXPEarned: (xp: number) => void;
-    triggerPushNotification: (title: string, message: string) => void;
 }
 
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned, triggerPushNotification }) => {
+export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -431,13 +430,26 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned,
         if (userProgress[topicId]?.isComplete) return;
 
         try {
+            const batch = writeBatch(db);
             const progressDocRef = doc(db, 'users', userProfile.uid, 'progress', topicId);
-            await setDoc(progressDocRef, { isComplete: true, xpEarned: 2 });
+            batch.set(progressDocRef, { isComplete: true, xpEarned: 2 });
+            
+            if (selectedTopic && selectedTopic.topicId === topicId) {
+                const notificationRef = doc(collection(db, 'users', userProfile.uid, 'notifications'));
+                const notificationData = {
+                    type: 'study_update' as const,
+                    title: 'Topic Complete!',
+                    message: `Great job on finishing "${selectedTopic.topicName}". You earned 2 XP!`,
+                    timestamp: serverTimestamp(),
+                    isRead: false,
+                };
+                batch.set(notificationRef, notificationData);
+            }
+
+            await batch.commit();
+
             onXPEarned(2);
             addToast("Topic marked as complete! +2 XP", "success");
-            if (selectedTopic && selectedTopic.topicId === topicId) {
-                triggerPushNotification('Topic Complete!', `Great job on finishing "${selectedTopic.topicName}". Keep up the great work!`);
-            }
         } catch (error) {
             console.error("Failed to mark topic as complete:", error);
             addToast("Could not save your progress.", "error");

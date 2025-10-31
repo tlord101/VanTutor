@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, orderBy, query, doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Subject } from '../types';
 import { useToast } from '../hooks/useToast';
 
@@ -81,12 +81,11 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
 
 interface ExamProps {
   userProfile: UserProfile;
-  onXPEarned: (xp: number) => void;
+  onXPEarned: (xp: number, type: 'test') => void;
   userProgress: UserProgress;
-  triggerPushNotification: (title: string, message: string) => void;
 }
 
-export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgress, triggerPushNotification }) => {
+export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgress }) => {
   const [examState, setExamState] = useState<'start' | 'generating' | 'in_progress' | 'completed' | 'history' | 'review'>('start');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
@@ -177,10 +176,22 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
           const saveResults = async () => {
               try {
+                  const batch = writeBatch(db);
                   const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
-                  await addDoc(historyRef, examResult);
-                  onXPEarned(xpEarned);
-                  triggerPushNotification('Exam Finished!', `You scored ${currentScore}/${questions.length}. Come back to review your results.`);
+                  batch.set(doc(historyRef), examResult);
+
+                  const notificationRef = doc(collection(db, 'users', userProfile.uid, 'notifications'));
+                  const notificationData = {
+                      type: 'exam_reminder' as const,
+                      title: 'Exam Finished!',
+                      message: `You scored ${currentScore}/${questions.length} and earned ${xpEarned} XP!`,
+                      timestamp: serverTimestamp(),
+                      isRead: false,
+                  };
+                  batch.set(notificationRef, notificationData);
+                  
+                  await batch.commit();
+                  onXPEarned(xpEarned, 'test');
               } catch (error) {
                   console.error("Failed to save exam results:", error);
                   addToast("Could not save your exam results.", 'error');
@@ -193,7 +204,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           
           return 'completed';
       });
-  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast, triggerPushNotification]);
+  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast]);
 
   useEffect(() => {
       if (examState !== 'in_progress' || timeLeft <= 0) {
