@@ -1,8 +1,8 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -41,13 +41,9 @@ const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) 
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
      </svg>
 );
-const MicrophoneIcon: React.FC<{ className?: string, isMuted: boolean }> = ({ className, isMuted }) => (
+const GeneralMicrophoneIcon: React.FC<{ className?: string, isMuted?: boolean }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        {isMuted ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5 6L6.75 12m0 0L3 15.75m-3.75-3.75L6.75 12m0 0h.75m-1.5 6H5.25A2.25 2.25 0 0 1 3 15.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-        ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-        )}
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z" />
     </svg>
 );
 const XIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -261,7 +257,6 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndS
         )
     }
 
-    // This covers 'idle', 'connecting', 'active'
     return (
         <div className="relative w-full h-full flex flex-col bg-black justify-center items-center p-8 overflow-hidden">
             <div 
@@ -291,7 +286,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndS
                     aria-label={isMuted ? 'Unmute' : 'Mute'}
                     disabled={sessionState !== 'active'}
                 >
-                    <MicrophoneIcon className="w-8 h-8" isMuted={isMuted} />
+                    <GeneralMicrophoneIcon className="w-8 h-8" isMuted={isMuted} />
                 </button>
                 <button
                     onClick={handleCloseButtonClick}
@@ -324,6 +319,13 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
     
     const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
     const [modalState, setModalState] = useState({ isOpen: false, onConfirm: () => {}, title: '', message: '' });
+
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingIntervalRef = useRef<number | null>(null);
+    const recordingStartRef = useRef<number>(0);
 
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const { attemptApiCall } = useApiLimiter();
@@ -367,7 +369,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             return "New Chat"; // Fallback
         } catch (error) {
             console.error("Failed to generate title with enhanced prompt:", error);
-            // Fallback to a simpler generation if the structured one fails
             try {
                 const simplePrompt = `Generate a very short, concise title (3-5 words) for a conversation that starts with: "${firstMessage}".`;
                 const simpleResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: simplePrompt });
@@ -379,7 +380,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         }
     }, [userProfile.courseId]);
 
-    // Effect to fetch the list of conversations
     useEffect(() => {
         setIsHistoryLoading(true);
         const conversationsRef = collection(db, 'users', userProfile.uid, 'chatConversations');
@@ -388,10 +388,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             const fetchedConversations: ChatConversation[] = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                fetchedConversations.push({
-                    id: doc.id,
-                    ...data
-                } as ChatConversation);
+                fetchedConversations.push({ id: doc.id, ...data } as ChatConversation);
             });
             setConversations(fetchedConversations);
             setIsHistoryLoading(false);
@@ -403,7 +400,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         return () => unsubscribe();
     }, [userProfile.uid, addToast]);
 
-    // Effect to fetch messages for the active conversation
     useEffect(() => {
         if (!activeConversationId) {
             setMessages([]);
@@ -415,11 +411,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             const fetchedMessages: Message[] = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                fetchedMessages.push({
-                    id: doc.id,
-                    ...data,
-                    timestamp: data.timestamp?.toMillis() || Date.now()
-                } as Message);
+                fetchedMessages.push({ id: doc.id, ...data, timestamp: data.timestamp?.toMillis() || Date.now() } as Message);
             });
             setMessages(fetchedMessages);
         }, (err) => {
@@ -429,7 +421,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         return () => unsubscribe();
     }, [userProfile.uid, activeConversationId, addToast]);
     
-    // Auto-scroll effect
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
@@ -439,12 +430,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         if (selectedFile) {
             if (selectedFile.type.startsWith('image/')) {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    setImagePreviewUrl(reader.result as string);
-                };
+                reader.onloadend = () => setImagePreviewUrl(reader.result as string);
                 reader.readAsDataURL(selectedFile);
             } else {
-                setImagePreviewUrl(null); // Not an image, no preview
+                setImagePreviewUrl(null);
             }
             setFile(selectedFile);
         }
@@ -457,24 +446,87 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         setImagePreviewUrl(null);
     };
 
+    const handleSendAudio = async (audioBlob: Blob, duration: number) => {
+        setIsLoading(true);
+        let currentConversationId = activeConversationId;
+        try {
+            if (!currentConversationId) {
+                const newTitle = await generateTitle("Voice message", false);
+                const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
+                const now = Date.now();
+                const newConversationData: Omit<ChatConversation, 'id'> = { title: newTitle, createdAt: now, lastUpdatedAt: now };
+                await setDoc(newConversationRef, newConversationData);
+                currentConversationId = newConversationRef.id;
+                setActiveConversationId(currentConversationId);
+            }
+            
+            const storageRef = ref(storage, `chat-conversations/${userProfile.uid}/${currentConversationId}/${Date.now()}.webm`);
+            const snapshot = await uploadBytes(storageRef, audioBlob);
+            const audioUrl = await getDownloadURL(snapshot.ref);
+
+            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', currentConversationId, 'messages');
+            await addDoc(messagesRef, { sender: 'user', timestamp: serverTimestamp(), audioUrl, audioDuration: duration });
+            const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', currentConversationId);
+            await updateDoc(conversationRef, { lastUpdatedAt: Date.now() });
+
+            // TODO: Implement AI response to audio if needed
+        } catch (error) {
+            console.error("Error sending audio:", error);
+            addToast("Failed to send voice note.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleStartRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
+                handleSendAudio(audioBlob, duration);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+            recordingStartRef.current = Date.now();
+            recordingIntervalRef.current = window.setInterval(() => {
+                setRecordingSeconds(prev => prev + 1);
+            }, 1000);
+        } catch (error) {
+            console.error("Error starting recording:", error);
+            addToast("Could not access microphone. Please check permissions.", "error");
+        }
+    };
+
+    const handleStopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            setRecordingSeconds(0);
+        }
+    };
+
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        if ((!textToSend.trim() && !file) || isLoading) return;
+        if ((!textToSend.trim() && !file) || isLoading || isRecording) return;
         
         let currentConversationId = activeConversationId;
         const tempInput = textToSend;
         const tempFile = file;
         const tempImagePreview = imagePreviewUrl;
         
-        const userMessage: Omit<Message, 'id'> = { 
-            text: tempInput, 
-            sender: 'user', 
-            timestamp: Date.now(),
-        };
-
-        if (tempImagePreview) {
-            userMessage.image = tempImagePreview;
-        }
+        const userMessage: Omit<Message, 'id'> = { text: tempInput, sender: 'user', timestamp: Date.now() };
+        if (tempImagePreview) userMessage.image = tempImagePreview;
 
         setInput('');
         setFile(null);
@@ -487,11 +539,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 const newTitle = await generateTitle(firstMessageContent, !!tempFile);
                 const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
                 const now = Date.now();
-                const newConversationData: Omit<ChatConversation, 'id'> = {
-                    title: newTitle,
-                    createdAt: now,
-                    lastUpdatedAt: now,
-                };
+                const newConversationData: Omit<ChatConversation, 'id'> = { title: newTitle, createdAt: now, lastUpdatedAt: now };
                 await setDoc(newConversationRef, newConversationData);
                 currentConversationId = newConversationRef.id;
                 setActiveConversationId(currentConversationId);
@@ -510,9 +558,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 const parts: any[] = [{ text: prompt }];
                 if (tempFile && tempImagePreview) {
                     const base64Data = tempImagePreview.split(',')[1];
-                    if(base64Data) {
-                       parts.unshift({ inlineData: { data: base64Data, mimeType: tempFile.type } });
-                    }
+                    if(base64Data) parts.unshift({ inlineData: { data: base64Data, mimeType: tempFile.type } });
                 }
 
                 const responseStream = await ai.models.generateContentStream({ model: 'gemini-2.5-flash', contents: { parts }, config: { systemInstruction }});
@@ -520,7 +566,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                 let botResponseText = '';
                 const botMessageId = `bot-${Date.now()}`;
                 const tempBotMessage: Message = { id: botMessageId, text: '', sender: 'bot', timestamp: Date.now() };
-                
                 setMessages(prev => [...prev, tempBotMessage]);
 
                 for await (const chunk of responseStream) {
@@ -552,9 +597,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
             batch.delete(conversationRef);
             await batch.commit();
 
-            if (activeConversationId === id) {
-                handleNewChat();
-            }
+            if (activeConversationId === id) handleNewChat();
             addToast('Conversation deleted.', 'success');
         } catch (error) {
             console.error("Error deleting conversation:", error);
@@ -567,12 +610,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
 
     const confirmDelete = (id: string) => {
         const conversationTitle = conversations.find(c => c.id === id)?.title || "this conversation";
-        setModalState({
-            isOpen: true,
-            title: 'Delete Conversation',
-            message: `Are you sure you want to permanently delete "${conversationTitle}"? This cannot be undone.`,
-            onConfirm: () => handleDeleteConversation(id),
-        });
+        setModalState({ isOpen: true, title: 'Delete Conversation', message: `Are you sure you want to permanently delete "${conversationTitle}"? This cannot be undone.`, onConfirm: () => handleDeleteConversation(id) });
     };
 
     const handleClearAllHistory = async () => {
@@ -600,12 +638,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
 
     const confirmClearAll = () => {
         if (conversations.length === 0) return;
-        setModalState({
-            isOpen: true,
-            title: 'Clear All History',
-            message: 'Are you sure you want to delete all chat conversations? This is permanent.',
-            onConfirm: handleClearAllHistory,
-        });
+        setModalState({ isOpen: true, title: 'Clear All History', message: 'Are you sure you want to delete all chat conversations? This is permanent.', onConfirm: handleClearAllHistory });
     };
     
     const handleRenameConversation = async (id: string, newTitle: string) => {
@@ -619,46 +652,23 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         }
     };
     
-    const WelcomeScreen = ({ userProfile }: { userProfile: UserProfile }) => {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in-up">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-6 shadow-lg">
-                   <LogoIcon className="w-14 h-14 text-white" />
-                </div>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 tracking-tight">
-                    Hello, <span className="bg-gradient-to-r from-lime-500 to-teal-500 text-transparent bg-clip-text">{userProfile.displayName}!</span>
-                </h2>
-                <p className="mt-4 text-lg text-gray-600 max-w-md">
-                    How can I help you start your learning journey today?
-                </p>
-            </div>
-        );
-    };
+    const WelcomeScreen = ({ userProfile }: { userProfile: UserProfile }) => (
+        <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in-up">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-6 shadow-lg"><LogoIcon className="w-14 h-14 text-white" /></div>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 tracking-tight">Hello, <span className="bg-gradient-to-r from-lime-500 to-teal-500 text-transparent bg-clip-text">{userProfile.displayName}!</span></h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-md">How can I help you start your learning journey today?</p>
+        </div>
+    );
 
     return (
         <>
             <div className="md:hidden flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
-                <button onClick={() => setIsMobilePanelOpen(true)} className="text-gray-600 hover:text-gray-900">
-                    <ListIcon />
-                </button>
-                <h2 className="font-bold text-gray-800 truncate">
-                    {activeConversationId ? conversations.find(c => c.id === activeConversationId)?.title : "New Chat"}
-                </h2>
+                <button onClick={() => setIsMobilePanelOpen(true)} className="text-gray-600 hover:text-gray-900"><ListIcon /></button>
+                <h2 className="font-bold text-gray-800 truncate">{activeConversationId ? conversations.find(c => c.id === activeConversationId)?.title : "New Chat"}</h2>
                 <div className="w-6"></div>
             </div>
             <div className="flex-1 flex w-full overflow-hidden relative">
-                <ChatHistoryPanel
-                    conversations={conversations}
-                    activeConversationId={activeConversationId}
-                    onSelectConversation={(id) => setActiveConversationId(id)}
-                    onNewChat={handleNewChat}
-                    onDeleteConversation={confirmDelete}
-                    onClearAll={confirmClearAll}
-                    onRenameConversation={handleRenameConversation}
-                    isDeleting={isDeleting}
-                    isMobilePanelOpen={isMobilePanelOpen}
-                    onCloseMobilePanel={() => setIsMobilePanelOpen(false)}
-                />
+                <ChatHistoryPanel conversations={conversations} activeConversationId={activeConversationId} onSelectConversation={(id) => setActiveConversationId(id)} onNewChat={handleNewChat} onDeleteConversation={confirmDelete} onClearAll={confirmClearAll} onRenameConversation={handleRenameConversation} isDeleting={isDeleting} isMobilePanelOpen={isMobilePanelOpen} onCloseMobilePanel={() => setIsMobilePanelOpen(false)} />
                 <div className="flex-1 flex flex-col bg-white relative">
                     {isHistoryLoading ? (
                         <div className="flex items-center justify-center h-full"><svg className="w-12 h-12 loader-logo" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path className="loader-path-1" d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path className="loader-path-2" d="M41.5 21V29.75C41.5 30.825 40.85 32.55 39.4166 33.25L27.75 39.375C26.6666 39.9 25.3333 39.9 24.25 39.375L12.5833 33.25C11.15 32.55 10.5 30.825 10.5 29.75V21" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path className="loader-path-3" d="M47.6667 17.5V26.25" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
@@ -669,40 +679,16 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                                 <>
                                     {messages.map((message) => (
                                         <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            {message.sender === 'bot' && 
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                                                   <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                                                </div>
-                                            }
+                                            {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start"><GraduationCapIcon className="w-full h-full p-1.5 text-white" /></div>}
                                             <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
                                                 {message.image && <img src={message.image} alt="User attachment" className="rounded-lg mb-2 max-h-48" />}
-                                                <div className="text-sm prose max-w-none">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>
-                                                        {message.text}
-                                                    </ReactMarkdown>
-                                                </div>
+                                                {message.audioUrl && <audio src={message.audioUrl} controls className="w-full max-w-xs h-10" />}
+                                                {message.text && <div className="text-sm prose max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>{message.text}</ReactMarkdown></div>}
                                             </div>
-                                            {message.sender === 'user' && 
-                                               <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
-                                                   {userProfile.displayName.charAt(0).toUpperCase()}
-                                               </div>
-                                            }
+                                            {message.sender === 'user' && <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">{userProfile.displayName.charAt(0).toUpperCase()}</div>}
                                         </div>
                                     ))}
-                                    {isLoading && 
-                                        <div className="flex items-start gap-3 animate-fade-in-up">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                                               <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                                            </div>
-                                            <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
-                                                <div className="flex items-center space-x-2">
-                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                                                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
+                                    {isLoading && <div className="flex items-start gap-3 animate-fade-in-up"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"><GraduationCapIcon className="w-full h-full p-1.5 text-white" /></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
                                     <div ref={messagesEndRef} />
                                 </>
                             ) : (
@@ -711,35 +697,17 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none">
                             <div className="pointer-events-auto">
-                                {imagePreviewUrl && 
-                                    <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg bg-white">
-                                        <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
-                                        <button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm shadow-md">&times;</button>
-                                    </div>
-                                }
+                                {imagePreviewUrl && <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg bg-white"><img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" /><button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm shadow-md">&times;</button></div>}
                                 <div className="relative flex items-center bg-white border border-gray-300 rounded-full shadow-lg py-1 pl-3 pr-1.5">
-                                    <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
-                                        <PaperclipIcon className="w-5 h-5" />
-                                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" />
-                                    </label>
-                                    <textarea
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                        placeholder="Ask anything..."
-                                        className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-2 text-gray-900 placeholder-gray-500"
-                                        rows={1}
-                                        style={{ fieldSizing: 'content' }}
-                                        disabled={isLoading}
-                                    />
-                                    <button
-                                        onClick={() => handleSend()}
-                                        disabled={isLoading || (!input.trim() && !file)}
-                                        className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        aria-label="Send message"
-                                    >
-                                        <SendIcon className="w-5 h-5" />
-                                    </button>
+                                    <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" /></label>
+                                    {isRecording ? (<div className="flex-1 flex items-center justify-center h-9 px-2 text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
+                                    ) : (<textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-2 text-gray-900 placeholder-gray-500" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />)}
+                                    
+                                    {!input.trim() && !file ? (
+                                        <button onMouseDown={handleStartRecording} onMouseUp={handleStopRecording} onTouchStart={handleStartRecording} onTouchEnd={handleStopRecording} disabled={isLoading} className={`rounded-full p-2.5 transition-colors text-white ${isRecording ? 'bg-red-500' : 'bg-lime-500 hover:bg-lime-600'} disabled:opacity-50`} aria-label={isRecording ? 'Stop recording' : 'Start recording'}><GeneralMicrophoneIcon className="w-5 h-5" /></button>
+                                    ) : (
+                                        <button onClick={() => handleSend()} disabled={isLoading || (!input.trim() && !file)} className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send message"><SendIcon className="w-5 h-5" /></button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -747,15 +715,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
                     )}
                 </div>
             </div>
-            <ConfirmationModal
-                isOpen={modalState.isOpen}
-                title={modalState.title}
-                message={modalState.message}
-                onConfirm={modalState.onConfirm}
-                onCancel={() => setModalState({ ...modalState, isOpen: false })}
-                confirmText="Delete"
-                isConfirming={isDeleting}
-            />
+            <ConfirmationModal isOpen={modalState.isOpen} title={modalState.title} message={modalState.message} onConfirm={modalState.onConfirm} onCancel={() => setModalState({ ...modalState, isOpen: false })} confirmText="Delete" isConfirming={isDeleting} />
         </>
     );
 };
@@ -771,23 +731,10 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
         <div className="flex-1 flex flex-col w-full h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex-shrink-0 p-2 border-b border-gray-200 bg-white/80 backdrop-blur-sm flex justify-center sticky top-0 z-10">
                 <div className="bg-gray-200 p-1 rounded-full flex items-center">
-                    <button
-                        onClick={() => setChatMode('text')}
-                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'text' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`}
-                        aria-pressed={chatMode === 'text'}
-                    >
-                        Text Chat
-                    </button>
-                    <button
-                        onClick={() => setChatMode('live')}
-                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'live' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`}
-                        aria-pressed={chatMode === 'live'}
-                    >
-                        Live Chat
-                    </button>
+                    <button onClick={() => setChatMode('text')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'text' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`} aria-pressed={chatMode === 'text'}>Text Chat</button>
+                    <button onClick={() => setChatMode('live')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${chatMode === 'live' ? 'bg-white text-gray-800 shadow' : 'text-gray-500'}`} aria-pressed={chatMode === 'live'}>Live Chat</button>
                 </div>
             </div>
-
             <div className="flex-1 min-h-0 flex flex-col">
                 {chatMode === 'text' && <TextChat userProfile={userProfile} />}
                 {chatMode === 'live' && <LiveConversation userProfile={userProfile} onEndSession={() => setChatMode('text')} />}

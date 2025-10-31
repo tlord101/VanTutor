@@ -9,6 +9,12 @@ import { PaperclipIcon } from './icons/PaperclipIcon';
 import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
 
+const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+    </svg>
+);
+
 const formatLastSeen = (timestamp: number): string => {
     const now = Date.now();
     const seconds = Math.floor((now - timestamp) / 1000);
@@ -45,6 +51,14 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isSending, setIsSending] = useState(false);
+    
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingIntervalRef = useRef<number | null>(null);
+    const recordingStartRef = useRef<number>(0);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -66,7 +80,6 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isSending]);
 
-    // Mark messages as read when chat is opened
     useEffect(() => {
         const markAsRead = async () => {
             const chatRef = doc(db, 'privateChats', chatId);
@@ -91,9 +104,45 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             addToast('Only image files are allowed.', 'error');
         }
     };
+    
+    const handleStartRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
 
-    const handleSend = async () => {
-        if ((!input.trim() && !imageFile) || isSending) return;
+            mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
+                handleSend(undefined, audioBlob, duration);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+            recordingStartRef.current = Date.now();
+            recordingIntervalRef.current = window.setInterval(() => setRecordingSeconds(prev => prev + 1), 1000);
+        } catch (error) {
+            console.error("Error starting recording:", error);
+            addToast("Could not access microphone. Please check permissions.", "error");
+        }
+    };
+
+    const handleStopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            setRecordingSeconds(0);
+        }
+    };
+
+
+    const handleSend = async (text?: string, audioBlob?: Blob, audioDuration?: number) => {
+        const textToSend = text !== undefined ? text : input;
+        if ((!textToSend.trim() && !imageFile && !audioBlob) || isSending || isRecording) return;
+        
         setIsSending(true);
 
         const tempInput = input;
@@ -103,38 +152,38 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
         setImagePreview(null);
 
         try {
-            let imageUrl: string | undefined = undefined;
+            let imageUrl: string | undefined;
+            let audioUrl: string | undefined;
+
             if (tempImageFile) {
                 const storageRef = ref(storage, `private-chats/${chatId}/${Date.now()}-${tempImageFile.name}`);
                 const snapshot = await uploadBytes(storageRef, tempImageFile);
                 imageUrl = await getDownloadURL(snapshot.ref);
+            } else if (audioBlob) {
+                const storageRef = ref(storage, `private-chats/${chatId}/${Date.now()}.webm`);
+                const snapshot = await uploadBytes(storageRef, audioBlob);
+                audioUrl = await getDownloadURL(snapshot.ref);
             }
 
             const batch = writeBatch(db);
             const messagesRef = collection(db, 'privateChats', chatId, 'messages');
             const newMessageRef = doc(messagesRef);
 
-            const messageData = {
+            const messageData: Partial<PrivateMessage> = {
                 senderId: currentUser.uid,
-                text: tempInput,
-                timestamp: serverTimestamp(),
+                timestamp: serverTimestamp() as any,
+                ...(textToSend && { text: textToSend }),
                 ...(imageUrl && { imageUrl }),
+                ...(audioUrl && { audioUrl, audioDuration }),
             };
             batch.set(newMessageRef, messageData);
 
             const chatRef = doc(db, 'privateChats', chatId);
             const now = Date.now();
-            const lastMessageData = {
-                text: tempInput || 'Image',
-                timestamp: now,
-                senderId: currentUser.uid,
-                readBy: [currentUser.uid],
-            };
-            batch.update(chatRef, { 
-                lastMessage: lastMessageData,
-                lastActivityTimestamp: now,
-            });
-
+            const lastMessageText = textToSend ? textToSend : (imageUrl ? 'Sent an image' : 'Sent a voice message');
+            const lastMessageData = { text: lastMessageText, timestamp: now, senderId: currentUser.uid, readBy: [currentUser.uid] };
+            
+            batch.update(chatRef, { lastMessage: lastMessageData, lastActivityTimestamp: now });
             await batch.commit();
 
         } catch (error) {
@@ -166,8 +215,9 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-24 md:pb-4">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex gap-3 items-end ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-3 rounded-2xl ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                        <div className={`max-w-[70%] p-3 rounded-2xl ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-black' : 'bg-gray-200 text-gray-800'}`}>
                             {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
+                            {msg.audioUrl && <audio src={msg.audioUrl} controls className="w-full max-w-xs h-10" />}
                             {msg.text && <p className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></p>}
                         </div>
                     </div>
@@ -180,8 +230,14 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
                     {imagePreview && <div className="relative w-20 h-20 mb-2 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>}
                     <div className="relative flex items-center">
                         <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
-                        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend()}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 focus:ring-lime-500 focus:border-lime-500" />
-                        <button onClick={handleSend} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50"><SendIcon className="w-5 h-5" /></button>
+                        {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
+                        ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend()}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 focus:ring-lime-500 focus:border-lime-500" />)}
+                        
+                        {!input.trim() && !imageFile ? (
+                           <button onMouseDown={handleStartRecording} onMouseUp={handleStopRecording} onTouchStart={handleStartRecording} onTouchEnd={handleStopRecording} disabled={isSending} className={`ml-2 rounded-full p-2 text-white transition-colors disabled:opacity-50 ${isRecording ? 'bg-red-500' : 'bg-lime-600 hover:bg-lime-700'}`}><MicrophoneIcon className="w-5 h-5" /></button>
+                        ) : (
+                           <button onClick={() => handleSend()} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50"><SendIcon className="w-5 h-5" /></button>
+                        )}
                     </div>
                 </div>
             </footer>
@@ -207,7 +263,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
 
     const { addToast } = useToast();
     
-    // Listen to all users for presence and discovery
     useEffect(() => {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, orderBy('displayName'));
@@ -221,7 +276,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
         return unsubscribe;
     }, [userProfile.uid]);
 
-    // Listen to user's private chats
     useEffect(() => {
         const chatsRef = collection(db, 'privateChats');
         const q = query(chatsRef, where('members', 'array-contains', userProfile.uid), orderBy('lastActivityTimestamp', 'desc'));

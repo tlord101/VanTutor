@@ -22,10 +22,12 @@ export interface UserProfile {
 
 export interface Message {
   id: string;
-  text: string;
+  text?: string;
   sender: 'user' | 'bot';
   timestamp: number; // Use number for Firestore compatibility
   image?: string; // Optional image data URL for visual context
+  audioUrl?: string; // For voice notes
+  audioDuration?: number; // Duration in seconds
 }
 
 // Types for the new Exam System
@@ -112,9 +114,11 @@ export interface ChatConversation {
 export interface PrivateMessage {
     id: string;
     senderId: string;
-    text: string;
+    text?: string;
     timestamp: number;
     imageUrl?: string;
+    audioUrl?: string;
+    audioDuration?: number;
 }
 
 export interface PrivateChat {
