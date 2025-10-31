@@ -67,6 +67,8 @@ const App: React.FC = () => {
 
     const { addToast } = useToast();
     const initialNotificationsLoaded = useRef(false);
+    const initialMessagesLoaded = useRef(false);
+    const chatsRef = useRef<PrivateChat[]>([]);
 
     const triggerPushNotification = useCallback(async (title: string, message: string) => {
         if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
@@ -212,19 +214,48 @@ const App: React.FC = () => {
                     }
                 });
 
-                // Private Messages listener
-                const privateChatsRef = collection(db, 'privateChats');
-                const privateChatsQuery = query(privateChatsRef, where('members', 'array-contains', userProfile.uid));
+                // Private Messages listener for count and notifications
+                const privateChatsCollectionRef = collection(db, 'privateChats');
+                const privateChatsQuery = query(privateChatsCollectionRef, where('members', 'array-contains', userProfile.uid));
                 unsubMessages = onSnapshot(privateChatsQuery, (snapshot) => {
                     let count = 0;
+                    const newChats: PrivateChat[] = [];
+
+                    if (initialMessagesLoaded.current) {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "modified") {
+                                const newData = change.doc.data() as PrivateChat;
+                                const oldData = chatsRef.current.find(c => c.id === change.doc.id);
+
+                                if (
+                                    newData.lastMessage && 
+                                    newData.lastMessage.senderId !== userProfile.uid &&
+                                    (!oldData?.lastMessage || newData.lastMessage.timestamp > oldData.lastMessage.timestamp)
+                                ) {
+                                     const senderName = newData.memberInfo[newData.lastMessage.senderId]?.displayName || 'Someone';
+                                     const messageText = newData.lastMessage.text || 'Sent an image';
+                                     triggerPushNotification(`New message from ${senderName}`, messageText);
+                                }
+                            }
+                        });
+                    }
+
                     snapshot.forEach(doc => {
-                        const chat = doc.data() as PrivateChat;
+                        const chat = { id: doc.id, ...doc.data() } as PrivateChat;
+                        newChats.push(chat);
                         if (chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid)) {
                             count++;
                         }
                     });
+
+                    chatsRef.current = newChats;
                     setUnreadMessagesCount(count);
+
+                    if (!initialMessagesLoaded.current) {
+                        initialMessagesLoaded.current = true;
+                    }
                 });
+
 
             } catch (error) {
                 console.error("Error setting up dashboard/notification listeners:", error);
@@ -236,6 +267,7 @@ const App: React.FC = () => {
             unsubNotifications && unsubNotifications();
             unsubMessages && unsubMessages();
             initialNotificationsLoaded.current = false;
+            initialMessagesLoaded.current = false;
         }
     }, [userProfile, triggerPushNotification]);
 

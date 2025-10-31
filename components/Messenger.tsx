@@ -123,13 +123,17 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             batch.set(newMessageRef, messageData);
 
             const chatRef = doc(db, 'privateChats', chatId);
+            const now = Date.now();
             const lastMessageData = {
                 text: tempInput || 'Image',
-                timestamp: Date.now(),
+                timestamp: now,
                 senderId: currentUser.uid,
                 readBy: [currentUser.uid],
             };
-            batch.update(chatRef, { lastMessage: lastMessageData });
+            batch.update(chatRef, { 
+                lastMessage: lastMessageData,
+                lastActivityTimestamp: now,
+            });
 
             await batch.commit();
 
@@ -220,7 +224,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     // Listen to user's private chats
     useEffect(() => {
         const chatsRef = collection(db, 'privateChats');
-        const q = query(chatsRef, where('members', 'array-contains', userProfile.uid), orderBy('lastMessage.timestamp', 'desc'));
+        const q = query(chatsRef, where('members', 'array-contains', userProfile.uid), orderBy('lastActivityTimestamp', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChats: PrivateChat[] = [];
             snapshot.forEach(doc => fetchedChats.push({ id: doc.id, ...doc.data() } as PrivateChat));
@@ -238,13 +242,15 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
 
         const chatSnap = await getDoc(chatRef);
         if (!chatSnap.exists()) {
+            const now = Date.now();
             await setDoc(chatRef, {
                 members,
                 memberInfo: {
                     [userProfile.uid]: { displayName: userProfile.displayName },
                     [otherUser.uid]: { displayName: otherUser.displayName },
                 },
-                createdAt: Date.now()
+                createdAt: now,
+                lastActivityTimestamp: now,
             });
         }
         setSelectedChat({ chatId, otherUser });

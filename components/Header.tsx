@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
 import { MenuIcon } from './icons/MenuIcon';
@@ -31,15 +32,16 @@ export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotification
             <div className="flex items-center gap-2">
                 <button 
                     onClick={onMessengerClick}
-                    className="relative text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100"
+                    className="relative text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
                     aria-label={`Messenger (${unreadMessagesCount} unread)`}
                 >
                     <MessengerIcon />
                     {unreadMessagesCount > 0 && (
-                        <span className="absolute top-1 right-1 block h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-lime-500 border-2 border-white"></span>
-                        </span>
+                        <div className="absolute top-0.5 right-0.5 transform translate-x-1/4 -translate-y-1/4">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white">
+                                {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                            </span>
+                        </div>
                     )}
                 </button>
                 <button 
@@ -49,10 +51,11 @@ export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotification
                 >
                     <NotificationBellIcon />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 block h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-lime-500 border-2 border-white"></span>
-                        </span>
+                        <div className="absolute top-0.5 right-0.5 transform translate-x-1/4 -translate-y-1/4">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        </div>
                     )}
                 </button>
             </div>

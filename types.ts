@@ -134,6 +134,7 @@ export interface PrivateChat {
         readBy: string[]; // Array of UIDs that have read this message
     };
     createdAt: number;
+    lastActivityTimestamp: number;
 }
 
 
