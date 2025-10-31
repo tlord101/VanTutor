@@ -210,6 +210,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ opacity: 0, pointerEvents: 'none' });
     const [isOneTime, setIsOneTime] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [replyingTo, setReplyingTo] = useState<PrivateMessage | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -220,6 +221,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     const longPressTimer = useRef<number>();
     const micLongPressTimer = useRef<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const swipeState = useRef({ startX: 0, startY: 0, isScrolling: null as boolean | null, messageId: null as string | null });
+    const messageRefs = useRef(new Map<string, HTMLDivElement>());
     const { addToast } = useToast();
 
     const isOtherUserTyping = chat?.typing?.includes(otherUser.uid) ?? false;
@@ -354,10 +357,12 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         const tempInput = input;
         const tempImageFile = imageFile;
         const tempIsOneTime = isOneTime;
+        const tempReplyingTo = replyingTo;
         setInput('');
         setImageFile(null);
         setImagePreview(null);
         setIsOneTime(false);
+        setReplyingTo(null);
         updateTypingStatus(false);
 
         try {
@@ -389,6 +394,15 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 ...(imageUrl && { imageUrl }),
                 ...(audioUrl && { audioUrl, audioDuration }),
                 ...(tempImageFile && tempIsOneTime && { isOneTimeView: true, viewedBy: [] }),
+                ...(tempReplyingTo && {
+                    replyTo: {
+                        messageId: tempReplyingTo.id,
+                        text: tempReplyingTo.text?.substring(0, 80),
+                        imageUrl: tempReplyingTo.imageUrl,
+                        audioUrl: tempReplyingTo.audioUrl,
+                        senderId: tempReplyingTo.senderId
+                    }
+                }),
             };
             batch.set(newMessageRef, messageData);
 
@@ -500,13 +514,66 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     };
     
     const handleTouchStart = (e: React.TouchEvent, msg: PrivateMessage) => {
+        clearTimeout(longPressTimer.current);
         longPressTimer.current = window.setTimeout(() => {
             openMessageMenu(e, msg);
         }, 500); // 500ms for long press
+
+        swipeState.current = {
+            startX: e.touches[0].clientX,
+            startY: e.touches[0].clientY,
+            isScrolling: null,
+            messageId: msg.id,
+        };
+        const msgEl = messageRefs.current.get(msg.id);
+        if (msgEl) {
+            msgEl.style.transition = 'none';
+        }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (swipeState.current.messageId === null) return;
+        const deltaX = e.touches[0].clientX - swipeState.current.startX;
+        const deltaY = e.touches[0].clientY - swipeState.current.startY;
+        
+        if (swipeState.current.isScrolling === null) {
+            const isScrolling = Math.abs(deltaY) > Math.abs(deltaX);
+            swipeState.current.isScrolling = isScrolling;
+            if(!isScrolling) {
+                clearTimeout(longPressTimer.current);
+            }
+        }
+        
+        if (!swipeState.current.isScrolling) {
+            if (e.cancelable) e.preventDefault();
+            const msgEl = messageRefs.current.get(swipeState.current.messageId);
+            if (!msgEl) return;
+            const translateX = Math.min(Math.max(0, deltaX), 80);
+            msgEl.style.transform = `translateX(${translateX}px)`;
+        }
+    };
+    
+    const handleTouchEnd = (msg: PrivateMessage) => {
         clearTimeout(longPressTimer.current);
+        if (swipeState.current.messageId === null || swipeState.current.isScrolling) {
+            swipeState.current = { startX: 0, startY: 0, isScrolling: null, messageId: null };
+            return;
+        }
+
+        const msgEl = messageRefs.current.get(swipeState.current.messageId);
+        if (!msgEl) return;
+
+        const transform = msgEl.style.transform;
+        const translateX = transform ? parseFloat(transform.split('(')[1]) : 0;
+        
+        msgEl.style.transition = 'transform 0.3s ease';
+        msgEl.style.transform = 'translateX(0px)';
+
+        if (translateX > 60) {
+            setReplyingTo(msg);
+        }
+
+        swipeState.current = { startX: 0, startY: 0, isScrolling: null, messageId: null };
     };
 
     const startEditing = (msg: PrivateMessage) => {
@@ -565,8 +632,23 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 </button>
             );
         }
+        
+        const replySenderName = msg.replyTo?.senderId === currentUser.uid ? 'You' : otherUser.displayName;
 
         return <>
+            {msg.replyTo && (
+                <a href={`#message-${msg.replyTo.messageId}`} onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById(`message-${msg.replyTo.messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }} className={`block p-2 mb-1 rounded-md opacity-80 ${isSender ? 'bg-white/20' : 'bg-black/5'}`}>
+                    <p className={`text-xs font-bold ${isSender ? 'text-white' : 'text-lime-700'}`}>
+                        {replySenderName}
+                    </p>
+                    <p className={`text-sm mt-0.5 truncate ${isSender ? 'text-white/90' : 'text-gray-600'}`}>
+                        {msg.replyTo.text || (msg.replyTo.imageUrl && 'Photo') || (msg.replyTo.audioUrl && 'Voice message')}
+                    </p>
+                </a>
+            )}
             {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
             {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={isSender ? 'dark' : 'light'} />}
             {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
@@ -603,12 +685,14 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-40 md:pb-4">
                 {messages.map(msg => (
-                    <div key={msg.id} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} id={`message-${msg.id}`} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
                        <div 
+                         ref={(el) => { if (el) messageRefs.current.set(msg.id, el); }}
                          className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}
                          onContextMenu={(e) => msg.senderId === currentUser.uid && openMessageMenu(e, msg)}
-                         onTouchStart={(e) => msg.senderId === currentUser.uid && handleTouchStart(e, msg)}
-                         onTouchEnd={handleTouchEnd}
+                         onTouchStart={(e) => handleTouchStart(e, msg)}
+                         onTouchMove={handleTouchMove}
+                         onTouchEnd={() => handleTouchEnd(msg)}
                        >
                             <div className="p-2">
                                 {editingMessage?.id === msg.id ? (
@@ -656,33 +740,52 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                     </ul>
                 </div>
             )}
-            <footer className="md:relative fixed bottom-28 w-full md:w-auto left-0 right-0 p-3 border-t border-gray-200 bg-white/95 backdrop-blur-sm md:backdrop-blur-none md:bg-white">
+            <footer className="md:relative fixed bottom-28 w-full md:w-auto left-0 right-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm md:backdrop-blur-none md:bg-white">
                  <div className="w-full max-w-md mx-auto">
-                    {imagePreview && (
-                        <div className="relative mb-2">
-                             <div className="relative w-20 h-20 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
-                             <div className="flex items-center gap-2 mt-2 p-2 bg-gray-100 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-gray-700">One-Time View</span></div>
+                    {replyingTo && (
+                        <div className="px-4 pt-2">
+                           <div className="bg-gray-100 rounded-t-lg p-2 flex justify-between items-center border-l-4 border-lime-500 animate-fade-in-up">
+                                <div>
+                                    <p className="text-xs font-bold text-lime-600">
+                                        Replying to {replyingTo.senderId === currentUser.uid ? 'Yourself' : otherUser.displayName}
+                                    </p>
+                                    <p className="text-sm text-gray-600 truncate max-w-xs sm:max-w-sm">
+                                        {replyingTo.text || (replyingTo.imageUrl && 'Photo') || (replyingTo.audioUrl && 'Voice message')}
+                                    </p>
+                                </div>
+                                <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-gray-400 hover:bg-gray-200">
+                                    <XIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     )}
-                    <div className="relative flex items-center">
-                        <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
-                        {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
-                        ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend(input)}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />)}
-                        
-                        {!input.trim() && !imageFile ? (
-                           <button 
-                            onMouseDown={handleMicPress} 
-                            onMouseUp={handleMicRelease} 
-                            onTouchStart={handleMicPress} 
-                            onTouchEnd={handleMicRelease} 
-                            disabled={isSending} 
-                            className={`ml-2 rounded-full p-3 transition-transform text-white disabled:opacity-50 ${isRecording ? 'bg-red-500 scale-110 animate-pulse' : 'bg-lime-600 hover:bg-lime-700 active:scale-95'}`}
-                           >
-                               <MicrophoneIcon className="w-6 h-6" />
-                           </button>
-                        ) : (
-                           <button onClick={() => handleSend(input)} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
-                        )}
+                    <div className={`p-3 ${replyingTo ? 'pt-1' : ''}`}>
+                      {imagePreview && (
+                          <div className="relative mb-2">
+                               <div className="relative w-20 h-20 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
+                               <div className="flex items-center gap-2 mt-2 p-2 bg-gray-100 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-gray-700">One-Time View</span></div>
+                          </div>
+                      )}
+                      <div className="relative flex items-center">
+                          <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
+                          {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
+                          ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend(input)}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />)}
+                          
+                          {!input.trim() && !imageFile ? (
+                             <button 
+                              onMouseDown={handleMicPress} 
+                              onMouseUp={handleMicRelease} 
+                              onTouchStart={handleMicPress} 
+                              onTouchEnd={handleMicRelease} 
+                              disabled={isSending} 
+                              className={`ml-2 rounded-full p-3 transition-transform text-white disabled:opacity-50 ${isRecording ? 'bg-red-500 scale-110 animate-pulse' : 'bg-lime-600 hover:bg-lime-700 active:scale-95'}`}
+                             >
+                                 <MicrophoneIcon className="w-6 h-6" />
+                             </button>
+                          ) : (
+                             <button onClick={() => handleSend(input)} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
+                          )}
+                      </div>
                     </div>
                 </div>
             </footer>

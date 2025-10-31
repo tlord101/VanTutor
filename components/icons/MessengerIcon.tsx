@@ -6,13 +6,13 @@ export const MessengerIcon: React.FC<{ className?: string }> = ({ className = 'w
         <path 
             d="M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" 
             stroke="#65a30d" 
-            strokeWidth="2" 
+            strokeWidth="2.5" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
         />
-        {/* Green lightning bolt in the middle */}
+        {/* Bigger green lightning bolt in the middle */}
         <path 
-            d="M14.5 7.5l-5 5h3l-5 5 7-6h-3l5-4z" 
+            d="M16 5 L 9 14 H 13 L 8 21 L 17 12 H 13 L 16 5 Z" 
             fill="#65a30d" 
         />
     </svg>

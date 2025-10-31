@@ -124,6 +124,13 @@ export interface PrivateMessage {
     isEdited?: boolean;
     isOneTimeView?: boolean;
     viewedBy?: string[];
+    replyTo?: {
+        messageId: string;
+        text?: string;
+        imageUrl?: string;
+        audioUrl?: string;
+        senderId: string;
+    };
 }
 
 export interface PrivateChat {
