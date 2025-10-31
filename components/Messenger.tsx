@@ -158,6 +158,7 @@ interface PrivateChatViewProps {
   otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number };
   onBack: () => void;
   onOpenConfirmationModal: (options: { title: string; message: string; onConfirm: () => void; confirmText?: string }) => void;
+  onDeleteMessage: (chatId: string, message: PrivateMessage) => void;
 }
 
 const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
@@ -193,7 +194,7 @@ const OneTimeImageViewer: React.FC<{ imageUrl: string; onClose: () => void }> = 
     );
 };
 
-const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, otherUser, onBack, onOpenConfirmationModal }) => {
+const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, otherUser, onBack, onOpenConfirmationModal, onDeleteMessage }) => {
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [input, setInput] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -460,51 +461,13 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         }
     };
 
-    const handleDeleteMessage = async (message: PrivateMessage) => {
-      if (!chat) return;
-        try {
-            const msgRef = doc(db, 'privateChats', chat.id, 'messages', message.id);
-            const chatRef = doc(db, 'privateChats', chat.id);
-            
-            const currentChatSnap = await getDoc(chatRef);
-            const chatData = currentChatSnap.data() as PrivateChat;
-
-            const isLastMessage = chatData.lastMessage?.timestamp === message.timestamp;
-
-            await deleteDoc(msgRef);
-
-            if (isLastMessage) {
-                const messagesQuery = query(collection(db, 'privateChats', chat.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
-                const newLastMessagesSnap = await getDocs(messagesQuery);
-
-                if (!newLastMessagesSnap.empty) {
-                    const newLastMessageData = newLastMessagesSnap.docs[0].data();
-                    const lastMessageText = newLastMessageData.text || (newLastMessageData.imageUrl ? 'Sent an image' : 'Sent a voice message');
-                    const lastMessage = {
-                        text: lastMessageText,
-                        timestamp: newLastMessageData.timestamp.toMillis(),
-                        senderId: newLastMessageData.senderId,
-                        readBy: [currentUser.uid],
-                    };
-                    await updateDoc(chatRef, { lastMessage });
-                } else {
-                    await updateDoc(chatRef, { lastMessage: undefined });
-                }
-            }
-            addToast('Message deleted.', 'success');
-        } catch (error) {
-            console.error("Error deleting message:", error);
-            addToast("Could not delete message.", 'error');
-        }
-        setActiveMessageMenu(null);
-    };
-
     const confirmDeleteMessage = (message: PrivateMessage) => {
         setActiveMessageMenu(null);
+        if (!chat) return;
         onOpenConfirmationModal({
             title: 'Delete Message',
             message: 'Are you sure you want to permanently delete this message?',
-            onConfirm: () => handleDeleteMessage(message),
+            onConfirm: () => onDeleteMessage(chat.id, message),
             confirmText: 'Delete'
         });
     };
@@ -743,6 +706,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isMessageDeleting, setIsMessageDeleting] = useState(false);
     
     const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; confirmText?: string }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
@@ -850,6 +814,50 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
             addToast("Failed to delete chat.", 'error');
         } finally {
             setIsDeleting(false);
+            setModalState({ ...modalState, isOpen: false });
+        }
+    };
+
+    const handleDeleteMessage = async (chatId: string, message: PrivateMessage) => {
+        setIsMessageDeleting(true);
+        try {
+            const msgRef = doc(db, 'privateChats', chatId, 'messages', message.id);
+            const chatRef = doc(db, 'privateChats', chatId);
+            
+            const currentChatSnap = await getDoc(chatRef);
+            if (!currentChatSnap.exists()) throw new Error("Chat not found");
+            const chatData = currentChatSnap.data() as PrivateChat;
+
+            const isLastMessage = chatData.lastMessage?.timestamp === message.timestamp;
+
+            await deleteDoc(msgRef);
+
+            if (isLastMessage) {
+                const messagesQuery = query(collection(db, 'privateChats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+                const newLastMessagesSnap = await getDocs(messagesQuery);
+
+                if (!newLastMessagesSnap.empty) {
+                    const newLastMessageData = newLastMessagesSnap.docs[0].data() as PrivateMessage;
+                    const lastMessageText = newLastMessageData.text || 
+                        (newLastMessageData.imageUrl ? (newLastMessageData.isOneTimeView ? 'Sent a photo' : 'Sent an image') 
+                        : 'Sent a voice message');
+                    const lastMessage = {
+                        text: lastMessageText,
+                        timestamp: (newLastMessageData.timestamp as any).toMillis(),
+                        senderId: newLastMessageData.senderId,
+                        readBy: [userProfile.uid],
+                    };
+                    await updateDoc(chatRef, { lastMessage });
+                } else {
+                    await updateDoc(chatRef, { lastMessage: null });
+                }
+            }
+            addToast('Message deleted.', 'success');
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            addToast("Could not delete message.", 'error');
+        } finally {
+            setIsMessageDeleting(false);
             setModalState({ ...modalState, isOpen: false });
         }
     };
@@ -973,6 +981,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                     otherUser={otherUser} 
                     onBack={() => setView('list')} 
                     onOpenConfirmationModal={(options) => setModalState({ ...options, isOpen: true })}
+                    onDeleteMessage={handleDeleteMessage}
                 />
             )}
             <ConfirmationModal
@@ -982,7 +991,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                 onConfirm={modalState.onConfirm}
                 onCancel={() => setModalState({ ...modalState, isOpen: false })}
                 confirmText={modalState.confirmText || 'Confirm'}
-                isConfirming={isDeleting}
+                isConfirming={isDeleting || isMessageDeleting}
             />
         </div>
     );
