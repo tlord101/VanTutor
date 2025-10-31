@@ -36,8 +36,10 @@ const getWeekId = (date: Date): string => {
 const AppLoader: React.FC = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100" role="status" aria-label="Loading application">
-      <svg className="w-24 h-24 loader-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <circle className="loader-circle" cx="50" cy="50" r="45" />
+      <svg className="w-24 h-24 loader-logo" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path className="loader-path-1" d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path className="loader-path-2" d="M41.5 21V29.75C41.5 30.825 40.85 32.55 39.4166 33.25L27.75 39.375C26.6666 39.9 25.3333 39.9 24.25 39.375L12.5833 33.25C11.15 32.55 10.5 30.825 10.5 29.75V21" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path className="loader-path-3" d="M47.6667 17.5V26.25" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     </div>
   );

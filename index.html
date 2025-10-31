@@ -118,33 +118,45 @@
         }
       }
       /* New loader styles */
-      .loader-svg {
-        animation: loader-rotate 2s linear infinite;
-      }
-      .loader-circle {
-        stroke: #9333ea; /* purple-600 */
-        stroke-width: 2.5;
+      .loader-logo {
+        stroke: #84cc16; /* lime-500 */
         fill: none;
-        stroke-linecap: round;
-        animation: loader-dash 1.5s ease-in-out infinite;
-        stroke-dasharray: 283; /* 2 * PI * 45 */
+        animation: finished-glow 1.5s ease-in-out infinite alternate;
+        animation-delay: 2.2s; /* Start after draw animation is mostly done */
       }
 
-      @keyframes loader-rotate {
-        100% {
-          transform: rotate(360deg);
+      @keyframes finished-glow {
+        from {
+          filter: drop-shadow(0 0 2px #a3e635);
+        }
+        to {
+          filter: drop-shadow(0 0 10px #a3e635);
         }
       }
 
-      @keyframes loader-dash {
-        0% {
-          stroke-dashoffset: 283;
-        }
-        50% {
-          stroke-dashoffset: 70.75; /* 25% of circumference */
-        }
-        100% {
-          stroke-dashoffset: 283;
+      .loader-path-1 {
+        stroke-dasharray: 102;
+        stroke-dashoffset: 102;
+        animation: draw 1s ease-in-out forwards;
+      }
+      
+      .loader-path-2 {
+        stroke-dasharray: 85;
+        stroke-dashoffset: 85;
+        animation: draw 1s ease-in-out forwards;
+        animation-delay: 0.7s;
+      }
+
+      .loader-path-3 {
+        stroke-dasharray: 9;
+        stroke-dashoffset: 9;
+        animation: draw 0.5s ease-in-out forwards;
+        animation-delay: 1.5s;
+      }
+      
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
         }
       }
     </style>
