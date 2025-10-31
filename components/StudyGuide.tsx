@@ -456,6 +456,28 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
         }
     };
 
+    const handleSelectTopic = async (topic: Topic, subjectName: string) => {
+        const isNewTopic = !userProgress[topic.topicId];
+
+        if (isNewTopic) {
+            try {
+                const notificationsRef = collection(db, 'users', userProfile.uid, 'notifications');
+                await addDoc(notificationsRef, {
+                    type: 'study_update' as const,
+                    title: 'New Topic Started!',
+                    message: `You've begun learning about "${topic.topicName}". Keep up the great work!`,
+                    timestamp: serverTimestamp(),
+                    isRead: false,
+                });
+            } catch (error) {
+                console.error("Failed to create 'new topic' notification:", error);
+                // Non-critical, so we don't show a toast to the user
+            }
+        }
+        
+        setSelectedTopic({ ...topic, subjectName });
+    };
+
     const filteredSubjects = subjects
         .map(subject => ({
             ...subject,
@@ -497,7 +519,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
                 {isLoading && <StudyGuideSkeleton />}
                 {!isLoading && filteredSubjects.length > 0 && (
                     filteredSubjects.map(subject => (
-                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={(topic, subjectName) => setSelectedTopic({ ...topic, subjectName })} />
+                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
                     ))
                 )}
                  {!isLoading && filteredSubjects.length === 0 && (
