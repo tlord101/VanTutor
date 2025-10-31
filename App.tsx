@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction } from 'firebase/firestore';
-import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem } from './types';
+import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where } from 'firebase/firestore';
+import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
 import { Onboarding } from './components/Onboarding';
@@ -23,6 +23,7 @@ import { NotificationsPanel } from './components/NotificationsPanel';
 import { BottomNavBar } from './components/BottomNavBar';
 import { useToast } from './hooks/useToast';
 import { navigationItems } from './constants';
+import { Messenger } from './components/Messenger';
 
 declare var __app_id: string;
 
@@ -62,7 +63,8 @@ const App: React.FC = () => {
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
-    
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
     const { addToast } = useToast();
     const initialNotificationsLoaded = useRef(false);
 
@@ -88,6 +90,35 @@ const App: React.FC = () => {
         });
         return () => unsubscribe();
     }, []);
+
+    // Presence Management
+    useEffect(() => {
+        if (!user) return;
+    
+        const userStatusRef = doc(db, 'users', user.uid);
+    
+        // Set online status to true
+        updateDoc(userStatusRef, { isOnline: true });
+    
+        // Set offline status on disconnect
+        const handleBeforeUnload = () => {
+            updateDoc(userStatusRef, {
+                isOnline: false,
+                lastSeen: serverTimestamp()
+            });
+        };
+    
+        window.addEventListener('beforeunload', handleBeforeUnload);
+    
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            // This might not always run, but it's a good fallback
+            updateDoc(userStatusRef, {
+                isOnline: false,
+                lastSeen: serverTimestamp()
+            });
+        };
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -129,9 +160,14 @@ const App: React.FC = () => {
     }, [userProfile]);
 
     useEffect(() => {
-        if (!userProfile) return;
+        if (!userProfile) {
+            setUnreadMessagesCount(0);
+            return;
+        };
         
         let unsubNotifications: () => void;
+        let unsubMessages: () => void;
+
         const setupListeners = async () => {
             try {
                 // Fetch Total Topics Count
@@ -175,6 +211,21 @@ const App: React.FC = () => {
                         initialNotificationsLoaded.current = true;
                     }
                 });
+
+                // Private Messages listener
+                const privateChatsRef = collection(db, 'privateChats');
+                const privateChatsQuery = query(privateChatsRef, where('members', 'array-contains', userProfile.uid));
+                unsubMessages = onSnapshot(privateChatsQuery, (snapshot) => {
+                    let count = 0;
+                    snapshot.forEach(doc => {
+                        const chat = doc.data() as PrivateChat;
+                        if (chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid)) {
+                            count++;
+                        }
+                    });
+                    setUnreadMessagesCount(count);
+                });
+
             } catch (error) {
                 console.error("Error setting up dashboard/notification listeners:", error);
             }
@@ -183,6 +234,7 @@ const App: React.FC = () => {
         setupListeners();
         return () => {
             unsubNotifications && unsubNotifications();
+            unsubMessages && unsubMessages();
             initialNotificationsLoaded.current = false;
         }
     }, [userProfile, triggerPushNotification]);
@@ -190,6 +242,13 @@ const App: React.FC = () => {
 
     const handleLogout = async () => {
         try {
+            if(user) {
+              const userStatusRef = doc(db, 'users', user.uid);
+              await updateDoc(userStatusRef, {
+                  isOnline: false,
+                  lastSeen: serverTimestamp()
+              });
+            }
             await signOut(auth);
             setUser(null);
             setUserProfile(null);
@@ -213,6 +272,8 @@ const App: React.FC = () => {
             currentStreak: 0,
             lastActivityDate: now,
             notificationsEnabled: false,
+            isOnline: true,
+            lastSeen: now,
         };
         try {
             const batch = writeBatch(db);
@@ -340,6 +401,7 @@ const App: React.FC = () => {
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
             case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
             case 'help': return <Help />;
+            case 'messenger': return <Messenger userProfile={userProfile} />;
             default: return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
         }
     };
@@ -367,7 +429,9 @@ const App: React.FC = () => {
     }
 
     const unreadCount = notifications.filter(n => !n.isRead).length;
-    const currentPage = navigationItems.find(item => item.id === activeItem);
+    const currentPageLabel = activeItem === 'messenger' 
+        ? 'Messenger' 
+        : (navigationItems.find(item => item.id === activeItem)?.label || 'Dashboard');
 
     return (
         <div className="h-full flex flex-col md:flex-row bg-gray-100 p-2 md:p-4 gap-4">
@@ -384,12 +448,14 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <Header 
-                    currentPageLabel={currentPage?.label || 'Dashboard'}
+                    currentPageLabel={currentPageLabel}
                     unreadCount={unreadCount}
                     onNotificationsClick={() => setIsNotificationsPanelOpen(true)}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
+                    onMessengerClick={() => setActiveItem('messenger')}
+                    unreadMessagesCount={unreadMessagesCount}
                 />
-                <div className={`flex-1 min-h-0 ${activeItem === 'chat' || activeItem === 'visual_solver' ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+                <div className={`flex-1 min-h-0 ${activeItem === 'chat' || activeItem === 'visual_solver' || activeItem === 'messenger' ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
                     {renderContent()}
                 </div>
             </main>

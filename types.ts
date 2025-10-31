@@ -16,6 +16,8 @@ export interface UserProfile {
   currentStreak: number;
   lastActivityDate: number; // Store as timestamp
   notificationsEnabled: boolean;
+  isOnline?: boolean;
+  lastSeen?: number;
 }
 
 export interface Message {
@@ -105,6 +107,35 @@ export interface ChatConversation {
   createdAt: number; // Use number for Firestore compatibility
   lastUpdatedAt: number; // Use number for Firestore compatibility
 }
+
+// Types for new Private Messaging System
+export interface PrivateMessage {
+    id: string;
+    senderId: string;
+    text: string;
+    timestamp: number;
+    imageUrl?: string;
+}
+
+export interface PrivateChat {
+    id: string;
+    members: string[]; // array of 2 user UIDs
+    memberInfo: {
+        [uid: string]: {
+            displayName: string;
+            isOnline?: boolean;
+            lastSeen?: number;
+        }
+    };
+    lastMessage?: {
+        text: string;
+        timestamp: number;
+        senderId: string;
+        readBy: string[]; // Array of UIDs that have read this message
+    };
+    createdAt: number;
+}
+
 
 // Type for the new Toast Notification System
 export type ToastType = 'success' | 'error' | 'info';

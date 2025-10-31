@@ -1,6 +1,7 @@
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Step 3: Initialize Firebase using global constants.
 // These variables are expected to be injected into the global scope by the runtime environment.
@@ -24,6 +25,7 @@ if (existingApp) {
 
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
-export { app, auth, db, googleProvider };
+export { app, auth, db, storage, googleProvider };
