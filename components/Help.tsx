@@ -11,7 +11,7 @@ const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' 
 
 const Help: React.FC = () => {
     const supportContacts = [
-        { name: 'Tlord', number: '+2349078840518' },
+        { name: 'Tlord', number: '+2349078840517' },
         { name: 'Laurina', number: '+2349162458352' },
         { name: 'Busola', number: '+2347013123955' },
         { name: 'Osmond', number: '+2348076022922' }
