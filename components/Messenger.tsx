@@ -387,23 +387,38 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             const messagesRef = collection(db, 'privateChats', chat.id, 'messages');
             const newMessageRef = doc(messagesRef);
 
-            const messageData: Partial<PrivateMessage> = {
+            const messageData: { [key: string]: any } = {
                 senderId: currentUser.uid,
-                timestamp: serverTimestamp() as any,
-                ...(textToSend && { text: textToSend }),
-                ...(imageUrl && { imageUrl }),
-                ...(audioUrl && { audioUrl, audioDuration }),
-                ...(tempImageFile && tempIsOneTime && { isOneTimeView: true, viewedBy: [] }),
-                ...(tempReplyingTo && {
-                    replyTo: {
-                        messageId: tempReplyingTo.id,
-                        text: tempReplyingTo.text?.substring(0, 80),
-                        imageUrl: tempReplyingTo.imageUrl,
-                        audioUrl: tempReplyingTo.audioUrl,
-                        senderId: tempReplyingTo.senderId
-                    }
-                }),
+                timestamp: serverTimestamp(),
             };
+
+            if (textToSend) messageData.text = textToSend;
+            if (imageUrl) messageData.imageUrl = imageUrl;
+            if (audioUrl) {
+                messageData.audioUrl = audioUrl;
+                messageData.audioDuration = audioDuration;
+            }
+            if (tempImageFile && tempIsOneTime) {
+                messageData.isOneTimeView = true;
+                messageData.viewedBy = [];
+            }
+            if (tempReplyingTo) {
+                const replyToObject: { [key: string]: any } = {
+                    messageId: tempReplyingTo.id,
+                    senderId: tempReplyingTo.senderId,
+                };
+                if (tempReplyingTo.text) {
+                    replyToObject.text = tempReplyingTo.text.substring(0, 80);
+                }
+                if (tempReplyingTo.imageUrl) {
+                    replyToObject.imageUrl = tempReplyingTo.imageUrl;
+                }
+                if (tempReplyingTo.audioUrl) {
+                    replyToObject.audioUrl = tempReplyingTo.audioUrl;
+                }
+                messageData.replyTo = replyToObject;
+            }
+
             batch.set(newMessageRef, messageData);
 
             const chatRef = doc(db, 'privateChats', chat.id);
