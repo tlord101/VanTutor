@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { UserProfile, Message } from '../types';
@@ -483,7 +482,7 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                         <div className="absolute top-4 text-white bg-black/50 px-3 py-1 text-sm rounded-full pointer-events-none">
                             Drag and resize to frame the problem
                         </div>
-                        <div className="absolute bottom-8 flex justify-center w-full">
+                        <div className="absolute bottom-4 flex justify-center w-full">
                             <button onClick={handleScan} aria-label="Scan problem" className="p-2 bg-black/20 rounded-full transition-transform active:scale-95">
                                 <ShutterIcon />
                             </button>

@@ -153,12 +153,13 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     const [activeMessageMenu, setActiveMessageMenu] = useState<{ x: number, y: number, msg: PrivateMessage } | null>(null);
     const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
     const [editText, setEditText] = useState('');
+    const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ opacity: 0, pointerEvents: 'none' });
+    const menuRef = useRef<HTMLDivElement>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingIntervalRef = useRef<number | null>(null);
     const recordingStartRef = useRef<number>(0);
-    // FIX: The return type of setTimeout in browsers is `number`, not `NodeJS.Timeout`.
     const typingTimeoutRef = useRef<number | null>(null);
     const longPressTimer = useRef<number>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -171,6 +172,43 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         if (activeMessageMenu) {
             window.addEventListener('click', handleClickOutside);
             window.addEventListener('contextmenu', handleClickOutside, true);
+
+            if (menuRef.current) {
+                const menu = menuRef.current;
+                const { width: menuWidth, height: menuHeight } = menu.getBoundingClientRect();
+                
+                let finalX = activeMessageMenu.x - menuWidth - 10;
+                let finalY = activeMessageMenu.y;
+
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                if (finalX < 10) {
+                    finalX = activeMessageMenu.x + 10;
+                }
+                
+                if (finalX + menuWidth > viewportWidth) {
+                    finalX = viewportWidth - menuWidth - 10;
+                }
+
+                if (finalY + menuHeight > viewportHeight) {
+                    finalY = viewportHeight - menuHeight - 10;
+                }
+                if (finalY < 10) {
+                    finalY = 10;
+                }
+
+                setMenuStyle({
+                    top: `${finalY}px`,
+                    left: `${finalX}px`,
+                    opacity: 1,
+                    pointerEvents: 'auto',
+                    transition: 'opacity 0.1s ease-in-out'
+                });
+            }
+
+        } else {
+            setMenuStyle({ opacity: 0, pointerEvents: 'none' });
         }
         return () => {
             window.removeEventListener('click', handleClickOutside);
@@ -503,8 +541,9 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             </div>
              {activeMessageMenu && activeMessageMenu.msg.senderId === currentUser.uid && (
                 <div
-                    style={{ top: `${activeMessageMenu.y}px`, left: `${activeMessageMenu.x}px` }}
-                    className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50 animate-fade-in-up"
+                    ref={menuRef}
+                    style={menuStyle}
+                    className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50"
                 >
                     <ul className="py-1">
                         {activeMessageMenu.msg.text && (
