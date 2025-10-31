@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth, googleProvider } from '../firebase';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
@@ -122,7 +123,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                      <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       <span>Logging In...</span>
                     </>
                   ) : (
@@ -145,7 +146,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
             >
                 {isGoogleSubmitting ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-t-transparent border-gray-500 rounded-full animate-spin mr-2"></div>
+                      <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       <span>Signing In...</span>
                     </>
                 ) : (

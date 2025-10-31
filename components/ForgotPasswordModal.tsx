@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -108,7 +109,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
               >
                 {isSending ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                    <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span>Sending...</span>
                   </>
                 ) : (
