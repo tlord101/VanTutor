@@ -5,11 +5,56 @@ import { createClient } from '@supabase/supabase-js';
 declare var __supabase_url: string;
 declare var __supabase_anon_key: string;
 
+// --- IMPORTANT DEPLOYMENT INSTRUCTIONS ---
+//
+// This application requires Supabase for file storage and includes a scheduled
+// function to automatically delete old media. Follow these steps carefully
+// in your local development environment to deploy these features correctly.
+//
+// STEP 1: INSTALL AND LOG IN TO THE SUPABASE CLI
+// Open your terminal and run the following commands:
+//
+//   npm install -g supabase
+//   supabase login
+//
+// Follow the prompts to log in to your Supabase account.
+//
+// STEP 2: LINK YOUR PROJECT
+// Navigate to your project's root directory in the terminal and run:
+//
+//   supabase link --project-ref YOUR_PROJECT_ID
+//
+// Replace `YOUR_PROJECT_ID` with the ID found in your Supabase project's URL
+// (e.g., https://supabase.com/dashboard/project/YOUR_PROJECT_ID).
+// You will also be asked for your database password.
+//
+// STEP 3: CREATE THE CRON JOB EDGE FUNCTION
+// Run this command to create the necessary function files:
+//
+//   supabase functions new cron/delete-old-media
+//
+// This will create a `cron/delete-old-media` directory inside your `supabase/functions`
+// folder. Now, copy the contents of the `cron/delete-old-media.ts` file from this
+// project into the newly created `index.ts` file within that directory.
+//
+// STEP 4: DEPLOY THE FUNCTION WITH A SCHEDULE
+// Finally, deploy the function and schedule it to run once every 24 hours.
+// Run the following command in your terminal:
+//
+//   supabase functions deploy cron/delete-old-media --schedule "0 0 * * *"
+//
+// The schedule "0 0 * * *" is a cron expression that means "at midnight every day".
+//
+// STEP 5: VERIFY DEPLOYMENT
+// Go to your Supabase project dashboard, navigate to "Edge Functions", and you should
+// see the `delete-old-media` function listed with its schedule.
+//
+// --- STORAGE AND SECURITY POLICY INSTRUCTIONS ---
 // NOTE: The error "new row violates row-level security policy" indicates that your
 // Supabase Storage buckets are not configured correctly. Please follow these steps
 // in your Supabase project dashboard to fix the issue.
 //
-// STEP 1: MAKE BUCKETS PUBLIC
+// A. MAKE BUCKETS PUBLIC
 // This application uses public URLs for images and audio. You must make your buckets public.
 // Go to Storage -> Buckets. For EACH of the buckets below, do the following:
 //   - `profile-pictures`
@@ -20,14 +65,14 @@ declare var __supabase_anon_key: string;
 // 2. Click "Bucket settings".
 // 3. Toggle ON the "This bucket is public" option and save.
 //
-// STEP 2: ENABLE ROW LEVEL SECURITY (RLS)
+// B. ENABLE ROW LEVEL SECURITY (RLS)
 // This secures your buckets so only authorized users can upload files.
 // 1. Go to your project's "Database" section.
 // 2. In the sidebar, click "Policies".
 // 3. Find the `objects` table under the `storage` schema.
 // 4. If RLS is disabled, click "Enable RLS".
 //
-// STEP 3: CREATE UPLOAD POLICIES
+// C. CREATE UPLOAD POLICIES
 // Click "New Policy" -> "Create a new policy from scratch" and create the following policies for the `storage.objects` table.
 //
 // --- Policy 1: Allow users to manage their own profile picture ---
