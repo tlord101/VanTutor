@@ -2,13 +2,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
 import { db } from '../firebase';
 import { supabase } from '../supabase';
-import { collection, query, where, onSnapshot, orderBy, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, writeBatch, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, writeBatch, limit, getDocs, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '../hooks/useToast';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
 import { Avatar } from './Avatar';
+import { ConfirmationModal } from './ConfirmationModal';
+import { MoreHorizontalIcon } from './icons/MoreHorizontalIcon';
+import { PencilIcon } from './icons/PencilIcon';
+import { TrashIcon } from './icons/TrashIcon';
+
 
 const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -128,13 +133,14 @@ const AudioPlayer: React.FC<{ src: string, duration: number, theme: 'light' | 'd
 
 // --- Sub-component: PrivateChatView ---
 interface PrivateChatViewProps {
-  chatId: string;
+  chat: PrivateChat | null;
   currentUser: UserProfile;
   otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number };
   onBack: () => void;
+  onOpenConfirmationModal: (options: { title: string; message: string; onConfirm: () => void; confirmText?: string }) => void;
 }
 
-const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, otherUser, onBack }) => {
+const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, otherUser, onBack, onOpenConfirmationModal }) => {
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [input, setInput] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -143,16 +149,38 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
     
     const [isRecording, setIsRecording] = useState(false);
     const [recordingSeconds, setRecordingSeconds] = useState(0);
+    
+    const [activeMessageMenu, setActiveMessageMenu] = useState<{ x: number, y: number, msg: PrivateMessage } | null>(null);
+    const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
+    const [editText, setEditText] = useState('');
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingIntervalRef = useRef<number | null>(null);
     const recordingStartRef = useRef<number>(0);
-
+    // FIX: The return type of setTimeout in browsers is `number`, not `NodeJS.Timeout`.
+    const typingTimeoutRef = useRef<number | null>(null);
+    const longPressTimer = useRef<number>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
+    const isOtherUserTyping = chat?.typing?.includes(otherUser.uid) ?? false;
+
     useEffect(() => {
-        const messagesRef = collection(db, 'privateChats', chatId, 'messages');
+        const handleClickOutside = () => setActiveMessageMenu(null);
+        if (activeMessageMenu) {
+            window.addEventListener('click', handleClickOutside);
+            window.addEventListener('contextmenu', handleClickOutside, true);
+        }
+        return () => {
+            window.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('contextmenu', handleClickOutside, true);
+        };
+    }, [activeMessageMenu]);
+
+    useEffect(() => {
+      if (!chat) return;
+        const messagesRef = collection(db, 'privateChats', chat.id, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedMessages: PrivateMessage[] = [];
@@ -163,15 +191,16 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             setMessages(fetchedMessages);
         });
         return unsubscribe;
-    }, [chatId]);
+    }, [chat?.id]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isSending]);
+    }, [messages, isSending, isOtherUserTyping]);
 
     useEffect(() => {
+      if (!chat) return;
         const markAsRead = async () => {
-            const chatRef = doc(db, 'privateChats', chatId);
+            const chatRef = doc(db, 'privateChats', chat.id);
             const chatSnap = await getDoc(chatRef);
             if (chatSnap.exists()) {
                 const chatData = chatSnap.data() as PrivateChat;
@@ -182,7 +211,34 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             }
         };
         markAsRead();
-    }, [chatId, currentUser.uid, messages]);
+    }, [chat?.id, currentUser.uid, messages]);
+
+    const updateTypingStatus = useCallback(async (isTyping: boolean) => {
+        if (!chat) return;
+        const chatRef = doc(db, 'privateChats', chat.id);
+        if (isTyping) {
+            await updateDoc(chatRef, { typing: arrayUnion(currentUser.uid) });
+        } else {
+            await updateDoc(chatRef, { typing: arrayRemove(currentUser.uid) });
+        }
+    }, [chat?.id, currentUser.uid]);
+
+    useEffect(() => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        if (input) {
+            updateTypingStatus(true);
+            typingTimeoutRef.current = setTimeout(() => {
+                updateTypingStatus(false);
+            }, 3000); // User is considered not typing after 3 seconds of inactivity
+        } else {
+            updateTypingStatus(false);
+        }
+        return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+    }, [input, updateTypingStatus]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -196,7 +252,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
     
     const handleSend = async (text?: string, audioBlob?: Blob, audioDuration?: number) => {
         const textToSend = text !== undefined ? text : input;
-        if ((!textToSend.trim() && !imageFile && !audioBlob) || isSending || isRecording) return;
+        if ((!textToSend.trim() && !imageFile && !audioBlob) || isSending || isRecording || !chat) return;
         
         setIsSending(true);
 
@@ -205,19 +261,20 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
         setInput('');
         setImageFile(null);
         setImagePreview(null);
+        updateTypingStatus(false);
 
         try {
             let imageUrl: string | undefined;
             let audioUrl: string | undefined;
 
             if (tempImageFile) {
-                const filePath = `private-chats/${chatId}/${Date.now()}-${tempImageFile.name}`;
+                const filePath = `private-chats/${chat.id}/${Date.now()}-${tempImageFile.name}`;
                 const { error } = await supabase.storage.from('private-chats').upload(filePath, tempImageFile);
                 if(error) throw error;
                 const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
                 imageUrl = data.publicUrl;
             } else if (audioBlob) {
-                const filePath = `private-chats/${chatId}/${Date.now()}.webm`;
+                const filePath = `private-chats/${chat.id}/${Date.now()}.webm`;
                 const { error } = await supabase.storage.from('private-chats').upload(filePath, audioBlob);
                 if(error) throw error;
                 const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
@@ -225,7 +282,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             }
 
             const batch = writeBatch(db);
-            const messagesRef = collection(db, 'privateChats', chatId, 'messages');
+            const messagesRef = collection(db, 'privateChats', chat.id, 'messages');
             const newMessageRef = doc(messagesRef);
 
             const messageData: Partial<PrivateMessage> = {
@@ -237,7 +294,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             };
             batch.set(newMessageRef, messageData);
 
-            const chatRef = doc(db, 'privateChats', chatId);
+            const chatRef = doc(db, 'privateChats', chat.id);
             const now = Date.now();
             const lastMessageText = textToSend ? textToSend : (imageUrl ? 'Sent an image' : 'Sent a voice message');
             const lastMessageData = { text: lastMessageText, timestamp: now, senderId: currentUser.uid, readBy: [currentUser.uid] };
@@ -287,7 +344,101 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
         }
     };
 
+    const handleDeleteMessage = async (message: PrivateMessage) => {
+      if (!chat) return;
+        try {
+            const msgRef = doc(db, 'privateChats', chat.id, 'messages', message.id);
+            const chatRef = doc(db, 'privateChats', chat.id);
+            
+            const currentChatSnap = await getDoc(chatRef);
+            const chatData = currentChatSnap.data() as PrivateChat;
 
+            const isLastMessage = chatData.lastMessage?.timestamp === message.timestamp;
+
+            await deleteDoc(msgRef);
+
+            if (isLastMessage) {
+                const messagesQuery = query(collection(db, 'privateChats', chat.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+                const newLastMessagesSnap = await getDocs(messagesQuery);
+
+                if (!newLastMessagesSnap.empty) {
+                    const newLastMessageData = newLastMessagesSnap.docs[0].data();
+                    const lastMessageText = newLastMessageData.text || (newLastMessageData.imageUrl ? 'Sent an image' : 'Sent a voice message');
+                    const lastMessage = {
+                        text: lastMessageText,
+                        timestamp: newLastMessageData.timestamp.toMillis(),
+                        senderId: newLastMessageData.senderId,
+                        readBy: [currentUser.uid],
+                    };
+                    await updateDoc(chatRef, { lastMessage });
+                } else {
+                    await updateDoc(chatRef, { lastMessage: undefined });
+                }
+            }
+            addToast('Message deleted.', 'success');
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            addToast("Could not delete message.", 'error');
+        }
+        setActiveMessageMenu(null);
+    };
+
+    const confirmDeleteMessage = (message: PrivateMessage) => {
+        setActiveMessageMenu(null);
+        onOpenConfirmationModal({
+            title: 'Delete Message',
+            message: 'Are you sure you want to permanently delete this message?',
+            onConfirm: () => handleDeleteMessage(message),
+            confirmText: 'Delete'
+        });
+    };
+    
+    const handleSaveEdit = async () => {
+        if (!editingMessage || !editText.trim() || !chat) return;
+        const msgRef = doc(db, 'privateChats', chat.id, 'messages', editingMessage.id);
+        try {
+            await updateDoc(msgRef, {
+                text: editText.trim(),
+                isEdited: true,
+            });
+            setEditingMessage(null);
+            setEditText('');
+            addToast('Message edited.', 'success');
+        } catch (error) {
+            console.error("Error editing message:", error);
+            addToast("Could not save message.", 'error');
+        }
+    };
+    
+    const openMessageMenu = (e: React.MouseEvent | React.TouchEvent, msg: PrivateMessage) => {
+        e.preventDefault();
+        const touch = 'touches' in e ? e.touches[0] : null;
+        setActiveMessageMenu({
+            x: touch ? touch.clientX : e.clientX,
+            y: touch ? touch.clientY : e.clientY,
+            msg,
+        });
+    };
+    
+    const handleTouchStart = (e: React.TouchEvent, msg: PrivateMessage) => {
+        longPressTimer.current = window.setTimeout(() => {
+            openMessageMenu(e, msg);
+        }, 500); // 500ms for long press
+    };
+
+    const handleTouchEnd = () => {
+        clearTimeout(longPressTimer.current);
+    };
+
+    const startEditing = (msg: PrivateMessage) => {
+        setEditingMessage(msg);
+        setEditText(msg.text || '');
+        setActiveMessageMenu(null);
+    };
+
+    if (!chat) {
+      return <div className="h-full flex items-center justify-center text-gray-500">Select a chat to start messaging.</div>;
+    }
     
     return (
         <div className="h-full flex flex-col bg-white">
@@ -301,24 +452,68 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
                         <UserStatusIndicator isOnline={otherUser.isOnline} />
                     </div>
                  </div>
-                <div>
+                <div className="flex-1">
                     <h3 className="font-bold text-gray-800 leading-tight">{otherUser.displayName}</h3>
-                    <p className="text-xs text-gray-500 leading-tight">{otherUser.isOnline ? 'Online' : (otherUser.lastSeen ? `Active ${formatLastSeen(otherUser.lastSeen)}` : 'Offline')}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{isOtherUserTyping ? 'typing...' : (otherUser.isOnline ? 'Online' : (otherUser.lastSeen ? `Active ${formatLastSeen(otherUser.lastSeen)}` : 'Offline'))}</p>
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-40 md:pb-4">
                 {messages.map(msg => (
-                    <div key={msg.id} className={`flex gap-3 items-end ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] p-3 rounded-2xl ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                            {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
-                            {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={msg.senderId === currentUser.uid ? 'dark' : 'light'} />}
-                            {msg.text && <div className="text-sm whitespace-pre-wrap user-select-text"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
+                    <div key={msg.id} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
+                       <div 
+                         className={`max-w-[80%] p-3 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                         onContextMenu={(e) => msg.senderId === currentUser.uid && openMessageMenu(e, msg)}
+                         onTouchStart={(e) => msg.senderId === currentUser.uid && handleTouchStart(e, msg)}
+                         onTouchEnd={handleTouchEnd}
+                       >
+                            {editingMessage?.id === msg.id ? (
+                                <div>
+                                    <textarea
+                                        value={editText}
+                                        onChange={(e) => setEditText(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); } }}
+                                        className="w-full bg-white/90 text-gray-800 rounded-lg p-2 text-sm border-2 border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2 mt-2 text-xs">
+                                        <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-200 hover:text-white">Cancel</button>
+                                        <button onClick={handleSaveEdit} className="font-semibold text-white hover:underline">Save</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
+                                    {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={msg.senderId === currentUser.uid ? 'dark' : 'light'} />}
+                                    {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
+                                    {msg.isEdited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
+                                </>
+                            )}
                         </div>
                     </div>
                 ))}
+                 {isOtherUserTyping && (
+                    <div className="flex gap-3 items-end justify-start animate-fade-in-up">
+                        <div className="p-3 rounded-2xl bg-gray-200 text-gray-800">
+                           <div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div>
+                        </div>
+                    </div>
+                 )}
                  {isSending && <div className="flex justify-end"><div className="p-3 rounded-2xl bg-lime-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
+             {activeMessageMenu && activeMessageMenu.msg.senderId === currentUser.uid && (
+                <div
+                    style={{ top: `${activeMessageMenu.y}px`, left: `${activeMessageMenu.x}px` }}
+                    className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50 animate-fade-in-up"
+                >
+                    <ul className="py-1">
+                        {activeMessageMenu.msg.text && (
+                            <li><button onClick={() => startEditing(activeMessageMenu.msg)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"><PencilIcon className="w-4 h-4" /> Edit</button></li>
+                        )}
+                        <li><button onClick={() => confirmDeleteMessage(activeMessageMenu.msg)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><TrashIcon className="w-4 h-4" /> Delete</button></li>
+                    </ul>
+                </div>
+            )}
             <footer className="md:relative fixed bottom-28 w-full md:w-auto left-0 right-0 p-3 border-t border-gray-200 bg-white/95 backdrop-blur-sm md:backdrop-blur-none md:bg-white">
                  <div className="w-full max-w-md mx-auto">
                     {imagePreview && <div className="relative w-20 h-20 mb-2 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>}
@@ -356,13 +551,16 @@ interface MessengerProps {
 
 export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const [view, setView] = useState<'list' | 'chat'>('list');
-    const [selectedChat, setSelectedChat] = useState<{ chatId: string, otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number } } | null>(null);
+    const [selectedChatData, setSelectedChatData] = useState<PrivateChat | null>(null);
 
     const [tab, setTab] = useState<'chats' | 'discover'>('chats');
     const [chats, setChats] = useState<PrivateChat[]>([]);
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    
+    const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; confirmText?: string }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
     const { addToast } = useToast();
     
@@ -390,6 +588,15 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
             fetchedChats.sort((a, b) => (b.lastActivityTimestamp || 0) - (a.lastActivityTimestamp || 0));
 
             setChats(fetchedChats);
+            
+            // Update selected chat data if it's currently open
+            if (selectedChatData) {
+                const updatedChat = fetchedChats.find(c => c.id === selectedChatData.id);
+                if (updatedChat) {
+                    setSelectedChatData(updatedChat);
+                }
+            }
+            
             setIsDataLoading(false);
         }, (error) => {
             console.error("Error fetching chats:", error);
@@ -397,7 +604,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
             setIsDataLoading(false);
         });
         return unsubscribe;
-    }, [userProfile.uid, addToast]);
+    }, [userProfile.uid, addToast, selectedChatData]);
 
     
     const handleStartChat = async (otherUser: UserProfile) => {
@@ -416,27 +623,63 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                 },
                 createdAt: now,
                 lastActivityTimestamp: now,
+                typing: [],
             });
         }
-        setSelectedChat({ chatId, otherUser: { ...otherUser } });
+        const newChatData = (await getDoc(chatRef)).data() as PrivateChat;
+        setSelectedChatData({ id: chatId, ...newChatData });
         setView('chat');
     };
     
     const handleSelectChat = (chat: PrivateChat) => {
-        const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
-        const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
-        
-        setSelectedChat({ 
-            chatId: chat.id, 
-            otherUser: { 
-                uid: otherUserId, 
-                displayName: chat.memberInfo[otherUserId]?.displayName || 'User',
-                photoURL: otherUserInfo?.photoURL || chat.memberInfo[otherUserId]?.photoURL,
-                isOnline: otherUserInfo?.isOnline,
-                lastSeen: otherUserInfo?.lastSeen
-            } 
-        });
+        setSelectedChatData(chat);
         setView('chat');
+    };
+
+    const handleDeleteChat = async (chatId: string) => {
+        setIsDeleting(true);
+        try {
+            // Delete Supabase storage folder
+            const { data: files, error: listError } = await supabase.storage.from('private-chats').list(chatId);
+            if (files && files.length > 0) {
+                const filePaths = files.map(f => `${chatId}/${f.name}`);
+                await supabase.storage.from('private-chats').remove(filePaths);
+            }
+
+            // Delete Firestore documents
+            const batch = writeBatch(db);
+            const messagesRef = collection(db, 'privateChats', chatId, 'messages');
+            const messagesSnap = await getDocs(messagesRef);
+            messagesSnap.forEach(doc => batch.delete(doc.ref));
+
+            const chatRef = doc(db, 'privateChats', chatId);
+            batch.delete(chatRef);
+            await batch.commit();
+
+            addToast('Chat deleted successfully.', 'success');
+            if (selectedChatData?.id === chatId) {
+                setView('list');
+                setSelectedChatData(null);
+            }
+        } catch (error) {
+            console.error("Error deleting chat:", error);
+            addToast("Failed to delete chat.", 'error');
+        } finally {
+            setIsDeleting(false);
+            setModalState({ ...modalState, isOpen: false });
+        }
+    };
+
+    const confirmDeleteChat = (chat: PrivateChat) => {
+        const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
+        const otherUserName = chat.memberInfo[otherUserId]?.displayName || 'this user';
+        setModalState({
+            isOpen: true,
+            title: 'Delete Chat',
+            message: `Are you sure you want to permanently delete your conversation with ${otherUserName}? This action cannot be undone.`,
+            onConfirm: () => handleDeleteChat(chat.id),
+            confirmText: 'Delete'
+        });
     };
 
     const filteredUsers = allUsers.filter(user => 
@@ -460,24 +703,29 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                         const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
                         const isUnread = chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid);
                         const otherUserPhotoURL = otherUserInfo?.photoURL || chat.memberInfo[otherUserId]?.photoURL;
-                        return <li key={chat.id} onClick={() => handleSelectChat(chat)} className="p-4 hover:bg-gray-50 cursor-pointer flex items-center gap-4">
-                            <div className="relative flex-shrink-0">
-                                <Avatar 
-                                    displayName={chat.memberInfo[otherUserId]?.displayName} 
-                                    photoURL={otherUserPhotoURL} 
-                                    className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}
-                                />
-                                <div className="absolute -bottom-1 -right-1">
-                                    <UserStatusIndicator isOnline={otherUserInfo?.isOnline} />
+                        return <li key={chat.id} className="group p-4 hover:bg-gray-50 flex items-center gap-4 relative">
+                             <div onClick={() => handleSelectChat(chat)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                                <div className="relative flex-shrink-0">
+                                    <Avatar 
+                                        displayName={chat.memberInfo[otherUserId]?.displayName} 
+                                        photoURL={otherUserPhotoURL} 
+                                        className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}
+                                    />
+                                    <div className="absolute -bottom-1 -right-1">
+                                        <UserStatusIndicator isOnline={otherUserInfo?.isOnline} />
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="flex justify-between items-center">
+                                        <p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.memberInfo[otherUserId]?.displayName}</p>
+                                        <p className="text-xs text-gray-400">{chat.lastMessage ? formatLastSeen(chat.lastMessage.timestamp) : ''}</p>
+                                    </div>
+                                    <p className={`text-sm truncate ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{chat.lastMessage?.text || '...'}</p>
                                 </div>
                             </div>
-                            <div className="flex-1 overflow-hidden">
-                                <div className="flex justify-between items-center">
-                                    <p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.memberInfo[otherUserId]?.displayName}</p>
-                                    <p className="text-xs text-gray-400">{chat.lastMessage ? formatLastSeen(chat.lastMessage.timestamp) : ''}</p>
-                                </div>
-                                <p className={`text-sm truncate ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{chat.lastMessage?.text || '...'}</p>
-                            </div>
+                            <button onClick={() => confirmDeleteChat(chat)} className="p-2 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
                         </li>
                     })}</ul>
                 )}
@@ -516,10 +764,42 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
         </div>
     );
     
+    const getOtherUser = () => {
+        if (!selectedChatData) return null;
+        const otherUserId = selectedChatData.members.find(id => id !== userProfile.uid)!;
+        const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
+        return {
+            uid: otherUserId,
+            displayName: selectedChatData.memberInfo[otherUserId]?.displayName || 'User',
+            photoURL: otherUserInfo?.photoURL || selectedChatData.memberInfo[otherUserId]?.photoURL,
+            isOnline: otherUserInfo?.isOnline,
+            lastSeen: otherUserInfo?.lastSeen
+        };
+    };
+
+    const otherUser = getOtherUser();
+
     return (
         <div className="flex-1 flex flex-col w-full h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
             {view === 'list' && renderListView()}
-            {view === 'chat' && selectedChat && <PrivateChatView chatId={selectedChat.chatId} currentUser={userProfile} otherUser={selectedChat.otherUser} onBack={() => setView('list')} />}
+            {view === 'chat' && otherUser && (
+                <PrivateChatView 
+                    chat={selectedChatData}
+                    currentUser={userProfile} 
+                    otherUser={otherUser} 
+                    onBack={() => setView('list')} 
+                    onOpenConfirmationModal={(options) => setModalState({ ...options, isOpen: true })}
+                />
+            )}
+            <ConfirmationModal
+                isOpen={modalState.isOpen}
+                title={modalState.title}
+                message={modalState.message}
+                onConfirm={modalState.onConfirm}
+                onCancel={() => setModalState({ ...modalState, isOpen: false })}
+                confirmText={modalState.confirmText || 'Confirm'}
+                isConfirming={isDeleting}
+            />
         </div>
     );
 };

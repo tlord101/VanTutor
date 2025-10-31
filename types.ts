@@ -121,6 +121,7 @@ export interface PrivateMessage {
     imageUrl?: string;
     audioUrl?: string;
     audioDuration?: number;
+    isEdited?: boolean;
 }
 
 export interface PrivateChat {
@@ -142,6 +143,7 @@ export interface PrivateChat {
     };
     createdAt: number;
     lastActivityTimestamp: number;
+    typing?: string[]; // Array of UIDs of users currently typing
 }
 
 
