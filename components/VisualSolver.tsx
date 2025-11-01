@@ -23,9 +23,9 @@ const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) 
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
      </svg>
 );
-const ArrowUturnLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
     </svg>
 );
 
@@ -299,6 +299,36 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         }
     }, [scannedImage, attemptApiCall, addToast]);
 
+    const handleQuickAnswer = useCallback(async () => {
+        if (!scannedImage) return;
+    
+        setCameraState('analyzing');
+        
+        const result = await attemptApiCall(async () => {
+            const base64Data = scannedImage.split(',')[1];
+            if (!base64Data) throw new Error("Could not extract image data.");
+            
+            const promptText = `Analyze the problem in the image and provide only the final answer, without any explanation or steps. Be direct and concise.`;
+    
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts: [
+                    { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                    { text: promptText }
+                ]},
+            });
+    
+            setAnalysisResult(response.text);
+        });
+        
+        if (result.success) {
+            setCameraState('showingTutorial');
+        } else {
+            addToast(result.message || "Failed to analyze the image. Please try again.", 'error');
+            setCameraState('preview');
+        }
+    }, [scannedImage, attemptApiCall, addToast]);
+
     const handleRetake = () => {
         setScannedImage(null);
         setAnalysisResult('');
@@ -383,15 +413,20 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
                         {cameraState === 'preview' && (
                             <>
                                 <div className="absolute top-4 left-4">
-                                    <button onClick={handleRetake} className="flex items-center gap-2 p-2 px-4 bg-white/80 text-gray-900 rounded-full hover:bg-white transition-colors shadow">
-                                        <ArrowUturnLeftIcon />
-                                        <span>Back</span>
+                                    <button onClick={handleRetake} className="flex items-center gap-1 p-2 px-3 bg-black/40 text-white rounded-lg hover:bg-black/60 transition-colors shadow backdrop-blur-sm">
+                                        <ArrowLeftIcon className="w-5 h-5" />
+                                        <span className="font-semibold">Back</span>
                                     </button>
                                 </div>
-                                <div className="absolute bottom-8 flex flex-col items-center justify-center w-full px-4 gap-3">
-                                    <button onClick={handleAnalyze} className="w-full max-w-sm bg-lime-600 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-lime-700 transition-colors shadow">
-                                        Get Tutorial
-                                    </button>
+                                <div className="absolute bottom-8 w-full px-4">
+                                    <div className="max-w-md mx-auto space-y-3">
+                                        <button onClick={handleAnalyze} className="w-full bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors shadow-md text-lg">
+                                            Get Tutorial
+                                        </button>
+                                        <button onClick={handleQuickAnswer} className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors shadow-md text-lg">
+                                            Quick Answer
+                                        </button>
+                                    </div>
                                 </div>
                             </>
                         )}
