@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
@@ -595,7 +593,7 @@ const App: React.FC = () => {
                     onMessengerClick={() => setActiveItem('messenger')}
                     unreadMessagesCount={unreadMessagesCount}
                 />
-                <div className={`flex-1 min-h-0 ${activeItem === 'chat' || activeItem === 'visual_solver' || activeItem === 'messenger' ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+                <div className={`flex-1 min-h-0 ${['chat', 'visual_solver', 'messenger', 'study_guide', 'leaderboard'].includes(activeItem) ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
                     {renderContent()}
                 </div>
             </main>

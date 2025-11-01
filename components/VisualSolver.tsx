@@ -456,34 +456,38 @@ export const VisualSolver: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                     { type: 'resize-r', cursor: 'cursor-ew-resize', pos: 'right-[-5px] top-1/2 -translate-y-1/2 h-10 w-2.5' },
                 ] as const;
                 return (
-                    <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
-                        <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-cover"></video>
-                        <div 
-                            style={{ 
-                                left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`,
-                                width: `${cropBox.width * 100}%`, height: `${cropBox.height * 100}%`
-                            }}
-                            className={`absolute border-4 border-dashed rounded-lg cursor-move transition-colors duration-300 
-                                ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/80'}`}
-                            onMouseDown={(e) => handleInteractionStart(e, 'drag')}
-                            onTouchStart={(e) => handleInteractionStart(e, 'drag')}
-                        >
-                             <div className="absolute inset-0" style={{ boxShadow: '0 0 0 2000px rgba(0,0,0,0.5)' }}></div>
-                            {resizeHandles.map(handle => (
-                                <div key={handle.type} 
-                                    className={`absolute ${handle.pos} ${handle.cursor} z-10`}
-                                    onMouseDown={(e) => handleInteractionStart(e, handle.type)}
-                                    onTouchStart={(e) => handleInteractionStart(e, handle.type)}
-                                >
-                                    <div className="w-full h-full bg-lime-400/80 rounded-full border-2 border-white/80"></div>
-                                </div>
-                            ))}
+                    <div className="w-full h-full flex flex-col bg-black">
+                        {/* Camera View Area */}
+                        <div className="flex-1 relative overflow-hidden">
+                            <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-cover"></video>
+                            <div 
+                                style={{ 
+                                    left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`,
+                                    width: `${cropBox.width * 100}%`, height: `${cropBox.height * 100}%`
+                                }}
+                                className={`absolute border-4 border-dashed rounded-lg cursor-move transition-colors duration-300 
+                                    ${cameraState === 'scanning' ? 'border-lime-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/80'}`}
+                                onMouseDown={(e) => handleInteractionStart(e, 'drag')}
+                                onTouchStart={(e) => handleInteractionStart(e, 'drag')}
+                            >
+                                <div className="absolute inset-0" style={{ boxShadow: '0 0 0 2000px rgba(0,0,0,0.5)' }}></div>
+                                {resizeHandles.map(handle => (
+                                    <div key={handle.type} 
+                                        className={`absolute ${handle.pos} ${handle.cursor} z-10`}
+                                        onMouseDown={(e) => handleInteractionStart(e, handle.type)}
+                                        onTouchStart={(e) => handleInteractionStart(e, handle.type)}
+                                    >
+                                        <div className="w-full h-full bg-lime-400/80 rounded-full border-2 border-white/80"></div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 text-sm rounded-full pointer-events-none w-fit text-center">
+                                Drag and resize to frame the problem
+                            </div>
                         </div>
-                        <div className="absolute top-4 text-white bg-black/50 px-3 py-1 text-sm rounded-full pointer-events-none">
-                            Drag and resize to frame the problem
-                        </div>
-                        <div className="absolute bottom-4 flex justify-center w-full">
-                            <button onClick={handleScan} aria-label="Scan problem" className="p-2 bg-black/20 rounded-full transition-transform active:scale-95">
+                        {/* Shutter Button Area */}
+                        <div className="flex-shrink-0 flex justify-center items-center h-28 bg-gray-100">
+                            <button onClick={handleScan} aria-label="Scan problem" className="p-2 bg-white/50 rounded-full transition-transform active:scale-95 shadow-lg">
                                 <ShutterIcon />
                             </button>
                         </div>

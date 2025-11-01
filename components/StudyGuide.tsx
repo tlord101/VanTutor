@@ -1,7 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
 import { SendIcon } from './icons/SendIcon';
@@ -14,13 +14,14 @@ import rehypeKatex from 'rehype-katex';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { useToast } from '../hooks/useToast';
+import { SparklesIcon } from './icons/SparklesIcon';
 
 declare var __app_id: string;
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
@@ -47,6 +48,16 @@ const mockCourses = [
   { id: 'history_us', name: 'History - U.S. History' },
 ];
 const getCourseNameById = (id: string) => mockCourses.find(c => c.id === id)?.name || 'your course';
+
+const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+};
 
 // --- SKELETON LOADER ---
 const StudyGuideSkeleton: React.FC = () => (
@@ -78,6 +89,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, topi
     const [file, setFile] = useState<File | null>(null);
     const [fileData, setFileData] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isIllustrating, setIsIllustrating] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const hasInitiatedAutoTeach = useRef(false);
     const { attemptApiCall } = useApiLimiter();
@@ -158,7 +170,7 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isLoading]);
+    }, [messages, isLoading, isIllustrating]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -172,7 +184,7 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
     
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        if (!textToSend.trim() || isLoading) return;
+        if (!textToSend.trim() || isLoading || isIllustrating) return;
         
         const userMessageText = file ? `${textToSend}\n\n[Attached file: ${file.name}]` : textToSend;
         const userMessage: Omit<Message, 'id'> = { text: userMessageText, sender: 'user', timestamp: Date.now() };
@@ -236,6 +248,87 @@ Student: "${tempInput}"
         }
     };
 
+    const handleGenerateIllustration = async (promptText: string) => {
+        if (!promptText) {
+            addToast("Not enough context to create an illustration.", "info");
+            return;
+        }
+
+        setIsIllustrating(true);
+        addToast("Creating an illustration for you...", "info");
+
+        const result = await attemptApiCall(async () => {
+            const prompt = `Create a simple, clear, and colorful educational illustration for a student learning about the following concept. The illustration should be visually appealing and easy to understand. Concept: "${promptText}"`;
+            
+            let response;
+            const maxRetries = 2;
+            for (let i = 0; i <= maxRetries; i++) {
+                try {
+                    response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash-image',
+                        contents: { parts: [{ text: prompt }] },
+                        config: {
+                            responseModalities: [Modality.IMAGE],
+                        },
+                    });
+                    break; 
+                } catch (error) {
+                    console.error(`Image generation attempt ${i + 1} failed:`, error);
+                    if (i === maxRetries) {
+                        throw error;
+                    }
+                    await new Promise(res => setTimeout(res, 1000 * (i + 1))); 
+                }
+            }
+
+            if (!response) {
+                throw new Error("API call failed to return a response after retries.");
+            }
+    
+            const part = response.candidates?.[0]?.content?.parts?.[0];
+            if (part?.inlineData) {
+                const base64ImageBytes = part.inlineData.data;
+                const mimeType = part.inlineData.mimeType;
+
+                const imageBlob = base64ToBlob(base64ImageBytes, mimeType);
+                const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topicId}/${Date.now()}.jpeg`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('chat-media')
+                    .upload(filePath, imageBlob);
+                
+                if (uploadError) {
+                    throw new Error(`Storage upload failed: ${uploadError.message}`);
+                }
+
+                const { data } = supabase.storage
+                    .from('chat-media')
+                    .getPublicUrl(filePath);
+
+                const publicUrl = data.publicUrl;
+    
+                const botMessage: Omit<Message, 'id'> = {
+                    text: 'Here is an illustration to help you understand:',
+                    sender: 'bot',
+                    timestamp: Date.now(),
+                    image: publicUrl
+                };
+                const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
+                await addDoc(conversationRef, { ...botMessage, timestamp: serverTimestamp() });
+    
+            } else {
+                throw new Error("No image data received from the API.");
+            }
+        });
+
+        if (!result.success) {
+            addToast(result.message || "Failed to generate illustration after multiple attempts.", "error");
+        }
+        setIsIllustrating(false);
+    };
+    
+    const lastBotMessageIndex = messages.map(m => m.sender).lastIndexOf('bot');
+
     return (
         <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
@@ -247,43 +340,67 @@ Student: "${tempInput}"
 
             {/* Scrollable Message Area */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {messages.map((message) => (
-                    <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {message.sender === 'bot' && 
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                               <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                            </div>
-                        }
-                        <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
-                            {message.sender === 'user' ? (
-                                <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                            ) : (
-                                <div className="text-sm prose max-w-none">
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm, remarkMath]}
-                                        rehypePlugins={[rehypeKatex]}
-                                        components={{
-                                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                            strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
-                                            em: ({node, ...props}) => <em className="italic" {...props} />,
-                                            ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
-                                            ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
-                                            li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
-                                            a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                                        }}
-                                    >
-                                        {message.text}
-                                    </ReactMarkdown>
+                {messages.map((message, index) => {
+                    const showIllustrateButton = index === lastBotMessageIndex && !!message.text && !isLoading && !isIllustrating;
+
+                    return (
+                        <div key={message.id} className={`flex items-start gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end items-end' : 'justify-start'}`}>
+                            {message.sender === 'bot' && 
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                                   <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                                 </div>
-                            )}
+                            }
+                            
+                            <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                                <div className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
+                                    {message.image && (
+                                        <div className="mb-2">
+                                            <img src={message.image} alt="Generated illustration" className="rounded-lg w-full" />
+                                        </div>
+                                    )}
+                                    {message.sender === 'user' ? (
+                                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                                    ) : (
+                                        message.text &&
+                                        <div className="text-sm prose max-w-none">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm, remarkMath]}
+                                                rehypePlugins={[rehypeKatex]}
+                                                components={{
+                                                    p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                                    strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
+                                                    em: ({node, ...props}) => <em className="italic" {...props} />,
+                                                    ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                                                    ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
+                                                    li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
+                                                    a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                }}
+                                            >
+                                                {message.text}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                </div>
+                                {showIllustrateButton && (
+                                    <button
+                                        onClick={() => handleGenerateIllustration(message.text!)}
+                                        disabled={isLoading || isIllustrating}
+                                        className="mt-2 flex items-center gap-1.5 text-sm text-gray-600 hover:text-lime-700 font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        <SparklesIcon className="w-4 h-4" />
+                                        <span>Illustrate</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {message.sender === 'user' && 
+                               <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
+                                   {userProfile.displayName.charAt(0).toUpperCase()}
+                               </div>
+                            }
                         </div>
-                        {message.sender === 'user' && 
-                           <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
-                               {userProfile.displayName.charAt(0).toUpperCase()}
-                           </div>
-                        }
-                    </div>
-                ))}
+                    )
+                })}
                 {isLoading && 
                     <div className="flex items-start gap-3 animate-fade-in-up">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
@@ -294,6 +411,19 @@ Student: "${tempInput}"
                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                 {isIllustrating &&
+                    <div className="flex items-start gap-3 animate-fade-in-up">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
+                           <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                        </div>
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
+                            <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
+                                <span>Creating illustration...</span>
                             </div>
                         </div>
                     </div>
@@ -312,15 +442,15 @@ Student: "${tempInput}"
                         className="w-full bg-white border border-gray-300 rounded-full py-3 pl-12 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
                         rows={1}
                         style={{ fieldSizing: 'content' }}
-                        disabled={isLoading} 
+                        disabled={isLoading || isIllustrating} 
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50">
+                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
                         <PaperclipIcon className="w-5 h-5" />
-                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} />
+                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading || isIllustrating} />
                     </label>
                     <button 
                         onClick={() => handleSend()} 
-                        disabled={isLoading || !input.trim()} 
+                        disabled={isLoading || isIllustrating || !input.trim()} 
                         className="absolute right-3 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <SendIcon className="w-5 h-5" />
@@ -328,7 +458,7 @@ Student: "${tempInput}"
                 </div>
                 {file && <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-500 hover:text-red-400">&times;</button></div>}
                 
-                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} className="mt-4 w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Mark as Complete (+2 XP)</button>}
+                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} disabled={isIllustrating || isLoading} className="mt-4 w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50">Mark as Complete (+2 XP)</button>}
             </footer>
         </div>
     );
