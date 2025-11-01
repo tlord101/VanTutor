@@ -72,12 +72,43 @@ export interface Topic {
   topicName: string;
 }
 
+/*
+ * =============================================================================
+ * ADMIN DOCUMENTATION: Managing Subjects with Semesters
+ * =============================================================================
+ * To categorize subjects into semesters, update the course data document in
+ * Firestore located at: `artifacts/{__app_id}/public/data/courses/{courseId}`.
+ *
+ * Each course document contains a `subjectList` array. Each object in this
+ * array represents a subject.
+ *
+ * To assign a semester, add a `semester` field to the subject object.
+ *
+ * - For First Semester subjects, set: "semester": "first"
+ * - For Second Semester subjects, set: "semester": "second"
+ *
+ * If the `semester` field is omitted, the subject will automatically be
+ * categorized under "First Semester" by default. This ensures backward
+ * compatibility with existing data.
+ *
+ * Example Subject Object in Firestore:
+ * {
+ *   "subjectId": "alg_geometry",
+ *   "subjectName": "Geometry",
+ *   "level": "Beginner",
+ *   "semester": "second",  // <-- Add this field
+ *   "topics": [ ... ]
+ * }
+ * =============================================================================
+ */
 export interface Subject {
   subjectId: string;
   subjectName: string;
   topics: Topic[];
   level?: string; // The difficulty level this subject belongs to
+  semester?: 'first' | 'second'; // New field for semester categorization
 }
+
 
 export interface UserProgress {
   [topicId: string]: {

@@ -618,6 +618,9 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
         }))
         .filter(subject => subject.topics.length > 0);
 
+    const firstSemesterSubjects = filteredSubjects.filter(s => !s.semester || s.semester === 'first');
+    const secondSemesterSubjects = filteredSubjects.filter(s => s.semester === 'second');
+
     if (selectedTopic) {
         return (
             <LearningInterface 
@@ -646,13 +649,40 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
                     </div>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
                 {isLoading && <StudyGuideSkeleton />}
-                {!isLoading && filteredSubjects.length > 0 && (
-                    filteredSubjects.map(subject => (
-                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
-                    ))
-                )}
+
+                {!isLoading && (firstSemesterSubjects.length > 0 || secondSemesterSubjects.length > 0) ? (
+                    <div className="space-y-8">
+                        {firstSemesterSubjects.length > 0 && (
+                            <section>
+                                <h2 className="flex items-center gap-3 text-lg font-bold text-lime-800 bg-lime-100 px-4 py-2 rounded-lg border border-lime-200 mb-4">
+                                    <GraduationCapIcon className="w-6 h-6" />
+                                    <span>First Semester</span>
+                                </h2>
+                                <div className="space-y-4">
+                                    {firstSemesterSubjects.map(subject => (
+                                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {secondSemesterSubjects.length > 0 && (
+                            <section>
+                                <h2 className="flex items-center gap-3 text-lg font-bold text-lime-800 bg-lime-100 px-4 py-2 rounded-lg border border-lime-200 mb-4">
+                                    <GraduationCapIcon className="w-6 h-6" />
+                                    <span>Second Semester</span>
+                                </h2>
+                                <div className="space-y-4">
+                                    {secondSemesterSubjects.map(subject => (
+                                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                    </div>
+                ) : null}
+
                  {!isLoading && filteredSubjects.length === 0 && (
                     <div className="text-center text-gray-500 py-10">
                         <p className="font-semibold">No topics found for '{userProfile.level}' level.</p>
