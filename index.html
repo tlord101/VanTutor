@@ -200,6 +200,28 @@
           opacity: 1 !important;
         }
       }
+      /* New Bottom Nav Styles */
+      .bottom-nav {
+        padding: 1rem;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0rem));
+      }
+      .content-with-bottom-nav {
+        /* 
+          Calculation for padding:
+          - Nav bar height: 4rem (h-16)
+          - Nav container padding: 1rem top, 1rem bottom
+          - Bubble overflow: ~0.75rem at the top
+          - Buffer: 1.75rem
+          - Total: 4 + 2 + 0.75 + 1.75 = 8.5rem
+        */
+        padding-bottom: 8.5rem; 
+        padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0rem));
+      }
+      @media (min-width: 768px) {
+        .content-with-bottom-nav {
+          padding-bottom: 0;
+        }
+      }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNooMCrNH/bbSsBlYCsOuNEtZvrS3MyDGMR4I2A59wscdI1oE7" crossorigin="anonymous">
   <script type="importmap">

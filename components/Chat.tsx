@@ -31,6 +31,16 @@ const mockCourses = [
 ];
 const getCourseNameById = (id: string) => mockCourses.find(c => c.id === id)?.name || 'their course';
 
+const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+};
+
 // --- INLINE ICONS ---
 const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -304,8 +314,11 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ userProfile, onEndS
 // --- TEXT CHAT COMPONENT ---
 interface TextChatProps {
     userProfile: UserProfile;
+    initiationData?: { image: string; tutorialText: string } | null;
+    onInitiationComplete?: () => void;
 }
-const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
+
+const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInitiationComplete }) => {
     const [conversations, setConversations] = useState<ChatConversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -665,6 +678,71 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
         }
     };
     
+    const createNewConversationFromData = useCallback(async (data: { image: string; tutorialText: string }) => {
+        if (!onInitiationComplete) return;
+
+        setIsLoading(true);
+        try {
+            // 1. Generate title and create conversation doc
+            const newTitle = await generateTitle("Follow-up on visual problem", true);
+            const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
+            const now = Date.now();
+            await setDoc(newConversationRef, { title: newTitle, createdAt: now, lastUpdatedAt: now });
+            const newConversationId = newConversationRef.id;
+
+            // 2. Upload image to Supabase
+            const base64Data = data.image.split(',')[1];
+            if (!base64Data) throw new Error("Invalid image data");
+            const imageBlob = base64ToBlob(base64Data, 'image/jpeg');
+            const filePath = `chat-media/${userProfile.uid}/${newConversationId}/${Date.now()}.jpeg`;
+            const { error: uploadError } = await supabase.storage.from('chat-media').upload(filePath, imageBlob);
+            if (uploadError) throw uploadError;
+            const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filePath);
+            const imageUrl = urlData.publicUrl;
+
+            // 3. Add messages to the new conversation
+            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', newConversationId, 'messages');
+            const batch = writeBatch(db);
+            
+            // User message with image
+            const userMsgRef = doc(messagesRef);
+            batch.set(userMsgRef, {
+                sender: 'user',
+                timestamp: serverTimestamp(),
+                text: 'Here is the problem I was working on.',
+                image: imageUrl,
+            });
+            
+            // Bot message with tutorial
+            const botMsgRef = doc(messagesRef);
+            batch.set(botMsgRef, {
+                sender: 'bot',
+                timestamp: serverTimestamp(),
+                text: data.tutorialText,
+            });
+            await batch.commit();
+            
+            // 4. Update conversation's last updated timestamp
+            await updateDoc(newConversationRef, { lastUpdatedAt: Date.now() });
+
+            // 5. Set active conversation and clean up
+            setActiveConversationId(newConversationId);
+            onInitiationComplete();
+        } catch (error) {
+            console.error("Failed to create chat from tutorial:", error);
+            addToast("Could not continue the conversation. Please try again.", "error");
+            onInitiationComplete();
+        } finally {
+            setIsLoading(false);
+        }
+    }, [userProfile, generateTitle, addToast, onInitiationComplete]);
+
+    useEffect(() => {
+        if (initiationData) {
+            createNewConversationFromData(initiationData);
+        }
+    }, [initiationData, createNewConversationFromData]);
+    
     const WelcomeScreen = ({ userProfile }: { userProfile: UserProfile }) => (
         <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in-up">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-6 shadow-lg"><LogoIcon className="w-14 h-14 text-white" /></div>
@@ -736,8 +814,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile }) => {
 // --- MAIN CHAT CONTAINER COMPONENT ---
 interface ChatProps {
     userProfile: UserProfile;
+    initiationData?: { image: string; tutorialText: string } | null;
+    onInitiationComplete?: () => void;
 }
-export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
+export const Chat: React.FC<ChatProps> = ({ userProfile, initiationData, onInitiationComplete }) => {
     const [chatMode, setChatMode] = useState<'text' | 'live'>('text');
 
     return (
@@ -749,7 +829,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-                {chatMode === 'text' && <TextChat userProfile={userProfile} />}
+                {chatMode === 'text' && <TextChat userProfile={userProfile} initiationData={initiationData} onInitiationComplete={onInitiationComplete} />}
                 {chatMode === 'live' && <LiveConversation userProfile={userProfile} onEndSession={() => setChatMode('text')} />}
             </div>
         </div>

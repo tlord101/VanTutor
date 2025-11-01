@@ -63,6 +63,7 @@ const App: React.FC = () => {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+    const [chatInitiationData, setChatInitiationData] = useState<{ image: string; tutorialText: string } | null>(null);
 
     const { addToast } = useToast();
     const initialNotificationsLoaded = useRef(false);
@@ -528,13 +529,18 @@ const App: React.FC = () => {
         }
     };
 
+    const handleStartChatFromTutorial = useCallback((image: string, tutorialText: string) => {
+        setChatInitiationData({ image, tutorialText });
+        setActiveItem('chat');
+    }, []);
+
     const renderContent = () => {
         if (!userProfile) return null;
         switch (activeItem) {
             case 'dashboard': return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
             case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
-            case 'chat': return <Chat userProfile={userProfile} />;
-            case 'visual_solver': return <VisualSolver userProfile={userProfile} />;
+            case 'chat': return <Chat userProfile={userProfile} initiationData={chatInitiationData} onInitiationComplete={() => setChatInitiationData(null)} />;
+            case 'visual_solver': return <VisualSolver userProfile={userProfile} onStartChat={handleStartChatFromTutorial} />;
             case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
             case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleAccountDeletion} />;
@@ -593,7 +599,7 @@ const App: React.FC = () => {
                     onMessengerClick={() => setActiveItem('messenger')}
                     unreadMessagesCount={unreadMessagesCount}
                 />
-                <div className={`flex-1 min-h-0 ${['chat', 'visual_solver', 'messenger', 'study_guide', 'leaderboard'].includes(activeItem) ? '' : 'overflow-y-auto'} pb-24 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+                <div className={`flex-1 min-h-0 ${['chat', 'visual_solver', 'messenger', 'study_guide', 'leaderboard'].includes(activeItem) ? '' : 'overflow-y-auto'} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav`}>
                     {renderContent()}
                 </div>
             </main>

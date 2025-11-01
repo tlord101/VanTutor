@@ -42,8 +42,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 p-4 flex justify-center z-30 md:hidden animate-fade-in-up">
-      <div className="relative w-full max-w-sm h-16 bg-white/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/30">
+    <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-30 md:hidden animate-fade-in-up bottom-nav">
+      <div className="relative w-full max-w-md h-16 bg-white/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/30">
         
         {/* The moving bubble that provides the "cutout" effect */}
         {activeIndex !== -1 && (
@@ -62,7 +62,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
         )}
         
         {/* The static, clickable placeholders */}
-        <div className="flex justify-around items-center h-full">
+        <div className="flex items-center h-full">
           {navItems.map((item, index) => (
             <button
               key={item.id}
