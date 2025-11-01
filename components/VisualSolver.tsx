@@ -8,6 +8,8 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { SendIcon } from './icons/SendIcon';
 import { useToast } from '../hooks/useToast';
+import { GraduationCapIcon } from './icons/GraduationCapIcon';
+import { Avatar } from './Avatar';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -140,19 +142,23 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
     };
 
      return (
-        <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
+        <div className="relative flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">Interactive Tutorial</h2>
                 <div className="w-8 h-8"></div>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-28 sm:pb-32">
                 {messages.map((message) => (
-                    <div key={message.id} className={`flex items-start gap-3 animate-fade-in ${message.sender === 'user' ? 'justify-end' : ''}`}>
-                        {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div>}
-                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                             <div className="text-sm">
+                    <div key={message.id} className={`flex items-start gap-3 animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {message.sender === 'bot' && (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                                <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                            </div>
+                        )}
+                        <div className={`max-w-[80%] sm:max-w-lg p-3 px-4 rounded-2xl ${message.sender === 'user' ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}>
+                             <div className="text-sm prose max-w-none">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
@@ -161,37 +167,44 @@ Use simple language, analogies, and Markdown for clarity. For mathematical formu
                                         strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                                         ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
                                         li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
+                                        a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                                     }}
                                 >
                                     {message.text}
                                 </ReactMarkdown>
                             </div>
                         </div>
+                         {message.sender === 'user' && (
+                            <Avatar displayName={userProfile.displayName} photoURL={userProfile.photoURL} className="w-8 h-8 self-start" />
+                        )}
                     </div>
                 ))}
                 {isLoading && !messages.some(m => m.sender === 'bot' && m.text) && <div className="flex items-start gap-3 animate-fade-in"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-gray-200 text-gray-800"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
             
-            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
-                <div className="relative flex items-center">
-                    <textarea 
-                        value={input} 
-                        onChange={(e) => setInput(e.target.value)} 
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
-                        placeholder="Ask a question or reply..." 
-                        className="w-full bg-white border border-gray-300 rounded-full py-3 pl-6 pr-14 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none resize-none" 
-                        rows={1}
-                        style={{ fieldSizing: 'content' }}
-                        disabled={isLoading} 
-                    />
-                    <button 
-                        onClick={() => handleSend()} 
-                        disabled={isLoading || !input.trim()} 
-                        className="absolute right-3 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <SendIcon className="w-5 h-5" />
-                    </button>
+            <footer className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none">
+                <div className="pointer-events-auto">
+                    <div className="relative flex items-center bg-white border border-gray-300 rounded-full shadow-lg py-1 pl-3 pr-1.5">
+                        <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                            placeholder="Ask a follow-up question..."
+                            className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-2 text-gray-900 placeholder-gray-500"
+                            rows={1}
+                            style={{ fieldSizing: 'content' }}
+                            disabled={isLoading}
+                        />
+                        <button
+                            onClick={() => handleSend()}
+                            disabled={isLoading || !input.trim()}
+                            className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Send message"
+                        >
+                            <SendIcon className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
             </footer>
         </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
 import { db } from '../firebase';
@@ -50,6 +51,18 @@ const PhotoOpenedIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+);
+
+const VideoIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-2.36a.75.75 0 011.28.53v8.66a.75.75 0 01-1.28.53l-4.72-2.36m-4.5-5.25H5.625a2.25 2.25 0 00-2.25 2.25v6a2.25 2.25 0 002.25 2.25h6.75a2.25 2.25 0 002.25-2.25v-6a2.25 2.25 0 00-2.25-2.25H11.25v-1.5a.75.75 0 00-1.5 0v1.5z" />
+    </svg>
+);
+
+const PhoneIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
     </svg>
 );
 
@@ -676,34 +689,40 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     }
     
     return (
-        <div className="h-full flex flex-col bg-white">
+        <div className="h-full flex flex-col bg-gray-50 chat-bg-pattern">
             {viewingImage && (
                 <OneTimeImageViewer
                     imageUrl={viewingImage}
                     onClose={() => setViewingImage(null)}
                 />
             )}
-            <header className="flex-shrink-0 flex items-center gap-3 p-3 border-b border-gray-200">
-                <button onClick={onBack} className="p-1 text-gray-500 hover:text-gray-900 rounded-full">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                 <div className="relative">
-                    <Avatar displayName={otherUser.displayName} photoURL={otherUser.photoURL} className="w-10 h-10" />
-                    <div className="absolute -bottom-1 -right-1">
-                        <UserStatusIndicator isOnline={otherUser.isOnline} />
+            <header className="flex-shrink-0 flex items-center justify-between gap-3 p-4 bg-white rounded-b-3xl shadow-lg relative z-10">
+                 <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="p-1 text-gray-500 hover:text-gray-900 rounded-full">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                     <div className="relative">
+                        <Avatar displayName={otherUser.displayName} photoURL={otherUser.photoURL} className="w-10 h-10" />
+                        <div className="absolute -bottom-1 -right-1">
+                            <UserStatusIndicator isOnline={otherUser.isOnline} />
+                        </div>
+                     </div>
+                    <div className="flex-1">
+                        <h3 className="font-bold text-gray-800 leading-tight">{otherUser.displayName}</h3>
+                        <p className="text-xs text-gray-500 leading-tight">{isOtherUserTyping ? 'typing...' : (otherUser.isOnline ? 'Online' : (otherUser.lastSeen ? `Active ${formatLastSeen(otherUser.lastSeen)}` : 'Offline'))}</p>
                     </div>
-                 </div>
-                <div className="flex-1">
-                    <h3 className="font-bold text-gray-800 leading-tight">{otherUser.displayName}</h3>
-                    <p className="text-xs text-gray-500 leading-tight">{isOtherUserTyping ? 'typing...' : (otherUser.isOnline ? 'Online' : (otherUser.lastSeen ? `Active ${formatLastSeen(otherUser.lastSeen)}` : 'Offline'))}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100"><VideoIcon className="w-6 h-6" /></button>
+                    <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100"><PhoneIcon className="w-6 h-6" /></button>
                 </div>
             </header>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-40 md:pb-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map(msg => (
                     <div key={msg.id} id={`message-${msg.id}`} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
                        <div 
                          ref={(el) => { if (el) messageRefs.current.set(msg.id, el); }}
-                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
                          onContextMenu={(e) => msg.senderId === currentUser.uid && openMessageMenu(e, msg)}
                          onTouchStart={(e) => handleTouchStart(e, msg)}
                          onTouchMove={handleTouchMove}
@@ -720,8 +739,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                                             autoFocus
                                         />
                                         <div className="flex justify-end gap-2 mt-2 text-xs">
-                                            <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-200 hover:text-white">Cancel</button>
-                                            <button onClick={handleSaveEdit} className="font-semibold text-white hover:underline">Save</button>
+                                            <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-600 hover:text-gray-900">Cancel</button>
+                                            <button onClick={handleSaveEdit} className="font-semibold text-lime-700 hover:underline">Save</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -733,12 +752,12 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 ))}
                  {isOtherUserTyping && (
                     <div className="flex gap-3 items-end justify-start animate-fade-in-up">
-                        <div className="p-3 rounded-2xl bg-gray-200 text-gray-800">
+                        <div className="p-3 rounded-2xl bg-white text-gray-800 border border-gray-200">
                            <div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div>
                         </div>
                     </div>
                  )}
-                 {isSending && <div className="flex justify-end"><div className="p-3 rounded-2xl bg-lime-300"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-white rounded-full animate-pulse"></div></div></div></div>}
+                 {isSending && <div className="flex justify-end"><div className="p-3 rounded-2xl bg-gray-200"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
              {activeMessageMenu && activeMessageMenu.msg.senderId === currentUser.uid && (
@@ -755,20 +774,20 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                     </ul>
                 </div>
             )}
-            <footer className="md:relative fixed bottom-28 w-full md:w-auto left-0 right-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm md:backdrop-blur-none md:bg-white">
+            <footer className="flex-shrink-0 bg-white/80 backdrop-blur-sm">
                  <div className="w-full max-w-md mx-auto">
                     {replyingTo && (
                         <div className="px-4 pt-2">
-                           <div className="bg-gray-100 rounded-t-lg p-2 flex justify-between items-center border-l-4 border-lime-500 animate-fade-in-up">
+                           <div className="bg-lime-100 rounded-t-lg p-2 flex justify-between items-center border-l-4 border-lime-500 animate-fade-in-up">
                                 <div>
-                                    <p className="text-xs font-bold text-lime-600">
+                                    <p className="text-xs font-bold text-lime-900">
                                         Replying to {replyingTo.senderId === currentUser.uid ? 'Yourself' : otherUser.displayName}
                                     </p>
-                                    <p className="text-sm text-gray-600 truncate max-w-xs sm:max-w-sm">
+                                    <p className="text-sm text-lime-800 truncate max-w-xs sm:max-w-sm">
                                         {replyingTo.text || (replyingTo.imageUrl && 'Photo') || (replyingTo.audioUrl && 'Voice message')}
                                     </p>
                                 </div>
-                                <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-gray-400 hover:bg-gray-200">
+                                <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-lime-800 hover:bg-lime-200">
                                     <XIcon className="w-4 h-4" />
                                 </button>
                             </div>
@@ -777,8 +796,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                     <div className={`p-3 ${replyingTo ? 'pt-1' : ''}`}>
                       {imagePreview && (
                           <div className="relative mb-2">
-                               <div className="relative w-20 h-20 p-1 border rounded"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
-                               <div className="flex items-center gap-2 mt-2 p-2 bg-gray-100 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-gray-700">One-Time View</span></div>
+                               <div className="relative w-20 h-20 p-1 border rounded bg-white/20"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
+                               <div className="flex items-center gap-2 mt-2 p-2 bg-black/20 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-white">One-Time View</span></div>
                           </div>
                       )}
                       <div className="relative flex items-center">
@@ -1090,7 +1109,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const otherUser = getOtherUser();
 
     return (
-        <div className="flex-1 flex flex-col w-full h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white md:rounded-xl border border-gray-200">
             {view === 'list' && renderListView()}
             {view === 'chat' && otherUser && (
                 <PrivateChatView 
