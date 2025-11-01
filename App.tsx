@@ -599,7 +599,7 @@ const App: React.FC = () => {
                     onMessengerClick={() => setActiveItem('messenger')}
                     unreadMessagesCount={unreadMessagesCount}
                 />
-                <div className={`flex-1 min-h-0 ${['chat', 'visual_solver', 'messenger', 'study_guide', 'leaderboard'].includes(activeItem) ? '' : 'overflow-y-auto'} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav`}>
+                <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav">
                     {renderContent()}
                 </div>
             </main>
