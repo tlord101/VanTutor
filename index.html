@@ -40,6 +40,10 @@
           box-shadow: 0 0 30px 10px rgba(163, 230, 53, 0.5);
         }
       }
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
       @keyframes fade-in-up {
         from {
           opacity: 0;
@@ -220,6 +224,13 @@
         .content-with-bottom-nav {
           padding-bottom: 0;
         }
+      }
+      /* Privacy Modal Styles */
+      .privacy-modal-overlay {
+        animation: fade-in 0.3s ease-out forwards;
+      }
+      .privacy-modal-content {
+        animation: fade-in-up 0.4s ease-out forwards;
       }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNooMCrNH/bbSsBlYCsOuNEtZvrS3MyDGMR4I2A59wscdI1oE7" crossorigin="anonymous">

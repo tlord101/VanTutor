@@ -7,6 +7,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { ConfirmationModal } from './ConfirmationModal';
+import { ShieldCheckIcon } from './icons/ShieldCheckIcon';
+
 
 declare var __app_id: string;
 
@@ -254,6 +256,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
     };
 
   const browserPermission = 'Notification' in window ? Notification.permission : 'denied';
+  const lastLogin = userProfile.lastLoginInfo;
 
   return (
     <div className="p-4 sm:p-6 space-y-8">
@@ -345,6 +348,24 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                         Remove
                     </button>
                 )}
+            </div>
+        </div>
+      </div>
+      
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"><ShieldCheckIcon className="w-5 h-5 text-gray-500" /> Login & Security</h3>
+        <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+                <span className="text-gray-600">Last Login:</span>
+                <span className="text-gray-800 font-medium">{lastLogin ? new Date(lastLogin.timestamp).toLocaleString() : 'N/A'}</span>
+            </div>
+            <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+                <span className="text-gray-600">IP Address:</span>
+                <span className="text-gray-800 font-medium">{lastLogin?.ipAddress || 'N/A'}</span>
+            </div>
+             <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+                <span className="text-gray-600">Approx. Location:</span>
+                <span className="text-gray-800 font-medium">{lastLogin?.location || 'N/A'}</span>
             </div>
         </div>
       </div>

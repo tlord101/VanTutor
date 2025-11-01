@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { supabase } from './supabase';
-import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch, deleteDoc, arrayUnion } from 'firebase/firestore';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
@@ -23,6 +23,7 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { useToast } from './hooks/useToast';
 import { navigationItems } from './constants';
 import { Messenger } from './components/Messenger';
+import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 
 declare var __app_id: string;
 
@@ -64,11 +65,14 @@ const App: React.FC = () => {
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [chatInitiationData, setChatInitiationData] = useState<{ image: string; tutorialText: string } | null>(null);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
 
     const { addToast } = useToast();
     const initialNotificationsLoaded = useRef(false);
     const initialMessagesLoaded = useRef(false);
     const chatsRef = useRef<PrivateChat[]>([]);
+    const sessionStartRef = useRef<number | null>(null);
 
     const triggerPushNotification = useCallback(async (title: string, message: string) => {
         if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
@@ -93,34 +97,155 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
-    // Presence Management
+    const logSessionEnd = useCallback(async () => {
+        if (!userProfile || !sessionStartRef.current) return;
+    
+        const endTime = Date.now();
+        const durationSeconds = Math.round((endTime - sessionStartRef.current) / 1000);
+        sessionStartRef.current = null; // Prevent duplicate logging
+    
+        if (durationSeconds > 5) { // Only log sessions longer than 5 seconds
+            const activityRef = doc(db, 'userActivity', userProfile.uid);
+            const sessionEntry = {
+                startTime: sessionStartRef.current,
+                endTime,
+                durationSeconds,
+            };
+            try {
+                await updateDoc(activityRef, { sessionHistory: arrayUnion(sessionEntry) });
+            } catch (e) {
+                 // Try to set if the doc or array doesn't exist
+                 try {
+                    await setDoc(activityRef, { sessionHistory: [sessionEntry] }, { merge: true });
+                 } catch (set_e) {
+                     console.error("Failed to log session end:", set_e);
+                 }
+            }
+        }
+    }, [userProfile]);
+    
+    // Presence Management and Session End Logging
     useEffect(() => {
         if (!user) return;
     
         const userStatusRef = doc(db, 'users', user.uid);
-    
-        // Set online status to true
         updateDoc(userStatusRef, { isOnline: true });
     
-        // Set offline status on disconnect
-        const handleBeforeUnload = () => {
-            updateDoc(userStatusRef, {
-                isOnline: false,
-                lastSeen: serverTimestamp()
-            });
-        };
-    
-        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('beforeunload', logSessionEnd);
     
         return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            // This might not always run, but it's a good fallback
+            window.removeEventListener('beforeunload', logSessionEnd);
+            logSessionEnd();
             updateDoc(userStatusRef, {
                 isOnline: false,
                 lastSeen: serverTimestamp()
             });
         };
+    }, [user, logSessionEnd]);
+
+    const handleProfileUpdate = useCallback(async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
+        if (!user) return { success: false, error: 'User not authenticated.' };
+    
+        try {
+            const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
+            if (updatedData.displayName) {
+                authUpdatePayload.displayName = updatedData.displayName;
+            }
+            if (updatedData.photoURL !== undefined) {
+                authUpdatePayload.photoURL = updatedData.photoURL;
+            }
+    
+            if (Object.keys(authUpdatePayload).length > 0) {
+                await updateProfile(user, authUpdatePayload);
+            }
+    
+            await runTransaction(db, async (transaction) => {
+                const userRef = doc(db, 'users', user.uid);
+                
+                if (Object.keys(authUpdatePayload).length > 0) {
+                    const overallLeadRef = doc(db, 'leaderboardOverall', user.uid);
+                    const weeklyLeadRef = doc(db, 'leaderboardWeekly', user.uid);
+    
+                    const [overallSnap, weeklySnap] = await Promise.all([
+                        transaction.get(overallLeadRef),
+                        transaction.get(weeklyLeadRef)
+                    ]);
+                    
+                    transaction.update(userRef, updatedData);
+                    if (overallSnap.exists()) transaction.update(overallLeadRef, authUpdatePayload);
+                    if (weeklySnap.exists()) transaction.update(weeklyLeadRef, authUpdatePayload);
+                } else {
+                    transaction.update(userRef, updatedData);
+                }
+            });
+            return { success: true };
+        } catch (err: any) {
+            console.error("Error updating profile:", err);
+            return { success: false, error: err.message };
+        }
     }, [user]);
+    
+    const logLoginActivity = useCallback(async (geolocationGranted: boolean) => {
+        if (!userProfile) return;
+    
+        let locationData = { ip: 'Unknown', city: 'Unknown', country: 'Unknown' };
+    
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            if (response.ok) {
+                const data = await response.json();
+                locationData = { ip: data.ip, city: data.city, country: data.country_name };
+            }
+        } catch (e) {
+            console.warn("Could not fetch IP-based location.", e);
+        }
+        
+        // Note: For simplicity, we are not using navigator.geolocation to reverse-geocode coordinates,
+        // as it requires another API. The IP-based location is sufficient for this feature.
+        if (geolocationGranted) {
+            navigator.geolocation.getCurrentPosition(() => {}, () => {}); // Prompts user if not already granted
+        }
+        
+        const locationString = (locationData.city && locationData.country) ? `${locationData.city}, ${locationData.country}` : 'Unknown';
+        const loginInfo = { ipAddress: locationData.ip, location: locationString, timestamp: Date.now() };
+    
+        // Update user profile with last login info
+        handleProfileUpdate({ lastLoginInfo: loginInfo });
+    
+        // Update activity log
+        const activityRef = doc(db, 'userActivity', userProfile.uid);
+        const newLoginHistoryEntry = { ...loginInfo, userAgent: navigator.userAgent };
+        
+        try {
+            const activitySnap = await getDoc(activityRef);
+            if(activitySnap.exists()) {
+                await updateDoc(activityRef, { loginHistory: arrayUnion(newLoginHistoryEntry) });
+            } else {
+                await setDoc(activityRef, { loginHistory: [newLoginHistoryEntry], sessionHistory: [] });
+            }
+        } catch(e) {
+            console.error("Failed to log user activity", e);
+        }
+    
+    }, [userProfile, handleProfileUpdate]);
+    
+    const handleConsent = async (granted: boolean) => {
+        setShowPrivacyModal(false);
+        await handleProfileUpdate({ privacyConsent: { granted, timestamp: Date.now() } });
+        logLoginActivity(granted);
+    };
+
+    useEffect(() => {
+        if (userProfile && !sessionStartRef.current) {
+            sessionStartRef.current = Date.now();
+    
+            if (userProfile.privacyConsent === undefined) {
+                setShowPrivacyModal(true);
+            } else {
+                logLoginActivity(userProfile.privacyConsent.granted);
+            }
+        }
+    }, [userProfile, logLoginActivity]);
 
     useEffect(() => {
         if (!user) {
@@ -274,6 +399,7 @@ const App: React.FC = () => {
 
     const handleLogout = async () => {
         try {
+            await logSessionEnd();
             if(user) {
               const userStatusRef = doc(db, 'users', user.uid);
               await updateDoc(userStatusRef, {
@@ -331,57 +457,6 @@ const App: React.FC = () => {
         } catch (error) {
             console.error("Failed to complete onboarding:", error);
             addToast("Could not save your profile. Please try again.", "error");
-        }
-    };
-
-    const handleProfileUpdate = async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
-        if (!user || !userProfile) return { success: false, error: 'User not authenticated.' };
-    
-        try {
-            const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
-            if (updatedData.displayName) {
-                authUpdatePayload.displayName = updatedData.displayName;
-            }
-            if (updatedData.photoURL !== undefined) {
-                authUpdatePayload.photoURL = updatedData.photoURL;
-            }
-    
-            // Perform non-transactional Firebase Auth update first.
-            if (Object.keys(authUpdatePayload).length > 0) {
-                await updateProfile(user, authUpdatePayload);
-            }
-    
-            // Then, run the Firestore transaction.
-            await runTransaction(db, async (transaction) => {
-                const userRef = doc(db, 'users', user.uid);
-                
-                if (Object.keys(authUpdatePayload).length > 0) {
-                    const overallLeadRef = doc(db, 'leaderboardOverall', user.uid);
-                    const weeklyLeadRef = doc(db, 'leaderboardWeekly', user.uid);
-    
-                    // --- READS FIRST ---
-                    const [overallSnap, weeklySnap] = await Promise.all([
-                        transaction.get(overallLeadRef),
-                        transaction.get(weeklyLeadRef)
-                    ]);
-                    
-                    // --- THEN WRITES ---
-                    transaction.update(userRef, updatedData);
-                    if (overallSnap.exists()) {
-                        transaction.update(overallLeadRef, authUpdatePayload);
-                    }
-                    if (weeklySnap.exists()) {
-                        transaction.update(weeklyLeadRef, authUpdatePayload);
-                    }
-                } else {
-                    // No need to read leaderboards if only other data is changing.
-                    transaction.update(userRef, updatedData);
-                }
-            });
-            return { success: true };
-        } catch (err: any) {
-            console.error("Error updating profile:", err);
-            return { success: false, error: err.message };
         }
     };
 
@@ -495,9 +570,11 @@ const App: React.FC = () => {
                 await deleteSubcollection(batch, `users/${currentUser.uid}/${sub}`);
             }
 
-            // 2. Delete main user document
+            // 2. Delete main user document and activity log
             const userDocRef = doc(db, 'users', currentUser.uid);
             batch.delete(userDocRef);
+            const activityDocRef = doc(db, 'userActivity', currentUser.uid);
+            batch.delete(activityDocRef);
 
             // 3. Delete leaderboard entries
             const overallLeadRef = doc(db, 'leaderboardOverall', currentUser.uid);
@@ -614,6 +691,7 @@ const App: React.FC = () => {
                     {renderContent()}
                 </div>
             </main>
+            {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}
             <NotificationsPanel
                 notifications={notifications}
                 isOpen={isNotificationsPanelOpen}

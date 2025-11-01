@@ -19,6 +19,15 @@ export interface UserProfile {
   notificationsEnabled: boolean;
   isOnline?: boolean;
   lastSeen?: number;
+  lastLoginInfo?: {
+    ipAddress: string;
+    location: string;
+    timestamp: number;
+  };
+  privacyConsent?: {
+    granted: boolean;
+    timestamp: number;
+  };
 }
 
 export interface Message {
