@@ -21,7 +21,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
@@ -250,25 +250,27 @@ Student: "${tempInput}"
 
     const handleGenerateIllustration = async (promptText: string) => {
         if (!promptText) {
-            addToast("Not enough context to create an illustration.", "info");
+            addToast("Not enough context to create an image.", "info");
             return;
         }
 
         setIsIllustrating(true);
-        addToast("Creating an illustration for you...", "info");
+        addToast("Creating a realistic image for you...", "info");
 
         const result = await attemptApiCall(async () => {
-            const prompt = `Create a simple, clear, and colorful educational illustration for a student learning about the following concept. The illustration should be visually appealing and easy to understand. Concept: "${promptText}"`;
+            const prompt = `Create a realistic, high-quality photograph representing the following educational concept for a student. The image should look like a real-life photo. Concept: "${promptText}"`;
             
             let response;
             const maxRetries = 2;
             for (let i = 0; i <= maxRetries; i++) {
                 try {
-                    response = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash-image',
-                        contents: { parts: [{ text: prompt }] },
+                    response = await ai.models.generateImages({
+                        model: 'imagen-4.0-generate-001',
+                        prompt: prompt,
                         config: {
-                            responseModalities: [Modality.IMAGE],
+                          numberOfImages: 1,
+                          outputMimeType: 'image/jpeg',
+                          aspectRatio: '1:1',
                         },
                     });
                     break; 
@@ -285,10 +287,9 @@ Student: "${tempInput}"
                 throw new Error("API call failed to return a response after retries.");
             }
     
-            const part = response.candidates?.[0]?.content?.parts?.[0];
-            if (part?.inlineData) {
-                const base64ImageBytes = part.inlineData.data;
-                const mimeType = part.inlineData.mimeType;
+            if (response.generatedImages?.[0]?.image?.imageBytes) {
+                const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+                const mimeType = 'image/jpeg'; // As requested in the config
 
                 const imageBlob = base64ToBlob(base64ImageBytes, mimeType);
                 const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topicId}/${Date.now()}.jpeg`;
@@ -308,7 +309,7 @@ Student: "${tempInput}"
                 const publicUrl = data.publicUrl;
     
                 const botMessage: Omit<Message, 'id'> = {
-                    text: 'Here is an illustration to help you understand:',
+                    text: 'Here is a visualization to help you understand:',
                     sender: 'bot',
                     timestamp: Date.now(),
                     image: publicUrl
@@ -322,7 +323,7 @@ Student: "${tempInput}"
         });
 
         if (!result.success) {
-            addToast(result.message || "Failed to generate illustration after multiple attempts.", "error");
+            addToast(result.message || "Failed to generate image after multiple attempts.", "error");
         }
         setIsIllustrating(false);
     };
@@ -388,7 +389,7 @@ Student: "${tempInput}"
                                         className="mt-2 flex items-center gap-1.5 text-sm text-gray-600 hover:text-lime-700 font-medium transition-colors disabled:opacity-50"
                                     >
                                         <SparklesIcon className="w-4 h-4" />
-                                        <span>Illustrate</span>
+                                        <span>Visualize</span>
                                     </button>
                                 )}
                             </div>
@@ -423,7 +424,7 @@ Student: "${tempInput}"
                         <div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none">
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
                                 <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
-                                <span>Creating illustration...</span>
+                                <span>Creating visualization...</span>
                             </div>
                         </div>
                     </div>
