@@ -61,7 +61,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
                     <h3 className="font-bold text-gray-900 text-lg">Notifications</h3>
                     {unreadCount > 0 && (
                         <button onClick={onMarkAllAsRead} className="text-sm text-lime-600 hover:text-lime-500 font-semibold">
-                            Mark all as read
+                            Clear Unread
                         </button>
                     )}
                 </div>

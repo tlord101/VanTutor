@@ -467,31 +467,31 @@ Student: "${tempInput}"
 
 // --- TOPIC & SUBJECT COMPONENTS ---
 const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void }> = ({ topic, isCompleted, onSelect }) => (
-    <button onClick={onSelect} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-        <span className="text-gray-700">{topic.topicName}</span>
-        {isCompleted && <CheckCircleIcon className="w-5 h-5 text-lime-500" />}
+    <button onClick={onSelect} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-white/10 transition-colors">
+        <span className="text-white">{topic.topicName}</span>
+        {isCompleted && <CheckCircleIcon className="w-5 h-5 text-white" />}
     </button>
 );
 
 const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onSelectTopic: (topic: Topic, subjectName: string) => void }> = ({ subject, userProgress, onSelectTopic }) => {
-    const [isOpen, setIsOpen] = useState(true); // Default to open
+    const [isOpen, setIsOpen] = useState(false); // Default to closed
     const completedCount = subject.topics.filter(t => userProgress[t.topicId]?.isComplete).length;
     const totalCount = subject.topics.length;
     const isSubjectComplete = completedCount === totalCount;
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-gray-200">
+        <div className="bg-gradient-to-br from-lime-500 to-teal-500 p-4 rounded-xl shadow-lg">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center">
                 <div className="text-left">
-                    <h3 className="text-lg font-bold text-gray-800">{subject.subjectName}</h3>
-                    <p className="text-sm text-gray-500">{completedCount} / {totalCount} topics completed</p>
+                    <h3 className="text-lg font-bold text-white">{subject.subjectName}</h3>
+                    <p className="text-sm text-lime-100">{completedCount} / {totalCount} topics completed</p>
                 </div>
-                <div className="flex items-center gap-4">
-                    {isSubjectComplete && <span className="text-xs font-bold text-lime-600 bg-lime-100 px-2 py-1 rounded-full">Complete</span>}
+                <div className="flex items-center gap-4 text-white">
+                    {isSubjectComplete && <span className="text-xs font-bold text-teal-800 bg-white px-2 py-1 rounded-full">Complete</span>}
                     <ChevronDownIcon className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                 </div>
             </button>
-            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen mt-4 pt-4 border-t border-gray-200' : 'max-h-0'}`}>
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen mt-4 pt-4 border-t border-white/30' : 'max-h-0'}`}>
                 {totalCount > 0 ? (
                     <div className="space-y-1">
                         {subject.topics.map(topic => (
@@ -499,12 +499,13 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
                         ))}
                     </div>
                 ) : (
-                    <p className="text-gray-500 text-sm p-3">No topics available for this subject yet.</p>
+                    <p className="text-lime-100 text-sm p-3">No topics available for this subject yet.</p>
                 )}
             </div>
         </div>
     );
 };
+
 
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {

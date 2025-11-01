@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { supabase } from './supabase';
-import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch, deleteDoc } from 'firebase/firestore';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
@@ -442,19 +442,30 @@ const App: React.FC = () => {
     const handleMarkNotificationRead = async (id: string) => {
         if (!user) return;
         const notifRef = doc(db, 'users', user.uid, 'notifications', id);
-        await updateDoc(notifRef, { isRead: true });
+        try {
+            await deleteDoc(notifRef);
+        } catch (error) {
+            console.error("Error deleting notification:", error);
+            addToast("Could not clear notification.", "error");
+        }
     };
 
     const handleMarkAllNotificationsRead = async () => {
         if (!user) return;
         const unread = notifications.filter(n => !n.isRead);
         if (unread.length === 0) return;
-        const batch = writeBatch(db);
-        unread.forEach(n => {
-            const notifRef = doc(db, 'users', user.uid, 'notifications', n.id);
-            batch.update(notifRef, { isRead: true });
-        });
-        await batch.commit();
+        try {
+            const batch = writeBatch(db);
+            unread.forEach(n => {
+                const notifRef = doc(db, 'users', user.uid, 'notifications', n.id);
+                batch.delete(notifRef);
+            });
+            await batch.commit();
+            addToast(`${unread.length} notification${unread.length > 1 ? 's' : ''} cleared.`, 'success');
+        } catch (error) {
+            console.error("Error clearing notifications:", error);
+            addToast("Could not clear notifications.", "error");
+        }
     };
 
     const deleteSubcollection = async (batch: WriteBatch, collectionPath: string) => {
