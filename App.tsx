@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
@@ -191,10 +192,14 @@ const App: React.FC = () => {
         let locationData = { ip: 'Unknown', city: 'Unknown', country: 'Unknown' };
     
         try {
-            const response = await fetch('https://ipapi.co/json/');
+            const response = await fetch('http://ip-api.com/json');
             if (response.ok) {
                 const data = await response.json();
-                locationData = { ip: data.ip, city: data.city, country: data.country_name };
+                if (data.status === 'success') {
+                    locationData = { ip: data.query, city: data.city, country: data.country };
+                } else {
+                    console.warn("IP-based location fetch was not successful:", data.message);
+                }
             }
         } catch (e) {
             console.warn("Could not fetch IP-based location.", e);
@@ -206,7 +211,7 @@ const App: React.FC = () => {
             navigator.geolocation.getCurrentPosition(() => {}, () => {}); // Prompts user if not already granted
         }
         
-        const locationString = (locationData.city && locationData.country) ? `${locationData.city}, ${locationData.country}` : 'Unknown';
+        const locationString = (locationData.city && locationData.country) ? `${locationData.city}, ${locationData.country}` : 'Location not available';
         const loginInfo = { ipAddress: locationData.ip, location: locationString, timestamp: Date.now() };
     
         // Update user profile with last login info
