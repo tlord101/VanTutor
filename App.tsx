@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
@@ -25,6 +24,7 @@ import { useToast } from './hooks/useToast';
 import { navigationItems } from './constants';
 import { Messenger } from './components/Messenger';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
+import GuidedTour, { TourStep } from './components/GuidedTour';
 
 declare var __app_id: string;
 
@@ -67,6 +67,7 @@ const App: React.FC = () => {
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [chatInitiationData, setChatInitiationData] = useState<{ image: string; tutorialText: string } | null>(null);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
 
     const { addToast } = useToast();
@@ -74,6 +75,7 @@ const App: React.FC = () => {
     const initialMessagesLoaded = useRef(false);
     const chatsRef = useRef<PrivateChat[]>([]);
     const sessionStartRef = useRef<number | null>(null);
+    const tourStatusRef = useRef<'unknown' | 'checked' | 'shown'>('unknown');
 
     const triggerPushNotification = useCallback(async (title: string, message: string) => {
         if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
@@ -89,6 +91,11 @@ const App: React.FC = () => {
             }
         }
     }, [userProfile]);
+
+    const startTour = useCallback(() => {
+        setActiveItem('dashboard'); // Reset to a known state for the tour
+        setTimeout(() => setIsTourOpen(true), 300); // Small delay to allow UI to settle
+    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -185,71 +192,9 @@ const App: React.FC = () => {
         }
     }, [user]);
     
-    const logLoginActivity = useCallback(async () => {
-        if (!userProfile) return;
-    
-        let ipAddress = 'Not available';
-        let location = 'Location not available';
-    
-        try {
-            // High-precision method first
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-            });
-            
-            const { latitude, longitude } = position.coords;
-            const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-            if (geoResponse.ok) {
-                const geoData = await geoResponse.json();
-                if (geoData.address) {
-                    location = `${geoData.address.city || geoData.address.town || geoData.address.village}, ${geoData.address.country}`;
-                }
-            }
-        } catch (highPrecisionError) {
-            console.warn("High-precision location failed, falling back to IP-based.", highPrecisionError);
-            // Fallback to IP-based method
-            try {
-                const ipResponse = await fetch('http://ip-api.com/json');
-                if (ipResponse.ok) {
-                    const ipData = await ipResponse.json();
-                    if (ipData.status === 'success') {
-                        ipAddress = ipData.query || 'Not available';
-                        if (ipData.city && ipData.country) {
-                            location = `${ipData.city}, ${ipData.country}`;
-                        }
-                    }
-                }
-            } catch (ipError) {
-                console.warn("IP-based location also failed.", ipError);
-            }
-        }
-        
-        const loginInfo = { ipAddress, location, timestamp: Date.now() };
-    
-        // Update user profile with last login info
-        handleProfileUpdate({ lastLoginInfo: loginInfo });
-    
-        // Update activity log
-        const activityRef = doc(db, 'userActivity', userProfile.uid);
-        const newLoginHistoryEntry = { ...loginInfo, userAgent: navigator.userAgent };
-        
-        try {
-            const activitySnap = await getDoc(activityRef);
-            if(activitySnap.exists()) {
-                await updateDoc(activityRef, { loginHistory: arrayUnion(newLoginHistoryEntry) });
-            } else {
-                await setDoc(activityRef, { loginHistory: [newLoginHistoryEntry], sessionHistory: [] });
-            }
-        } catch(e) {
-            console.error("Failed to log user activity", e);
-        }
-    
-    }, [userProfile, handleProfileUpdate]);
-    
     const handleConsent = async (granted: boolean) => {
         setShowPrivacyModal(false);
         await handleProfileUpdate({ privacyConsent: { granted, timestamp: Date.now() } });
-        logLoginActivity();
     };
 
     useEffect(() => {
@@ -258,11 +203,9 @@ const App: React.FC = () => {
     
             if (userProfile.privacyConsent === undefined) {
                 setShowPrivacyModal(true);
-            } else {
-                logLoginActivity();
             }
         }
-    }, [userProfile, logLoginActivity]);
+    }, [userProfile]);
 
     useEffect(() => {
         if (!user) {
@@ -278,6 +221,14 @@ const App: React.FC = () => {
                 const profileData = docSnap.data() as UserProfile;
                 setUserProfile(profileData);
                 setIsOnboarding(false);
+                if (tourStatusRef.current === 'unknown') {
+                    if (profileData.privacyConsent?.granted && !profileData.hasCompletedTour) {
+                        startTour();
+                        tourStatusRef.current = 'shown';
+                    } else {
+                        tourStatusRef.current = 'checked';
+                    }
+                }
             } else {
                 setIsOnboarding(true);
             }
@@ -288,7 +239,7 @@ const App: React.FC = () => {
             setIsProfileLoading(false);
         });
         return () => unsubscribe();
-    }, [user, addToast]);
+    }, [user, addToast, startTour]);
     
     useEffect(() => {
         if (!userProfile) return;
@@ -428,6 +379,7 @@ const App: React.FC = () => {
             setUser(null);
             setUserProfile(null);
             setActiveItem('dashboard');
+            tourStatusRef.current = 'unknown';
         } catch (error) {
             console.error("Logout failed:", error);
             addToast("Failed to log out. Please try again.", "error");
@@ -450,6 +402,7 @@ const App: React.FC = () => {
             notificationsEnabled: false,
             isOnline: true,
             lastSeen: now,
+            hasCompletedTour: false,
         };
         try {
             const batch = writeBatch(db);
@@ -638,6 +591,71 @@ const App: React.FC = () => {
         setChatInitiationData({ image, tutorialText });
         setActiveItem('chat');
     }, []);
+    
+    const handleTourClose = (completed: boolean) => {
+        setIsTourOpen(false);
+        if (completed && userProfile && !userProfile.hasCompletedTour) {
+            handleProfileUpdate({ hasCompletedTour: true });
+        }
+    };
+    
+    const isMobile = window.innerWidth < 768;
+
+    const tourSteps: TourStep[] = [
+      {
+        target: 'body',
+        title: '👋 Welcome to VANTUTOR!',
+        content: "Let's take a quick tour of your new learning dashboard.",
+        placement: 'center',
+      },
+      {
+        target: '[data-tour-id="dashboard-content"]',
+        title: '📊 Your Dashboard',
+        content: 'View your progress, streaks, and personalized lessons.',
+        placement: 'bottom',
+      },
+      {
+        target: isMobile ? '[data-tour-id="bottomnav-study_guide"]' : '[data-tour-id="sidebar-study_guide"]',
+        title: '📚 Study Guide',
+        content: 'Explore tutorials and start new lessons anytime.',
+        placement: isMobile ? 'top' : 'right',
+      },
+      {
+        target: isMobile ? '[data-tour-id="bottomnav-chat"]' : '[data-tour-id="sidebar-chat"]',
+        title: '💬 AI Tutor Chat',
+        content: 'Chat with your AI tutor and ask any questions.',
+        placement: isMobile ? 'top' : 'right',
+      },
+      {
+        target: isMobile ? '[data-tour-id="bottomnav-visual_solver"]' : '[data-tour-id="sidebar-visual_solver"]',
+        title: '📸 Visual Solver',
+        content: 'Scan any problem and get instant or detailed tutorials.',
+        placement: isMobile ? 'top' : 'right',
+      },
+      {
+        target: isMobile ? '[data-tour-id="bottomnav-messenger"]' : '[data-tour-id="header-messenger"]',
+        title: '🤝 Messenger',
+        content: 'Connect with other learners and chat privately.',
+        placement: isMobile ? 'top' : 'bottom',
+      },
+      ...(isMobile ? [{
+        target: '[data-tour-id="mobile-menu-button"]',
+        title: '⚙️ Main Menu',
+        content: 'Access your settings, help, and logout options from here.',
+        placement: 'bottom' as const,
+      }] : [{
+        target: '[data-tour-id="sidebar-settings"]',
+        title: '⚙️ Settings',
+        content: 'Update your info and view your achievements.',
+        placement: 'top' as const,
+      }]),
+      {
+        target: 'body',
+        title: "🎉 You're all set!",
+        content: 'Enjoy exploring your learning journey. Tap "Finish" to start!',
+        placement: 'center',
+      },
+    ];
 
     const renderContent = () => {
         if (!userProfile) return null;
@@ -649,7 +667,7 @@ const App: React.FC = () => {
             case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
             case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
             case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleAccountDeletion} />;
-            case 'help': return <Help />;
+            case 'help': return <Help onStartTour={startTour} />;
             case 'messenger': return <Messenger userProfile={userProfile} />;
             default: return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
         }
@@ -720,6 +738,11 @@ const App: React.FC = () => {
               activeItem={activeItem}
               onItemClick={setActiveItem}
               isVisible={!isMobileSidebarOpen}
+            />
+            <GuidedTour 
+                steps={tourSteps}
+                isOpen={isTourOpen}
+                onClose={handleTourClose}
             />
         </div>
     );

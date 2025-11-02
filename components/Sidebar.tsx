@@ -33,6 +33,7 @@ const NavButton: React.FC<{
     <li className="relative">
         <button
             onClick={onClick}
+            data-tour-id={`sidebar-${item.id}`}
             className={`w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out group
             ${isExpanded ? 'justify-start' : 'justify-center'}
             ${

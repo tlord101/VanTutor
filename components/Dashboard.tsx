@@ -105,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userProgress,
     : 0;
 
   return (
-    <div className="p-4 sm:p-6 md:p-8">
+    <div className="p-4 sm:p-6 md:p-8" data-tour-id="dashboard-content">
       <div className="flex flex-wrap gap-4 md:gap-6 mb-8">
         <StatCard title="Current Level" value={userProfile.level} description="Your selected difficulty" icon={<LevelIcon className="w-8 h-8"/>} />
         <StatCard title="Total XP" value={(userProfile.totalXP + userProfile.totalTestXP).toLocaleString()} description="From lessons & exams" icon={<XPIcon className="w-8 h-8"/>} />

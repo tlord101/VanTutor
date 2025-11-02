@@ -6,7 +6,9 @@ import { ToastProvider } from './hooks/useToast';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js')
+    // Register the service worker with a root-relative path to ensure it works
+    // correctly in all environments, including sandboxed iframes.
+    navigator.serviceWorker.register('/service-worker.js')
       .then(registration => {
         console.log('Service Worker registered with scope:', registration.scope);
       })

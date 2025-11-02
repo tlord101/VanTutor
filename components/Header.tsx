@@ -19,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotification
             <div className="flex items-center">
                 <button
                   onClick={onMenuClick}
+                  data-tour-id="mobile-menu-button"
                   className="md:hidden mr-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
                   aria-label="Open menu"
                 >
@@ -32,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPageLabel, onNotification
             <div className="flex items-center gap-2">
                 <button 
                     onClick={onMessengerClick}
+                    data-tour-id="header-messenger"
                     className="relative text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
                     aria-label={`Messenger (${unreadMessagesCount} unread)`}
                 >

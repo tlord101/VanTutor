@@ -3,7 +3,7 @@ import { HomeIcon } from './icons/HomeIcon';
 import { CameraIcon } from './icons/CameraIcon';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
 import { ChatIcon } from './icons/ChatIcon';
-import { ExamIcon } from './icons/ExamIcon';
+import { MessengerIcon } from './icons/MessengerIcon';
 
 interface BottomNavBarProps {
   activeItem: string;
@@ -16,7 +16,7 @@ const navItems = [
   { id: 'chat', icon: <ChatIcon />, label: 'Chat' },
   { id: 'dashboard', icon: <HomeIcon />, label: 'Home' },
   { id: 'visual_solver', icon: <CameraIcon />, label: 'Solver' },
-  { id: 'exam', icon: <ExamIcon />, label: 'Exam' },
+  { id: 'messenger', icon: <MessengerIcon className="w-7 h-7" />, label: 'Connect' },
 ];
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemClick, isVisible }) => {
@@ -67,6 +67,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
             <button
               key={item.id}
               onClick={() => onItemClick(item.id)}
+              data-tour-id={`bottomnav-${item.id}`}
               className="flex-1 flex flex-col items-center justify-center h-full text-gray-500 transition-colors"
               aria-label={item.label}
             >
