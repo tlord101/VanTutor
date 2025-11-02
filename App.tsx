@@ -103,8 +103,7 @@ const App: React.FC = () => {
     
         const endTime = Date.now();
         const durationSeconds = Math.round((endTime - sessionStartRef.current) / 1000);
-        sessionStartRef.current = null; // Prevent duplicate logging
-    
+        
         if (durationSeconds > 5) { // Only log sessions longer than 5 seconds
             const activityRef = doc(db, 'userActivity', userProfile.uid);
             const sessionEntry = {
@@ -115,7 +114,6 @@ const App: React.FC = () => {
             try {
                 await updateDoc(activityRef, { sessionHistory: arrayUnion(sessionEntry) });
             } catch (e) {
-                 // Try to set if the doc or array doesn't exist
                  try {
                     await setDoc(activityRef, { sessionHistory: [sessionEntry] }, { merge: true });
                  } catch (set_e) {
@@ -123,6 +121,7 @@ const App: React.FC = () => {
                  }
             }
         }
+        sessionStartRef.current = null; // Prevent duplicate logging
     }, [userProfile]);
     
     // Presence Management and Session End Logging
@@ -186,33 +185,46 @@ const App: React.FC = () => {
         }
     }, [user]);
     
-    const logLoginActivity = useCallback(async (geolocationGranted: boolean) => {
+    const logLoginActivity = useCallback(async () => {
         if (!userProfile) return;
     
-        let locationData = { ip: 'Unknown', city: 'Unknown', country: 'Unknown' };
+        let ipAddress = 'Not available';
+        let location = 'Location not available';
     
         try {
-            const response = await fetch('http://ip-api.com/json');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') {
-                    locationData = { ip: data.query, city: data.city, country: data.country };
-                } else {
-                    console.warn("IP-based location fetch was not successful:", data.message);
+            // High-precision method first
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+            });
+            
+            const { latitude, longitude } = position.coords;
+            const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+            if (geoResponse.ok) {
+                const geoData = await geoResponse.json();
+                if (geoData.address) {
+                    location = `${geoData.address.city || geoData.address.town || geoData.address.village}, ${geoData.address.country}`;
                 }
             }
-        } catch (e) {
-            console.warn("Could not fetch IP-based location.", e);
+        } catch (highPrecisionError) {
+            console.warn("High-precision location failed, falling back to IP-based.", highPrecisionError);
+            // Fallback to IP-based method
+            try {
+                const ipResponse = await fetch('http://ip-api.com/json');
+                if (ipResponse.ok) {
+                    const ipData = await ipResponse.json();
+                    if (ipData.status === 'success') {
+                        ipAddress = ipData.query || 'Not available';
+                        if (ipData.city && ipData.country) {
+                            location = `${ipData.city}, ${ipData.country}`;
+                        }
+                    }
+                }
+            } catch (ipError) {
+                console.warn("IP-based location also failed.", ipError);
+            }
         }
         
-        // Note: For simplicity, we are not using navigator.geolocation to reverse-geocode coordinates,
-        // as it requires another API. The IP-based location is sufficient for this feature.
-        if (geolocationGranted) {
-            navigator.geolocation.getCurrentPosition(() => {}, () => {}); // Prompts user if not already granted
-        }
-        
-        const locationString = (locationData.city && locationData.country) ? `${locationData.city}, ${locationData.country}` : 'Location not available';
-        const loginInfo = { ipAddress: locationData.ip, location: locationString, timestamp: Date.now() };
+        const loginInfo = { ipAddress, location, timestamp: Date.now() };
     
         // Update user profile with last login info
         handleProfileUpdate({ lastLoginInfo: loginInfo });
@@ -237,7 +249,7 @@ const App: React.FC = () => {
     const handleConsent = async (granted: boolean) => {
         setShowPrivacyModal(false);
         await handleProfileUpdate({ privacyConsent: { granted, timestamp: Date.now() } });
-        logLoginActivity(granted);
+        logLoginActivity();
     };
 
     useEffect(() => {
@@ -247,7 +259,7 @@ const App: React.FC = () => {
             if (userProfile.privacyConsent === undefined) {
                 setShowPrivacyModal(true);
             } else {
-                logLoginActivity(userProfile.privacyConsent.granted);
+                logLoginActivity();
             }
         }
     }, [userProfile, logLoginActivity]);
