@@ -8,13 +8,30 @@ const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' 
   </svg>
 );
 
+const BlueVerifiedBadge: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 22 22" className={className} fill="currentColor">
+    <g>
+      <path fill="#1D9BF0" d="M20.396 11c-.018-5.156-4.205-9.356-9.368-9.37-5.163-.015-9.358 4.172-9.377 9.33-.02 5.158 4.17 9.358 9.332 9.378 5.162.02 9.357-4.17 9.378-9.332l.035-.006z"></path>
+      <path fill="#fff" d="M14.632 7.835c.34-.34.34-.892 0-1.23-.34-.34-.89-.34-1.23 0l-4.175 4.17-1.98-1.98c-.34-.34-.89-.34-1.23 0-.34.34-.34.89 0 1.23l2.6 2.6c.17.17.394.254.614.254s.445-.084.614-.254l4.772-4.77z"></path>
+    </g>
+  </svg>
+);
+
+const YellowVerifiedBadge: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <g>
+      <path fill="#FFD700" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.9-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.32c-.46 1.39-.21 2.91.8 3.92s2.51 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.21 3.91-.81s1.27-2.52.81-3.91c1.31-.65 2.19-1.89 2.19-3.32z"></path>
+      <path fill="#0f1419" d="M9.81 14.73l-2.45-2.45c-.3-.3-.78-.3-1.08 0s-.3.78 0 1.08l3 3c.15.15.34.22.54.22s.39-.07.54-.22l5.95-5.95c.3-.3.3-.78 0-1.08s-.78-.3-1.08 0l-5.4 5.4z"></path>
+    </g>
+  </svg>
+);
 
 const Help: React.FC = () => {
-    const supportContacts = [
-        { name: 'Tlord', number: '+2349078840517' },
-        { name: 'Laurina', number: '+2349162458352' },
-        { name: 'Busola', number: '+2347013123955' },
-        { name: 'Osmond', number: '+2348076022922' }
+    const contributors = [
+        { name: 'Tlord', number: '+2349078840517', verified: 'blue' as const },
+        { name: 'Laurina', number: '+2349162458352', verified: 'yellow' as const },
+        { name: 'Busola', number: '+2347013123955', verified: 'yellow' as const },
+        { name: 'Osmond', number: '+2348076022922', verified: 'yellow' as const }
     ];
 
     const formatWhatsAppLink = (number: string) => {
@@ -27,15 +44,15 @@ const Help: React.FC = () => {
             <div className="max-w-2xl w-full">
                 <header className="text-center mb-10">
                     <h1 className="text-4xl font-extrabold bg-gradient-to-r from-lime-600 to-teal-600 text-transparent bg-clip-text pb-2">
-                        Get Support
+                        Meet the Contributors
                     </h1>
                     <p className="mt-2 text-lg text-gray-600">
-                        Need help? Reach out to one of our available support agents on WhatsApp.
+                        This project is made possible by a talented team. Feel free to connect with them on WhatsApp.
                     </p>
                 </header>
 
                 <main className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200 space-y-3">
-                    {supportContacts.map((contact, index) => (
+                    {contributors.map((contact, index) => (
                         <a 
                             key={index}
                             href={formatWhatsAppLink(contact.number)}
@@ -44,7 +61,11 @@ const Help: React.FC = () => {
                             className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-lime-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                         >
                             <div>
-                                <p className="font-semibold text-gray-800">{contact.name}</p>
+                                <p className="font-semibold text-gray-800 inline-flex items-center gap-1.5">
+                                    {contact.name}
+                                    {contact.verified === 'blue' && <BlueVerifiedBadge />}
+                                    {contact.verified === 'yellow' && <YellowVerifiedBadge />}
+                                </p>
                                 <p className="text-sm text-gray-500">{contact.number}</p>
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-full bg-green-100 text-green-800">
