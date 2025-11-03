@@ -23,7 +23,9 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     setIsSending(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
       if (error) throw error;
 
       addToast('A password reset link has been sent to your email address.', 'success');

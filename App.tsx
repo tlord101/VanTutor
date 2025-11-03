@@ -186,14 +186,22 @@ const App: React.FC = () => {
 
         const progressChannel = supabase
             .channel(`public:user_progress:user_id=eq.${userProfile.uid}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_progress', filter: `user_id=eq.${userProfile.uid}`}, async () => {
-                const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userProfile.uid);
-                if (data) {
-                    const progressData: UserProgress = {};
-                    data.forEach(item => {
-                        progressData[item.topic_id] = { is_complete: item.is_complete, xp_earned: item.xp_earned };
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_progress', filter: `user_id=eq.${userProfile.uid}`}, payload => {
+                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    const newItem = payload.new as { topic_id: string; is_complete: boolean; xp_earned: number };
+                    setUserProgress(prev => ({
+                        ...prev,
+                        [newItem.topic_id]: { is_complete: newItem.is_complete, xp_earned: newItem.xp_earned }
+                    }));
+                } else if (payload.eventType === 'DELETE') {
+                    const oldItem = payload.old as { topic_id: string };
+                    setUserProgress(prev => {
+                        const newState = { ...prev };
+                        if (oldItem.topic_id) { // Ensure topic_id exists before deleting
+                            delete newState[oldItem.topic_id];
+                        }
+                        return newState;
                     });
-                    setUserProgress(progressData);
                 }
             })
             .subscribe();

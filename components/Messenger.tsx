@@ -864,9 +864,21 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
         fetchAllUsers();
 
         const channel = supabase.channel('public:users')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-                fetchAllUsers();
-            }).subscribe();
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, (payload) => {
+                const newUser = payload.new as UserProfile;
+                if (newUser.uid !== userProfile.uid) {
+                    setAllUsers(prev => [newUser, ...prev.filter(u => u.uid !== newUser.uid)]);
+                }
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users' }, (payload) => {
+                const updatedUser = payload.new as UserProfile;
+                setAllUsers(prev => prev.map(u => u.uid === updatedUser.uid ? updatedUser : u));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'users' }, (payload) => {
+                 const deletedUser = payload.old as { uid: string };
+                 setAllUsers(prev => prev.filter(u => u.uid !== deletedUser.uid));
+            })
+            .subscribe();
         
         return () => {
             supabase.removeChannel(channel);

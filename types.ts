@@ -34,6 +34,8 @@ export interface Message {
   image_url?: string; // Optional image URL
   audioUrl?: string; // For voice notes
   audioDuration?: number; // Duration in seconds
+  // FIX: Add optional conversation_id for AI Chat messages.
+  conversation_id?: string;
 }
 
 // Types for the new Exam System
