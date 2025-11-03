@@ -1,9 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
-import { db } from '../firebase';
 import { supabase } from '../supabase';
-import { collection, query, where, onSnapshot, orderBy, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, writeBatch, limit, getDocs, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '../hooks/useToast';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -46,7 +44,6 @@ const OneTimeViewIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-
     </svg>
   );
 
-// Fix: Define the missing PhotoOpenedIcon component.
 const PhotoOpenedIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -289,36 +286,43 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         };
     }, [activeMessageMenu]);
 
+    const fetchMessages = useCallback(async (chatId: string) => {
+        const { data, error } = await supabase.from('private_messages').select('*').eq('chat_id', chatId).order('timestamp', { ascending: true });
+        if (error) {
+            console.error("Error fetching messages:", error);
+        } else {
+            setMessages(data as PrivateMessage[]);
+        }
+    }, []);
+
     useEffect(() => {
-      if (!chat) return;
-        const messagesRef = collection(db, 'privateChats', chat.id, 'messages');
-        const q = query(messagesRef, orderBy('timestamp', 'asc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedMessages: PrivateMessage[] = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                fetchedMessages.push({ id: doc.id, ...data, timestamp: data.timestamp?.toMillis() || Date.now() } as PrivateMessage);
-            });
-            setMessages(fetchedMessages);
-        });
-        return unsubscribe;
-    }, [chat?.id]);
+        if (!chat) return;
+        fetchMessages(chat.id);
+
+        const channel = supabase.channel(`public:private_messages:chat_id=eq.${chat.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_messages', filter: `chat_id=eq.${chat.id}` }, () => {
+                fetchMessages(chat.id);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [chat?.id, fetchMessages]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isSending, isOtherUserTyping]);
 
     useEffect(() => {
-      if (!chat) return;
+        if (!chat) return;
         const markAsRead = async () => {
-            const chatRef = doc(db, 'privateChats', chat.id);
-            const chatSnap = await getDoc(chatRef);
-            if (chatSnap.exists()) {
-                const chatData = chatSnap.data() as PrivateChat;
-                if (chatData.lastMessage && !chatData.lastMessage.readBy.includes(currentUser.uid)) {
-                    const newReadBy = [...chatData.lastMessage.readBy, currentUser.uid];
-                    await updateDoc(chatRef, { 'lastMessage.readBy': newReadBy });
-                }
+            const { data: chatData, error } = await supabase.from('private_chats').select('last_message').eq('id', chat.id).single();
+            if (error || !chatData) return;
+            
+            if (chatData.last_message && !chatData.last_message.read_by.includes(currentUser.uid)) {
+                const newReadBy = [...chatData.last_message.read_by, currentUser.uid];
+                await supabase.from('private_chats').update({ last_message: { ...chatData.last_message, read_by: newReadBy } }).eq('id', chat.id);
             }
         };
         markAsRead();
@@ -326,12 +330,16 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
 
     const updateTypingStatus = useCallback(async (isTyping: boolean) => {
         if (!chat) return;
-        const chatRef = doc(db, 'privateChats', chat.id);
-        if (isTyping) {
-            await updateDoc(chatRef, { typing: arrayUnion(currentUser.uid) });
-        } else {
-            await updateDoc(chatRef, { typing: arrayRemove(currentUser.uid) });
+        const { data, error } = await supabase.from('private_chats').select('typing').eq('id', chat.id).single();
+        if (error || !data) return;
+
+        let currentTyping = data.typing || [];
+        if (isTyping && !currentTyping.includes(currentUser.uid)) {
+            currentTyping.push(currentUser.uid);
+        } else if (!isTyping) {
+            currentTyping = currentTyping.filter(id => id !== currentUser.uid);
         }
+        await supabase.from('private_chats').update({ typing: currentTyping }).eq('id', chat.id);
     }, [chat?.id, currentUser.uid]);
 
     useEffect(() => {
@@ -342,7 +350,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             updateTypingStatus(true);
             typingTimeoutRef.current = window.setTimeout(() => {
                 updateTypingStatus(false);
-            }, 3000); // User is considered not typing after 3 seconds of inactivity
+            }, 3000);
         } else {
             updateTypingStatus(false);
         }
@@ -396,51 +404,40 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 audioUrl = data.publicUrl;
             }
 
-            const batch = writeBatch(db);
-            const messagesRef = collection(db, 'privateChats', chat.id, 'messages');
-            const newMessageRef = doc(messagesRef);
-
-            const messageData: { [key: string]: any } = {
-                senderId: currentUser.uid,
-                timestamp: serverTimestamp(),
+            const messageData: Partial<PrivateMessage> = {
+                chat_id: chat.id,
+                sender_id: currentUser.uid,
             };
 
             if (textToSend) messageData.text = textToSend;
-            if (imageUrl) messageData.imageUrl = imageUrl;
+            if (imageUrl) messageData.image_url = imageUrl;
             if (audioUrl) {
-                messageData.audioUrl = audioUrl;
-                messageData.audioDuration = audioDuration;
+                messageData.audio_url = audioUrl;
+                messageData.audio_duration = audioDuration;
             }
             if (tempImageFile && tempIsOneTime) {
-                messageData.isOneTimeView = true;
-                messageData.viewedBy = [];
+                messageData.is_one_time_view = true;
+                messageData.viewed_by = [];
             }
             if (tempReplyingTo) {
-                const replyToObject: { [key: string]: any } = {
-                    messageId: tempReplyingTo.id,
-                    senderId: tempReplyingTo.senderId,
+                const replyToObject: PrivateMessage['reply_to'] = {
+                    message_id: tempReplyingTo.id,
+                    sender_id: tempReplyingTo.sender_id,
                 };
-                if (tempReplyingTo.text) {
-                    replyToObject.text = tempReplyingTo.text.substring(0, 80);
-                }
-                if (tempReplyingTo.imageUrl) {
-                    replyToObject.imageUrl = tempReplyingTo.imageUrl;
-                }
-                if (tempReplyingTo.audioUrl) {
-                    replyToObject.audioUrl = tempReplyingTo.audioUrl;
-                }
-                messageData.replyTo = replyToObject;
+                if (tempReplyingTo.text) replyToObject.text = tempReplyingTo.text.substring(0, 80);
+                if (tempReplyingTo.image_url) replyToObject.image_url = tempReplyingTo.image_url;
+                if (tempReplyingTo.audio_url) replyToObject.audio_url = tempReplyingTo.audio_url;
+                messageData.reply_to = replyToObject;
             }
 
-            batch.set(newMessageRef, messageData);
+            const { error: msgError } = await supabase.from('private_messages').insert(messageData as any);
+            if(msgError) throw msgError;
 
-            const chatRef = doc(db, 'privateChats', chat.id);
             const now = Date.now();
             const lastMessageText = textToSend ? textToSend : (imageUrl ? (tempIsOneTime ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
-            const lastMessageData = { text: lastMessageText, timestamp: now, senderId: currentUser.uid, readBy: [currentUser.uid] };
+            const lastMessageData = { text: lastMessageText, timestamp: now, sender_id: currentUser.uid, read_by: [currentUser.uid] };
             
-            batch.update(chatRef, { lastMessage: lastMessageData, lastActivityTimestamp: now });
-            await batch.commit();
+            await supabase.from('private_chats').update({ last_message: lastMessageData, last_activity_timestamp: now }).eq('id', chat.id);
 
         } catch (error) {
             console.error("Error sending message:", error);
@@ -516,12 +513,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     
     const handleSaveEdit = async () => {
         if (!editingMessage || !editText.trim() || !chat) return;
-        const msgRef = doc(db, 'privateChats', chat.id, 'messages', editingMessage.id);
         try {
-            await updateDoc(msgRef, {
-                text: editText.trim(),
-                isEdited: true,
-            });
+            await supabase.from('private_messages').update({ text: editText.trim(), is_edited: true }).eq('id', editingMessage.id);
             setEditingMessage(null);
             setEditText('');
             addToast('Message edited.', 'success');
@@ -611,12 +604,12 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     };
     
     const handleViewOneTimeImage = async (msg: PrivateMessage) => {
-        if (!chat || !msg.imageUrl) return;
-        setViewingImage(msg.imageUrl);
-        const msgRef = doc(db, 'privateChats', chat.id, 'messages', msg.id);
+        if (!chat || !msg.image_url) return;
+        setViewingImage(msg.image_url);
         try {
-            await updateDoc(msgRef, {
-                viewedBy: arrayUnion(currentUser.uid)
+            await supabase.rpc('append_to_viewed_by', {
+                message_id: msg.id,
+                user_id: currentUser.uid,
             });
         } catch (error) {
             console.error("Failed to mark one-time view image as read:", error);
@@ -624,10 +617,10 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
     };
     
     const renderMessageContent = (msg: PrivateMessage) => {
-        const isSender = msg.senderId === currentUser.uid;
+        const isSender = msg.sender_id === currentUser.uid;
 
-        if (msg.isOneTimeView && msg.imageUrl) {
-            const isViewedByCurrentUser = msg.viewedBy?.includes(currentUser.uid);
+        if (msg.is_one_time_view && msg.image_url) {
+            const isViewedByCurrentUser = msg.viewed_by?.includes(currentUser.uid);
 
             if (isSender) {
                 return (
@@ -661,26 +654,26 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             );
         }
         
-        const replySenderName = msg.replyTo?.senderId === currentUser.uid ? 'You' : otherUser.displayName;
+        const replySenderName = msg.reply_to?.sender_id === currentUser.uid ? 'You' : otherUser.displayName;
 
         return <>
-            {msg.replyTo && (
-                <a href={`#message-${msg.replyTo.messageId}`} onClick={(e) => {
+            {msg.reply_to && (
+                <a href={`#message-${msg.reply_to.message_id}`} onClick={(e) => {
                     e.preventDefault();
-                    document.getElementById(`message-${msg.replyTo.messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById(`message-${msg.reply_to.message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }} className={`block p-2 mb-1 rounded-md opacity-80 ${isSender ? 'bg-white/20' : 'bg-black/5'}`}>
                     <p className={`text-xs font-bold ${isSender ? 'text-white' : 'text-lime-700'}`}>
                         {replySenderName}
                     </p>
                     <p className={`text-sm mt-0.5 truncate ${isSender ? 'text-white/90' : 'text-gray-600'}`}>
-                        {msg.replyTo.text || (msg.replyTo.imageUrl && 'Photo') || (msg.replyTo.audioUrl && 'Voice message')}
+                        {msg.reply_to.text || (msg.reply_to.image_url && 'Photo') || (msg.reply_to.audio_url && 'Voice message')}
                     </p>
                 </a>
             )}
-            {msg.imageUrl && <img src={msg.imageUrl} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
-            {msg.audioUrl && msg.audioDuration != null && <AudioPlayer src={msg.audioUrl} duration={msg.audioDuration} theme={isSender ? 'dark' : 'light'} />}
+            {msg.image_url && <img src={msg.image_url} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
+            {msg.audio_url && msg.audio_duration != null && <AudioPlayer src={msg.audio_url} duration={msg.audio_duration} theme={isSender ? 'dark' : 'light'} />}
             {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
-            {msg.isEdited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
+            {msg.is_edited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
         </>
     };
 
@@ -702,7 +695,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
                      <div className="relative">
-                        <Avatar displayName={otherUser.displayName} photoURL={otherUser.photoURL} className="w-10 h-10" />
+                        <Avatar display_name={otherUser.displayName} photo_url={otherUser.photoURL} className="w-10 h-10" />
                         <div className="absolute -bottom-1 -right-1">
                             <UserStatusIndicator isOnline={otherUser.isOnline} />
                         </div>
@@ -719,11 +712,11 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map(msg => (
-                    <div key={msg.id} id={`message-${msg.id}`} className={`flex gap-3 items-end group ${msg.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} id={`message-${msg.id}`} className={`flex gap-3 items-end group ${msg.sender_id === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
                        <div 
                          ref={(el) => { if (el) messageRefs.current.set(msg.id, el); }}
-                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.senderId === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
-                         onContextMenu={(e) => msg.senderId === currentUser.uid && openMessageMenu(e, msg)}
+                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.sender_id === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
+                         onContextMenu={(e) => msg.sender_id === currentUser.uid && openMessageMenu(e, msg)}
                          onTouchStart={(e) => handleTouchStart(e, msg)}
                          onTouchMove={handleTouchMove}
                          onTouchEnd={() => handleTouchEnd(msg)}
@@ -760,7 +753,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                  {isSending && <div className="flex justify-end"><div className="p-3 rounded-2xl bg-gray-200"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
-             {activeMessageMenu && activeMessageMenu.msg.senderId === currentUser.uid && (
+             {activeMessageMenu && activeMessageMenu.msg.sender_id === currentUser.uid && (
                 <div
                     ref={menuRef}
                     style={menuStyle}
@@ -781,10 +774,10 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                            <div className="bg-lime-100 rounded-t-lg p-2 flex justify-between items-center border-l-4 border-lime-500 animate-fade-in-up">
                                 <div>
                                     <p className="text-xs font-bold text-lime-900">
-                                        Replying to {replyingTo.senderId === currentUser.uid ? 'Yourself' : otherUser.displayName}
+                                        Replying to {replyingTo.sender_id === currentUser.uid ? 'Yourself' : otherUser.displayName}
                                     </p>
                                     <p className="text-sm text-lime-800 truncate max-w-xs sm:max-w-sm">
-                                        {replyingTo.text || (replyingTo.imageUrl && 'Photo') || (replyingTo.audioUrl && 'Voice message')}
+                                        {replyingTo.text || (replyingTo.image_url && 'Photo') || (replyingTo.audio_url && 'Voice message')}
                                     </p>
                                 </div>
                                 <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-lime-800 hover:bg-lime-200">
@@ -850,69 +843,98 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const { addToast } = useToast();
     
     useEffect(() => {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, orderBy('displayName'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const usersList = snapshot.docs
-                .map(doc => doc.data() as UserProfile)
-                .filter(u => u.uid !== userProfile.uid);
-            setAllUsers(usersList);
+        const fetchAllUsers = async () => {
+            const { data, error } = await supabase.from('users').select('*').neq('uid', userProfile.uid);
+            if (error) {
+                console.error("Error fetching users:", error);
+            } else {
+                setAllUsers(data as UserProfile[]);
+            }
             setIsDataLoading(false);
-        });
-        return unsubscribe;
+        };
+        fetchAllUsers();
+
+        const channel = supabase.channel('public:users')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+                fetchAllUsers();
+            }).subscribe();
+        
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [userProfile.uid]);
 
     useEffect(() => {
-        const chatsRef = collection(db, 'privateChats');
-        const q = query(chatsRef, where('members', 'array-contains', userProfile.uid));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedChats: PrivateChat[] = [];
-            snapshot.forEach(doc => fetchedChats.push({ id: doc.id, ...doc.data() } as PrivateChat));
-            
-            fetchedChats.sort((a, b) => (b.lastActivityTimestamp || 0) - (a.lastActivityTimestamp || 0));
-
-            setChats(fetchedChats);
-            
-            // Update selected chat data if it's currently open
-            if (selectedChatData) {
-                const updatedChat = fetchedChats.find(c => c.id === selectedChatData.id);
-                if (updatedChat) {
-                    setSelectedChatData(updatedChat);
+        const fetchChats = async () => {
+            const { data, error } = await supabase.from('private_chats').select('*').contains('members', [userProfile.uid]).order('last_activity_timestamp', { ascending: false });
+            if (error) {
+                console.error("Error fetching chats:", error);
+                addToast("Could not load your chats.", "error");
+            } else {
+                setChats(data as PrivateChat[]);
+                if (selectedChatData) {
+                    const updatedChat = (data as PrivateChat[]).find(c => c.id === selectedChatData.id);
+                    if (updatedChat) {
+                        setSelectedChatData(updatedChat);
+                    }
                 }
             }
-            
             setIsDataLoading(false);
-        }, (error) => {
-            console.error("Error fetching chats:", error);
-            addToast("Could not load your chats.", "error");
-            setIsDataLoading(false);
-        });
-        return unsubscribe;
+        };
+
+        fetchChats();
+        
+        const channel = supabase.channel(`public:private_chats:members=cs.{"${userProfile.uid}"}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_chats', filter: `members=cs.{"${userProfile.uid}"}` }, () => {
+                fetchChats();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [userProfile.uid, addToast, selectedChatData]);
 
     
     const handleStartChat = async (otherUser: UserProfile) => {
         const members = [userProfile.uid, otherUser.uid].sort();
         const chatId = members.join('_');
-        const chatRef = doc(db, 'privateChats', chatId);
+        
+        const { data: existingChat, error: existingError } = await supabase.from('private_chats').select('id').eq('id', chatId).maybeSingle();
+        if (existingError) {
+            console.error(existingError);
+            addToast("Could not start chat", "error");
+            return;
+        }
 
-        const chatSnap = await getDoc(chatRef);
-        if (!chatSnap.exists()) {
+        if (!existingChat) {
             const now = Date.now();
-            await setDoc(chatRef, {
+            const { error: insertError } = await supabase.from('private_chats').insert({
+                id: chatId,
                 members,
-                memberInfo: {
-                    [userProfile.uid]: { displayName: userProfile.displayName, photoURL: userProfile.photoURL || '' },
-                    [otherUser.uid]: { displayName: otherUser.displayName, photoURL: otherUser.photoURL || '' },
+                member_info: {
+                    [userProfile.uid]: { display_name: userProfile.display_name, photo_url: userProfile.photo_url || '' },
+                    [otherUser.uid]: { display_name: otherUser.display_name, photo_url: otherUser.photo_url || '' },
                 },
-                createdAt: now,
-                lastActivityTimestamp: now,
+                created_at: now,
+                last_activity_timestamp: now,
                 typing: [],
             });
+            if (insertError) {
+                console.error(insertError);
+                addToast("Could not start chat", "error");
+                return;
+            }
         }
-        const newChatData = (await getDoc(chatRef)).data() as PrivateChat;
-        setSelectedChatData({ id: chatId, ...newChatData });
+
+        const { data: newChatData, error: newChatError } = await supabase.from('private_chats').select('*').eq('id', chatId).single();
+        if (newChatError || !newChatData) {
+            console.error(newChatError);
+            addToast("Could not open chat", "error");
+            return;
+        }
+
+        setSelectedChatData(newChatData as PrivateChat);
         setView('chat');
     };
     
@@ -924,23 +946,15 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const handleDeleteChat = async (chatId: string) => {
         setIsDeleting(true);
         try {
-            // Delete Supabase storage folder
             const { data: files, error: listError } = await supabase.storage.from('private-chats').list(chatId);
             if (files && files.length > 0) {
                 const filePaths = files.map(f => `${chatId}/${f.name}`);
                 await supabase.storage.from('private-chats').remove(filePaths);
             }
 
-            // Delete Firestore documents
-            const batch = writeBatch(db);
-            const messagesRef = collection(db, 'privateChats', chatId, 'messages');
-            const messagesSnap = await getDocs(messagesRef);
-            messagesSnap.forEach(doc => batch.delete(doc.ref));
-
-            const chatRef = doc(db, 'privateChats', chatId);
-            batch.delete(chatRef);
-            await batch.commit();
-
+            const { error } = await supabase.from('private_chats').delete().eq('id', chatId);
+            if(error) throw error;
+            
             addToast('Chat deleted successfully.', 'success');
             if (selectedChatData?.id === chatId) {
                 setView('list');
@@ -958,35 +972,30 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const handleDeleteMessage = async (chatId: string, message: PrivateMessage) => {
         setIsMessageDeleting(true);
         try {
-            const msgRef = doc(db, 'privateChats', chatId, 'messages', message.id);
-            const chatRef = doc(db, 'privateChats', chatId);
+            const { error: deleteError } = await supabase.from('private_messages').delete().eq('id', message.id);
+            if (deleteError) throw deleteError;
+
+            const { data: chatData, error: chatError } = await supabase.from('private_chats').select('last_message').eq('id', chatId).single();
+            if (chatError || !chatData) throw chatError || new Error("Chat not found");
             
-            const currentChatSnap = await getDoc(chatRef);
-            if (!currentChatSnap.exists()) throw new Error("Chat not found");
-            const chatData = currentChatSnap.data() as PrivateChat;
-
-            const isLastMessage = chatData.lastMessage?.timestamp === message.timestamp;
-
-            await deleteDoc(msgRef);
-
+            const isLastMessage = chatData.last_message?.timestamp === message.timestamp;
+            
             if (isLastMessage) {
-                const messagesQuery = query(collection(db, 'privateChats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(1));
-                const newLastMessagesSnap = await getDocs(messagesQuery);
+                const { data: newLastMessages, error: newLastError } = await supabase.from('private_messages').select('*').eq('chat_id', chatId).order('timestamp', { ascending: false }).limit(1);
+                if (newLastError) throw newLastError;
 
-                if (!newLastMessagesSnap.empty) {
-                    const newLastMessageData = newLastMessagesSnap.docs[0].data() as PrivateMessage;
-                    const lastMessageText = newLastMessageData.text || 
-                        (newLastMessageData.imageUrl ? (newLastMessageData.isOneTimeView ? 'Sent a photo' : 'Sent an image') 
-                        : 'Sent a voice message');
+                if (newLastMessages && newLastMessages.length > 0) {
+                    const newLastMessageData = newLastMessages[0] as PrivateMessage;
+                    const lastMessageText = newLastMessageData.text || (newLastMessageData.image_url ? (newLastMessageData.is_one_time_view ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
                     const lastMessage = {
                         text: lastMessageText,
-                        timestamp: (newLastMessageData.timestamp as any).toMillis(),
-                        senderId: newLastMessageData.senderId,
-                        readBy: [userProfile.uid],
+                        timestamp: newLastMessageData.timestamp,
+                        sender_id: newLastMessageData.sender_id,
+                        read_by: [userProfile.uid],
                     };
-                    await updateDoc(chatRef, { lastMessage });
+                    await supabase.from('private_chats').update({ last_message: lastMessage }).eq('id', chatId);
                 } else {
-                    await updateDoc(chatRef, { lastMessage: null });
+                    await supabase.from('private_chats').update({ last_message: null }).eq('id', chatId);
                 }
             }
             addToast('Message deleted.', 'success');
@@ -1001,7 +1010,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
 
     const confirmDeleteChat = (chat: PrivateChat) => {
         const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
-        const otherUserName = chat.memberInfo[otherUserId]?.displayName || 'this user';
+        const otherUserName = chat.member_info[otherUserId]?.display_name || 'this user';
         setModalState({
             isOpen: true,
             title: 'Delete Chat',
@@ -1012,7 +1021,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     };
 
     const filteredUsers = allUsers.filter(user => 
-        user.displayName.toLowerCase().includes(searchTerm.toLowerCase())
+        user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const renderListView = () => (
@@ -1030,26 +1039,26 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                     <ul className="divide-y divide-gray-200">{chats.map(chat => {
                         const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
                         const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
-                        const isUnread = chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid);
-                        const otherUserPhotoURL = otherUserInfo?.photoURL || chat.memberInfo[otherUserId]?.photoURL;
+                        const isUnread = chat.last_message && !chat.last_message.read_by?.includes(userProfile.uid);
+                        const otherUserPhotoURL = otherUserInfo?.photo_url || chat.member_info[otherUserId]?.photo_url;
                         return <li key={chat.id} className="group p-4 hover:bg-gray-50 flex items-center gap-4 relative">
                              <div onClick={() => handleSelectChat(chat)} className="flex-1 flex items-center gap-4 cursor-pointer">
                                 <div className="relative flex-shrink-0">
                                     <Avatar 
-                                        displayName={chat.memberInfo[otherUserId]?.displayName} 
-                                        photoURL={otherUserPhotoURL} 
+                                        display_name={chat.member_info[otherUserId]?.display_name} 
+                                        photo_url={otherUserPhotoURL} 
                                         className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}
                                     />
                                     <div className="absolute -bottom-1 -right-1">
-                                        <UserStatusIndicator isOnline={otherUserInfo?.isOnline} />
+                                        <UserStatusIndicator isOnline={otherUserInfo?.is_online} />
                                     </div>
                                 </div>
                                 <div className="flex-1 overflow-hidden">
                                     <div className="flex justify-between items-center">
-                                        <p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.memberInfo[otherUserId]?.displayName}</p>
-                                        <p className="text-xs text-gray-400">{chat.lastMessage ? formatLastSeen(chat.lastMessage.timestamp) : ''}</p>
+                                        <p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.member_info[otherUserId]?.display_name}</p>
+                                        <p className="text-xs text-gray-400">{chat.last_message ? formatLastSeen(chat.last_message.timestamp) : ''}</p>
                                     </div>
-                                    <p className={`text-sm truncate ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{chat.lastMessage?.text || '...'}</p>
+                                    <p className={`text-sm truncate ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{chat.last_message?.text || '...'}</p>
                                 </div>
                             </div>
                             <button onClick={() => confirmDeleteChat(chat)} className="p-2 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1076,14 +1085,14 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                          filteredUsers.map(user => 
                             <div key={user.uid} onClick={() => handleStartChat(user)} className="p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-4 rounded-lg">
                                 <div className="relative flex-shrink-0">
-                                    <Avatar displayName={user.displayName} photoURL={user.photoURL} className="w-12 h-12" />
+                                    <Avatar display_name={user.display_name} photo_url={user.photo_url} className="w-12 h-12" />
                                     <div className="absolute -bottom-1 -right-1">
-                                       <UserStatusIndicator isOnline={user.isOnline} />
+                                       <UserStatusIndicator isOnline={user.is_online} />
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-gray-700">{user.displayName}</p>
-                                    <p className="text-xs text-gray-500">{user.isOnline ? `Online` : (user.lastSeen ? `Active ${formatLastSeen(user.lastSeen)}` : 'Offline')}</p>
+                                    <p className="font-semibold text-gray-700">{user.display_name}</p>
+                                    <p className="text-xs text-gray-500">{user.is_online ? `Online` : (user.last_seen ? `Active ${formatLastSeen(user.last_seen)}` : 'Offline')}</p>
                                 </div>
                            </div>
                          )}
@@ -1099,10 +1108,10 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
         const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
         return {
             uid: otherUserId,
-            displayName: selectedChatData.memberInfo[otherUserId]?.displayName || 'User',
-            photoURL: otherUserInfo?.photoURL || selectedChatData.memberInfo[otherUserId]?.photoURL,
-            isOnline: otherUserInfo?.isOnline,
-            lastSeen: otherUserInfo?.lastSeen
+            displayName: selectedChatData.member_info[otherUserId]?.display_name || 'User',
+            photoURL: otherUserInfo?.photo_url || selectedChatData.member_info[otherUserId]?.photo_url,
+            isOnline: otherUserInfo?.is_online,
+            lastSeen: otherUserInfo?.last_seen
         };
     };
 

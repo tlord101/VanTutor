@@ -1,40 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signOut, updateProfile, deleteUser } from 'firebase/auth';
-import { auth, db } from './firebase';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { doc, getDoc, setDoc, onSnapshot, collection, updateDoc, writeBatch, query, orderBy, limit, serverTimestamp, getDocs, runTransaction, where, WriteBatch, deleteDoc, arrayUnion } from 'firebase/firestore';
-import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat } from './types';
+import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat, LeaderboardEntry } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
 import { Onboarding } from './components/Onboarding';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { StudyGuide } from './components/StudyGuide';
-import { Chat } from './components/Chat';
-import { VisualSolver } from './components/VisualSolver';
-import { Exam } from './components/Exam';
-import { Leaderboard } from './components/Leaderboard';
-import { Settings } from './components/Settings';
-import Help from './components/Help';
+import { MainContent } from './MainContent';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { BottomNavBar } from './components/BottomNavBar';
 import { useToast } from './hooks/useToast';
 import { navigationItems } from './constants';
-import { Messenger } from './components/Messenger';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import GuidedTour, { TourStep } from './components/GuidedTour';
 
 declare var __app_id: string;
-
-const getWeekId = (date: Date): string => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-${weekNo}`;
-};
 
 const AppLoader: React.FC = () => {
   return (
@@ -61,7 +42,6 @@ const App: React.FC = () => {
     const [authView, setAuthView] = useState<'login' | 'signup'>('login');
     
     const [activeItem, setActiveItem] = useState('dashboard');
-    const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -71,26 +51,7 @@ const App: React.FC = () => {
 
 
     const { addToast } = useToast();
-    const initialNotificationsLoaded = useRef(false);
-    const initialMessagesLoaded = useRef(false);
-    const chatsRef = useRef<PrivateChat[]>([]);
-    const sessionStartRef = useRef<number | null>(null);
     const tourStatusRef = useRef<'unknown' | 'checked' | 'shown'>('unknown');
-
-    const triggerPushNotification = useCallback(async (title: string, message: string) => {
-        if (userProfile?.notificationsEnabled && 'serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                await registration.showNotification(title, {
-                    body: message,
-                    icon: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20viewBox%3D%220%200%2052%2042%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M4.33331%2017.5L26%204.375L47.6666%2017.5L26%2030.625L4.33331%2017.5Z%22%20stroke%3D%22%2523A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M41.5%2021V29.75C41.5%2030.825%2040.85%2032.55%2039.4166%2033.25L27.75%2039.375C26.6666%2039.9%2025.3333%2039.9%2024.25%2039.375L12.5833%2033.25C11.15%2032.55%2010.5%2030.825%2010.5%2029.75V21%22%20stroke%3D%22%2523A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M47.6667%2017.5V26.25%22%20stroke%3D%22%2523A3E635%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E',
-                    badge: 'data:image/svg+xml;charset=UTF-8,%3Csvg%20viewBox%3D%220%200%2052%2042%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M4.33331%2017.5L26%204.375L47.6666%2017.5L26%2030.625L4.33331%2017.5Z%22%20fill%3D%22%2523FFFFFF%22%2F%3E%3C%2Fsvg%3E'
-                });
-            } catch (err) {
-                console.error('Error showing notification:', err);
-            }
-        }
-    }, [userProfile]);
 
     const startTour = useCallback(() => {
         setActiveItem('dashboard'); // Reset to a known state for the tour
@@ -98,114 +59,69 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            setIsLoading(false);
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          if (event === 'SIGNED_OUT') {
+            setUserProfile(null);
+            setActiveItem('dashboard');
+            tourStatusRef.current = 'unknown';
+          }
+          setIsLoading(false);
         });
-        return () => unsubscribe();
-    }, []);
-
-    const logSessionEnd = useCallback(async () => {
-        if (!userProfile || !sessionStartRef.current) return;
-    
-        const endTime = Date.now();
-        const durationSeconds = Math.round((endTime - sessionStartRef.current) / 1000);
-        
-        if (durationSeconds > 5) { // Only log sessions longer than 5 seconds
-            const activityRef = doc(db, 'userActivity', userProfile.uid);
-            const sessionEntry = {
-                startTime: sessionStartRef.current,
-                endTime,
-                durationSeconds,
-            };
-            try {
-                await updateDoc(activityRef, { sessionHistory: arrayUnion(sessionEntry) });
-            } catch (e) {
-                 try {
-                    await setDoc(activityRef, { sessionHistory: [sessionEntry] }, { merge: true });
-                 } catch (set_e) {
-                     console.error("Failed to log session end:", set_e);
-                 }
-            }
-        }
-        sessionStartRef.current = null; // Prevent duplicate logging
-    }, [userProfile]);
-    
-    // Presence Management and Session End Logging
-    useEffect(() => {
-        if (!user) return;
-    
-        const userStatusRef = doc(db, 'users', user.uid);
-        updateDoc(userStatusRef, { isOnline: true });
-    
-        window.addEventListener('beforeunload', logSessionEnd);
     
         return () => {
-            window.removeEventListener('beforeunload', logSessionEnd);
-            logSessionEnd();
-            updateDoc(userStatusRef, {
-                isOnline: false,
-                lastSeen: serverTimestamp()
-            });
+          authListener.subscription.unsubscribe();
         };
-    }, [user, logSessionEnd]);
+    }, []);
 
     const handleProfileUpdate = useCallback(async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
         if (!user) return { success: false, error: 'User not authenticated.' };
     
         try {
-            const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
-            if (updatedData.displayName) {
-                authUpdatePayload.displayName = updatedData.displayName;
-            }
-            if (updatedData.photoURL !== undefined) {
-                authUpdatePayload.photoURL = updatedData.photoURL;
-            }
-    
-            if (Object.keys(authUpdatePayload).length > 0) {
-                await updateProfile(user, authUpdatePayload);
-            }
-    
-            await runTransaction(db, async (transaction) => {
-                const userRef = doc(db, 'users', user.uid);
+            const { error } = await supabase.from('users').update(updatedData).eq('uid', user.id);
+            if (error) throw error;
+            
+            // If display_name or photo_url changed, update leaderboards as well
+            if (updatedData.display_name !== undefined || updatedData.photo_url !== undefined) {
+                const leaderboardUpdate: { display_name?: string; photo_url?: string } = {};
+                if (updatedData.display_name !== undefined) leaderboardUpdate.display_name = updatedData.display_name;
+                if (updatedData.photo_url !== undefined) leaderboardUpdate.photo_url = updatedData.photo_url;
                 
-                if (Object.keys(authUpdatePayload).length > 0) {
-                    const overallLeadRef = doc(db, 'leaderboardOverall', user.uid);
-                    const weeklyLeadRef = doc(db, 'leaderboardWeekly', user.uid);
-    
-                    const [overallSnap, weeklySnap] = await Promise.all([
-                        transaction.get(overallLeadRef),
-                        transaction.get(weeklyLeadRef)
-                    ]);
-                    
-                    transaction.update(userRef, updatedData);
-                    if (overallSnap.exists()) transaction.update(overallLeadRef, authUpdatePayload);
-                    if (weeklySnap.exists()) transaction.update(weeklyLeadRef, authUpdatePayload);
-                } else {
-                    transaction.update(userRef, updatedData);
-                }
-            });
+                await supabase.from('leaderboard_overall').update(leaderboardUpdate).eq('user_id', user.id);
+                // We don't need to update weekly leaderboard as it will be rebuilt on next XP gain.
+            }
+
+            // Also update auth user metadata if needed
+            const userUpdatePayload: { data?: any, password?: string } = { data: {} };
+            if (updatedData.display_name) userUpdatePayload.data.display_name = updatedData.display_name;
+            if (updatedData.photo_url) userUpdatePayload.data.photo_url = updatedData.photo_url;
+
+            if (Object.keys(userUpdatePayload.data).length > 0) {
+                 const { error: authUserError } = await supabase.auth.updateUser(userUpdatePayload);
+                 if (authUserError) console.warn("Failed to update auth user metadata:", authUserError);
+            }
+
             return { success: true };
         } catch (err: any) {
-            console.error("Error updating profile:", err);
+            console.error("Error updating profile:", err.message || err);
+            if (err instanceof TypeError && err.message === 'Failed to fetch') {
+                return { success: false, error: "A network error occurred. Please check your connection and try again." };
+            }
             return { success: false, error: err.message };
         }
     }, [user]);
     
     const handleConsent = async (granted: boolean) => {
         setShowPrivacyModal(false);
-        await handleProfileUpdate({ privacyConsent: { granted, timestamp: Date.now() } });
+        await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
     };
 
     useEffect(() => {
-        if (userProfile && !sessionStartRef.current) {
-            sessionStartRef.current = Date.now();
-    
-            if (userProfile.privacyConsent === undefined) {
-                setShowPrivacyModal(true);
-            }
+        if (user && userProfile && userProfile.privacy_consent === undefined) {
+            setShowPrivacyModal(true);
         }
-    }, [userProfile]);
+    }, [user, userProfile]);
 
     useEffect(() => {
         if (!user) {
@@ -215,43 +131,86 @@ const App: React.FC = () => {
         }
 
         setIsProfileLoading(true);
-        const profileRef = doc(db, 'users', user.uid);
-        const unsubscribe = onSnapshot(profileRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const profileData = docSnap.data() as UserProfile;
-                setUserProfile(profileData);
-                setIsOnboarding(false);
-                if (tourStatusRef.current === 'unknown') {
-                    if (profileData.privacyConsent?.granted && !profileData.hasCompletedTour) {
-                        startTour();
-                        tourStatusRef.current = 'shown';
-                    } else {
-                        tourStatusRef.current = 'checked';
+        const userChannel = supabase
+            .channel(`public:users:uid=eq.${user.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `uid=eq.${user.id}` }, payload => {
+                const profileData = payload.new as UserProfile;
+                if (!profileData.course_id) {
+                    setIsOnboarding(true);
+                } else {
+                    setUserProfile(profileData);
+                    setIsOnboarding(false);
+                    if (tourStatusRef.current === 'unknown') {
+                        if (profileData.privacy_consent?.granted && !profileData.has_completed_tour) {
+                            startTour();
+                            tourStatusRef.current = 'shown';
+                        } else {
+                            tourStatusRef.current = 'checked';
+                        }
                     }
+                }
+            })
+            .subscribe();
+
+        const fetchUserProfile = async () => {
+            const { data, error } = await supabase.from('users').select('*').eq('uid', user.id).single();
+            if (error && error.code !== 'PGRST116') { // Ignore 'exact one row' error for new users
+                console.error("Error fetching user profile:", (error as Error).message || error);
+                addToast("Failed to load your profile.", "error");
+            } else if (data) {
+                if (!data.course_id) {
+                    setIsOnboarding(true);
+                } else {
+                    setUserProfile(data as UserProfile);
+                    setIsOnboarding(false);
                 }
             } else {
                 setIsOnboarding(true);
             }
             setIsProfileLoading(false);
-        }, (error) => {
-            console.error("Error fetching user profile:", error);
-            addToast("Failed to load your profile.", "error");
-            setIsProfileLoading(false);
-        });
-        return () => unsubscribe();
+        };
+        fetchUserProfile();
+        
+        return () => {
+            supabase.removeChannel(userChannel);
+        };
     }, [user, addToast, startTour]);
     
     useEffect(() => {
         if (!userProfile) return;
-        const progressRef = collection(db, 'users', userProfile.uid, 'progress');
-        const unsubscribe = onSnapshot(progressRef, (snapshot) => {
-            const progressData: UserProgress = {};
-            snapshot.forEach(doc => {
-                progressData[doc.id] = doc.data() as { isComplete: boolean; xpEarned: number; };
-            });
-            setUserProgress(progressData);
-        });
-        return () => unsubscribe();
+
+        const progressChannel = supabase
+            .channel(`public:user_progress:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_progress', filter: `user_id=eq.${userProfile.uid}`}, async () => {
+                const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userProfile.uid);
+                if (data) {
+                    const progressData: UserProgress = {};
+                    data.forEach(item => {
+                        progressData[item.topic_id] = { is_complete: item.is_complete, xp_earned: item.xp_earned };
+                    });
+                    setUserProgress(progressData);
+                }
+            })
+            .subscribe();
+
+        const fetchInitialProgress = async () => {
+            const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userProfile.uid);
+            if (error) {
+                console.error("Error fetching progress:", (error as Error).message || error);
+            } else if (data) {
+                const progressData: UserProgress = {};
+                data.forEach(item => {
+                    progressData[item.topic_id] = { is_complete: item.is_complete, xp_earned: item.xp_earned };
+                });
+                setUserProgress(progressData);
+            }
+        };
+        fetchInitialProgress();
+
+        return () => {
+            supabase.removeChannel(progressChannel);
+        };
+
     }, [userProfile]);
 
     useEffect(() => {
@@ -260,330 +219,178 @@ const App: React.FC = () => {
             return;
         };
         
-        let unsubNotifications: () => void;
-        let unsubMessages: () => void;
-
         const setupListeners = async () => {
             try {
-                // Fetch Total Topics Count
-                const courseDocRef = doc(db, `artifacts/${__app_id}/public/data/courses`, userProfile.courseId);
-                const courseSnap = await getDoc(courseDocRef);
-                const totalTopics = courseSnap.exists() ? (courseSnap.data().subjectList || []).reduce((acc: number, subject: any) => acc + (subject.topics?.length || 0), 0) : 0;
+                // Fetch Dashboard Data
+                const { data: courseData, error: courseError } = await supabase.from('courses_data').select('subject_list').eq('id', userProfile.course_id).single();
+                if(courseError) throw courseError;
+                const totalTopics = courseData.subject_list.reduce((acc: number, subject: any) => acc + (subject.topics?.length || 0), 0) || 0;
                 
-                // Fetch Exam History
-                const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
-                const historyQuery = query(historyRef, orderBy('timestamp', 'desc'), limit(5));
-                const historySnapshot = await getDocs(historyQuery);
-                const examHistory = historySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as ExamHistoryItem));
+                const { data: examHistory, error: examError } = await supabase.from('exam_history').select('*').eq('user_id', userProfile.uid).order('timestamp', { ascending: false }).limit(5);
+                if(examError) throw examError;
 
-                // Fetch XP History
-                const xpHistoryRef = collection(db, 'users', userProfile.uid, 'xpHistory');
-                const xpHistoryQuery = query(xpHistoryRef, orderBy('date', 'desc'), limit(30));
-                const xpHistorySnapshot = await getDocs(xpHistoryQuery);
-                const xpHistory = xpHistorySnapshot.docs.map(d => d.data() as { date: string, xp: number }).reverse();
+                const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                const { data: xpHistory, error: xpError } = await supabase.from('xp_history').select('date, xp').eq('user_id', userProfile.uid).gte('date', thirtyDaysAgo).order('date', { ascending: true });
+                if(xpError) throw xpError;
 
-                setDashboardData({ totalTopics, examHistory, xpHistory });
-
-                // Notifications listener
-                const notificationsRef = collection(db, 'users', userProfile.uid, 'notifications');
-                const notificationsQuery = query(notificationsRef, orderBy('timestamp', 'desc'), limit(20));
-                unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
-                    const fetchedNotifications: NotificationType[] = [];
-                    
-                    if (initialNotificationsLoaded.current) {
-                        snapshot.docChanges().forEach((change) => {
-                            if (change.type === "added") {
-                                const newNotif = change.doc.data() as NotificationType;
-                                triggerPushNotification(newNotif.title, newNotif.message);
-                            }
-                        });
-                    }
-
-                    snapshot.forEach(doc => fetchedNotifications.push({ id: doc.id, ...doc.data() } as NotificationType));
-                    setNotifications(fetchedNotifications);
-
-                    if (!initialNotificationsLoaded.current) {
-                        initialNotificationsLoaded.current = true;
-                    }
-                });
-
-                // Private Messages listener for count and notifications
-                const privateChatsCollectionRef = collection(db, 'privateChats');
-                const privateChatsQuery = query(privateChatsCollectionRef, where('members', 'array-contains', userProfile.uid));
-                unsubMessages = onSnapshot(privateChatsQuery, (snapshot) => {
-                    let count = 0;
-                    const newChats: PrivateChat[] = [];
-
-                    if (initialMessagesLoaded.current) {
-                        snapshot.docChanges().forEach((change) => {
-                            if (change.type === "modified") {
-                                const newData = change.doc.data() as PrivateChat;
-                                const oldData = chatsRef.current.find(c => c.id === change.doc.id);
-
-                                if (
-                                    newData.lastMessage && 
-                                    newData.lastMessage.senderId !== userProfile.uid &&
-                                    (!oldData?.lastMessage || newData.lastMessage.timestamp > oldData.lastMessage.timestamp)
-                                ) {
-                                     const senderName = newData.memberInfo[newData.lastMessage.senderId]?.displayName || 'Someone';
-                                     const messageText = newData.lastMessage.text || 'Sent an image';
-                                     triggerPushNotification(`New message from ${senderName}`, messageText);
-                                }
-                            }
-                        });
-                    }
-
-                    snapshot.forEach(doc => {
-                        const chat = { id: doc.id, ...doc.data() } as PrivateChat;
-                        newChats.push(chat);
-                        if (chat.lastMessage && !chat.lastMessage.readBy?.includes(userProfile.uid)) {
-                            count++;
-                        }
-                    });
-
-                    chatsRef.current = newChats;
-                    setUnreadMessagesCount(count);
-
-                    if (!initialMessagesLoaded.current) {
-                        initialMessagesLoaded.current = true;
-                    }
-                });
-
+                setDashboardData({ totalTopics, examHistory: examHistory as ExamHistoryItem[], xpHistory: xpHistory || [] });
 
             } catch (error) {
-                console.error("Error setting up dashboard/notification listeners:", error);
+                console.error("Error setting up dashboard listeners:", (error as Error).message || error);
             }
         };
 
         setupListeners();
+        
+        // Notifications listener
+        const notificationsChannel = supabase
+            .channel(`public:notifications:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile.uid}` }, payload => {
+                setNotifications(prev => [payload.new as NotificationType, ...prev].sort((a,b) => b.timestamp - a.timestamp));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile.uid}` }, payload => {
+                 setNotifications(prev => prev.filter(n => n.id !== (payload.old as NotificationType).id));
+            })
+            .subscribe();
+        
+        // Private Messages listener for unread count
+        const chatsChannel = supabase
+            .channel(`public:private_chats`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'private_chats' }, async (payload) => {
+                const updatedChat = payload.new as PrivateChat;
+                if (updatedChat.members.includes(userProfile.uid)) {
+                   const { count } = await supabase.from('private_chats').select('*', { count: 'exact', head: true }).contains('members', [userProfile.uid]).not('last_message->>read_by', 'cs', `{"${userProfile.uid}"}`);
+                   setUnreadMessagesCount(count || 0);
+                }
+            })
+            .subscribe();
+
+        const fetchInitialUnread = async () => {
+            const { count } = await supabase.from('private_chats').select('*', { count: 'exact', head: true }).contains('members', [userProfile.uid]).not('last_message->>read_by', 'cs', `{"${userProfile.uid}"}`);
+            setUnreadMessagesCount(count || 0);
+            
+            const { data: initialNotifs, error: notifError } = await supabase.from('notifications').select('*').eq('user_id', userProfile.uid).order('timestamp', { ascending: false }).limit(20);
+            if(initialNotifs) setNotifications(initialNotifs as NotificationType[]);
+        };
+
+        fetchInitialUnread();
+        
         return () => {
-            unsubNotifications && unsubNotifications();
-            unsubMessages && unsubMessages();
-            initialNotificationsLoaded.current = false;
-            initialMessagesLoaded.current = false;
+            supabase.removeChannel(notificationsChannel);
+            supabase.removeChannel(chatsChannel);
         }
-    }, [userProfile, triggerPushNotification]);
+    }, [userProfile]);
 
 
     const handleLogout = async () => {
         try {
-            await logSessionEnd();
             if(user) {
-              const userStatusRef = doc(db, 'users', user.uid);
-              await updateDoc(userStatusRef, {
-                  isOnline: false,
-                  lastSeen: serverTimestamp()
-              });
+              await supabase.from('users').update({ is_online: false, last_seen: Date.now() }).eq('uid', user.id);
             }
-            await signOut(auth);
-            setUser(null);
-            setUserProfile(null);
-            setActiveItem('dashboard');
-            tourStatusRef.current = 'unknown';
-        } catch (error) {
-            console.error("Logout failed:", error);
-            addToast("Failed to log out. Please try again.", "error");
+            await supabase.auth.signOut();
+        } catch (error: any) {
+            console.error("Logout failed:", error.message || error);
+            addToast(error.message || "Failed to log out.", "error");
         }
     };
     
     const handleOnboardingComplete = async (profileData: { courseId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
-        const newUserProfile: UserProfile = {
-            uid: user.uid,
-            displayName: user.displayName || 'Learner',
-            photoURL: user.photoURL || '',
-            courseId: profileData.courseId,
+        const displayName = user.user_metadata.display_name || user.user_metadata.full_name || user.user_metadata.name || 'Learner';
+        const photoURL = user.user_metadata.photo_url || user.user_metadata.avatar_url || '';
+        
+        // Use a more complete object that includes the UID for the upsert operation.
+        const userProfileData: Omit<UserProfile, 'privacy_consent'> = {
+            uid: user.id,
+            display_name: displayName,
+            photo_url: photoURL,
+            course_id: profileData.courseId,
             level: profileData.level,
-            totalXP: 0,
-            totalTestXP: 0,
-            currentStreak: 0,
-            lastActivityDate: now,
-            notificationsEnabled: false,
-            isOnline: true,
-            lastSeen: now,
-            hasCompletedTour: false,
+            total_xp: 0,
+            total_test_xp: 0,
+            current_streak: 0,
+            last_activity_date: now,
+            notifications_enabled: false,
+            is_online: true,
+            last_seen: now,
+            has_completed_tour: false,
         };
+
         try {
-            const batch = writeBatch(db);
-            const userRef = doc(db, 'users', user.uid);
-            batch.set(userRef, newUserProfile);
+            // Use upsert to create the profile if it doesn't exist, or update it if it does.
+            // This prevents a race condition with the database trigger that could cause the notification insert to fail.
+            const { error: profileError } = await supabase.from('users').upsert(userProfileData);
+            if (profileError) throw profileError;
             
-            const notificationRef = doc(collection(db, 'users', user.uid, 'notifications'));
             const notificationData = {
+                user_id: user.id,
                 type: 'welcome' as const,
                 title: 'Welcome to VANTUTOR!',
                 message: 'Your learning journey starts now. Explore the study guide to begin.',
+                is_read: false,
             };
-            batch.set(notificationRef, {
-                ...notificationData,
-                timestamp: serverTimestamp(),
-                isRead: false,
-            });
-            await batch.commit();
+            const { error: notifError } = await supabase.from('notifications').insert(notificationData);
+            if(notifError) throw notifError;
             
-            setUserProfile(newUserProfile);
+            // Update local state to reflect the new profile
+            setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
             setIsOnboarding(false);
-        } catch (error) {
-            console.error("Failed to complete onboarding:", error);
-            addToast("Could not save your profile. Please try again.", "error");
+        } catch (error: any) {
+            console.error("Failed to complete onboarding:", error.message || error);
+            addToast(error.message || "Could not save your profile.", "error");
         }
     };
 
     const handleXPEarned = useCallback(async (xp: number, type: 'lesson' | 'test' = 'lesson') => {
         if (!userProfile) return;
-        const today = new Date().toISOString().split('T')[0];
-        const weekId = getWeekId(new Date());
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                const userRef = doc(db, 'users', userProfile.uid);
-                const xpHistoryRef = doc(db, 'users', userProfile.uid, 'xpHistory', today);
-                const overallLeadRef = doc(db, 'leaderboardOverall', userProfile.uid);
-                const weeklyLeadRef = doc(db, 'leaderboardWeekly', userProfile.uid);
-
-                const [userSnap, xpHistorySnap, overallLeadSnap, weeklyLeadSnap] = await Promise.all([
-                    transaction.get(userRef),
-                    transaction.get(xpHistoryRef),
-                    transaction.get(overallLeadRef),
-                    transaction.get(weeklyLeadRef)
-                ]);
-
-                if (!userSnap.exists()) throw new Error("User does not exist!");
-                const currentProfile = userSnap.data() as UserProfile;
-
-                const xpField = type === 'test' ? 'totalTestXP' : 'totalXP';
-                transaction.update(userRef, { [xpField]: currentProfile[xpField] + xp });
-
-                const currentDailyXP = xpHistorySnap.exists() ? xpHistorySnap.data().xp : 0;
-                transaction.set(xpHistoryRef, { date: today, xp: currentDailyXP + xp }, { merge: true });
-
-                const overallXP = (currentProfile.totalXP + currentProfile.totalTestXP) + xp;
-                const leaderboardPayload = { 
-                    uid: userProfile.uid, 
-                    displayName: userProfile.displayName, 
-                    photoURL: userProfile.photoURL || "",
-                    xp: overallXP 
-                };
-
-                if (overallLeadSnap.exists()) {
-                    transaction.update(overallLeadRef, { xp: overallXP });
-                } else {
-                    transaction.set(overallLeadRef, leaderboardPayload);
-                }
-
-                if (weeklyLeadSnap.exists() && weeklyLeadSnap.data().weekId === weekId) {
-                    transaction.update(weeklyLeadRef, { xp: weeklyLeadSnap.data().xp + xp });
-                } else {
-                    transaction.set(weeklyLeadRef, { ...leaderboardPayload, xp, weekId });
-                }
-            });
-        } catch (error) {
-            console.error("Failed to update XP:", error);
+        const { error } = await supabase.rpc('handle_xp_earned', {
+            p_user_id: userProfile.uid,
+            p_xp_amount: xp,
+            p_xp_type: type,
+        });
+        if (error) {
+            console.error("Failed to update XP:", (error as Error).message || error);
             addToast("There was an issue recording your XP.", "error");
         }
     }, [userProfile, addToast]);
 
     const handleMarkNotificationRead = async (id: string) => {
         if (!user) return;
-        const notifRef = doc(db, 'users', user.uid, 'notifications', id);
-        try {
-            await deleteDoc(notifRef);
-        } catch (error) {
-            console.error("Error deleting notification:", error);
+        const { error } = await supabase.from('notifications').delete().eq('id', id);
+        if (error) {
+            console.error("Error deleting notification:", (error as Error).message || error);
             addToast("Could not clear notification.", "error");
         }
     };
 
     const handleMarkAllNotificationsRead = async () => {
         if (!user) return;
-        const unread = notifications.filter(n => !n.isRead);
-        if (unread.length === 0) return;
-        try {
-            const batch = writeBatch(db);
-            unread.forEach(n => {
-                const notifRef = doc(db, 'users', user.uid, 'notifications', n.id);
-                batch.delete(notifRef);
-            });
-            await batch.commit();
-            addToast(`${unread.length} notification${unread.length > 1 ? 's' : ''} cleared.`, 'success');
-        } catch (error) {
-            console.error("Error clearing notifications:", error);
+        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+        if (unreadIds.length === 0) return;
+
+        const { error } = await supabase.from('notifications').delete().in('id', unreadIds);
+        if (error) {
+            console.error("Error clearing notifications:", (error as Error).message || error);
             addToast("Could not clear notifications.", "error");
+        } else {
+             addToast(`${unreadIds.length} notification${unreadIds.length > 1 ? 's' : ''} cleared.`, 'success');
         }
     };
 
-    const deleteSubcollection = async (batch: WriteBatch, collectionPath: string) => {
-        const collectionRef = collection(db, collectionPath);
-        const snapshot = await getDocs(collectionRef);
-        snapshot.forEach(doc => batch.delete(doc.ref));
-    };
-
     const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) return { success: false, error: 'User not authenticated.' };
-        
         try {
-            const batch = writeBatch(db);
-
-            // 1. Delete all subcollections under the user's document
-            // Chat conversations and their messages
-            const convosRef = collection(db, 'users', currentUser.uid, 'chatConversations');
-            const convosSnap = await getDocs(convosRef);
-            for (const convoDoc of convosSnap.docs) {
-                await deleteSubcollection(batch, `users/${currentUser.uid}/chatConversations/${convoDoc.id}/messages`);
-                batch.delete(convoDoc.ref);
-            }
-            // Other subcollections
-            const otherSubcollections = ['progress', 'examHistory', 'xpHistory', 'notifications'];
-            for (const sub of otherSubcollections) {
-                await deleteSubcollection(batch, `users/${currentUser.uid}/${sub}`);
-            }
-
-            // 2. Delete main user document and activity log
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            batch.delete(userDocRef);
-            const activityDocRef = doc(db, 'userActivity', currentUser.uid);
-            batch.delete(activityDocRef);
-
-            // 3. Delete leaderboard entries
-            const overallLeadRef = doc(db, 'leaderboardOverall', currentUser.uid);
-            batch.delete(overallLeadRef);
-            const weeklyLeadRef = doc(db, 'leaderboardWeekly', currentUser.uid);
-            batch.delete(weeklyLeadRef);
-            
-            // 4. Delete private chats
-            const privateChatsQuery = query(collection(db, 'privateChats'), where('members', 'array-contains', currentUser.uid));
-            const privateChatsSnapshot = await getDocs(privateChatsQuery);
-            for (const chatDoc of privateChatsSnapshot.docs) {
-                await deleteSubcollection(batch, `privateChats/${chatDoc.id}/messages`);
-                batch.delete(chatDoc.ref);
-            }
-
-            await batch.commit();
-
-            // 5. Delete storage data (profile picture) - best effort
-            try {
-                await supabase.storage.from('profile-pictures').remove([currentUser.uid]);
-            } catch (storageError: any) {
-                // Supabase client might throw an error if object not found, which is fine.
-                // Log other errors as a warning.
-                if (storageError.message !== 'The resource was not found') {
-                    console.warn("Could not delete profile picture from Supabase:", storageError);
-                }
-            }
-            
-            // 6. Delete Firebase Auth user
-            await deleteUser(currentUser);
-
+            const { error } = await supabase.functions.invoke('delete-user');
+            if (error) throw error;
             addToast('Your account has been successfully deleted.', 'success');
+            // The auth listener will handle logout and state reset
             return { success: true };
         } catch (error: any) {
-            console.error("Error deleting account:", error);
-            if (error.code === 'auth/requires-recent-login') {
+            console.error("Error deleting account:", error.message || error);
+            if (error.context?.msg === 'User not found' || error.message.includes('401')) {
                 return { success: false, error: 'This is a sensitive operation. Please log out and log back in before trying again.' };
             }
-            return { success: false, error: 'An error occurred while deleting your account. Please try again later.' };
+            return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
     };
 
@@ -592,11 +399,14 @@ const App: React.FC = () => {
         setActiveItem('chat');
     }, []);
     
-    const handleTourClose = (completed: boolean) => {
-        setIsTourOpen(false);
-        if (completed && userProfile && !userProfile.hasCompletedTour) {
-            handleProfileUpdate({ hasCompletedTour: true });
+    const handleTourClose = async (completed: boolean) => {
+        if (completed && userProfile && !userProfile.has_completed_tour) {
+            const result = await handleProfileUpdate({ has_completed_tour: true });
+            if (!result.success) {
+                addToast(result.error || 'Could not save tour completion status.', 'error');
+            }
         }
+        setIsTourOpen(false);
     };
     
     const isMobile = window.innerWidth < 768;
@@ -656,22 +466,6 @@ const App: React.FC = () => {
         placement: 'center',
       },
     ];
-
-    const renderContent = () => {
-        if (!userProfile) return null;
-        switch (activeItem) {
-            case 'dashboard': return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
-            case 'study_guide': return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
-            case 'chat': return <Chat userProfile={userProfile} initiationData={chatInitiationData} onInitiationComplete={() => setChatInitiationData(null)} />;
-            case 'visual_solver': return <VisualSolver userProfile={userProfile} onStartChat={handleStartChatFromTutorial} />;
-            case 'exam': return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
-            case 'leaderboard': return <Leaderboard userProfile={userProfile} />;
-            case 'settings': return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleAccountDeletion} />;
-            case 'help': return <Help onStartTour={startTour} />;
-            case 'messenger': return <Messenger userProfile={userProfile} />;
-            default: return <Dashboard userProfile={userProfile} userProgress={userProgress} dashboardData={dashboardData} />;
-        }
-    };
     
     if (isLoading || isProfileLoading) {
         return <AppLoader />;
@@ -695,7 +489,7 @@ const App: React.FC = () => {
         );
     }
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = notifications.filter(n => !n.is_read).length;
     const currentPageLabel = activeItem === 'messenger' 
         ? 'Messenger' 
         : (navigationItems.find(item => item.id === activeItem)?.label || 'Dashboard');
@@ -705,9 +499,6 @@ const App: React.FC = () => {
             <Sidebar
                 activeItem={activeItem}
                 onItemClick={setActiveItem}
-                isExpanded={isSidebarExpanded}
-                onMouseEnter={() => setIsSidebarExpanded(true)}
-                onMouseLeave={() => setIsSidebarExpanded(false)}
                 userProfile={userProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
@@ -723,7 +514,23 @@ const App: React.FC = () => {
                     unreadMessagesCount={unreadMessagesCount}
                 />
                 <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav">
-                    {renderContent()}
+                    {userProfile && (
+                        <MainContent
+                            activeItem={activeItem}
+                            user={user}
+                            userProfile={userProfile}
+                            userProgress={userProgress}
+                            dashboardData={dashboardData}
+                            chatInitiationData={chatInitiationData}
+                            onInitiationComplete={() => setChatInitiationData(null)}
+                            handleXPEarned={handleXPEarned}
+                            handleLogout={handleLogout}
+                            handleProfileUpdate={handleProfileUpdate}
+                            handleDeleteAccount={handleAccountDeletion}
+                            handleStartChatFromTutorial={handleStartChatFromTutorial}
+                            startTour={startTour}
+                        />
+                    )}
                 </div>
             </main>
             {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}

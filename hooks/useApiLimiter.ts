@@ -23,10 +23,11 @@ export const useApiLimiter = () => {
         apiCallFn().then(() => {
             rateLimiter.current.record();
             resolve({ success: true, message: '' });
-        }).catch((e) => {
+        }).catch((e: any) => {
             // Don't record a failed request
             console.error("API call failed:", e);
-            resolve({ success: false, message: 'An unexpected error occurred.' });
+            const errorMessage = e?.message || e?.toString() || 'An unexpected error occurred.';
+            resolve({ success: false, message: errorMessage });
         });
     });
   }, []);

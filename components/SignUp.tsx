@@ -1,8 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { auth, googleProvider } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
+import { supabase } from '../supabase';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { useToast } from '../hooks/useToast';
@@ -22,13 +21,14 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      // On successful sign-in, onAuthStateChanged will trigger in App.tsx
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+      // On successful sign-in, onAuthStateChange will trigger in App.tsx
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        addToast('Failed to sign in with Google. Please try again.', 'error');
-        console.error('Google sign in failed:', err);
-      }
+      addToast(err.error_description || err.message || 'Failed to sign in with Google.', 'error');
+      console.error('Google sign in failed:', err);
     } finally {
       setIsGoogleSubmitting(false);
     }
@@ -43,18 +43,22 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     setIsSubmitting(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: displayName.trim() });
-      // On successful signup, onAuthStateChanged in App.tsx will handle the state change.
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName.trim(),
+          }
+        }
+      });
+      if (error) throw error;
+      addToast("Confirmation email sent! Please check your inbox.", "success");
+      onSwitchToLogin();
+      // On successful signup, user needs to confirm email.
+      // onAuthStateChanged in App.tsx will handle the state change once they are verified and log in.
     } catch (err: any) {
-      let errorMessage = 'Failed to create an account. Please try again.';
-      if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already in use. Please log in instead.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'The password must be at least 6 characters long.';
-      }
+      let errorMessage = err.error_description || err.message || 'Failed to create an account.';
       console.error('Sign up failed:', err);
       addToast(errorMessage, 'error');
     } finally {

@@ -89,27 +89,27 @@ const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
             <span className="text-xs text-gray-500">{new Date(exam.timestamp).toLocaleDateString()}</span>
         </div>
         <div className="font-semibold text-right">
-            <span className="text-lime-600">+{exam.xpEarned} XP</span>
-            <span className="text-gray-500 ml-2">({exam.score}/{exam.totalQuestions})</span>
+            <span className="text-lime-600">+{exam.xp_earned} XP</span>
+            <span className="text-gray-500 ml-2">({exam.score}/{exam.total_questions})</span>
         </div>
     </div>
 );
 
 export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userProgress, dashboardData }) => {
   
-  const completedTopicsCount = Object.keys(userProgress).filter(id => userProgress[id].isComplete).length;
+  const completedTopicsCount = Object.keys(userProgress).filter(id => userProgress[id].is_complete).length;
   const totalTopics = dashboardData?.totalTopics || 0;
   
   const averageScore = dashboardData?.examHistory && dashboardData.examHistory.length > 0
-    ? Math.round(dashboardData.examHistory.reduce((acc, exam) => acc + (exam.score / exam.totalQuestions), 0) / dashboardData.examHistory.length * 100)
+    ? Math.round(dashboardData.examHistory.reduce((acc, exam) => acc + (exam.score / exam.total_questions), 0) / dashboardData.examHistory.length * 100)
     : 0;
 
   return (
     <div className="p-4 sm:p-6 md:p-8" data-tour-id="dashboard-content">
       <div className="flex flex-wrap gap-4 md:gap-6 mb-8">
         <StatCard title="Current Level" value={userProfile.level} description="Your selected difficulty" icon={<LevelIcon className="w-8 h-8"/>} />
-        <StatCard title="Total XP" value={(userProfile.totalXP + userProfile.totalTestXP).toLocaleString()} description="From lessons & exams" icon={<XPIcon className="w-8 h-8"/>} />
-        <StatCard title="Weekly Streak" value={`${userProfile.currentStreak} Day${userProfile.currentStreak !== 1 ? 's' : ''}`} description="Consecutive days of activity" icon={<StreakIcon className="w-8 h-8"/>} />
+        <StatCard title="Total XP" value={(userProfile.total_xp + userProfile.total_test_xp).toLocaleString()} description="From lessons & exams" icon={<XPIcon className="w-8 h-8"/>} />
+        <StatCard title="Weekly Streak" value={`${userProfile.current_streak} Day${userProfile.current_streak !== 1 ? 's' : ''}`} description="Consecutive days of activity" icon={<StreakIcon className="w-8 h-8"/>} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">

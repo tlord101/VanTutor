@@ -42,6 +42,11 @@ Deno.serve(async (req) => {
         continue; // Skip to the next bucket
       }
 
+      if (!files || files.length === 0) {
+        console.log(`No files found in bucket ${bucket}.`);
+        continue;
+      }
+
       const filesToDelete = files.filter(file => 
         file.created_at && new Date(file.created_at) < timeLimit
       );

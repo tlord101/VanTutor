@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
-import { db } from '../firebase';
 import { supabase } from '../supabase';
-import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -91,7 +89,6 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, topi
     const [isLoading, setIsLoading] = useState(false);
     const [isIllustrating, setIsIllustrating] = useState(false);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
-    const hasInitiatedAutoTeach = useRef(false);
     const { attemptApiCall } = useApiLimiter();
     const { addToast } = useToast();
 
@@ -107,66 +104,93 @@ Your Method:
 Use simple language, analogies, and Markdown for clarity. For mathematical formulas and symbols, use LaTeX syntax (e.g., $...$ for inline and $$...$$ for block). Be patient and encouraging.`;
 
     const initiateAutoTeach = async () => {
-        setIsLoading(true);
-        
-        const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
-            
         const prompt = `
 Context:
-Course: ${getCourseNameById(userProfile.courseId)}
+Course: ${getCourseNameById(userProfile.course_id)}
 Subject: ${topic.subjectName}
-Topic: ${topic.topicName}
+Topic: ${topic.topic_name}
 User Level: ${userProfile.level}
 
 Task:
-Please start teaching me about "${topic.topicName}". Give me a simple and clear introduction to the topic.
+Please start teaching me about "${topic.topic_name}". Give me a simple and clear introduction to the topic.
 `;
         const result = await attemptApiCall(async () => {
-            const parts: any[] = [{ text: prompt }];
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: { parts },
+                contents: { parts: [{ text: prompt }] },
                 config: { systemInstruction }
             });
             const botResponseText = response.text;
+
+            const { data: savedMessage, error } = await supabase
+              .from('study_guide_messages')
+              .insert({
+                  user_id: userProfile.uid,
+                  topic_id: topic.topic_id,
+                  sender: 'bot',
+                  text: botResponseText,
+              })
+              .select()
+              .single();
+
+            if (error || !savedMessage) throw error || new Error("Failed to save initial message.");
             
-            const botMessage: Omit<Message, 'id'> = { text: botResponseText, sender: 'bot', timestamp: Date.now() };
-            await addDoc(conversationRef, { ...botMessage, timestamp: serverTimestamp() });
+            const botMessage: Message = { 
+                id: savedMessage.id, 
+                text: botResponseText, 
+                sender: 'bot', 
+                timestamp: new Date(savedMessage.timestamp).getTime() 
+            };
+            setMessages([botMessage]);
         });
 
         if (!result.success) {
-            addToast(result.message || 'Sorry, I had trouble starting the lesson. You can still ask a question to begin.', 'error');
+            addToast(result.message || 'Sorry, I had trouble starting the lesson.', 'error');
+            onClose();
         }
-        setIsLoading(false);
     };
 
     useEffect(() => {
-        const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
-        const q = query(conversationRef, orderBy('timestamp', 'asc'));
+        const fetchAndInitMessages = async () => {
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('study_guide_messages')
+                    .select('*')
+                    .eq('user_id', userProfile.uid)
+                    .eq('topic_id', topic.topic_id)
+                    .order('timestamp', { ascending: true });
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (snapshot.empty && !hasInitiatedAutoTeach.current) {
-                hasInitiatedAutoTeach.current = true;
-                initiateAutoTeach();
+                // If there's an error fetching history or if there's no history, start a new lesson.
+                if (error || !data || data.length === 0) {
+                    if (error) {
+                        console.warn("Could not fetch lesson history, starting a new session.", error);
+                    }
+                    await initiateAutoTeach();
+                } else {
+                    // History found, so load it.
+                    const fetchedMessages: Message[] = data.map(msg => ({
+                        id: msg.id,
+                        text: msg.text,
+                        sender: msg.sender as 'user' | 'bot',
+                        timestamp: new Date(msg.timestamp).getTime(),
+                        image_url: msg.image_url,
+                    }));
+                    setMessages(fetchedMessages);
+                }
+            } catch (err) {
+                // This catch block will now mainly catch errors from initiateAutoTeach
+                console.error("Error initializing lesson:", err);
+                addToast("Could not start the lesson. Please try again.", "error");
+                onClose(); 
+            } finally {
+                setIsLoading(false);
             }
+        };
 
-            const fetchedMessages: Message[] = [];
-            snapshot.forEach(doc => {
-                 const data = doc.data();
-                 fetchedMessages.push({
-                     id: doc.id,
-                     ...data,
-                     timestamp: data.timestamp?.toMillis() || Date.now()
-                 } as Message);
-            });
-            setMessages(fetchedMessages);
-        }, err => {
-            console.error("Error fetching conversation:", err);
-            addToast("Failed to load conversation history.", "error");
-        });
-
-        return () => unsubscribe();
-    }, [userProfile.uid, topic.topicId]);
+        fetchAndInitMessages();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile.uid, topic.topic_id]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -184,10 +208,7 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
     
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        if (!textToSend.trim() || isLoading || isIllustrating) return;
-        
-        const userMessageText = file ? `${textToSend}\n\n[Attached file: ${file.name}]` : textToSend;
-        const userMessage: Omit<Message, 'id'> = { text: userMessageText, sender: 'user', timestamp: Date.now() };
+        if ((!textToSend.trim() && !file) || isLoading || isIllustrating) return;
         
         const tempInput = textToSend;
         const tempFile = file;
@@ -199,23 +220,65 @@ Please start teaching me about "${topic.topicName}". Give me a simple and clear 
         setIsLoading(true);
 
         try {
-            const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
-            await addDoc(conversationRef, { ...userMessage, timestamp: serverTimestamp() });
+            let imageUrl: string | undefined;
+
+            if (tempFile) {
+                const filePath = `${userProfile.uid}/study-guide-uploads/${topic.topic_id}/${Date.now()}-${tempFile.name}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('chat-media')
+                    .upload(filePath, tempFile);
+
+                if (uploadError) throw uploadError;
+                
+                const { data } = supabase.storage
+                    .from('chat-media')
+                    .getPublicUrl(filePath);
+
+                imageUrl = data.publicUrl;
+            }
+
+            // Save user message to DB
+            const { data: savedUserMessage, error: saveUserError } = await supabase
+                .from('study_guide_messages')
+                .insert({
+                    user_id: userProfile.uid,
+                    topic_id: topic.topic_id,
+                    sender: 'user',
+                    text: tempInput || '',
+                    image_url: imageUrl,
+                })
+                .select()
+                .single();
+            
+            if (saveUserError || !savedUserMessage) throw saveUserError || new Error("Failed to save user message.");
+            
+            // Create message for local state
+            const newUserMessage: Message = {
+                id: savedUserMessage.id,
+                text: savedUserMessage.text || undefined,
+                sender: 'user',
+                timestamp: new Date(savedUserMessage.timestamp).getTime(),
+                image_url: savedUserMessage.image_url,
+            };
+            
+            const updatedMessages = [...messages, newUserMessage];
+            setMessages(updatedMessages);
 
             const result = await attemptApiCall(async () => {
-                 const history = messages.map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n');
+                const history = updatedMessages.map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text || ''}`).join('\n');
+                
                 const prompt = `
 Context:
-Course: ${getCourseNameById(userProfile.courseId)}
+Course: ${getCourseNameById(userProfile.course_id)}
 Subject: ${topic.subjectName}
-Topic: ${topic.topicName}
+Topic: ${topic.topic_name}
 User Level: ${userProfile.level}
 
 Conversation History:
 ${history}
 
 Task:
-Continue teaching this topic based on the student's latest message.
+Continue teaching this topic based on the student's latest message. If an image is provided, analyze it in your response.
 Student: "${tempInput}"
 `;
                 const parts: any[] = [{ text: prompt }];
@@ -233,8 +296,26 @@ Student: "${tempInput}"
                 });
                 const botResponseText = response.text;
                 
-                const botMessage: Omit<Message, 'id'> = { text: botResponseText, sender: 'bot', timestamp: Date.now() };
-                await addDoc(conversationRef, { ...botMessage, timestamp: serverTimestamp() });
+                const { data: savedBotMessage, error: saveBotError } = await supabase
+                    .from('study_guide_messages')
+                    .insert({
+                        user_id: userProfile.uid,
+                        topic_id: topic.topic_id,
+                        sender: 'bot',
+                        text: botResponseText,
+                    })
+                    .select()
+                    .single();
+                
+                if (saveBotError || !savedBotMessage) throw saveBotError || new Error("Failed to save bot response.");
+
+                const botMessage: Message = { 
+                    id: savedBotMessage.id, 
+                    text: botResponseText, 
+                    sender: 'bot', 
+                    timestamp: new Date(savedBotMessage.timestamp).getTime()
+                };
+                setMessages(prev => [...prev, botMessage]);
             });
 
             if (!result.success) {
@@ -289,10 +370,10 @@ Student: "${tempInput}"
     
             if (response.generatedImages?.[0]?.image?.imageBytes) {
                 const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-                const mimeType = 'image/jpeg'; // As requested in the config
+                const mimeType = 'image/jpeg';
 
                 const imageBlob = base64ToBlob(base64ImageBytes, mimeType);
-                const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topicId}/${Date.now()}.jpeg`;
+                const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topic_id}/${Date.now()}.jpeg`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('chat-media')
@@ -308,14 +389,28 @@ Student: "${tempInput}"
 
                 const publicUrl = data.publicUrl;
     
-                const botMessage: Omit<Message, 'id'> = {
-                    text: 'Here is a visualization to help you understand:',
+                const { data: savedMessage, error: saveError } = await supabase
+                    .from('study_guide_messages')
+                    .insert({
+                        user_id: userProfile.uid,
+                        topic_id: topic.topic_id,
+                        sender: 'bot',
+                        text: 'Here is a visualization to help you understand:',
+                        image_url: publicUrl,
+                    })
+                    .select()
+                    .single();
+
+                if (saveError || !savedMessage) throw saveError || new Error("Failed to save illustration message.");
+                
+                const botMessage: Message = {
+                    id: savedMessage.id,
+                    text: savedMessage.text,
                     sender: 'bot',
-                    timestamp: Date.now(),
-                    image: publicUrl
+                    timestamp: new Date(savedMessage.timestamp).getTime(),
+                    image_url: publicUrl
                 };
-                const conversationRef = collection(db, 'users', userProfile.uid, 'conversations', topic.topicId, 'messages');
-                await addDoc(conversationRef, { ...botMessage, timestamp: serverTimestamp() });
+                setMessages(prev => [...prev, botMessage]);
     
             } else {
                 throw new Error("No image data received from the API.");
@@ -335,7 +430,7 @@ Student: "${tempInput}"
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
-                <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{topic.topicName}</h2>
+                <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{topic.topic_name}</h2>
                 <div className="w-8 h-8"></div> {/* Spacer for balance */}
             </header>
 
@@ -354,16 +449,16 @@ Student: "${tempInput}"
                             
                             <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                 <div className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
-                                    {message.image && (
+                                    {message.image_url && (
                                         <div className="mb-2">
-                                            <img src={message.image} alt="Generated illustration" className="rounded-lg w-full" />
+                                            <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
                                         </div>
                                     )}
                                     {message.sender === 'user' ? (
-                                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                                        <p className="text-sm whitespace-pre-wrap user-select-text">{message.text}</p>
                                     ) : (
                                         message.text &&
-                                        <div className="text-sm prose max-w-none">
+                                        <div className="text-sm prose max-w-none user-select-text">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                 rehypePlugins={[rehypeKatex]}
@@ -396,7 +491,7 @@ Student: "${tempInput}"
 
                             {message.sender === 'user' && 
                                <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
-                                   {userProfile.displayName.charAt(0).toUpperCase()}
+                                   {userProfile.display_name.charAt(0).toUpperCase()}
                                </div>
                             }
                         </div>
@@ -447,11 +542,11 @@ Student: "${tempInput}"
                     />
                     <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
                         <PaperclipIcon className="w-5 h-5" />
-                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading || isIllustrating} />
+                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading || isIllustrating} accept="image/*" />
                     </label>
                     <button 
                         onClick={() => handleSend()} 
-                        disabled={isLoading || isIllustrating || !input.trim()} 
+                        disabled={isLoading || isIllustrating || (!input.trim() && !file)} 
                         className="absolute right-3 bg-lime-600 rounded-full p-2 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <SendIcon className="w-5 h-5" />
@@ -459,7 +554,7 @@ Student: "${tempInput}"
                 </div>
                 {file && <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-500 hover:text-red-400">&times;</button></div>}
                 
-                {!isCompleted && <button onClick={() => onMarkComplete(topic.topicId)} disabled={isIllustrating || isLoading} className="mt-4 w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50">Mark as Complete (+2 XP)</button>}
+                {!isCompleted && <button onClick={() => onMarkComplete(topic.topic_id)} disabled={isIllustrating || isLoading} className="mt-4 w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50">Mark as Complete (+2 XP)</button>}
             </footer>
         </div>
     );
@@ -468,14 +563,14 @@ Student: "${tempInput}"
 // --- TOPIC & SUBJECT COMPONENTS ---
 const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void }> = ({ topic, isCompleted, onSelect }) => (
     <button onClick={onSelect} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-white/10 transition-colors">
-        <span className="text-white">{topic.topicName}</span>
+        <span className="text-white">{topic.topic_name}</span>
         {isCompleted && <CheckCircleIcon className="w-5 h-5 text-white" />}
     </button>
 );
 
 const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onSelectTopic: (topic: Topic, subjectName: string) => void }> = ({ subject, userProgress, onSelectTopic }) => {
     const [isOpen, setIsOpen] = useState(false); // Default to closed
-    const completedCount = subject.topics.filter(t => userProgress[t.topicId]?.isComplete).length;
+    const completedCount = subject.topics.filter(t => userProgress[t.topic_id]?.is_complete).length;
     const totalCount = subject.topics.length;
     const isSubjectComplete = completedCount === totalCount;
 
@@ -483,7 +578,7 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
         <div className="bg-gradient-to-br from-lime-500 to-teal-500 p-4 rounded-xl shadow-lg">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center">
                 <div className="text-left">
-                    <h3 className="text-lg font-bold text-white">{subject.subjectName}</h3>
+                    <h3 className="text-lg font-bold text-white">{subject.subject_name}</h3>
                     <p className="text-sm text-lime-100">{completedCount} / {totalCount} topics completed</p>
                 </div>
                 <div className="flex items-center gap-4 text-white">
@@ -495,7 +590,7 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
                 {totalCount > 0 ? (
                     <div className="space-y-1">
                         {subject.topics.map(topic => (
-                            <TopicCard key={topic.topicId} topic={topic} isCompleted={userProgress[topic.topicId]?.isComplete || false} onSelect={() => onSelectTopic(topic, subject.subjectName)} />
+                            <TopicCard key={topic.topic_id} topic={topic} isCompleted={userProgress[topic.topic_id]?.is_complete || false} onSelect={() => onSelectTopic(topic, subject.subject_name)} />
                         ))}
                     </div>
                 ) : (
@@ -523,62 +618,84 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
     
     useEffect(() => {
         setIsLoading(true);
-        const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
-        const unsubscribeCourse = onSnapshot(courseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const allSubjects = docSnap.data().subjectList || [];
-                const subjectsForLevel = allSubjects.filter((subject: Subject) => subject.level === userProfile.level);
-                setSubjects(subjectsForLevel);
-            } else {
-                console.error("Course document not found!");
-                addToast("Could not load study guide. Course data is missing.", "error");
+        const fetchCourseData = async () => {
+            try {
+                const { data: courseData, error } = await supabase
+                    .from('courses_data')
+                    .select('subject_list')
+                    .eq('id', userProfile.course_id)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (courseData) {
+                    const allSubjects = courseData.subject_list || [];
+                    const subjectsForLevel = allSubjects.filter((subject: Subject) => subject.level === userProfile.level);
+                    setSubjects(subjectsForLevel);
+                } else {
+                     console.error("Course document not found!");
+                    addToast("Could not load study guide. Course data is missing.", "error");
+                }
+            } catch (err: any) {
+                console.error("Error fetching course data:", err);
+                addToast("An error occurred while loading the study guide.", "error");
             }
-        }, err => {
-            console.error("Error fetching course data:", err);
-            addToast("An error occurred while loading the study guide.", "error");
-        });
+        };
+        fetchCourseData();
 
-        const progressColRef = collection(db, 'users', userProfile.uid, 'progress');
-        const unsubscribeProgress = onSnapshot(progressColRef, (snapshot) => {
-            const progressData: UserProgress = {};
-            snapshot.forEach(doc => {
-                progressData[doc.id] = doc.data() as { isComplete: boolean; xpEarned: number; };
-            });
-            setUserProgress(progressData);
+        const progressChannel = supabase
+            .channel(`user-progress-${userProfile.uid}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_progress', filter: `user_id=eq.${userProfile.uid}` }, payload => {
+                fetchUserProgress();
+            })
+            .subscribe();
+
+        const fetchUserProgress = async () => {
+             const { data, error } = await supabase
+                .from('user_progress')
+                .select('*')
+                .eq('user_id', userProfile.uid);
+
+            if (error) {
+                console.error("Error fetching user progress:", error);
+                addToast("Failed to load your progress.", "error");
+            } else {
+                 const progressData: UserProgress = {};
+                 data.forEach(item => {
+                     progressData[item.topic_id] = { is_complete: item.is_complete, xp_earned: item.xp_earned };
+                 });
+                 setUserProgress(progressData);
+            }
             setIsLoading(false);
-        }, err => {
-            console.error("Error fetching user progress:", err);
-            addToast("Failed to load your progress.", "error");
-            setIsLoading(false);
-        });
+        };
+        
+        fetchUserProgress();
 
         return () => {
-            unsubscribeCourse();
-            unsubscribeProgress();
+            supabase.removeChannel(progressChannel);
         };
-    }, [userProfile.courseId, userProfile.uid, userProfile.level, addToast]);
+    }, [userProfile.course_id, userProfile.uid, userProfile.level, addToast]);
 
     const handleMarkComplete = async (topicId: string) => {
-        if (userProgress[topicId]?.isComplete) return;
+        if (userProgress[topicId]?.is_complete) return;
 
         try {
-            const batch = writeBatch(db);
-            const progressDocRef = doc(db, 'users', userProfile.uid, 'progress', topicId);
-            batch.set(progressDocRef, { isComplete: true, xpEarned: 2 });
-            
-            if (selectedTopic && selectedTopic.topicId === topicId) {
-                const notificationRef = doc(collection(db, 'users', userProfile.uid, 'notifications'));
-                const notificationData = {
-                    type: 'study_update' as const,
-                    title: 'Topic Complete!',
-                    message: `Great job on finishing "${selectedTopic.topicName}". You earned 2 XP!`,
-                    timestamp: serverTimestamp(),
-                    isRead: false,
-                };
-                batch.set(notificationRef, notificationData);
-            }
+            const { error: progressError } = await supabase
+                .from('user_progress')
+                .upsert({ user_id: userProfile.uid, topic_id: topicId, is_complete: true, xp_earned: 2 });
 
-            await batch.commit();
+            if (progressError) throw progressError;
+            
+            if (selectedTopic && selectedTopic.topic_id === topicId) {
+                const { error: notificationError } = await supabase.from('notifications').insert({
+                    user_id: userProfile.uid,
+                    type: 'study_update',
+                    title: 'Topic Complete!',
+                    message: `Great job on finishing "${selectedTopic.topic_name}". You earned 2 XP!`,
+                    is_read: false,
+                });
+                if (notificationError) console.error("Failed to create notification:", notificationError);
+            }
 
             onXPEarned(2);
             addToast("Topic marked as complete! +2 XP", "success");
@@ -589,21 +706,19 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
     };
 
     const handleSelectTopic = async (topic: Topic, subjectName: string) => {
-        const isNewTopic = !userProgress[topic.topicId];
+        const isNewTopic = !userProgress[topic.topic_id];
 
         if (isNewTopic) {
             try {
-                const notificationsRef = collection(db, 'users', userProfile.uid, 'notifications');
-                await addDoc(notificationsRef, {
-                    type: 'study_update' as const,
+                await supabase.from('notifications').insert({
+                    user_id: userProfile.uid,
+                    type: 'study_update',
                     title: 'New Topic Started!',
-                    message: `You've begun learning about "${topic.topicName}". Keep up the great work!`,
-                    timestamp: serverTimestamp(),
-                    isRead: false,
+                    message: `You've begun learning about "${topic.topic_name}". Keep up the great work!`,
+                    is_read: false,
                 });
             } catch (error) {
                 console.error("Failed to create 'new topic' notification:", error);
-                // Non-critical, so we don't show a toast to the user
             }
         }
         
@@ -614,7 +729,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
         .map(subject => ({
             ...subject,
             topics: subject.topics.filter(topic =>
-                topic.topicName.toLowerCase().includes(searchTerm.toLowerCase())
+                topic.topic_name.toLowerCase().includes(searchTerm.toLowerCase())
             )
         }))
         .filter(subject => subject.topics.length > 0);
@@ -627,7 +742,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
             <LearningInterface 
                 userProfile={userProfile} 
                 topic={selectedTopic}
-                isCompleted={userProgress[selectedTopic.topicId]?.isComplete || false}
+                isCompleted={userProgress[selectedTopic.topic_id]?.is_complete || false}
                 onClose={() => setSelectedTopic(null)} 
                 onMarkComplete={handleMarkComplete}
             />
@@ -663,7 +778,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
                                 </h2>
                                 <div className="space-y-4">
                                     {firstSemesterSubjects.map(subject => (
-                                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
+                                        <SubjectAccordion key={subject.subject_id} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
                                     ))}
                                 </div>
                             </section>
@@ -676,7 +791,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
                                 </h2>
                                 <div className="space-y-4">
                                     {secondSemesterSubjects.map(subject => (
-                                        <SubjectAccordion key={subject.subjectId} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
+                                        <SubjectAccordion key={subject.subject_id} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
                                     ))}
                                 </div>
                             </section>

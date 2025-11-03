@@ -1,4 +1,3 @@
-// FIX: Import 'useCallback' from React to fix 'Cannot find name' error.
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 

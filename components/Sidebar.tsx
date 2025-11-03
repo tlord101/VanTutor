@@ -15,9 +15,6 @@ const LogoutIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' })
 interface SidebarProps {
   activeItem: string;
   onItemClick: (id: string) => void;
-  isExpanded: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
   userProfile: UserProfile | null;
   onLogout: () => void;
   isMobileSidebarOpen: boolean;
@@ -51,9 +48,7 @@ const NavButton: React.FC<{
     </li>
 );
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExpanded, onMouseEnter, onMouseLeave, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
-  const displayName = userProfile?.displayName ?? null;
-  
+export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
   const handleMobileItemClick = (id: string) => {
     onItemClick(id);
     onCloseMobileSidebar();
@@ -63,6 +58,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
     onLogout();
     onCloseMobileSidebar();
   }
+
+  const isExpanded = true; // Sidebar is now always expanded.
 
   const sidebarContent = (
     <div className="h-full p-4 flex flex-col">
@@ -93,105 +90,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, isExp
                <li>
                   <button
                       onClick={onLogout}
-                      className={`w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-600 hover:bg-red-100 hover:text-red-600 group
-                      ${isExpanded ? 'justify-start' : 'justify-center'}`}
+                      className={`w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-600 hover:bg-red-50 hover:text-red-600 group ${isExpanded ? 'justify-start' : 'justify-center'}`}
                   >
-                      <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isExpanded ? 'mr-4' : 'mr-0'}`}><LogoutIcon /></span>
-                      <span className={`font-medium whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                          Logout
-                      </span>
+                      <span className="flex-shrink-0"><LogoutIcon /></span>
+                      <span className={`font-medium ml-4 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Logout</span>
                   </button>
               </li>
-         </ul>
-          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-24 mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
-              <div className="p-3 rounded-lg bg-gray-100">
-                  <div className="flex items-center">
-                      <Avatar displayName={displayName} photoURL={userProfile?.photoURL} className="w-8 h-8" />
-                      <div className="ml-3 overflow-hidden">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
-                      </div>
-                  </div>
-              </div>
+          </ul>
+        <div className="mt-6 p-3 bg-gray-100 rounded-lg">
+          <div className="flex items-center">
+            <Avatar display_name={userProfile?.display_name || null} photo_url={userProfile?.photo_url} className="w-10 h-10 flex-shrink-0" />
+            <div className={`ml-3 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              <p className="font-semibold text-gray-800">{userProfile?.display_name}</p>
+              <p className="text-xs text-gray-500">{userProfile?.level} Level</p>
+            </div>
           </div>
+        </div>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out z-20 ${
-          isExpanded ? 'w-64' : 'w-20'
-        }`}
-      >
-        <div className="h-full bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl">
-          {sidebarContent}
-        </div>
-      </aside>
-
       {/* Mobile Sidebar */}
-      <div
-        className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${
-            isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mobile-menu-title"
+      <div className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onCloseMobileSidebar} aria-hidden="true"></div>
+        <aside className="relative w-72 h-full bg-white border-r border-gray-200">
+          {React.cloneElement(sidebarContent, { isExpanded: true, onItemClick: handleMobileItemClick, onLogout: handleMobileLogout })}
+        </aside>
+      </div>
+      
+      {/* Desktop Sidebar */}
+      <aside 
+          className={`hidden md:block flex-shrink-0 bg-white border-r border-gray-200 w-64`}
       >
-        {/* Overlay */}
-        <div
-            className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm"
-            onClick={onCloseMobileSidebar}
-            aria-hidden="true"
-        ></div>
-
-        {/* Sidebar Panel */}
-        <div className="relative w-64 h-full bg-white/95 backdrop-blur-xl border-r border-gray-200 p-4 flex flex-col">
-            <div className="flex items-center mb-10 flex-shrink-0">
-                <LogoIcon className="w-10 h-10 text-lime-500 flex-shrink-0" />
-                <h1 id="mobile-menu-title" className="text-2xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
-                    VANTUTOR
-                </h1>
-            </div>
-
-            <nav className="flex-grow overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 pl-3">Menu</p>
-                <ul className="space-y-2">
-                    {navigationItems.map((item) => (
-                        <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={true} onClick={() => handleMobileItemClick(item.id)} />
-                    ))}
-                </ul>
-            </nav>
-
-            <div className="flex-shrink-0">
-                <ul className="space-y-2 pt-4 border-t border-gray-200">
-                    {secondaryNavigationItems.map((item) => (
-                        <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={true} onClick={() => handleMobileItemClick(item.id)} />
-                    ))}
-                    <li>
-                        <button
-                            onClick={handleMobileLogout}
-                            className="w-full flex items-center p-3 rounded-lg text-left transition-colors duration-300 ease-in-out text-gray-600 hover:bg-red-100 hover:text-red-600 group justify-start"
-                        >
-                            <span className="flex-shrink-0 mr-4"><LogoutIcon /></span>
-                            <span className="font-medium">Logout</span>
-                        </button>
-                    </li>
-                </ul>
-                <div className="mt-4 p-3 rounded-lg bg-gray-100">
-                    <div className="flex items-center">
-                        <Avatar displayName={displayName} photoURL={userProfile?.photoURL} className="w-8 h-8" />
-                        <div className="ml-3 overflow-hidden">
-                            <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        {sidebarContent}
+      </aside>
     </>
   );
 };

@@ -1,8 +1,8 @@
 
+
 import React, { useState, useEffect } from 'react';
-import type { User } from 'firebase/auth';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import type { User } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
 import { LogoIcon } from './icons/LogoIcon';
 import type { UserProfile } from '../types';
 
@@ -31,30 +31,24 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const coursesRef = collection(db, 'artifacts', __app_id, 'public', 'data', 'courses');
-        const querySnapshot = await getDocs(coursesRef);
+        // HACK: In a real app, this should be an edge function or a secured, public view.
+        // For this migration, we assume a public table 'courses_data' holds the course info.
+        const { data, error: fetchError } = await supabase.from('courses_data').select('id, course_name, levels');
+        if (fetchError) throw fetchError;
+        
+        if (data && data.length > 0) {
+            const fetchedCourses: Course[] = data.map((c: any) => ({ id: c.id, name: c.course_name, levels: c.levels || [] }));
 
-        if (!querySnapshot.empty) {
-            const fetchedCourses: Course[] = [];
-            querySnapshot.forEach(doc => {
-              const data = doc.data();
-              fetchedCourses.push({ id: doc.id, name: data.courseName, levels: data.levels || [] });
-            });
-
-          if (fetchedCourses.length > 0) {
             setCourses(fetchedCourses);
             setSelectedCourse(fetchedCourses[0].id);
             const initialLevels = fetchedCourses[0].levels || [];
             setLevels(initialLevels);
             setSelectedLevel(initialLevels[0] || '');
-          } else {
-            setError("No courses available for setup.");
-          }
         } else {
           setError("Could not find configuration data. Please contact support.");
         }
       } catch (err) {
-        console.error("Error fetching courses data:", err);
+        console.error("Error fetching courses data:", (err as Error).message || err);
         setError("An error occurred during setup. Please try again later.");
       } finally {
         setIsLoadingData(false);

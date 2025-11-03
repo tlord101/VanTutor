@@ -48,7 +48,7 @@ interface NotificationsPanelProps {
 export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifications, isOpen, onClose, onMarkAllAsRead, onMarkAsRead }) => {
     if (!isOpen) return null;
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
         <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden="true">
@@ -74,10 +74,10 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ notifica
                                         onClick={() => onMarkAsRead(notification.id)}
                                         className="w-full text-left flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors"
                                     >
-                                        {!notification.isRead && (
+                                        {!notification.is_read && (
                                             <div className="w-2 h-2 rounded-full bg-lime-500 flex-shrink-0 mt-2" aria-label="Unread"></div>
                                         )}
-                                        <div className={`text-gray-500 flex-shrink-0 ${notification.isRead ? 'ml-4' : ''}`}>
+                                        <div className={`text-gray-500 flex-shrink-0 ${notification.is_read ? 'ml-4' : ''}`}>
                                            <NotificationTypeIcon type={notification.type} />
                                         </div>
                                         <div className="flex-1">

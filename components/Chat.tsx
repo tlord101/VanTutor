@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type, Modality, LiveServerMessage, Blob as GenAIBlob } from '@google/genai';
-import { db } from '../firebase';
 import { supabase } from '../supabase';
-import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, serverTimestamp, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
@@ -324,8 +322,6 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     const [messages, setMessages] = useState<Message[]>([]);
     
     const [input, setInput] = useState('');
-    const [file, setFile] = useState<File | null>(null);
-    const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
     
     const [isLoading, setIsLoading] = useState(false);
     const [isHistoryLoading, setIsHistoryLoading] = useState(true);
@@ -342,13 +338,18 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     const recordingStartRef = useRef<number>(0);
 
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
+    const messagesRef = useRef(messages);
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
+
     const { attemptApiCall } = useApiLimiter();
     const { addToast } = useToast();
 
     const generateTitle = useCallback(async (firstMessage: string, imageProvided: boolean): Promise<string> => {
         try {
             const prompt = `
-            Analyze the following user's first message in a conversation. The user is studying "${getCourseNameById(userProfile.courseId)}".
+            Analyze the following user's first message in a conversation. The user is studying "${getCourseNameById(userProfile.course_id)}".
             
             User's first message: "${firstMessage}"
             ${imageProvided ? "The user also provided an image with this message." : ""}
@@ -381,83 +382,79 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                 return responseData.title;
             }
             return "New Chat"; // Fallback
-        } catch (error) {
-            console.error("Failed to generate title with enhanced prompt:", error);
+        } catch (error: any) {
+            console.error("Failed to generate title with enhanced prompt:", error.message || error);
             try {
                 const simplePrompt = `Generate a very short, concise title (3-5 words) for a conversation that starts with: "${firstMessage}".`;
                 const simpleResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: simplePrompt });
                 return simpleResponse.text.replace(/"/g, '').replace(/\.$/, '').trim() || "New Chat";
-            } catch (simpleError) {
-                 console.error("Failed to generate title with simple prompt:", simpleError);
+            } catch (simpleError: any) {
+                 console.error("Failed to generate title with simple prompt:", simpleError.message || simpleError);
                  return "New Chat";
             }
         }
-    }, [userProfile.courseId]);
+    }, [userProfile.course_id]);
+
+    const fetchConversations = useCallback(async () => {
+        const { data, error } = await supabase.from('chat_conversations').select('*').eq('user_id', userProfile.uid).order('last_updated_at', { ascending: false });
+        if (error) {
+            console.error("Error fetching chat history:", error);
+            addToast('Could not load chat history.', 'error');
+        } else {
+            setConversations(data as ChatConversation[]);
+        }
+        setIsHistoryLoading(false);
+    }, [userProfile.uid, addToast]);
 
     useEffect(() => {
         setIsHistoryLoading(true);
-        const conversationsRef = collection(db, 'users', userProfile.uid, 'chatConversations');
-        const q = query(conversationsRef, orderBy('lastUpdatedAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedConversations: ChatConversation[] = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                fetchedConversations.push({ id: doc.id, ...data } as ChatConversation);
-            });
-            setConversations(fetchedConversations);
-            setIsHistoryLoading(false);
-        }, (err) => {
-            console.error("Error fetching chat history:", err);
-            addToast('Could not load chat history.', 'error');
-            setIsHistoryLoading(false);
-        });
-        return () => unsubscribe();
-    }, [userProfile.uid, addToast]);
+        fetchConversations();
+        const channel = supabase.channel(`public:chat_conversations:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations', filter: `user_id=eq.${userProfile.uid}` }, () => {
+                fetchConversations();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userProfile.uid, fetchConversations]);
+
+    const fetchMessages = useCallback(async (conversationId: string) => {
+        const { data, error } = await supabase.from('chat_messages').select('*').eq('conversation_id', conversationId).order('timestamp', { ascending: true });
+        if (error) {
+            console.error("Error fetching messages:", error);
+            addToast('Could not load messages for this conversation.', 'error');
+        } else {
+            setMessages(data as Message[]);
+        }
+    }, [addToast]);
 
     useEffect(() => {
         if (!activeConversationId) {
             setMessages([]);
             return;
         }
-        const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', activeConversationId, 'messages');
-        const q = query(messagesRef, orderBy('timestamp', 'asc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedMessages: Message[] = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                fetchedMessages.push({ id: doc.id, ...data, timestamp: data.timestamp?.toMillis() || Date.now() } as Message);
-            });
-            setMessages(fetchedMessages);
-        }, (err) => {
-            console.error("Error fetching messages for conversation:", err);
-            addToast('Could not load messages for this conversation.', 'error');
-        });
-        return () => unsubscribe();
-    }, [userProfile.uid, activeConversationId, addToast]);
+
+        fetchMessages(activeConversationId);
+        const channel = supabase.channel(`public:chat_messages:conversation_id=eq.${activeConversationId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${activeConversationId}` }, () => {
+                fetchMessages(activeConversationId);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [activeConversationId, fetchMessages]);
     
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            if (selectedFile.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => setImagePreviewUrl(reader.result as string);
-                reader.readAsDataURL(selectedFile);
-            } else {
-                setImagePreviewUrl(null);
-            }
-            setFile(selectedFile);
-        }
-    };
     
     const handleNewChat = () => {
         setActiveConversationId(null);
         setInput('');
-        setFile(null);
-        setImagePreviewUrl(null);
     };
 
     const handleSendAudio = async (audioBlob: Blob, duration: number) => {
@@ -466,11 +463,16 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
         try {
             if (!currentConversationId) {
                 const newTitle = await generateTitle("Voice message", false);
-                const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
                 const now = Date.now();
-                const newConversationData: Omit<ChatConversation, 'id'> = { title: newTitle, createdAt: now, lastUpdatedAt: now };
-                await setDoc(newConversationRef, newConversationData);
-                currentConversationId = newConversationRef.id;
+                const newConversationData: Omit<ChatConversation, 'id'> = { 
+                    user_id: userProfile.uid,
+                    title: newTitle, 
+                    created_at: now, 
+                    last_updated_at: now 
+                };
+                const { data, error } = await supabase.from('chat_conversations').insert(newConversationData).select().single();
+                if (error || !data) throw error || new Error("Failed to create conversation");
+                currentConversationId = data.id;
                 setActiveConversationId(currentConversationId);
             }
             
@@ -481,11 +483,9 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
             const { data } = supabase.storage.from('chat-media').getPublicUrl(filePath);
             const audioUrl = data.publicUrl;
 
-            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', currentConversationId, 'messages');
-            await addDoc(messagesRef, { sender: 'user', timestamp: serverTimestamp(), audioUrl, audioDuration: duration });
-            const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', currentConversationId);
-            await updateDoc(conversationRef, { lastUpdatedAt: Date.now() });
-
+            await supabase.from('chat_messages').insert({ conversation_id: currentConversationId, sender: 'user', audio_url: audioUrl, audio_duration: duration });
+            await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', currentConversationId);
+            
             // TODO: Implement AI response to audio if needed
         } catch (error) {
             console.error("Error sending audio:", error);
@@ -535,93 +535,88 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
 
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        if ((!textToSend.trim() && !file) || isLoading || isRecording) return;
+        if (!textToSend.trim() || isLoading || isRecording) return;
+    
+        const tempUserMessage: Message = {
+            id: `temp-user-${Date.now()}`,
+            text: textToSend,
+            sender: 'user',
+            timestamp: Date.now(),
+        };
         
-        let currentConversationId = activeConversationId;
-        const tempInput = textToSend;
-        const tempFile = file;
-        const tempImagePreview = imagePreviewUrl;
-        
+        // Optimistic update for immediate feedback
+        setMessages(prev => [...prev, tempUserMessage]);
         setInput('');
-        setFile(null);
-        setImagePreviewUrl(null);
         setIsLoading(true);
-
+    
         try {
+            let currentConversationId = activeConversationId;
             if (!currentConversationId) {
-                const firstMessageContent = tempInput || `Image: ${tempFile?.name}`;
-                const newTitle = await generateTitle(firstMessageContent, !!tempFile);
-                const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
+                const newTitle = await generateTitle(textToSend, false);
                 const now = Date.now();
-                const newConversationData: Omit<ChatConversation, 'id'> = { title: newTitle, createdAt: now, lastUpdatedAt: now };
-                await setDoc(newConversationRef, newConversationData);
-                currentConversationId = newConversationRef.id;
+                const { data, error } = await supabase.from('chat_conversations').insert({ user_id: userProfile.uid, title: newTitle, created_at: now, last_updated_at: now }).select().single();
+                if (error || !data) throw error;
+                currentConversationId = data.id;
                 setActiveConversationId(currentConversationId);
             }
-            
-            let imageUrl: string | undefined;
-            if (tempFile) {
-                const filePath = `chat-media/${userProfile.uid}/${currentConversationId}/${Date.now()}-${tempFile.name}`;
-                const { error: uploadError } = await supabase.storage.from('chat-media').upload(filePath, tempFile);
-                if (uploadError) throw uploadError;
-                const { data } = supabase.storage.from('chat-media').getPublicUrl(filePath);
-                imageUrl = data.publicUrl;
-            }
-
-            const userMessage: Omit<Message, 'id'> = { text: tempInput, sender: 'user', timestamp: Date.now() };
-            if (imageUrl) userMessage.image = imageUrl;
-            
-            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', currentConversationId, 'messages');
-            await addDoc(messagesRef, { ...userMessage, timestamp: serverTimestamp() });
-            const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', currentConversationId);
-            await updateDoc(conversationRef, { lastUpdatedAt: Date.now() });
-
-            const result = await attemptApiCall(async () => {
-                const history = messages.map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n');
-                const systemInstruction = `You are VANTUTOR, a friendly AI tutor. Your responses should be helpful, clear, and engaging. Use Markdown and LaTeX for clarity.`;
-                const prompt = `Conversation History:\n${history}\n\nTask: Continue the conversation.\nStudent: "${tempInput}"`;
-                
-                const parts: any[] = [{ text: prompt }];
-                if (tempFile && tempImagePreview) {
-                    const base64Data = tempImagePreview.split(',')[1];
-                    if(base64Data) parts.unshift({ inlineData: { data: base64Data, mimeType: tempFile.type } });
-                }
-
-                const responseStream = await ai.models.generateContentStream({ model: 'gemini-2.5-flash', contents: { parts }, config: { systemInstruction }});
-                
-                let botResponseText = '';
-                const botMessageId = `bot-${Date.now()}`;
-                const tempBotMessage: Message = { id: botMessageId, text: '', sender: 'bot', timestamp: Date.now() };
-                setMessages(prev => [...prev, tempBotMessage]);
-
-                for await (const chunk of responseStream) {
-                    botResponseText += chunk.text;
-                    setMessages(prev => prev.map(m => m.id === botMessageId ? { ...m, text: botResponseText } : m));
-                }
-
-                const finalBotMessage: Omit<Message, 'id'> = { text: botResponseText, sender: 'bot', timestamp: Date.now() };
-                await addDoc(messagesRef, { ...finalBotMessage, timestamp: serverTimestamp() });
+    
+            // Save user message (the subscription will update the UI from temp to real)
+            const { error: saveUserError } = await supabase.from('chat_messages').insert({
+                text: textToSend, sender: 'user', conversation_id: currentConversationId,
             });
-
-            if (!result.success) addToast(result.message, 'error');
-        } catch (err) {
-            console.error('Error sending message:', err);
-            addToast('Sorry, something went wrong sending your message.', 'error');
+            if (saveUserError) throw saveUserError;
+            
+            await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', currentConversationId);
+            
+            // Get AI response
+            const result = await attemptApiCall(async () => {
+                const history = [...messagesRef.current] // Use ref to get the latest messages, including the optimistic one
+                    .map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text || ''}`).join('\n');
+                const systemInstruction = `You are VANTUTOR, a friendly AI tutor. Your responses should be helpful, clear, and engaging. Use Markdown and LaTeX for clarity.`;
+                const prompt = `Conversation History:\n${history}\n\nTask: Continue the conversation based on the student's last message.`;
+                
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ text: prompt }] }, config: { systemInstruction } });
+                const botResponseText = response.text;
+    
+                // Save bot message (subscription will update UI)
+                const { error: saveBotError } = await supabase.from('chat_messages').insert({
+                    text: botResponseText, sender: 'bot', conversation_id: currentConversationId
+                });
+                if (saveBotError) throw saveBotError;
+            });
+    
+            if (!result.success) {
+                addToast(result.message, 'error');
+                // Remove the temp message if AI call fails, so user knows it didn't fully process
+                setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
+                setInput(textToSend); // Restore input
+            }
+    
+        } catch (err: any) {
+            console.error('Error sending message:', err.message || err);
+            addToast(err.message || 'Sorry, something went wrong sending your message.', 'error');
+            // Revert optimistic update on any failure
+            setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
+            setInput(textToSend);
         } finally {
             setIsLoading(false);
         }
     };
 
+
     const handleDeleteConversation = async (id: string) => {
         setIsDeleting(true);
         try {
-            const batch = writeBatch(db);
-            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', id, 'messages');
-            const messagesSnapshot = await getDocs(messagesRef);
-            messagesSnapshot.forEach(doc => batch.delete(doc.ref));
-            const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', id);
-            batch.delete(conversationRef);
-            await batch.commit();
+            const { error } = await supabase.from('chat_conversations').delete().eq('id', id);
+            if (error) throw error;
+            
+            // Note: Messages are deleted by cascade in the DB.
+            // We should also clean up storage.
+            const { data: files, error: listError } = await supabase.storage.from('chat-media').list(`${userProfile.uid}/${id}`);
+            if (files && files.length > 0) {
+                const filePaths = files.map(f => `${userProfile.uid}/${id}/${f.name}`);
+                await supabase.storage.from('chat-media').remove(filePaths);
+            }
 
             if (activeConversationId === id) handleNewChat();
             addToast('Conversation deleted.', 'success');
@@ -642,15 +637,9 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     const handleClearAllHistory = async () => {
         setIsDeleting(true);
         try {
-            const batch = writeBatch(db);
             for (const convo of conversations) {
-                const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', convo.id, 'messages');
-                const messagesSnapshot = await getDocs(messagesRef);
-                messagesSnapshot.forEach(doc => batch.delete(doc.ref));
-                const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', convo.id);
-                batch.delete(conversationRef);
+                await handleDeleteConversation(convo.id);
             }
-            await batch.commit();
             handleNewChat();
             addToast('All chat history cleared.', 'success');
         } catch (error) {
@@ -669,9 +658,9 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     
     const handleRenameConversation = async (id: string, newTitle: string) => {
         if (!newTitle.trim()) return;
-        const conversationRef = doc(db, 'users', userProfile.uid, 'chatConversations', id);
         try {
-            await updateDoc(conversationRef, { title: newTitle.trim() });
+            const { error } = await supabase.from('chat_conversations').update({ title: newTitle.trim() }).eq('id', id);
+            if(error) throw error;
         } catch (error) {
             console.error("Error renaming conversation:", error);
             addToast('Failed to rename conversation.', 'error');
@@ -683,14 +672,12 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
 
         setIsLoading(true);
         try {
-            // 1. Generate title and create conversation doc
             const newTitle = await generateTitle("Follow-up on visual problem", true);
-            const newConversationRef = doc(collection(db, 'users', userProfile.uid, 'chatConversations'));
             const now = Date.now();
-            await setDoc(newConversationRef, { title: newTitle, createdAt: now, lastUpdatedAt: now });
-            const newConversationId = newConversationRef.id;
+            const { data: convoData, error: convoError } = await supabase.from('chat_conversations').insert({ user_id: userProfile.uid, title: newTitle, created_at: now, last_updated_at: now }).select().single();
+            if (convoError || !convoData) throw convoError || new Error("Conversation creation failed");
+            const newConversationId = convoData.id;
 
-            // 2. Upload image to Supabase
             const base64Data = data.image.split(',')[1];
             if (!base64Data) throw new Error("Invalid image data");
             const imageBlob = base64ToBlob(base64Data, 'image/jpeg');
@@ -700,32 +687,14 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
             const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filePath);
             const imageUrl = urlData.publicUrl;
 
-            // 3. Add messages to the new conversation
-            const messagesRef = collection(db, 'users', userProfile.uid, 'chatConversations', newConversationId, 'messages');
-            const batch = writeBatch(db);
+            const { error: messagesError } = await supabase.from('chat_messages').insert([
+                { conversation_id: newConversationId, sender: 'user', text: 'Here is the problem I was working on.', image_url: imageUrl },
+                { conversation_id: newConversationId, sender: 'bot', text: data.tutorialText }
+            ]);
+            if (messagesError) throw messagesError;
             
-            // User message with image
-            const userMsgRef = doc(messagesRef);
-            batch.set(userMsgRef, {
-                sender: 'user',
-                timestamp: serverTimestamp(),
-                text: 'Here is the problem I was working on.',
-                image: imageUrl,
-            });
-            
-            // Bot message with tutorial
-            const botMsgRef = doc(messagesRef);
-            batch.set(botMsgRef, {
-                sender: 'bot',
-                timestamp: serverTimestamp(),
-                text: data.tutorialText,
-            });
-            await batch.commit();
-            
-            // 4. Update conversation's last updated timestamp
-            await updateDoc(newConversationRef, { lastUpdatedAt: Date.now() });
+            await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', newConversationId);
 
-            // 5. Set active conversation and clean up
             setActiveConversationId(newConversationId);
             onInitiationComplete();
         } catch (error) {
@@ -746,7 +715,7 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     const WelcomeScreen = ({ userProfile }: { userProfile: UserProfile }) => (
         <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in-up">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center mb-6 shadow-lg"><LogoIcon className="w-14 h-14 text-white" /></div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 tracking-tight">Hello, <span className="bg-gradient-to-r from-lime-500 to-teal-500 text-transparent bg-clip-text">{userProfile.displayName}!</span></h2>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 tracking-tight">Hello, <span className="bg-gradient-to-r from-lime-500 to-teal-500 text-transparent bg-clip-text">{userProfile.display_name}!</span></h2>
             <p className="mt-4 text-lg text-gray-600 max-w-md">How can I help you start your learning journey today?</p>
         </div>
     );
@@ -772,11 +741,11 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                                         <div key={message.id} className={`flex items-end gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             {message.sender === 'bot' && <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start"><GraduationCapIcon className="w-full h-full p-1.5 text-white" /></div>}
                                             <div className={`max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}`}>
-                                                {message.image && <img src={message.image} alt="User attachment" className="rounded-lg mb-2 max-h-48" />}
+                                                {message.image_url && <img src={message.image_url} alt="User attachment" className="rounded-lg mb-2 max-h-48" />}
                                                 {message.audioUrl && <audio src={message.audioUrl} controls className="w-full max-w-xs h-10" />}
                                                 {message.text && <div className="text-sm prose max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />, a: ({node, ...props}) => <a className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} /> }}>{message.text}</ReactMarkdown></div>}
                                             </div>
-                                            {message.sender === 'user' && <Avatar displayName={userProfile.displayName} photoURL={userProfile.photoURL} className="w-8 h-8 self-start" />}
+                                            {message.sender === 'user' && <Avatar display_name={userProfile.display_name} photo_url={userProfile.photo_url} className="w-8 h-8 self-start" />}
                                         </div>
                                     ))}
                                     {isLoading && <div className="flex items-start gap-3 animate-fade-in-up"><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0"><GraduationCapIcon className="w-full h-full p-1.5 text-white" /></div><div className="max-w-lg p-3 px-4 rounded-2xl bg-white border border-gray-200 rounded-bl-none"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div></div></div></div>}
@@ -788,16 +757,14 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none">
                             <div className="pointer-events-auto">
-                                {imagePreviewUrl && <div className="relative w-24 h-24 mb-2 p-1 border border-gray-300 rounded-lg bg-white"><img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" /><button onClick={() => { setFile(null); setImagePreviewUrl(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm shadow-md">&times;</button></div>}
-                                <div className="relative flex items-center bg-white border border-gray-300 rounded-full shadow-lg py-1 pl-3 pr-1.5">
-                                    <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} disabled={isLoading} accept="image/*" /></label>
-                                    {isRecording ? (<div className="flex-1 flex items-center justify-center h-9 px-2 text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
-                                    ) : (<textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-2 text-gray-900 placeholder-gray-500" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />)}
+                                <div className="relative flex items-center bg-white border border-gray-300 rounded-full shadow-lg py-1 pr-1.5">
+                                    {isRecording ? (<div className="flex-1 flex items-center justify-center h-9 px-4 text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
+                                    ) : (<textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask anything..." className="flex-1 w-full bg-transparent border-0 focus:ring-0 resize-none py-2 px-4 text-gray-900 placeholder-gray-500" rows={1} style={{ fieldSizing: 'content' }} disabled={isLoading} />)}
                                     
-                                    {!input.trim() && !file ? (
+                                    {!input.trim() ? (
                                         <button onMouseDown={handleStartRecording} onMouseUp={handleStopRecording} onTouchStart={handleStartRecording} onTouchEnd={handleStopRecording} disabled={isLoading} className={`rounded-full p-2.5 transition-colors text-white ${isRecording ? 'bg-red-500' : 'bg-lime-500 hover:bg-lime-600'} disabled:opacity-50`} aria-label={isRecording ? 'Stop recording' : 'Start recording'}><GeneralMicrophoneIcon className="w-5 h-5" /></button>
                                     ) : (
-                                        <button onClick={() => handleSend()} disabled={isLoading || (!input.trim() && !file)} className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send message"><SendIcon className="w-5 h-5" /></button>
+                                        <button onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="bg-lime-500 rounded-full p-2.5 text-white hover:bg-lime-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send message"><SendIcon className="w-5 h-5" /></button>
                                     )}
                                 </div>
                             </div>

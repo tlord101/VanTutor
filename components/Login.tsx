@@ -1,7 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { auth, googleProvider } from '../firebase';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { supabase } from '../supabase';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
@@ -22,13 +22,14 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      // On successful sign-in, onAuthStateChanged will trigger in App.tsx
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+      // On successful sign-in, onAuthStateChange will trigger in App.tsx
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        addToast('Failed to sign in with Google. Please try again.', 'error');
-        console.error('Google sign in failed:', err);
-      }
+      addToast(err.error_description || err.message || 'Failed to sign in with Google.', 'error');
+      console.error('Google sign in failed:', err);
     } finally {
       setIsGoogleSubmitting(false);
     }
@@ -39,14 +40,16 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
     setIsSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // On successful login, onAuthStateChanged in App.tsx will handle the state change.
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      // On successful login, onAuthStateChange in App.tsx will handle the state change.
     } catch (err: any) {
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (err.code === 'auth/invalid-credential') {
+      let errorMessage = err.error_description || err.message || 'An unexpected error occurred.';
+      if(err.message === 'Invalid login credentials') {
         errorMessage = 'Incorrect email or password. Please try again.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
       }
       console.error('Login failed:', err);
       addToast(errorMessage, 'error');

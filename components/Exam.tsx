@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { db } from '../firebase';
-import { collection, addDoc, getDocs, orderBy, query, doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Subject } from '../types';
 import { useToast } from '../hooks/useToast';
 
@@ -40,11 +38,14 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
-                const q = query(historyRef, orderBy('timestamp', 'desc'));
-                const querySnapshot = await getDocs(q);
-                const fetchedHistory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExamHistoryItem));
-                setHistory(fetchedHistory);
+                // FIX: Migrated from Firebase to Supabase
+                const { data, error } = await supabase
+                    .from('exam_history')
+                    .select('*')
+                    .eq('user_id', userProfile.uid)
+                    .order('timestamp', { ascending: false });
+                if (error) throw error;
+                setHistory(data as ExamHistoryItem[]);
             } catch (error) {
                 console.error("Error fetching exam history: ", error);
             } finally {
@@ -67,13 +68,13 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
             {history.map(exam => (
                 <div key={exam.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                     <div>
-                        <p className="font-semibold text-gray-900">{getCourseNameById(exam.courseId)}</p>
+                        <p className="font-semibold text-gray-900">{getCourseNameById(exam.course_id)}</p>
                         <p className="text-sm text-gray-600">
                             {new Date(exam.timestamp).toLocaleString()}
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="font-bold text-lime-600">{exam.score}/{exam.totalQuestions}</p>
+                        <p className="font-bold text-lime-600">{exam.score}/{exam.total_questions}</p>
                         <button onClick={() => onReview(exam)} className="text-sm text-lime-600 hover:underline">Review</button>
                     </div>
                 </div>
@@ -113,7 +114,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     const fetchCompletedTopics = async () => {
         setIsTopicDataLoading(true);
         const completedTopicIds = Object.keys(userProgress).filter(
-            topicId => userProgress[topicId]?.isComplete
+            topicId => userProgress[topicId]?.is_complete
         );
 
         if (completedTopicIds.length === 0) {
@@ -123,16 +124,21 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
         }
         
         try {
-            const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
-            const courseSnap = await getDoc(courseDocRef);
+            const { data: courseData, error } = await supabase
+                .from('courses_data')
+                .select('subject_list')
+                .eq('id', userProfile.course_id)
+                .single();
 
-            if (courseSnap.exists()) {
-                const subjects: Subject[] = courseSnap.data().subjectList || [];
+            if (error) throw error;
+
+            if (courseData) {
+                const subjects: Subject[] = courseData.subject_list || [];
                 const topicNames: string[] = [];
                 subjects.forEach(subject => {
                     subject.topics?.forEach(topic => {
-                        if (completedTopicIds.includes(topic.topicId)) {
-                            topicNames.push(topic.topicName);
+                        if (completedTopicIds.includes(topic.topic_id)) {
+                            topicNames.push(topic.topic_name);
                         }
                     });
                 });
@@ -147,7 +153,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     };
 
     fetchCompletedTopics();
-  }, [userProgress, userProfile.courseId, addToast]);
+  }, [userProgress, userProfile.course_id, addToast]);
 
   const finishExam = useCallback(async () => {
       setExamState(currentState => {
@@ -166,10 +172,10 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           }
 
           const examResult: Omit<ExamHistoryItem, 'id'> = {
-              courseId: userProfile.courseId,
+              course_id: userProfile.course_id,
               score: currentScore,
-              totalQuestions: questions.length,
-              xpEarned,
+              total_questions: questions.length,
+              xp_earned: xpEarned,
               timestamp: Date.now(),
               questions: questions.map((q, i) => ({
                   ...q,
@@ -180,21 +186,19 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
 
           const saveResults = async () => {
               try {
-                  const batch = writeBatch(db);
-                  const historyRef = collection(db, 'users', userProfile.uid, 'examHistory');
-                  batch.set(doc(historyRef), examResult);
+                  const { error: historyError } = await supabase.from('exam_history').insert(examResult);
+                  if (historyError) throw historyError;
 
-                  const notificationRef = doc(collection(db, 'users', userProfile.uid, 'notifications'));
                   const notificationData = {
+                      user_id: userProfile.uid,
                       type: 'exam_reminder' as const,
                       title: 'Exam Finished!',
                       message: `You scored ${currentScore}/${questions.length} and earned ${xpEarned} XP!`,
-                      timestamp: serverTimestamp(),
-                      isRead: false,
+                      is_read: false,
                   };
-                  batch.set(notificationRef, notificationData);
+                  const { error: notificationError } = await supabase.from('notifications').insert(notificationData);
+                  if (notificationError) throw notificationError;
                   
-                  await batch.commit();
                   onXPEarned(xpEarned, 'test');
               } catch (error) {
                   console.error("Failed to save exam results:", error);
@@ -208,7 +212,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           
           return 'completed';
       });
-  }, [questions, userProfile.courseId, userProfile.uid, onXPEarned, addToast]);
+  }, [questions, userProfile.course_id, userProfile.uid, onXPEarned, addToast]);
 
   useEffect(() => {
       if (examState !== 'in_progress' || timeLeft <= 0) {
@@ -232,7 +236,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
-        contents: `Generate 10 multiple-choice questions for a student studying "${getCourseNameById(userProfile.courseId)}" at a "${userProfile.level}" level, focusing on the following topics they have completed: ${completedTopicNames.join(', ')}. Ensure the options are distinct and the correct answer is one of the options.`,
+        contents: `Generate 10 multiple-choice questions for a student studying "${getCourseNameById(userProfile.course_id)}" at a "${userProfile.level}" level, focusing on the following topics they have completed: ${completedTopicNames.join(', ')}. Ensure the options are distinct and the correct answer is one of the options.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -265,9 +269,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
       } else {
         throw new Error("Failed to generate valid questions from AI response.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating exam questions:", error);
-      addToast("Sorry, we couldn't create an exam for you right now. Please try again in a moment.", 'error');
+      addToast(error.message || "Sorry, we couldn't create an exam for you right now. Please try again in a moment.", 'error');
       setExamState('start');
     }
   };

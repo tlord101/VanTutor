@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile } from '../types';
-import type { User } from 'firebase/auth';
-import { db } from '../firebase';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
-import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -41,13 +39,15 @@ const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
 
 export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate, onDeleteAccount }) => {
   const [isEditingName, setIsEditingName] = useState(false);
-  const [newDisplayName, setNewDisplayName] = useState(userProfile.displayName);
+  // FIX: Use snake_case for display_name
+  const [newDisplayName, setNewDisplayName] = useState(userProfile.display_name);
   const [isSaving, setIsSaving] = useState(false);
   const [courseName, setCourseName] = useState<string>('');
   const [isCourseLoading, setIsCourseLoading] = useState(true);
   const [levels, setLevels] = useState<string[]>([]);
   const [isLevelsLoading, setIsLevelsLoading] = useState(true);
-  const [isNotificationSwitchOn, setIsNotificationSwitchOn] = useState(userProfile.notificationsEnabled);
+  // FIX: Use snake_case for notifications_enabled
+  const [isNotificationSwitchOn, setIsNotificationSwitchOn] = useState(userProfile.notifications_enabled);
   const [isNotificationSaving, setIsNotificationSaving] = useState(false);
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,12 +55,14 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    setIsNotificationSwitchOn(userProfile.notificationsEnabled);
-  }, [userProfile.notificationsEnabled]);
+    // FIX: Use snake_case for notifications_enabled
+    setIsNotificationSwitchOn(userProfile.notifications_enabled);
+  }, [userProfile.notifications_enabled]);
 
   useEffect(() => {
     const fetchCourseData = async () => {
-      if (!userProfile.courseId) {
+      // FIX: Use snake_case for course_id
+      if (!userProfile.course_id) {
         setCourseName('Not Set');
         setIsCourseLoading(false);
         setIsLevelsLoading(false);
@@ -69,19 +71,25 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
       setIsCourseLoading(true);
       setIsLevelsLoading(true);
       try {
-        const courseDocRef = doc(db, 'artifacts', __app_id, 'public', 'data', 'courses', userProfile.courseId);
-        const courseSnap = await getDoc(courseDocRef);
-        if (courseSnap.exists()) {
-          const data = courseSnap.data();
-          setCourseName(data.courseName || userProfile.courseId.replace(/_/g, ' '));
-          setLevels(data.levels || []);
+        // FIX: Migrated from Firebase to Supabase
+        const { data: courseData, error } = await supabase
+          .from('courses_data')
+          .select('course_name, levels')
+          .eq('id', userProfile.course_id)
+          .single();
+
+        if (error) throw error;
+
+        if (courseData) {
+          setCourseName(courseData.course_name || userProfile.course_id.replace(/_/g, ' '));
+          setLevels(courseData.levels || []);
         } else {
-          setCourseName(userProfile.courseId.replace(/_/g, ' '));
+          setCourseName(userProfile.course_id.replace(/_/g, ' '));
           setLevels([]);
         }
       } catch (error) {
         console.error("Failed to fetch course data:", error);
-        setCourseName(userProfile.courseId.replace(/_/g, ' '));
+        setCourseName(userProfile.course_id.replace(/_/g, ' '));
         setLevels([]);
         addToast("Could not load course details.", "error");
       } finally {
@@ -91,7 +99,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
     };
 
     fetchCourseData();
-  }, [userProfile.courseId, addToast]);
+    // FIX: Use snake_case for course_id
+  }, [userProfile.course_id, addToast]);
   
   const handleNotificationToggle = async (enabled: boolean) => {
     setIsNotificationSaving(true);
@@ -119,7 +128,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
         if (permission === 'granted') {
             try {
-                await onProfileUpdate({ notificationsEnabled: true });
+                // FIX: Use snake_case for notifications_enabled
+                await onProfileUpdate({ notifications_enabled: true });
                 setIsNotificationSwitchOn(true);
                 addToast('Push notifications enabled!', 'success');
                 
@@ -138,7 +148,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
     } else {
         // Toggling OFF
         try {
-            await onProfileUpdate({ notificationsEnabled: false });
+            // FIX: Use snake_case for notifications_enabled
+            await onProfileUpdate({ notifications_enabled: false });
             setIsNotificationSwitchOn(false);
             addToast('Push notifications disabled from VANTUTOR.', 'info');
         } catch (err) {
@@ -150,13 +161,15 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
 
   const handleSaveName = async () => {
-    if (newDisplayName.trim() === '' || newDisplayName.trim() === userProfile.displayName) {
+    // FIX: Use snake_case for display_name
+    if (newDisplayName.trim() === '' || newDisplayName.trim() === userProfile.display_name) {
       setIsEditingName(false);
-      setNewDisplayName(userProfile.displayName);
+      setNewDisplayName(userProfile.display_name);
       return;
     }
     setIsSaving(true);
-    const result = await onProfileUpdate({ displayName: newDisplayName.trim() });
+    // FIX: Use snake_case for display_name
+    const result = await onProfileUpdate({ display_name: newDisplayName.trim() });
     if (result.success) {
       setIsEditingName(false);
       addToast('Display name updated successfully!', 'success');
@@ -168,7 +181,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
 
   const handleCancelEdit = () => {
     setIsEditingName(false);
-    setNewDisplayName(userProfile.displayName);
+    // FIX: Use snake_case for display_name
+    setNewDisplayName(userProfile.display_name);
   };
 
   const handleLevelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -198,18 +212,19 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
         try {
             const { error: uploadError } = await supabase.storage
                 .from('profile-pictures')
-                .upload(user.uid, file, { upsert: true });
+                .upload(user.id, file, { upsert: true });
 
             if (uploadError) throw uploadError;
             
             const { data } = supabase.storage
                 .from('profile-pictures')
-                .getPublicUrl(user.uid);
+                .getPublicUrl(user.id);
             
             // Add a timestamp to bust cache for updated images
             const downloadURL = `${data.publicUrl}?t=${new Date().getTime()}`;
 
-            const result = await onProfileUpdate({ photoURL: downloadURL });
+            // FIX: Use snake_case for photo_url
+            const result = await onProfileUpdate({ photo_url: downloadURL });
             if (result.success) {
                 addToast("Profile picture updated!", "success");
             } else {
@@ -224,13 +239,15 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
     };
 
     const handleRemovePhoto = async () => {
-        if (!user || !userProfile.photoURL) return;
+        // FIX: Use snake_case for photo_url
+        if (!user || !userProfile.photo_url) return;
         setIsSaving(true);
         try {
-            const { error } = await supabase.storage.from('profile-pictures').remove([user.uid]);
+            const { error } = await supabase.storage.from('profile-pictures').remove([user.id]);
             if (error) throw error;
             
-            const result = await onProfileUpdate({ photoURL: "" });
+            // FIX: Use snake_case for photo_url
+            const result = await onProfileUpdate({ photo_url: "" });
              if (result.success) {
                 addToast("Profile picture removed.", "success");
             } else {
@@ -283,7 +300,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <span className="text-gray-800 font-medium">{userProfile.displayName}</span>
+                {/* FIX: Use snake_case for display_name */}
+                <span className="text-gray-800 font-medium">{userProfile.display_name}</span>
                 <button onClick={() => setIsEditingName(true)} className="text-sm text-lime-600 hover:underline">
                   Edit
                 </button>
@@ -328,7 +346,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h3>
         <div className="flex items-center gap-4">
-            <Avatar displayName={userProfile.displayName} photoURL={userProfile.photoURL} className="w-16 h-16" />
+            {/* FIX: Use snake_case for display_name and photo_url */}
+            <Avatar display_name={userProfile.display_name} photo_url={userProfile.photo_url} className="w-16 h-16" />
             <div className="flex flex-col gap-2">
                 <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImageUpload} />
                 <button
@@ -338,7 +357,8 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, onLogout,
                 >
                     {isSaving ? 'Uploading...' : 'Upload Picture'}
                 </button>
-                {userProfile.photoURL && (
+                {/* FIX: Use snake_case for photo_url */}
+                {userProfile.photo_url && (
                     <button
                         onClick={handleRemovePhoto}
                         disabled={isSaving}

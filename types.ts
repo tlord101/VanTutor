@@ -8,30 +8,30 @@ export interface NavItem {
 
 export interface UserProfile {
   uid: string;
-  displayName: string;
-  photoURL?: string;
-  courseId: string;
+  display_name: string;
+  photo_url?: string;
+  course_id: string;
   level: string;
-  totalXP: number;
-  totalTestXP: number;
-  currentStreak: number;
-  lastActivityDate: number; // Store as timestamp
-  notificationsEnabled: boolean;
-  isOnline?: boolean;
-  lastSeen?: number;
-  privacyConsent?: {
+  total_xp: number;
+  total_test_xp: number;
+  current_streak: number;
+  last_activity_date: number; // Store as timestamp
+  notifications_enabled: boolean;
+  is_online?: boolean;
+  last_seen?: number;
+  privacy_consent?: {
     granted: boolean;
     timestamp: number;
   };
-  hasCompletedTour?: boolean;
+  has_completed_tour?: boolean;
 }
 
 export interface Message {
   id: string;
   text?: string;
   sender: 'user' | 'bot';
-  timestamp: number; // Use number for Firestore compatibility
-  image?: string; // Optional image data URL for visual context
+  timestamp: number;
+  image_url?: string; // Optional image URL
   audioUrl?: string; // For voice notes
   audioDuration?: number; // Duration in seconds
 }
@@ -51,64 +51,35 @@ export interface ExamQuestionResult extends Question {
 
 export interface ExamHistoryItem {
   id:string;
-  courseId: string;
+  course_id: string;
   score: number;
-  totalQuestions: number;
-  xpEarned: number;
-  timestamp: number; // Using number for Firestore compatibility (e.g., Date.now())
+  total_questions: number;
+  xp_earned: number;
+  timestamp: number;
   questions: ExamQuestionResult[];
 }
 
 // Types for the Leaderboard System
 export interface LeaderboardEntry {
-    uid: string;
-    displayName: string;
-    photoURL?: string;
+    user_id: string;
+    display_name: string;
+    photo_url?: string;
     xp: number;
 }
 
 export interface WeeklyLeaderboardEntry extends LeaderboardEntry {
-    weekId: string; // e.g., "2024-27"
+    week_id: string; // e.g., "2024-27"
 }
 
 // Types for the new Study Guide System
 export interface Topic {
-  topicId: string;
-  topicName: string;
+  topic_id: string;
+  topic_name: string;
 }
 
-/*
- * =============================================================================
- * ADMIN DOCUMENTATION: Managing Subjects with Semesters
- * =============================================================================
- * To categorize subjects into semesters, update the course data document in
- * Firestore located at: `artifacts/{__app_id}/public/data/courses/{courseId}`.
- *
- * Each course document contains a `subjectList` array. Each object in this
- * array represents a subject.
- *
- * To assign a semester, add a `semester` field to the subject object.
- *
- * - For First Semester subjects, set: "semester": "first"
- * - For Second Semester subjects, set: "semester": "second"
- *
- * If the `semester` field is omitted, the subject will automatically be
- * categorized under "First Semester" by default. This ensures backward
- * compatibility with existing data.
- *
- * Example Subject Object in Firestore:
- * {
- *   "subjectId": "alg_geometry",
- *   "subjectName": "Geometry",
- *   "level": "Beginner",
- *   "semester": "second",  // <-- Add this field
- *   "topics": [ ... ]
- * }
- * =============================================================================
- */
 export interface Subject {
-  subjectId: string;
-  subjectName: string;
+  subject_id: string;
+  subject_name: string;
   topics: Topic[];
   level?: string; // The difficulty level this subject belongs to
   semester?: 'first' | 'second'; // New field for semester categorization
@@ -116,9 +87,9 @@ export interface Subject {
 
 
 export interface UserProgress {
-  [topicId: string]: {
-    isComplete: boolean;
-    xpEarned: number;
+  [topic_id: string]: {
+    is_complete: boolean;
+    xp_earned: number;
   };
 }
 
@@ -136,58 +107,61 @@ export interface Notification {
   title: string;
   message: string;
   timestamp: number;
-  isRead: boolean;
+  is_read: boolean;
   link?: string;
 }
 
 // Type for the new Chat History System
 export interface ChatConversation {
   id: string;
+  user_id: string;
   title: string;
-  createdAt: number; // Use number for Firestore compatibility
-  lastUpdatedAt: number; // Use number for Firestore compatibility
+  created_at: number;
+  last_updated_at: number;
 }
 
 // Types for new Private Messaging System
 export interface PrivateMessage {
     id: string;
-    senderId: string;
+    // FIX: Added chat_id to match database schema and resolve typing error.
+    chat_id: string;
+    sender_id: string;
     text?: string;
     timestamp: number;
-    imageUrl?: string;
-    audioUrl?: string;
-    audioDuration?: number;
-    isEdited?: boolean;
-    isOneTimeView?: boolean;
-    viewedBy?: string[];
-    replyTo?: {
-        messageId: string;
+    image_url?: string;
+    audio_url?: string;
+    audio_duration?: number;
+    is_edited?: boolean;
+    is_one_time_view?: boolean;
+    viewed_by?: string[];
+    reply_to?: {
+        message_id: string;
         text?: string;
-        imageUrl?: string;
-        audioUrl?: string;
-        senderId: string;
+        image_url?: string;
+        audio_url?: string;
+        sender_id: string;
     };
 }
 
 export interface PrivateChat {
     id: string;
     members: string[]; // array of 2 user UIDs
-    memberInfo: {
+    member_info: {
         [uid: string]: {
-            displayName: string;
-            photoURL?: string;
-            isOnline?: boolean;
-            lastSeen?: number;
+            display_name: string;
+            photo_url?: string;
+            is_online?: boolean;
+            last_seen?: number;
         }
     };
-    lastMessage?: {
+    last_message?: {
         text: string;
         timestamp: number;
-        senderId: string;
-        readBy: string[]; // Array of UIDs that have read this message
+        sender_id: string;
+        read_by: string[]; // Array of UIDs that have read this message
     };
-    createdAt: number;
-    lastActivityTimestamp: number;
+    created_at: number;
+    last_activity_timestamp: number;
     typing?: string[]; // Array of UIDs of users currently typing
 }
 

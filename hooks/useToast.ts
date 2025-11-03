@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { ToastMessage, ToastType } from '../types';
@@ -47,8 +46,6 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
 
-  // FIX: Rewrote JSX using React.createElement to be compatible with a .ts file extension.
-  // The original JSX syntax was causing parsing errors because the file is not a .tsx file.
   return React.createElement(ToastContext.Provider, { value: { addToast } },
     children,
     createPortal(

@@ -3,20 +3,40 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ToastProvider } from './hooks/useToast';
+import { LogoIcon } from './components/icons/LogoIcon';
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // Register the service worker with a root-relative path to ensure it works
-    // correctly in all environments, including sandboxed iframes.
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker registered with scope:', registration.scope);
-      })
-      .catch(error => {
-        console.error('Service Worker registration failed:', error);
-      });
-  });
-}
+declare var __supabase_url: string;
+declare var __supabase_anon_key: string;
+
+// A component to display when Supabase credentials are not configured.
+const SetupRequired: React.FC = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+    <div className="w-full max-w-2xl text-center bg-white p-8 rounded-2xl shadow-2xl border border-red-200">
+      <LogoIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+      <h1 className="text-3xl font-bold text-red-600">Configuration Required</h1>
+      <p className="mt-4 text-lg text-gray-700">
+        Welcome to VANTUTOR! To get started, you need to connect the application to your Supabase backend.
+      </p>
+      <div className="mt-6 text-left bg-gray-50 p-6 rounded-lg border border-gray-200">
+        <p className="font-semibold text-gray-800">Please follow these steps:</p>
+        <ol className="list-decimal list-inside mt-2 space-y-2 text-gray-600">
+          <li>Open the <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">index.html</code> file in your project.</li>
+          <li>Find the script tag near the bottom of the file.</li>
+          <li>
+            Replace <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">"YOUR_SUPABASE_URL"</code> and <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">"YOUR_SUPABASE_ANON_KEY"</code> with your actual Supabase project credentials.
+          </li>
+        </ol>
+        <p className="mt-4 text-sm text-gray-500">
+          You can find these credentials in your Supabase project dashboard under <span className="font-semibold">Settings &gt; API</span>.
+        </p>
+      </div>
+       <p className="mt-6 text-gray-600">
+        Once you've added your credentials, please refresh this page.
+      </p>
+    </div>
+  </div>
+);
+
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -24,10 +44,20 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
-  </React.StrictMode>
-);
+
+const isConfigured = 
+  typeof __supabase_url !== 'undefined' && __supabase_url !== 'YOUR_SUPABASE_URL' &&
+  typeof __supabase_anon_key !== 'undefined' && __supabase_anon_key !== 'YOUR_SUPABASE_ANON_KEY' &&
+  __supabase_url.startsWith('http');
+
+if (isConfigured) {
+  root.render(
+    <React.StrictMode>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </React.StrictMode>
+  );
+} else {
+  root.render(<SetupRequired />);
+}

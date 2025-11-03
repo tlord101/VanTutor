@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import type { UserProfile, LeaderboardEntry, WeeklyLeaderboardEntry } from '../types';
 import { Avatar } from './Avatar';
 
@@ -29,9 +28,9 @@ const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: b
                 <span className={rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-600'}>{rank}</span>
             ) : rank}
         </div>
-        <Avatar displayName={user.displayName} photoURL={user.photoURL} className="w-10 h-10 ml-4" />
+        <Avatar displayName={user.display_name} photoURL={user.photo_url} className="w-10 h-10 ml-4" />
         <div className="flex-1 ml-4">
-            <p className="font-semibold text-gray-800">{user.displayName}</p>
+            <p className="font-semibold text-gray-800">{user.display_name}</p>
         </div>
         <div className="font-bold text-lime-600 text-lg">
             {user.xp.toLocaleString()} XP
@@ -53,37 +52,47 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
   useEffect(() => {
     setIsLoading(true);
     setError(null);
-    const collectionRef = collection(db, activeTab === 'overall' ? 'leaderboardOverall' : 'leaderboardWeekly');
-    const q = query(collectionRef, orderBy('xp', 'desc'), limit(100));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        let leaderboard: (LeaderboardEntry | WeeklyLeaderboardEntry)[] = [];
-        querySnapshot.forEach((doc) => {
-            leaderboard.push(doc.data() as LeaderboardEntry);
-        });
+    const tableName = activeTab === 'overall' ? 'leaderboard_overall' : 'leaderboard_weekly';
+    
+    const fetchLeaderboard = async () => {
+        let query = supabase.from(tableName).select('*').order('xp', { ascending: false }).limit(100);
 
         if (activeTab === 'weekly') {
             const currentWeekId = getWeekId(new Date());
-            leaderboard = (leaderboard as WeeklyLeaderboardEntry[]).filter(entry => entry.weekId === currentWeekId);
+            query = query.eq('week_id', currentWeekId);
         }
         
-        if (activeTab === 'overall') {
-            setOverallData(leaderboard);
+        const { data, error: fetchError } = await query;
+        
+        if (fetchError) {
+             console.error("Error fetching leaderboard: ", fetchError);
+            setError("Could not load leaderboard data. Please try again later.");
         } else {
-            setWeeklyData(leaderboard);
+            if (activeTab === 'overall') {
+                setOverallData(data as LeaderboardEntry[]);
+            } else {
+                setWeeklyData(data as WeeklyLeaderboardEntry[]);
+            }
         }
         setIsLoading(false);
-    }, (err) => {
-        console.error("Error fetching leaderboard: ", err);
-        setError("Could not load leaderboard data. Please try again later.");
-        setIsLoading(false);
-    });
+    }
+    
+    fetchLeaderboard();
 
-    return () => unsubscribe();
+    const channel = supabase
+        .channel(`public:${tableName}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, payload => {
+            fetchLeaderboard(); // Refetch on any change
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
   }, [activeTab]);
 
   const data = activeTab === 'overall' ? overallData : weeklyData;
-  const currentUserRank = data.findIndex(u => u.uid === userProfile.uid) + 1;
+  const currentUserRank = data.findIndex(u => u.user_id === userProfile.uid) + 1;
   const topUsers = data.slice(0, 10);
   const isCurrentUserInTop = currentUserRank > 0 && currentUserRank <= 10;
 
@@ -95,7 +104,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
       return (
           <div className="space-y-3">
               {topUsers.map((user, index) => (
-                  <RankItem key={user.uid} rank={index + 1} user={user} isCurrentUser={user.uid === userProfile.uid} />
+                  <RankItem key={user.user_id} rank={index + 1} user={user} isCurrentUser={user.user_id === userProfile.uid} />
               ))}
               {!isCurrentUserInTop && currentUserRank > 0 && (
                   <>

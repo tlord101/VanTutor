@@ -240,7 +240,6 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
     "react-markdown": "https://esm.sh/react-markdown@9.0.1",
     "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
@@ -256,31 +255,16 @@
   <body class="bg-gray-100">
     <div id="root"></div>
 
-    <!--
-      FIX: Define placeholder global constants to prevent reference errors.
-      In a real-world scenario, these values should be injected by a build process
-      or a server-side script, not hardcoded in the HTML.
-    -->
     <script>
-      var __firebase_config = {
-        apiKey: "AIzaSyBbvjDDFf7kb5tdvv5iOR2v29HFcb-vBhU",
-        authDomain: "tick-c20ac.firebaseapp.com",
-        databaseURL: "https://tick-c20ac-default-rtdb.firebaseio.com",
-        projectId: "tick-c20ac",
-        storageBucket: "tick-c20ac.appspot.com",
-        messagingSenderId: "717973440095",
-        appId: "1:717973440095:web:3e388dc407554ddd15bdea",
-        measurementId: "G-B5MQ1LETCL"
-      };
       var __app_id = "vantutor-app";
       // Set to a token string for custom token testing, or undefined/null for anonymous fallback.
       var __initial_auth_token = undefined;
 
-      // NEW: Supabase credentials
-      // Replace with your actual Supabase project URL and Anon Key.
-      // You can find these in your Supabase project dashboard under Settings > API.
-      var __supabase_url = "https://peezefvuggljblippwej.supabase.co";
-      var __supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZXplZnZ1Z2dsamJsaXBwd2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MzI0MDQsImV4cCI6MjA3NzUwODQwNH0.eaJiKM-QMiu9M6VGSFXz4t-GVudGJ-ile9bSxZcjq3E";
+      // Supabase credentials
+      // IMPORTANT: Replace with your actual Supabase project URL and Anon Key.
+      // You can find these in your Supabase project dashboard under "Settings" > "API".
+      var __supabase_url = "https://yxzjirgmrjktinogvyqo.supabase.co";
+      var __supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4emppcmdtcmprdGlub2d2eXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMzYwNzYsImV4cCI6MjA3NzcxMjA3Nn0.kg45SVdKgp9MH9NTDHJG3XEtRbVICRkevei0-S14VBQ";
     </script>
 
     <script type="module" src="/index.tsx"></script>
