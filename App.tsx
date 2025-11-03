@@ -45,7 +45,6 @@ const App: React.FC = () => {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
-    const [chatInitiationData, setChatInitiationData] = useState<{ image: string; tutorialText: string } | null>(null);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [isTourOpen, setIsTourOpen] = useState(false);
 
@@ -462,11 +461,6 @@ const App: React.FC = () => {
             return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
     };
-
-    const handleStartChatFromTutorial = useCallback((image: string, tutorialText: string) => {
-        setChatInitiationData({ image, tutorialText });
-        setActiveItem('chat');
-    }, []);
     
     const handleTourClose = async (completed: boolean) => {
         if (completed && userProfile && !userProfile.has_completed_tour) {
@@ -590,13 +584,10 @@ const App: React.FC = () => {
                             userProfile={userProfile}
                             userProgress={userProgress}
                             dashboardData={dashboardData}
-                            chatInitiationData={chatInitiationData}
-                            onInitiationComplete={() => setChatInitiationData(null)}
                             handleXPEarned={handleXPEarned}
                             handleLogout={handleLogout}
                             handleProfileUpdate={handleProfileUpdate}
                             handleDeleteAccount={handleAccountDeletion}
-                            handleStartChatFromTutorial={handleStartChatFromTutorial}
                             startTour={startTour}
                         />
                     )}

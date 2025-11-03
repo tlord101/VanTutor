@@ -24,6 +24,9 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
       if (error) throw error;
       // On successful sign-in, onAuthStateChange will trigger in App.tsx

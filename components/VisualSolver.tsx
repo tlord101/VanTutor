@@ -35,10 +35,9 @@ interface TutorialDisplayProps {
     scannedImage: string;
     tutorialText: string;
     onClose: () => void;
-    onContinueToChat: () => void;
 }
 
-const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, onContinueToChat }) => {
+const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose }) => {
     return (
         <div className="w-full h-full flex flex-col bg-white">
             <div className="flex-shrink-0 h-[33vh] bg-gray-100 border-b border-gray-200">
@@ -61,12 +60,9 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     </ReactMarkdown>
                 </div>
             </div>
-            <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm grid grid-cols-1 gap-3">
                 <button onClick={onClose} className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">
                     Scan Another
-                </button>
-                <button onClick={onContinueToChat} className="w-full bg-lime-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-lime-700 transition-colors">
-                    Need More Help?
                 </button>
             </div>
         </div>
@@ -439,7 +435,6 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
                     scannedImage={scannedImage}
                     tutorialText={analysisResult}
                     onClose={handleRetake}
-                    onContinueToChat={() => onStartChat(scannedImage, analysisResult)}
                 />;
 
             default:

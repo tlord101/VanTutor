@@ -17,13 +17,10 @@ interface MainContentProps {
     userProfile: UserProfile;
     userProgress: UserProgress;
     dashboardData: DashboardData | null;
-    chatInitiationData: { image: string; tutorialText: string } | null;
-    onInitiationComplete: () => void;
     handleXPEarned: (xp: number, type?: 'lesson' | 'test') => void;
     handleLogout: () => void;
     handleProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string; }>;
     handleDeleteAccount: () => Promise<{ success: boolean; error?: string; }>;
-    handleStartChatFromTutorial: (image: string, tutorialText: string) => void;
     startTour: () => void;
 }
 
@@ -33,13 +30,10 @@ export const MainContent: React.FC<MainContentProps> = ({
     userProfile,
     userProgress,
     dashboardData,
-    chatInitiationData,
-    onInitiationComplete,
     handleXPEarned,
     handleLogout,
     handleProfileUpdate,
     handleDeleteAccount,
-    handleStartChatFromTutorial,
     startTour,
 }) => {
     if (!userProfile) return null;
@@ -50,9 +44,9 @@ export const MainContent: React.FC<MainContentProps> = ({
         case 'study_guide':
             return <StudyGuide userProfile={userProfile} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
         case 'chat':
-            return <Chat userProfile={userProfile} initiationData={chatInitiationData} onInitiationComplete={onInitiationComplete} />;
+            return <Chat userProfile={userProfile} />;
         case 'visual_solver':
-            return <VisualSolver userProfile={userProfile} onStartChat={handleStartChatFromTutorial} />;
+            return <VisualSolver userProfile={userProfile} onStartChat={() => { /* No-op, handled by parent */ }} />;
         case 'exam':
             return <Exam userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'test')} />;
         case 'leaderboard':
