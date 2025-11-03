@@ -48,20 +48,13 @@ const NavButton: React.FC<{
     </li>
 );
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
-  const handleMobileItemClick = (id: string) => {
-    onItemClick(id);
-    onCloseMobileSidebar();
-  };
-
-  const handleMobileLogout = () => {
-    onLogout();
-    onCloseMobileSidebar();
-  }
-
-  const isExpanded = true; // Sidebar is now always expanded.
-
-  const sidebarContent = (
+const SidebarContent: React.FC<{
+    isExpanded: boolean;
+    activeItem: string;
+    onItemClick: (id: string) => void;
+    userProfile: UserProfile | null;
+    onLogout: () => void;
+}> = ({ isExpanded, activeItem, onItemClick, userProfile, onLogout }) => (
     <div className="h-full p-4 flex flex-col">
       {/* Top Section: Logo */}
       <div className="flex items-center mb-10 flex-shrink-0">
@@ -108,7 +101,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
         </div>
       </div>
     </div>
-  );
+);
+
+
+export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar }) => {
+  const handleMobileItemClick = (id: string) => {
+    onItemClick(id);
+    onCloseMobileSidebar();
+  };
+
+  const handleMobileLogout = () => {
+    onLogout();
+    onCloseMobileSidebar();
+  };
 
   return (
     <>
@@ -116,7 +121,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
       <div className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onCloseMobileSidebar} aria-hidden="true"></div>
         <aside className="relative w-72 h-full bg-white border-r border-gray-200">
-          {React.cloneElement(sidebarContent, { isExpanded: true, onItemClick: handleMobileItemClick, onLogout: handleMobileLogout })}
+          <SidebarContent
+            isExpanded={true}
+            activeItem={activeItem}
+            onItemClick={handleMobileItemClick}
+            userProfile={userProfile}
+            onLogout={handleMobileLogout}
+           />
         </aside>
       </div>
       
@@ -124,7 +135,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
       <aside 
           className={`hidden md:block flex-shrink-0 bg-white border-r border-gray-200 w-64`}
       >
-        {sidebarContent}
+        <SidebarContent 
+            isExpanded={true}
+            activeItem={activeItem}
+            onItemClick={onItemClick}
+            userProfile={userProfile}
+            onLogout={onLogout}
+        />
       </aside>
     </>
   );

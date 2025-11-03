@@ -544,23 +544,21 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
             timestamp: Date.now(),
         };
         
-        // Optimistic update for immediate feedback
         setMessages(prev => [...prev, tempUserMessage]);
         setInput('');
         setIsLoading(true);
     
         try {
             let currentConversationId = activeConversationId;
+            
             if (!currentConversationId) {
                 const newTitle = await generateTitle(textToSend, false);
                 const now = Date.now();
                 const { data, error } = await supabase.from('chat_conversations').insert({ user_id: userProfile.uid, title: newTitle, created_at: now, last_updated_at: now }).select().single();
                 if (error || !data) throw error;
                 currentConversationId = data.id;
-                setActiveConversationId(currentConversationId);
             }
     
-            // Save user message (the subscription will update the UI from temp to real)
             const { error: saveUserError } = await supabase.from('chat_messages').insert({
                 text: textToSend, sender: 'user', conversation_id: currentConversationId,
             });
@@ -568,9 +566,12 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
             
             await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', currentConversationId);
             
-            // Get AI response
+            if (!activeConversationId && currentConversationId) {
+                setActiveConversationId(currentConversationId);
+            }
+            
             const result = await attemptApiCall(async () => {
-                const history = [...messagesRef.current] // Use ref to get the latest messages, including the optimistic one
+                const history = [...messagesRef.current]
                     .map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text || ''}`).join('\n');
                 const systemInstruction = `You are VANTUTOR, a friendly AI tutor. Your responses should be helpful, clear, and engaging. Use Markdown and LaTeX for clarity.`;
                 const prompt = `Conversation History:\n${history}\n\nTask: Continue the conversation based on the student's last message.`;
@@ -578,24 +579,23 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ text: prompt }] }, config: { systemInstruction } });
                 const botResponseText = response.text;
     
-                // Save bot message (subscription will update UI)
-                const { error: saveBotError } = await supabase.from('chat_messages').insert({
+                const { data: savedBotMessage, error: saveBotError } = await supabase.from('chat_messages').insert({
                     text: botResponseText, sender: 'bot', conversation_id: currentConversationId
-                });
+                }).select().single();
                 if (saveBotError) throw saveBotError;
+                if (!savedBotMessage) throw new Error("Failed to save and retrieve bot message.");
+
+                // Immediately update state with the new message from the DB
+                setMessages(prev => [...prev.filter(m => m.id !== tempUserMessage.id), savedBotMessage as Message]);
             });
     
             if (!result.success) {
                 addToast(result.message, 'error');
-                // Remove the temp message if AI call fails, so user knows it didn't fully process
-                setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
-                setInput(textToSend); // Restore input
             }
     
         } catch (err: any) {
             console.error('Error sending message:', err.message || err);
             addToast(err.message || 'Sorry, something went wrong sending your message.', 'error');
-            // Revert optimistic update on any failure
             setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
             setInput(textToSend);
         } finally {
