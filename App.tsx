@@ -101,6 +101,12 @@ const App: React.FC = () => {
                  if (authUserError) console.warn("Failed to update auth user metadata:", authUserError);
             }
 
+            // Update local state for immediate UI feedback
+            setUserProfile(prevProfile => {
+                if (!prevProfile) return null;
+                return { ...prevProfile, ...updatedData };
+            });
+
             return { success: true };
         } catch (err: any) {
             console.error("Error updating profile:", err.message || err);

@@ -622,12 +622,12 @@ const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress,
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
     userProfile: UserProfile;
+    userProgress: UserProgress;
     onXPEarned: (xp: number) => void;
 }
 
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned }) => {
+export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onXPEarned }) => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -656,42 +656,12 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, onXPEarned 
             } catch (err: any) {
                 console.error("Error fetching course data:", err);
                 addToast("An error occurred while loading the study guide.", "error");
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchCourseData();
-
-        const progressChannel = supabase
-            .channel(`user-progress-${userProfile.uid}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_progress', filter: `user_id=eq.${userProfile.uid}` }, payload => {
-                fetchUserProgress();
-            })
-            .subscribe();
-
-        const fetchUserProgress = async () => {
-             const { data, error } = await supabase
-                .from('user_progress')
-                .select('*')
-                .eq('user_id', userProfile.uid);
-
-            if (error) {
-                console.error("Error fetching user progress:", error);
-                addToast("Failed to load your progress.", "error");
-            } else {
-                 const progressData: UserProgress = {};
-                 data.forEach(item => {
-                     progressData[item.topic_id] = { is_complete: item.is_complete, xp_earned: item.xp_earned };
-                 });
-                 setUserProgress(progressData);
-            }
-            setIsLoading(false);
-        };
-        
-        fetchUserProgress();
-
-        return () => {
-            supabase.removeChannel(progressChannel);
-        };
-    }, [userProfile.course_id, userProfile.uid, userProfile.level, addToast]);
+    }, [userProfile.course_id, userProfile.level, addToast]);
 
     const handleMarkComplete = async (topicId: string) => {
         if (userProgress[topicId]?.is_complete) return;

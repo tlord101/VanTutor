@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { useToast } from '../hooks/useToast';
@@ -24,9 +23,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     setIsSending(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
 
       addToast('A password reset link has been sent to your email address.', 'success');
