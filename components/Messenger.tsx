@@ -300,8 +300,17 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         fetchMessages(chat.id);
 
         const channel = supabase.channel(`public:private_messages:chat_id=eq.${chat.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_messages', filter: `chat_id=eq.${chat.id}` }, () => {
-                fetchMessages(chat.id);
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_messages', filter: `chat_id=eq.${chat.id}` }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === payload.new.id)) return prev;
+                        return [...prev, payload.new as PrivateMessage];
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new as PrivateMessage : m));
+                } else if (payload.eventType === 'DELETE') {
+                    setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+                }
             })
             .subscribe();
 
@@ -872,12 +881,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
                 addToast("Could not load your chats.", "error");
             } else {
                 setChats(data as PrivateChat[]);
-                if (selectedChatData) {
-                    const updatedChat = (data as PrivateChat[]).find(c => c.id === selectedChatData.id);
-                    if (updatedChat) {
-                        setSelectedChatData(updatedChat);
-                    }
-                }
             }
             setIsDataLoading(false);
         };
@@ -885,8 +888,19 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
         fetchChats();
         
         const channel = supabase.channel(`public:private_chats:members=cs.{"${userProfile.uid}"}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_chats', filter: `members=cs.{"${userProfile.uid}"}` }, () => {
-                fetchChats();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_chats', filter: `members=cs.{"${userProfile.uid}"}` }, (payload) => {
+                const sortChats = (chatList: PrivateChat[]) => chatList.sort((a,b) => (b.last_activity_timestamp || 0) - (a.last_activity_timestamp || 0));
+
+                if (payload.eventType === 'INSERT') {
+                    setChats(prev => sortChats([payload.new as PrivateChat, ...prev.filter(c => c.id !== payload.new.id)]));
+                } else if (payload.eventType === 'UPDATE') {
+                    setChats(prev => sortChats(prev.map(c => c.id === payload.new.id ? payload.new as PrivateChat : c)));
+                    if (selectedChatData && selectedChatData.id === payload.new.id) {
+                        setSelectedChatData(payload.new as PrivateChat);
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    setChats(prev => prev.filter(c => c.id !== (payload.old as any).id));
+                }
             })
             .subscribe();
 

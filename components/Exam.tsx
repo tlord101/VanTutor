@@ -36,9 +36,9 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        setIsLoading(true);
         const fetchHistory = async () => {
             try {
-                // FIX: Migrated from Firebase to Supabase
                 const { data, error } = await supabase
                     .from('exam_history')
                     .select('*')
@@ -53,6 +53,19 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
             }
         };
         fetchHistory();
+
+        const channel = supabase
+            .channel(`public:exam_history:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'exam_history', filter: `user_id=eq.${userProfile.uid}` },
+                (payload) => {
+                    setHistory(prev => [payload.new as ExamHistoryItem, ...prev]);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [userProfile.uid]);
 
     if (isLoading) {

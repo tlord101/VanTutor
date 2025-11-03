@@ -219,7 +219,7 @@ const App: React.FC = () => {
             return;
         };
         
-        const setupListeners = async () => {
+        const setupDashboardData = async () => {
             try {
                 // Fetch Dashboard Data
                 const { data: courseData, error: courseError } = await supabase.from('courses_data').select('subject_list').eq('id', userProfile.course_id).single();
@@ -236,17 +236,21 @@ const App: React.FC = () => {
                 setDashboardData({ totalTopics, examHistory: examHistory as ExamHistoryItem[], xpHistory: xpHistory || [] });
 
             } catch (error) {
-                console.error("Error setting up dashboard listeners:", (error as Error).message || error);
+                console.error("Error setting up dashboard data:", (error as Error).message || error);
             }
         };
 
-        setupListeners();
+        setupDashboardData();
         
         // Notifications listener
         const notificationsChannel = supabase
             .channel(`public:notifications:user_id=eq.${userProfile.uid}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile.uid}` }, payload => {
-                setNotifications(prev => [payload.new as NotificationType, ...prev].sort((a,b) => b.timestamp - a.timestamp));
+                const newNotification = {
+                    ...payload.new,
+                    timestamp: new Date(payload.new.timestamp as string).getTime(),
+                } as NotificationType;
+                setNotifications(prev => [newNotification, ...prev].sort((a,b) => b.timestamp - a.timestamp));
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile.uid}` }, payload => {
                  setNotifications(prev => prev.filter(n => n.id !== (payload.old as NotificationType).id));
@@ -265,19 +269,67 @@ const App: React.FC = () => {
             })
             .subscribe();
 
-        const fetchInitialUnread = async () => {
+        // Dashboard data real-time updates
+        const examHistoryChannel = supabase
+            .channel(`public:exam_history:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'exam_history', filter: `user_id=eq.${userProfile.uid}` }, payload => {
+                const newExam = payload.new as ExamHistoryItem;
+                setDashboardData(prev => {
+                    if (!prev) return null;
+                    const updatedHistory = [newExam, ...prev.examHistory]
+                        .sort((a, b) => b.timestamp - a.timestamp)
+                        .slice(0, 5);
+                    return { ...prev, examHistory: updatedHistory };
+                });
+            })
+            .subscribe();
+
+        const xpHistoryChannel = supabase
+            .channel(`public:xp_history:user_id=eq.${userProfile.uid}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_history', filter: `user_id=eq.${userProfile.uid}` }, payload => {
+                const changedRecord = payload.new as { date: string, xp: number };
+                setDashboardData(prev => {
+                    if (!prev) return null;
+                    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime();
+                    let updatedXpHistory;
+                    const existingIndex = prev.xpHistory.findIndex(item => item.date === changedRecord.date);
+                    if (existingIndex > -1) {
+                        updatedXpHistory = [...prev.xpHistory];
+                        updatedXpHistory[existingIndex] = changedRecord;
+                    } else {
+                        updatedXpHistory = [...prev.xpHistory, changedRecord];
+                    }
+                    
+                    updatedXpHistory = updatedXpHistory
+                        .filter(item => new Date(item.date).getTime() >= thirtyDaysAgo)
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                    return { ...prev, xpHistory: updatedXpHistory };
+                });
+            })
+            .subscribe();
+
+        const fetchInitialData = async () => {
             const { count } = await supabase.from('private_chats').select('*', { count: 'exact', head: true }).contains('members', [userProfile.uid]).not('last_message->>read_by', 'cs', `{"${userProfile.uid}"}`);
             setUnreadMessagesCount(count || 0);
             
             const { data: initialNotifs, error: notifError } = await supabase.from('notifications').select('*').eq('user_id', userProfile.uid).order('timestamp', { ascending: false }).limit(20);
-            if(initialNotifs) setNotifications(initialNotifs as NotificationType[]);
+            if(initialNotifs) {
+                const formattedNotifications = initialNotifs.map(n => ({
+                    ...n,
+                    timestamp: new Date(n.timestamp).getTime()
+                })) as NotificationType[];
+                setNotifications(formattedNotifications);
+            }
         };
 
-        fetchInitialUnread();
+        fetchInitialData();
         
         return () => {
             supabase.removeChannel(notificationsChannel);
             supabase.removeChannel(chatsChannel);
+            supabase.removeChannel(examHistoryChannel);
+            supabase.removeChannel(xpHistoryChannel);
         }
     }, [userProfile]);
 
@@ -357,24 +409,41 @@ const App: React.FC = () => {
 
     const handleMarkNotificationRead = async (id: string) => {
         if (!user) return;
+    
+        const notificationToDelete = notifications.find(n => n.id === id);
+        if (!notificationToDelete) return;
+    
+        // Optimistic update
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    
         const { error } = await supabase.from('notifications').delete().eq('id', id);
         if (error) {
             console.error("Error deleting notification:", (error as Error).message || error);
             addToast("Could not clear notification.", "error");
+            // Rollback on error
+            setNotifications(prev => [...prev, notificationToDelete].sort((a, b) => b.timestamp - a.timestamp));
         }
     };
 
     const handleMarkAllNotificationsRead = async () => {
         if (!user) return;
-        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+        
+        const unreadNotifications = notifications.filter(n => !n.is_read);
+        const unreadIds = unreadNotifications.map(n => n.id);
         if (unreadIds.length === 0) return;
-
+    
+        // Optimistic update
+        const unreadIdsSet = new Set(unreadIds);
+        setNotifications(prev => prev.filter(n => !unreadIdsSet.has(n.id)));
+    
         const { error } = await supabase.from('notifications').delete().in('id', unreadIds);
         if (error) {
             console.error("Error clearing notifications:", (error as Error).message || error);
             addToast("Could not clear notifications.", "error");
+            // Rollback
+            setNotifications(prev => [...prev, ...unreadNotifications].sort((a, b) => b.timestamp - a.timestamp));
         } else {
-             addToast(`${unreadIds.length} notification${unreadIds.length > 1 ? 's' : ''} cleared.`, 'success');
+            addToast(`${unreadIds.length} notification${unreadIds.length > 1 ? 's' : ''} cleared.`, 'success');
         }
     };
 

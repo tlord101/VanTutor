@@ -151,7 +151,9 @@ Please start teaching me about "${topic.topic_name}". Give me a simple and clear
     };
 
     useEffect(() => {
-        const fetchAndInitMessages = async () => {
+        let channel: any;
+
+        const fetchAndSubscribe = async () => {
             setIsLoading(true);
             try {
                 const { data, error } = await supabase
@@ -161,34 +163,49 @@ Please start teaching me about "${topic.topic_name}". Give me a simple and clear
                     .eq('topic_id', topic.topic_id)
                     .order('timestamp', { ascending: true });
 
-                // If there's an error fetching history or if there's no history, start a new lesson.
                 if (error || !data || data.length === 0) {
-                    if (error) {
-                        console.warn("Could not fetch lesson history, starting a new session.", error);
-                    }
+                    if (error) console.warn("Could not fetch lesson history, starting a new session.", error);
                     await initiateAutoTeach();
                 } else {
-                    // History found, so load it.
                     const fetchedMessages: Message[] = data.map(msg => ({
-                        id: msg.id,
-                        text: msg.text,
-                        sender: msg.sender as 'user' | 'bot',
-                        timestamp: new Date(msg.timestamp).getTime(),
-                        image_url: msg.image_url,
+                        id: msg.id, text: msg.text, sender: msg.sender as 'user' | 'bot',
+                        timestamp: new Date(msg.timestamp).getTime(), image_url: msg.image_url,
                     }));
                     setMessages(fetchedMessages);
                 }
             } catch (err) {
-                // This catch block will now mainly catch errors from initiateAutoTeach
                 console.error("Error initializing lesson:", err);
                 addToast("Could not start the lesson. Please try again.", "error");
                 onClose(); 
             } finally {
                 setIsLoading(false);
             }
+
+            channel = supabase
+                .channel(`study_guide_messages-${userProfile.uid}-${topic.topic_id}`)
+                .on('postgres_changes', {
+                    event: 'INSERT', schema: 'public', table: 'study_guide_messages',
+                    filter: `user_id=eq.${userProfile.uid},and,topic_id=eq.${topic.topic_id}`,
+                }, (payload) => {
+                    const newMessage = payload.new as any;
+                    const formattedMessage: Message = {
+                        id: newMessage.id, text: newMessage.text, sender: newMessage.sender as 'user' | 'bot',
+                        timestamp: new Date(newMessage.timestamp).getTime(), image_url: newMessage.image_url,
+                    };
+                    setMessages((prev) => {
+                        if (prev.some(m => m.id === formattedMessage.id)) return prev;
+                        return [...prev, formattedMessage];
+                    });
+                }).subscribe();
         };
 
-        fetchAndInitMessages();
+        fetchAndSubscribe();
+
+        return () => {
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile.uid, topic.topic_id]);
 

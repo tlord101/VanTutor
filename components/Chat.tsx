@@ -410,8 +410,16 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
         setIsHistoryLoading(true);
         fetchConversations();
         const channel = supabase.channel(`public:chat_conversations:user_id=eq.${userProfile.uid}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations', filter: `user_id=eq.${userProfile.uid}` }, () => {
-                fetchConversations();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations', filter: `user_id=eq.${userProfile.uid}` }, (payload) => {
+                 const sortConversations = (convoList: ChatConversation[]) => convoList.sort((a, b) => b.last_updated_at - a.last_updated_at);
+
+                if (payload.eventType === 'INSERT') {
+                    setConversations(prev => sortConversations([payload.new as ChatConversation, ...prev.filter(c => c.id !== payload.new.id)]));
+                } else if (payload.eventType === 'UPDATE') {
+                    setConversations(prev => sortConversations(prev.map(c => c.id === payload.new.id ? payload.new as ChatConversation : c)));
+                } else if (payload.eventType === 'DELETE') {
+                    setConversations(prev => prev.filter(c => c.id !== (payload.old as any).id));
+                }
             })
             .subscribe();
 
@@ -438,8 +446,16 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
 
         fetchMessages(activeConversationId);
         const channel = supabase.channel(`public:chat_messages:conversation_id=eq.${activeConversationId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${activeConversationId}` }, () => {
-                fetchMessages(activeConversationId);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${activeConversationId}` }, (payload) => {
+                setMessages(prev => {
+                    // Prevent adding a message that's already in the state from an optimistic update
+                    if (prev.find(msg => msg.id === payload.new.id || (msg.id.startsWith('temp-') && msg.text === payload.new.text))) {
+                        // If we find a temp message, replace it
+                        return prev.map(msg => (msg.id.startsWith('temp-') && msg.text === payload.new.text) ? payload.new as Message : msg)
+                                   .filter((msg, index, self) => index === self.findIndex((t) => (t.id === msg.id))); // Ensure no duplicates
+                    }
+                    return [...prev, payload.new as Message];
+                });
             })
             .subscribe();
 
@@ -559,10 +575,10 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                 currentConversationId = data.id;
             }
     
-            const { error: saveUserError } = await supabase.from('chat_messages').insert({
+            const { data: savedUserMsg, error: saveUserError } = await supabase.from('chat_messages').insert({
                 text: textToSend, sender: 'user', conversation_id: currentConversationId,
-            });
-            if (saveUserError) throw saveUserError;
+            }).select().single();
+            if (saveUserError || !savedUserMsg) throw saveUserError || new Error("Failed to save user message");
             
             await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', currentConversationId);
             
@@ -570,6 +586,8 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                 setActiveConversationId(currentConversationId);
             }
             
+            setMessages(prev => prev.map(msg => msg.id === tempUserMessage.id ? savedUserMsg as Message : msg));
+
             const result = await attemptApiCall(async () => {
                 const history = [...messagesRef.current]
                     .map(m => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text || ''}`).join('\n');
@@ -579,18 +597,17 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ text: prompt }] }, config: { systemInstruction } });
                 const botResponseText = response.text;
     
-                const { data: savedBotMessage, error: saveBotError } = await supabase.from('chat_messages').insert({
+                const { error: saveBotError } = await supabase.from('chat_messages').insert({
                     text: botResponseText, sender: 'bot', conversation_id: currentConversationId
-                }).select().single();
+                });
                 if (saveBotError) throw saveBotError;
-                if (!savedBotMessage) throw new Error("Failed to save and retrieve bot message.");
-
-                // Immediately update state with the new message from the DB
-                setMessages(prev => [...prev.filter(m => m.id !== tempUserMessage.id), savedBotMessage as Message]);
             });
     
             if (!result.success) {
                 addToast(result.message, 'error');
+                 // Add an error message to the chat
+                const errorMessage: Message = { id: `error-${Date.now()}`, sender: 'bot', text: `Sorry, I encountered an error: ${result.message}`, timestamp: Date.now() };
+                setMessages(prev => [...prev, errorMessage]);
             }
     
         } catch (err: any) {
@@ -637,9 +654,12 @@ const TextChat: React.FC<TextChatProps> = ({ userProfile, initiationData, onInit
     const handleClearAllHistory = async () => {
         setIsDeleting(true);
         try {
-            for (const convo of conversations) {
-                await handleDeleteConversation(convo.id);
-            }
+            const convoIds = conversations.map(c => c.id);
+            if (convoIds.length === 0) return;
+            // Batch delete
+            const { error } = await supabase.from('chat_conversations').delete().in('id', convoIds);
+            if (error) throw error;
+
             handleNewChat();
             addToast('All chat history cleared.', 'success');
         } catch (error) {
