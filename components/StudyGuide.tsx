@@ -695,9 +695,8 @@ const SubjectHeader: React.FC<{ subject: Subject, isExpanded: boolean, onClick: 
 interface StudyGuideProps {
   userProfile: UserProfile;
   userProgress: UserProgress;
-  onXPEarned: (xp: number, type: 'lesson') => void;
 }
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onXPEarned }) => {
+export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
@@ -750,18 +749,17 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     }
     
     try {
-        const xpEarned = 2;
-        const { error } = await supabase
-            .from('user_progress')
-            .upsert({ user_id: userProfile.uid, topic_id: topicId, is_complete: true, xp_earned: xpEarned });
+        const { error } = await supabase.rpc('mark_topic_complete', {
+            p_topic_id: topicId,
+            p_user_id: userProfile.uid,
+        });
 
         if (error) throw error;
         
-        onXPEarned(xpEarned, 'lesson');
-        addToast(`Topic complete! +${xpEarned} XP`, 'success');
-    } catch (err) {
+        addToast(`Topic complete! +2 XP`, 'success');
+    } catch (err: any) {
         console.error("Failed to mark topic as complete:", err);
-        addToast("Could not save your progress.", 'error');
+        addToast("Could not save your progress. Please check your connection or try again later.", 'error');
     }
   };
 

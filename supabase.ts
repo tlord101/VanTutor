@@ -66,6 +66,8 @@ export const supabase = createClient(__supabase_url, __supabase_anon_key);
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP FUNCTION IF EXISTS public.handle_xp_earned(uuid, integer, text);
+DROP FUNCTION IF EXISTS public.mark_topic_complete(uuid, text);
+DROP FUNCTION IF EXISTS public.mark_topic_complete(text, uuid);
 DROP FUNCTION IF EXISTS public.append_to_viewed_by(uuid, uuid);
 
 -- Enable uuid-ossp extension for gen_random_uuid()
@@ -284,9 +286,37 @@ BEGIN
     INSERT INTO public.leaderboard_weekly (user_id, week_id, display_name, photo_url, xp) VALUES (p_user_id, v_week_id, v_display_name, v_photo_url, p_xp_amount)
     ON CONFLICT (user_id, week_id) DO UPDATE SET xp = leaderboard_weekly.xp + p_xp_amount, display_name = v_display_name, photo_url = v_photo_url;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Function to update one-time-view images (RPC).
+-- 3. Function to mark a topic as complete and award XP atomically (RPC).
+--    NOTE: Parameter order is p_topic_id, p_user_id to match client library's alphabetical sorting.
+CREATE OR REPLACE FUNCTION public.mark_topic_complete(p_topic_id text, p_user_id uuid)
+RETURNS void AS $$
+DECLARE
+    v_xp_amount integer := 2;
+    v_already_complete boolean;
+BEGIN
+    -- Check if the topic is already complete to avoid re-awarding XP.
+    SELECT is_complete INTO v_already_complete
+    FROM public.user_progress
+    WHERE user_id = p_user_id AND topic_id = p_topic_id;
+
+    IF COALESCE(v_already_complete, false) THEN
+        RETURN;
+    END IF;
+    
+    -- Upsert the user progress
+    INSERT INTO public.user_progress(user_id, topic_id, is_complete, xp_earned)
+    VALUES (p_user_id, p_topic_id, true, v_xp_amount)
+    ON CONFLICT (user_id, topic_id) DO UPDATE 
+    SET is_complete = true, xp_earned = v_xp_amount;
+
+    -- Call the existing XP handling function
+    PERFORM public.handle_xp_earned(p_user_id, v_xp_amount, 'lesson');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4. Function to update one-time-view images (RPC).
 CREATE OR REPLACE FUNCTION public.append_to_viewed_by(message_id uuid, user_id uuid)
 RETURNS void AS $$
 BEGIN

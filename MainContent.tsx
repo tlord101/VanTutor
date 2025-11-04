@@ -44,7 +44,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         case 'dashboard':
             return <Dashboard userProfile={userProfile} dashboardData={dashboardData} />;
         case 'study_guide':
-            return <StudyGuide userProfile={userProfile} userProgress={userProgress} onXPEarned={(xp) => handleXPEarned(xp, 'lesson')} />;
+            return <StudyGuide userProfile={userProfile} userProgress={userProgress} />;
         case 'chat':
             return <Chat userProfile={userProfile} />;
         case 'visual_solver':
