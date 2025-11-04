@@ -185,6 +185,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, onXPEarned, userProgres
           }
 
           const examResult: Omit<ExamHistoryItem, 'id'> = {
+              user_id: userProfile.uid,
               course_id: userProfile.course_id,
               score: currentScore,
               total_questions: questions.length,

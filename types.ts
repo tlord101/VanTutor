@@ -53,6 +53,7 @@ export interface ExamQuestionResult extends Question {
 
 export interface ExamHistoryItem {
   id:string;
+  user_id: string;
   course_id: string;
   score: number;
   total_questions: number;
