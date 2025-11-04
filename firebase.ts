@@ -56,8 +56,8 @@ export { db, storage, serverTimestamp, auth, signInAnonymously, onAuthStateChang
       }
     },
     "users": {
+      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid"
       }
     },

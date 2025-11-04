@@ -9,7 +9,7 @@ import { Avatar } from './Avatar';
 import { LogoIcon } from './icons/LogoIcon';
 import { GoogleIcon } from './icons/GoogleIcon';
 
-import { db, storage, auth, onAuthStateChanged, firebaseSignOut, type FirebaseUser, GoogleAuthProvider, signInWithPopup } from '../firebase';
+import { db, storage, auth, onAuthStateChanged, firebaseSignOut, type FirebaseUser, GoogleAuthProvider, signInWithPopup, updateProfile } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, serverTimestamp as firebaseServerTimestamp, onDisconnect } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { supabase } from '../supabase';
@@ -285,12 +285,37 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             return;
         };
 
-        // Sync Supabase profile data (source of truth) to Firebase RTDB for messenger discovery
-        const userRef = dbRef(db, `users/${firebaseUser.uid}`);
-        update(userRef, {
-            displayName: userProfile.display_name,
-            photoURL: userProfile.photo_url
-        });
+        // Sync Supabase profile to Firebase Auth & RTDB
+        const syncFirebaseProfile = async () => {
+            const authUpdates: { displayName?: string; photoURL?: string | null } = {};
+
+            if (userProfile.display_name !== firebaseUser.displayName) {
+                authUpdates.displayName = userProfile.display_name;
+            }
+            if (userProfile.photo_url !== (firebaseUser.photoURL || undefined)) {
+                authUpdates.photoURL = userProfile.photo_url || null;
+            }
+
+            if (Object.keys(authUpdates).length > 0) {
+                try {
+                    await updateProfile(firebaseUser, authUpdates);
+                    // Reload the user to get the fresh profile data. The onAuthStateChanged will then update our state.
+                    await firebaseUser.reload();
+                } catch (e) {
+                    console.error("Failed to update Firebase Auth profile:", e);
+                    addToast("Could not sync profile changes to Messenger.", "error");
+                }
+            }
+            
+            // This is the public profile for other users to see.
+            const rtdbUserRef = dbRef(db, `users/${firebaseUser.uid}`);
+            update(rtdbUserRef, {
+                displayName: userProfile.display_name,
+                photoURL: userProfile.photo_url,
+            });
+        };
+
+        syncFirebaseProfile();
 
         const myStatusRef = dbRef(db, `status/${firebaseUser.uid}`);
         const connectedRef = dbRef(db, '.info/connected');
@@ -356,7 +381,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             off(usersRef);
             off(userChatsRef);
         };
-    }, [firebaseUser, userProfile.display_name, userProfile.photo_url]);
+    }, [firebaseUser, userProfile.display_name, userProfile.photo_url, addToast]);
 
     const handleStartChat = async (otherUser: UserProfile) => {
         if (!firebaseUser) return;
