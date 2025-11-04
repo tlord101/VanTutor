@@ -14,6 +14,7 @@ import { useToast } from './hooks/useToast';
 import { navigationItems } from './constants';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import GuidedTour, { TourStep } from './components/GuidedTour';
+import { auth as firebaseAuth, firebaseSignOut } from './firebase';
 
 declare var __app_id: string;
 
@@ -67,6 +68,10 @@ const App: React.FC = () => {
             setUserProfile(null);
             setActiveItem('dashboard');
             tourStatusRef.current = 'unknown';
+            // Also sign out of Firebase if a user is logged in there
+            if (firebaseAuth.currentUser) {
+                firebaseSignOut(firebaseAuth);
+            }
           }
           setIsLoading(false);
         });
@@ -83,17 +88,14 @@ const App: React.FC = () => {
             const { error } = await supabase.from('users').update(updatedData).eq('uid', user.id);
             if (error) throw error;
             
-            // If display_name or photo_url changed, update leaderboards as well
             if (updatedData.display_name !== undefined || updatedData.photo_url !== undefined) {
                 const leaderboardUpdate: { display_name?: string; photo_url?: string } = {};
                 if (updatedData.display_name !== undefined) leaderboardUpdate.display_name = updatedData.display_name;
                 if (updatedData.photo_url !== undefined) leaderboardUpdate.photo_url = updatedData.photo_url;
                 
                 await supabase.from('leaderboard_overall').update(leaderboardUpdate).eq('user_id', user.id);
-                // We don't need to update weekly leaderboard as it will be rebuilt on next XP gain.
             }
 
-            // Also update auth user metadata if needed
             const userUpdatePayload: { data?: any, password?: string } = { data: {} };
             if (updatedData.display_name) userUpdatePayload.data.display_name = updatedData.display_name;
             if (updatedData.photo_url) userUpdatePayload.data.photo_url = updatedData.photo_url;
@@ -103,7 +105,6 @@ const App: React.FC = () => {
                  if (authUserError) console.warn("Failed to update auth user metadata:", authUserError);
             }
 
-            // Update local state for immediate UI feedback
             setUserProfile(prevProfile => {
                 if (!prevProfile) return null;
                 return { ...prevProfile, ...updatedData };
@@ -303,7 +304,6 @@ const App: React.FC = () => {
         
         const setupDashboardData = async () => {
             try {
-                // Fetch Dashboard Data
                 const { data: courseData, error: courseError } = await supabase.from('courses_data').select('subject_list').eq('id', userProfile.course_id).single();
                 if(courseError) throw courseError;
 
@@ -343,7 +343,6 @@ const App: React.FC = () => {
 
         setupDashboardData();
         
-        // Notifications listener
         const notificationsChannel = supabase
             .channel(`public:notifications:user_id=eq.${userProfile.uid}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile.uid}` }, payload => {
@@ -358,7 +357,6 @@ const App: React.FC = () => {
             })
             .subscribe();
         
-        // Private Messages listener for unread count
         const chatsChannel = supabase
             .channel(`public:private_chats:members=cs.{"${userProfile.uid}"}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'private_chats', filter: `members=cs.{"${userProfile.uid}"}` }, async () => {
@@ -367,7 +365,6 @@ const App: React.FC = () => {
             })
             .subscribe();
 
-        // Dashboard data real-time updates
         const examHistoryChannel = supabase
             .channel(`public:exam_history:user_id=eq.${userProfile.uid}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'exam_history', filter: `user_id=eq.${userProfile.uid}` }, payload => {
@@ -434,6 +431,9 @@ const App: React.FC = () => {
 
     const handleLogout = async () => {
         try {
+            if (firebaseAuth.currentUser) {
+                await firebaseSignOut(firebaseAuth);
+            }
             await supabase.auth.signOut();
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
@@ -447,7 +447,6 @@ const App: React.FC = () => {
         const displayName = user.user_metadata.display_name || user.user_metadata.full_name || user.user_metadata.name || 'Learner';
         const photoURL = user.user_metadata.photo_url || user.user_metadata.avatar_url || '';
         
-        // Use a more complete object that includes the UID for the upsert operation.
         const userProfileData: Omit<UserProfile, 'privacy_consent'> = {
             uid: user.id,
             display_name: displayName,
@@ -465,8 +464,6 @@ const App: React.FC = () => {
         };
 
         try {
-            // Use upsert to create the profile if it doesn't exist, or update it if it does.
-            // This prevents a race condition with the database trigger that could cause the notification insert to fail.
             const { error: profileError } = await supabase.from('users').upsert(userProfileData);
             if (profileError) throw profileError;
             
@@ -480,7 +477,6 @@ const App: React.FC = () => {
             const { error: notifError } = await supabase.from('notifications').insert(notificationData);
             if(notifError) throw notifError;
             
-            // Update local state to reflect the new profile
             setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
             setIsOnboarding(false);
         } catch (error: any) {
@@ -508,14 +504,12 @@ const App: React.FC = () => {
         const notificationToDelete = notifications.find(n => n.id === id);
         if (!notificationToDelete) return;
     
-        // Optimistic update
         setNotifications(prev => prev.filter(n => n.id !== id));
     
         const { error } = await supabase.from('notifications').delete().eq('id', id);
         if (error) {
             console.error("Error deleting notification:", (error as Error).message || error);
             addToast("Could not clear notification.", "error");
-            // Rollback on error
             setNotifications(prev => [...prev, notificationToDelete].sort((a, b) => b.timestamp - a.timestamp));
         }
     };
@@ -527,7 +521,6 @@ const App: React.FC = () => {
         const unreadIds = unreadNotifications.map(n => n.id);
         if (unreadIds.length === 0) return;
     
-        // Optimistic update
         const unreadIdsSet = new Set(unreadIds);
         setNotifications(prev => prev.filter(n => !unreadIdsSet.has(n.id)));
     
@@ -535,7 +528,6 @@ const App: React.FC = () => {
         if (error) {
             console.error("Error clearing notifications:", (error as Error).message || error);
             addToast("Could not clear notifications.", "error");
-            // Rollback
             setNotifications(prev => [...prev, ...unreadNotifications].sort((a, b) => b.timestamp - a.timestamp));
         } else {
             addToast(`${unreadIds.length} notification${unreadIds.length > 1 ? 's' : ''} cleared.`, 'success');
@@ -547,7 +539,6 @@ const App: React.FC = () => {
             const { error } = await supabase.functions.invoke('delete-user');
             if (error) throw error;
             addToast('Your account has been successfully deleted.', 'success');
-            // The auth listener will handle logout and state reset
             return { success: true };
         } catch (error: any) {
             console.error("Error deleting account:", error.message || error);

@@ -1,66 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
-import { supabase } from '../supabase';
+import type { UserProfile, PrivateChat as ChatMetadata, PrivateMessage } from '../types';
 import { useToast } from '../hooks/useToast';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
 import { Avatar } from './Avatar';
-import { ConfirmationModal } from './ConfirmationModal';
-import { MoreHorizontalIcon } from './icons/MoreHorizontalIcon';
-import { PencilIcon } from './icons/PencilIcon';
-import { TrashIcon } from './icons/TrashIcon';
+import { LogoIcon } from './icons/LogoIcon';
 
+import { db, storage, auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, firebaseSignOut, type FirebaseUser } from '../firebase';
+import { ref as dbRef, onValue, off, set, push, update, serverTimestamp as firebaseServerTimestamp, onDisconnect } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '../supabase';
 
-const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-    </svg>
-);
-
-const PlayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.748 1.295 2.536 0 3.284L7.279 20.99c-1.25.72-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-    </svg>
-);
-
-const PauseIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 00-.75.75v12a.75.75 0 00.75.75h.75a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75H6.75zm8.25 0a.75.75 0 00-.75.75v12a.75.75 0 00.75.75h.75a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75h-.75z" clipRule="evenodd" />
-    </svg>
-);
-
-const PhotoPlaceholderIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-  </svg>
-);
-
-const OneTimeViewIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
-  );
-
-const PhotoOpenedIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-);
-
-const VideoIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-2.36a.75.75 0 011.28.53v8.66a.75.75 0 01-1.28.53l-4.72-2.36m-4.5-5.25H5.625a2.25 2.25 0 00-2.25 2.25v6a2.25 2.25 0 002.25 2.25h6.75a2.25 2.25 0 002.25-2.25v-6a2.25 2.25 0 00-2.25-2.25H11.25v-1.5a.75.75 0 00-1.5 0v1.5z" />
-    </svg>
-);
-
-const PhoneIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-    </svg>
-);
+const UserStatusIndicator: React.FC<{ isOnline?: boolean; lastSeen?: number }> = ({ isOnline }) => {
+    return <div className={`w-3 h-3 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>;
+};
 
 const formatLastSeen = (timestamp: number): string => {
     const now = Date.now();
@@ -77,1137 +32,461 @@ const formatLastSeen = (timestamp: number): string => {
     return new Date(timestamp).toLocaleDateString();
 };
 
-const UserStatusIndicator: React.FC<{ isOnline?: boolean; lastSeen?: number }> = ({ isOnline, lastSeen }) => {
-    if (isOnline) {
-        return <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>;
-    }
-    return <div className="w-3 h-3 bg-gray-400 rounded-full border-2 border-white"></div>;
-};
-
-// --- Sub-component: AudioPlayer ---
-const AudioPlayer: React.FC<{ src: string, duration: number, theme: 'light' | 'dark' }> = ({ src, duration, theme }) => {
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
-
-    const togglePlay = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!audioRef.current) return;
-        if (isPlaying) {
-            audioRef.current.pause();
-        } else {
-            audioRef.current.play().catch(err => console.error("Audio play failed:", err));
-        }
-    };
-    
-    useEffect(() => {
-        const audio = new Audio(src);
-        audioRef.current = audio;
-
-        const onPlaying = () => setIsPlaying(true);
-        const onPause = () => setIsPlaying(false);
-        const onEnded = () => { setIsPlaying(false); setProgress(0); };
-        const onTimeUpdate = () => {
-            if (audio.duration) {
-                setProgress((audio.currentTime / audio.duration) * 100);
-            }
-        };
-
-        audio.addEventListener('playing', onPlaying);
-        audio.addEventListener('pause', onPause);
-        audio.addEventListener('ended', onEnded);
-        audio.addEventListener('timeupdate', onTimeUpdate);
-        
-        return () => {
-            audio.pause();
-            audio.removeEventListener('playing', onPlaying);
-            audio.removeEventListener('pause', onPause);
-            audio.removeEventListener('ended', onEnded);
-            audio.removeEventListener('timeupdate', onTimeUpdate);
-        };
-    }, [src]);
-
-    const formatDuration = (seconds: number) => {
-        if (isNaN(seconds) || seconds === 0) return '0:00';
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
-    
-    const themeClasses = {
-        light: {
-            buttonBg: 'bg-black/10 hover:bg-black/20', buttonIcon: 'text-black/70',
-            progressBg: 'bg-black/10', progressFg: 'bg-black/50', text: 'text-black/60',
-        },
-        dark: {
-            buttonBg: 'bg-white/20 hover:bg-white/30', buttonIcon: 'text-white',
-            progressBg: 'bg-white/20', progressFg: 'bg-white', text: 'text-white/80',
-        }
-    };
-    const colors = theme === 'dark' ? themeClasses.dark : themeClasses.light;
-
-    return (
-        <div className="flex items-center gap-2 w-full max-w-[220px] sm:max-w-xs">
-            <button onClick={togglePlay} className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center transition-colors ${colors.buttonBg} ${colors.buttonIcon}`}>
-                {isPlaying ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
-            </button>
-            <div className={`w-full h-1.5 rounded-full ${colors.progressBg}`}>
-                <div className={`h-full rounded-full ${colors.progressFg}`} style={{ width: `${progress}%` }}></div>
-            </div>
-            <span className={`text-xs font-mono w-12 text-right ${colors.text}`}>{formatDuration(duration)}</span>
-        </div>
-    );
-};
-
-
 // --- Sub-component: PrivateChatView ---
 interface PrivateChatViewProps {
-  chat: PrivateChat | null;
-  currentUser: UserProfile;
-  otherUser: { uid: string, displayName: string, photoURL?: string, isOnline?: boolean, lastSeen?: number };
+  chatId: string;
+  currentUser: FirebaseUser;
+  currentUserProfile: UserProfile;
+  otherUser: UserProfile;
   onBack: () => void;
-  onOpenConfirmationModal: (options: { title: string; message: string; onConfirm: () => void; confirmText?: string }) => void;
-  onDeleteMessage: (chatId: string, message: PrivateMessage) => void;
 }
 
-const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} disabled={disabled} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50 ${ checked ? 'bg-lime-600' : 'bg-gray-200' }`} >
-      <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${ checked ? 'translate-x-6' : 'translate-x-1' }`} />
-    </button>
-);
-
-const OneTimeImageViewer: React.FC<{ imageUrl: string; onClose: () => void }> = ({ imageUrl, onClose }) => {
-    return (
-        <div
-            className="secure-view-modal fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in-up"
-            onClick={onClose}
-        >
-            <div className="relative secure-view-overlay" onClick={(e) => e.stopPropagation()}>
-                <img
-                    src={imageUrl}
-                    alt="One-time view"
-                    className="max-w-[95vw] max-h-[85vh] object-contain select-none"
-                    onContextMenu={(e) => e.preventDefault()}
-                />
-            </div>
-            <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/80"
-            >
-                <XIcon className="w-8 h-8" />
-            </button>
-            <div className="absolute bottom-4 text-center text-white/70 bg-black/50 px-4 py-2 rounded-full text-sm">
-                This photo can only be viewed once. Screenshots are not allowed.
-            </div>
-        </div>
-    );
-};
-
-const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, otherUser, onBack, onOpenConfirmationModal, onDeleteMessage }) => {
+const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, currentUserProfile, otherUser, onBack }) => {
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [input, setInput] = useState('');
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isSending, setIsSending] = useState(false);
-    
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordingSeconds, setRecordingSeconds] = useState(0);
-    
-    const [activeMessageMenu, setActiveMessageMenu] = useState<{ x: number, y: number, msg: PrivateMessage } | null>(null);
-    const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
-    const [editText, setEditText] = useState('');
-    const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ opacity: 0, pointerEvents: 'none' });
-    const [isOneTime, setIsOneTime] = useState(false);
-    const [viewingImage, setViewingImage] = useState<string | null>(null);
-    const [replyingTo, setReplyingTo] = useState<PrivateMessage | null>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
-    const recordingIntervalRef = useRef<number | null>(null);
-    const recordingStartRef = useRef<number>(0);
-    const typingTimeoutRef = useRef<number | null>(null);
-    const longPressTimer = useRef<number>();
-    const micLongPressTimer = useRef<number | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const swipeState = useRef({ startX: 0, startY: 0, isScrolling: null as boolean | null, messageId: null as string | null });
-    const messageRefs = useRef(new Map<string, HTMLDivElement>());
+    const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
     const { addToast } = useToast();
-
-    const isOtherUserTyping = chat?.typing?.includes(otherUser.uid) ?? false;
-
-    useEffect(() => {
-        const handleClickOutside = () => setActiveMessageMenu(null);
-        if (activeMessageMenu) {
-            window.addEventListener('click', handleClickOutside);
-            window.addEventListener('contextmenu', handleClickOutside, true);
-
-            if (menuRef.current) {
-                const menu = menuRef.current;
-                const { width: menuWidth, height: menuHeight } = menu.getBoundingClientRect();
-                
-                let finalX = activeMessageMenu.x - menuWidth - 10;
-                let finalY = activeMessageMenu.y;
-
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-
-                if (finalX < 10) {
-                    finalX = activeMessageMenu.x + 10;
-                }
-                
-                if (finalX + menuWidth > viewportWidth) {
-                    finalX = viewportWidth - menuWidth - 10;
-                }
-
-                if (finalY + menuHeight > viewportHeight) {
-                    finalY = viewportHeight - menuHeight - 10;
-                }
-                if (finalY < 10) {
-                    finalY = 10;
-                }
-
-                setMenuStyle({
-                    top: `${finalY}px`,
-                    left: `${finalX}px`,
-                    opacity: 1,
-                    pointerEvents: 'auto',
-                    transition: 'opacity 0.1s ease-in-out'
-                });
-            }
-
-        } else {
-            setMenuStyle({ opacity: 0, pointerEvents: 'none' });
-        }
-        return () => {
-            window.removeEventListener('click', handleClickOutside);
-            window.removeEventListener('contextmenu', handleClickOutside, true);
-        };
-    }, [activeMessageMenu]);
-
-    useEffect(() => {
-        if (!chat) return;
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<number | null>(null);
     
-        const fetchMessages = async () => {
-            const { data, error } = await supabase
-                .from('private_messages')
-                .select('*')
-                .eq('chat_id', chat.id)
-                .order('timestamp', { ascending: true });
+    useEffect(() => {
+        const messagesRef = dbRef(db, `private_messages/${chatId}`);
+        const handleNewMessages = (snapshot: any) => {
+            const messagesData = snapshot.val() || {};
+            const loadedMessages: PrivateMessage[] = Object.entries(messagesData).map(([id, msg]: [string, any]) => ({ id, ...msg }));
+            loadedMessages.sort((a, b) => a.timestamp - b.timestamp);
+            setMessages(loadedMessages);
             
-            if (error) {
-                addToast('Could not load messages.', 'error');
-            } else {
-                const formattedMessages = data.map(msg => ({
-                    ...msg,
-                    timestamp: new Date(msg.timestamp).getTime(),
-                })) as PrivateMessage[];
-                setMessages(formattedMessages);
-            }
+            const userChatRef = dbRef(db, `user_chats/${currentUser.uid}/${chatId}/unreadCount`);
+            set(userChatRef, 0);
         };
-    
-        fetchMessages();
-    
-        const channel = supabase
-            .channel(`public:private_messages:chat_id=eq.${chat.id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'private_messages',
-                filter: `chat_id=eq.${chat.id}`
-            }, (payload) => {
-                fetchMessages();
-            })
-            .subscribe();
-    
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [chat?.id, addToast]);
-
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isSending, isOtherUserTyping]);
-
-    useEffect(() => {
-        if (!chat || !chat.last_message) return;
-    
-        const lastMessage = chat.last_message;
-        if (lastMessage && !(lastMessage.read_by?.includes(currentUser.uid))) {
-            const readBy = lastMessage.read_by ? [...lastMessage.read_by, currentUser.uid] : [currentUser.uid];
-            const updatedLastMessage = { ...lastMessage, read_by: readBy };
-            
-            supabase
-                .from('private_chats')
-                .update({ last_message: updatedLastMessage })
-                .eq('id', chat.id)
-                .then(({ error }) => {
-                    if (error) {
-                        console.error("Failed to mark message as read:", error);
-                    }
-                });
-        }
-    }, [chat, currentUser.uid, messages]);
-
-    const updateTypingStatus = useCallback(async (isTyping: boolean) => {
-        if (!chat) return;
-    
-        const { data, error } = await supabase.from('private_chats').select('typing').eq('id', chat.id).single();
-    
-        if (error) {
-            console.error("Error fetching typing status:", error);
-            return;
-        }
-    
-        const currentTyping = data?.typing || [];
-        let newTyping: string[];
-        let needsUpdate = false;
+        onValue(messagesRef, handleNewMessages);
         
-        if (isTyping && !currentTyping.includes(currentUser.uid)) {
-            newTyping = [...currentTyping, currentUser.uid];
-            needsUpdate = true;
-        } else if (!isTyping && currentTyping.includes(currentUser.uid)) {
-            newTyping = currentTyping.filter(id => id !== currentUser.uid);
-            needsUpdate = true;
-        } else {
-            return;
-        }
-    
-        if (needsUpdate) {
-            const { error: updateError } = await supabase.from('private_chats').update({ typing: newTyping }).eq('id', chat.id);
-            if (updateError) {
-                console.error("Failed to update typing status:", updateError);
-            }
-        }
-    }, [chat, currentUser.uid]);
+        const typingRef = dbRef(db, `typing/${chatId}/${otherUser.uid}`);
+        const handleTyping = (snapshot: any) => setIsOtherUserTyping(snapshot.val() === true);
+        onValue(typingRef, handleTyping);
+
+        return () => {
+            off(messagesRef, 'value', handleNewMessages);
+            off(typingRef, 'value', handleTyping);
+        };
+    }, [chatId, currentUser.uid, otherUser.uid]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isOtherUserTyping]);
+
+    const updateTypingStatus = (isTyping: boolean) => {
+        const typingRef = dbRef(db, `typing/${chatId}/${currentUser.uid}`);
+        set(typingRef, isTyping);
+    };
 
     useEffect(() => {
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        
         if (input) {
             updateTypingStatus(true);
-            typingTimeoutRef.current = window.setTimeout(() => {
-                updateTypingStatus(false);
-            }, 3000);
+            typingTimeoutRef.current = window.setTimeout(() => updateTypingStatus(false), 3000);
         } else {
             updateTypingStatus(false);
         }
-        
-        return () => {
-            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            updateTypingStatus(false);
-        };
-    }, [input, updateTypingStatus]);
+    }, [input, chatId, currentUser.uid]);
 
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file && file.type.startsWith('image/')) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        } else if (file) {
-            addToast('Only image files are allowed.', 'error');
-        }
-    };
-    
-    const handleSend = async (text?: string, audioBlob?: Blob, audioDuration?: number) => {
-        const textToSend = text !== undefined ? text : input;
-        if ((!textToSend.trim() && !imageFile && !audioBlob) || isSending || isRecording || !chat) return;
+    const handleSend = async () => {
+        if (!input.trim() || isSending) return;
         
+        const textToSend = input;
         setIsSending(true);
-
-        const tempInput = textToSend;
-        const tempImageFile = imageFile;
-        const tempImagePreview = imagePreview;
-        const tempIsOneTime = isOneTime;
-        const tempReplyingTo = replyingTo;
-        
-        const tempId = `temp-${Date.now()}`;
-        if (!audioBlob) {
-            const tempMessage: PrivateMessage = {
-                id: tempId, chat_id: chat.id, sender_id: currentUser.uid,
-                text: tempInput.trim() || undefined,
-                timestamp: Date.now(),
-                image_url: tempImagePreview || undefined,
-                is_one_time_view: tempImageFile ? tempIsOneTime : false,
-                viewed_by: [],
-                reply_to: tempReplyingTo ? { message_id: tempReplyingTo.id, sender_id: tempReplyingTo.sender_id, text: tempReplyingTo.text?.substring(0, 80), image_url: tempReplyingTo.image_url, audio_url: tempReplyingTo.audio_url } : undefined,
-            };
-            setMessages(prev => [...prev, tempMessage]);
-        }
-        
-        setInput(''); setImageFile(null); setImagePreview(null); setIsOneTime(false); setReplyingTo(null);
+        setInput('');
         updateTypingStatus(false);
-
+        
         try {
-            let imageUrl: string | undefined;
-            let audioUrl: string | undefined;
-
-            if (tempImageFile) {
-                const filePath = `private-chats/${chat.id}/${Date.now()}-${tempImageFile.name}`;
-                const { error } = await supabase.storage.from('private-chats').upload(filePath, tempImageFile);
-                if(error) throw error;
-                const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
-                imageUrl = data.publicUrl;
-            } else if (audioBlob) {
-                const filePath = `private-chats/${chat.id}/${Date.now()}.webm`;
-                const { error } = await supabase.storage.from('private-chats').upload(filePath, audioBlob);
-                if(error) throw error;
-                const { data } = supabase.storage.from('private-chats').getPublicUrl(filePath);
-                audioUrl = data.publicUrl;
-            }
-            
-            const messageData: Omit<PrivateMessage, 'id' | 'timestamp' | 'chat_id'> & { chat_id: string } = {
-                chat_id: chat.id,
+            const messageListRef = dbRef(db, `private_messages/${chatId}`);
+            const newMessageRef = push(messageListRef);
+            const messageData: Omit<PrivateMessage, 'id' | 'chat_id'> = {
                 sender_id: currentUser.uid,
-                text: tempInput.trim() || undefined,
-                image_url: imageUrl,
-                audio_url: audioUrl,
-                audio_duration: audioDuration,
-                is_edited: false,
-                is_one_time_view: tempImageFile ? tempIsOneTime : undefined,
-                viewed_by: tempImageFile && tempIsOneTime ? [] : undefined,
-                reply_to: tempReplyingTo ? { message_id: tempReplyingTo.id, sender_id: tempReplyingTo.sender_id, text: tempReplyingTo.text?.substring(0, 80), image_url: tempReplyingTo.image_url, audio_url: tempReplyingTo.audio_url } : undefined,
+                text: textToSend.trim(),
+                timestamp: firebaseServerTimestamp()
             };
 
-            const { data: newMessage, error: insertError } = await supabase
-                .from('private_messages')
-                .insert(messageData)
-                .select()
-                .single();
-        
-            if (insertError) throw insertError;
+            await set(newMessageRef, messageData);
             
-            if (!audioBlob) {
-                const formattedMessage = { ...newMessage, timestamp: new Date(newMessage.timestamp).getTime() } as PrivateMessage;
-                setMessages(prev => prev.map(m => m.id === tempId ? formattedMessage : m));
-            }
-
-            const lastMessageText = tempInput ? tempInput : (imageUrl ? (tempIsOneTime ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
-            const lastMessageData = { text: lastMessageText, timestamp: Date.now(), sender_id: currentUser.uid, read_by: [currentUser.uid] };
+            const updates: { [key: string]: any } = {};
+            const lastMessagePayload = { text: textToSend, timestamp: firebaseServerTimestamp(), sender_id: currentUser.uid };
+            updates[`user_chats/${currentUser.uid}/${chatId}/last_message`] = lastMessagePayload;
+            updates[`user_chats/${currentUser.uid}/${chatId}/timestamp`] = firebaseServerTimestamp();
+            updates[`user_chats/${otherUser.uid}/${chatId}/last_message`] = lastMessagePayload;
+            updates[`user_chats/${otherUser.uid}/${chatId}/timestamp`] = firebaseServerTimestamp();
             
-            await supabase.from('private_chats').update({
-                last_message: lastMessageData,
-                last_activity_timestamp: Date.now(),
-            }).eq('id', chat.id);
+            const otherUserChatRef = dbRef(db, `user_chats/${otherUser.uid}/${chatId}/unreadCount`);
+            onValue(otherUserChatRef, (snap) => {
+                const currentCount = snap.val() || 0;
+                updates[`user_chats/${otherUser.uid}/${chatId}/unreadCount`] = currentCount + 1;
+                update(dbRef(db), updates);
+            }, { onlyOnce: true });
 
         } catch (error) {
-            console.error("Error sending message:", error);
-            addToast('Failed to send message.', 'error');
-            setInput(tempInput);
-            if (!audioBlob) setMessages(prev => prev.filter(m => m.id !== tempId));
+            console.error("Message send error:", error);
+            addToast("Failed to send message.", "error");
         } finally {
             setIsSending(false);
         }
     };
-
-
-    const handleStartRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
-            audioChunksRef.current = [];
-
-            mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
-            mediaRecorderRef.current.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
-                handleSend(undefined, audioBlob, duration);
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-            recordingStartRef.current = Date.now();
-            recordingIntervalRef.current = window.setInterval(() => setRecordingSeconds(prev => prev + 1), 1000);
-        } catch (error) {
-            console.error("Error starting recording:", error);
-            addToast("Could not access microphone. Please check permissions.", "error");
-        }
-    };
-    
-    const handleStopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-            setRecordingSeconds(0);
-        }
-    };
-    
-    const handleMicPress = () => {
-        if (isRecording) return;
-        micLongPressTimer.current = window.setTimeout(() => {
-            handleStartRecording();
-        }, 300);
-    };
-
-    const handleMicRelease = () => {
-        if (micLongPressTimer.current) {
-            clearTimeout(micLongPressTimer.current);
-            micLongPressTimer.current = null;
-        }
-        if (isRecording) {
-            handleStopRecording();
-        } else {
-            addToast("Hold to record, release to send", "info");
-        }
-    };
-
-    const confirmDeleteMessage = (message: PrivateMessage) => {
-        setActiveMessageMenu(null);
-        if (!chat) return;
-        onOpenConfirmationModal({
-            title: 'Delete Message',
-            message: 'Are you sure you want to permanently delete this message?',
-            onConfirm: () => onDeleteMessage(chat.id, message),
-            confirmText: 'Delete'
-        });
-    };
-    
-    const handleSaveEdit = async () => {
-        if (!editingMessage || !editText.trim() || !chat) return;
-        try {
-            const { error } = await supabase
-                .from('private_messages')
-                .update({ text: editText.trim(), is_edited: true })
-                .eq('id', editingMessage.id);
-    
-            if (error) throw error;
-
-            setEditingMessage(null);
-            setEditText('');
-            addToast('Message edited.', 'success');
-        } catch (error) {
-            console.error("Error editing message:", error);
-            addToast("Could not save message.", 'error');
-        }
-    };
-    
-    const openMessageMenu = (e: React.MouseEvent | React.TouchEvent, msg: PrivateMessage) => {
-        e.preventDefault();
-        const touch = 'touches' in e ? e.touches[0] : null;
-        setActiveMessageMenu({
-            x: touch ? touch.clientX : e.clientX,
-            y: touch ? touch.clientY : e.clientY,
-            msg,
-        });
-    };
-    
-    const handleTouchStart = (e: React.TouchEvent, msg: PrivateMessage) => {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = window.setTimeout(() => {
-            openMessageMenu(e, msg);
-        }, 500); // 500ms for long press
-
-        swipeState.current = {
-            startX: e.touches[0].clientX,
-            startY: e.touches[0].clientY,
-            isScrolling: null,
-            messageId: msg.id,
-        };
-        const msgEl = messageRefs.current.get(msg.id);
-        if (msgEl) {
-            msgEl.style.transition = 'none';
-        }
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (swipeState.current.messageId === null) return;
-        const deltaX = e.touches[0].clientX - swipeState.current.startX;
-        const deltaY = e.touches[0].clientY - swipeState.current.startY;
-        
-        if (swipeState.current.isScrolling === null) {
-            const isScrolling = Math.abs(deltaY) > Math.abs(deltaX);
-            swipeState.current.isScrolling = isScrolling;
-            if(!isScrolling) {
-                clearTimeout(longPressTimer.current);
-            }
-        }
-        
-        if (!swipeState.current.isScrolling) {
-            if (e.cancelable) e.preventDefault();
-            const msgEl = messageRefs.current.get(swipeState.current.messageId);
-            if (!msgEl) return;
-            const translateX = Math.min(Math.max(0, deltaX), 80);
-            msgEl.style.transform = `translateX(${translateX}px)`;
-        }
-    };
-    
-    const handleTouchEnd = (msg: PrivateMessage) => {
-        clearTimeout(longPressTimer.current);
-        if (swipeState.current.messageId === null || swipeState.current.isScrolling) {
-            swipeState.current = { startX: 0, startY: 0, isScrolling: null, messageId: null };
-            return;
-        }
-
-        const msgEl = messageRefs.current.get(swipeState.current.messageId);
-        if (!msgEl) return;
-
-        const transform = msgEl.style.transform;
-        const translateX = transform ? parseFloat(transform.split('(')[1]) : 0;
-        
-        msgEl.style.transition = 'transform 0.3s ease';
-        msgEl.style.transform = 'translateX(0px)';
-
-        if (translateX > 60) {
-            setReplyingTo(msg);
-        }
-
-        swipeState.current = { startX: 0, startY: 0, isScrolling: null, messageId: null };
-    };
-
-    const startEditing = (msg: PrivateMessage) => {
-        setEditingMessage(msg);
-        setEditText(msg.text || '');
-        setActiveMessageMenu(null);
-    };
-    
-    const handleViewOneTimeImage = async (msg: PrivateMessage) => {
-        if (!chat || !msg.image_url) return;
-        setViewingImage(msg.image_url);
-        try {
-            const { error } = await supabase.rpc('append_to_viewed_by', {
-                message_id: msg.id,
-                user_id: currentUser.uid
-            });
-            if (error) throw error;
-        } catch (error) {
-            console.error("Failed to mark one-time view image as read:", error);
-        }
-    };
-    
-    const renderMessageContent = (msg: PrivateMessage) => {
-        const isSender = msg.sender_id === currentUser.uid;
-
-        if (msg.is_one_time_view && msg.image_url) {
-            const isViewedByCurrentUser = msg.viewed_by?.includes(currentUser.uid);
-
-            if (isSender) {
-                return (
-                    <div className="flex items-center gap-2 p-3 text-white/90 italic">
-                        <OneTimeViewIcon className="w-5 h-5 flex-shrink-0" />
-                        <span>Photo sent (one-time)</span>
-                    </div>
-                );
-            }
-
-            if (isViewedByCurrentUser) {
-                return (
-                    <div className="flex items-center gap-2 p-3 text-gray-500 italic">
-                        <PhotoOpenedIcon className="w-5 h-5" />
-                        <span>Photo opened</span>
-                    </div>
-                );
-            }
-
-            return (
-                <button
-                    onClick={() => handleViewOneTimeImage(msg)}
-                    className="flex items-center gap-3 p-3 bg-gray-300 hover:bg-gray-400/80 transition-colors rounded-lg"
-                >
-                    <PhotoPlaceholderIcon className="w-8 h-8 text-gray-700" />
-                    <div>
-                        <p className="font-bold text-gray-800">Photo</p>
-                        <p className="text-sm text-gray-600">Tap to view</p>
-                    </div>
-                </button>
-            );
-        }
-        
-        const replySenderName = msg.reply_to?.sender_id === currentUser.uid ? 'You' : otherUser.displayName;
-
-        return <>
-            {msg.reply_to && (
-                <a href={`#message-${msg.reply_to.message_id}`} onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById(`message-${msg.reply_to.message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }} className={`block p-2 mb-1 rounded-md opacity-80 ${isSender ? 'bg-white/20' : 'bg-black/5'}`}>
-                    <p className={`text-xs font-bold ${isSender ? 'text-white' : 'text-lime-700'}`}>
-                        {replySenderName}
-                    </p>
-                    <p className={`text-sm mt-0.5 truncate ${isSender ? 'text-white/90' : 'text-gray-600'}`}>
-                        {msg.reply_to.text || (msg.reply_to.image_url && 'Photo') || (msg.reply_to.audio_url && 'Voice message')}
-                    </p>
-                </a>
-            )}
-            {msg.image_url && <img src={msg.image_url} alt="Sent attachment" className="rounded-lg mb-2 max-h-64" />}
-            {msg.audio_url && msg.audio_duration != null && <AudioPlayer src={msg.audio_url} duration={msg.audio_duration} theme={isSender ? 'dark' : 'light'} />}
-            {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
-            {msg.is_edited && <span className="text-xs opacity-70 ml-2">(edited)</span>}
-        </>
-    };
-
-    if (!chat) {
-      return <div className="h-full flex items-center justify-center text-gray-500">Select a chat to start messaging.</div>;
-    }
     
     return (
         <div className="h-full flex flex-col bg-gray-50 chat-bg-pattern">
-            {viewingImage && (
-                <OneTimeImageViewer
-                    imageUrl={viewingImage}
-                    onClose={() => setViewingImage(null)}
-                />
-            )}
             <header className="flex-shrink-0 flex items-center justify-between gap-3 p-4 bg-white rounded-b-3xl shadow-lg relative z-10">
                  <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-1 text-gray-500 hover:text-gray-900 rounded-full">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                     <div className="relative">
-                        <Avatar display_name={otherUser.displayName} photo_url={otherUser.photoURL} className="w-10 h-10" />
-                        <div className="absolute -bottom-1 -right-1">
-                            <UserStatusIndicator isOnline={otherUser.isOnline} />
-                        </div>
-                     </div>
-                    <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 leading-tight">{otherUser.displayName}</h3>
-                        <p className="text-xs text-gray-500 leading-tight">{isOtherUserTyping ? 'typing...' : (otherUser.isOnline ? 'Online' : (otherUser.lastSeen ? `Active ${formatLastSeen(otherUser.lastSeen)}` : 'Offline'))}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100"><VideoIcon className="w-6 h-6" /></button>
-                    <button className="p-2 rounded-full text-gray-600 hover:bg-gray-100"><PhoneIcon className="w-6 h-6" /></button>
+                    <button onClick={onBack} className="p-1 text-gray-500 hover:text-gray-900 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
+                     <div className="relative"><Avatar display_name={otherUser.display_name} photo_url={otherUser.photo_url} className="w-10 h-10" /><div className="absolute -bottom-1 -right-1"><UserStatusIndicator isOnline={otherUser.is_online} /></div></div>
+                    <div><h3 className="font-bold text-gray-800 leading-tight">{otherUser.display_name}</h3><p className="text-xs text-gray-500 leading-tight">{isOtherUserTyping ? 'typing...' : (otherUser.is_online ? 'Online' : (otherUser.last_seen ? `Active ${formatLastSeen(otherUser.last_seen)}` : 'Offline'))}</p></div>
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map(msg => (
-                    <div key={msg.id} id={`message-${msg.id}`} className={`flex gap-3 items-end group ${msg.sender_id === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
-                       <div 
-                         ref={(el) => { if (el) messageRefs.current.set(msg.id, el); }}
-                         className={`max-w-[80%] p-1 rounded-2xl disable-text-selection ${msg.sender_id === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
-                         onContextMenu={(e) => msg.sender_id === currentUser.uid && openMessageMenu(e, msg)}
-                         onTouchStart={(e) => handleTouchStart(e, msg)}
-                         onTouchMove={handleTouchMove}
-                         onTouchEnd={() => handleTouchEnd(msg)}
-                       >
-                            <div className="p-2">
-                                {editingMessage?.id === msg.id ? (
-                                    <div>
-                                        <textarea
-                                            value={editText}
-                                            onChange={(e) => setEditText(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); } }}
-                                            className="w-full bg-white/90 text-gray-800 rounded-lg p-2 text-sm border-2 border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400"
-                                            autoFocus
-                                        />
-                                        <div className="flex justify-end gap-2 mt-2 text-xs">
-                                            <button onClick={() => setEditingMessage(null)} className="font-semibold text-gray-600 hover:text-gray-900">Cancel</button>
-                                            <button onClick={handleSaveEdit} className="font-semibold text-lime-700 hover:underline">Save</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    renderMessageContent(msg)
-                                )}
-                            </div>
+                    <div key={msg.id} className={`flex gap-3 items-end ${msg.sender_id === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
+                       <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender_id === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}>
+                           {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
                         </div>
                     </div>
                 ))}
-                 {isOtherUserTyping && (
-                    <div className="flex gap-3 items-end justify-start animate-fade-in-up">
-                        <div className="p-3 rounded-2xl bg-white text-gray-800 border border-gray-200">
-                           <div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div>
-                        </div>
-                    </div>
-                 )}
+                {isOtherUserTyping && <div className="flex gap-3 items-end justify-start animate-fade-in-up"><div className="p-3 rounded-2xl bg-white text-gray-800 border border-gray-200"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
-             {activeMessageMenu && activeMessageMenu.msg.sender_id === currentUser.uid && (
-                <div
-                    ref={menuRef}
-                    style={menuStyle}
-                    className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50"
-                >
-                    <ul className="py-1">
-                        {activeMessageMenu.msg.text && (
-                            <li><button onClick={() => startEditing(activeMessageMenu.msg)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"><PencilIcon className="w-4 h-4" /> Edit</button></li>
-                        )}
-                        <li><button onClick={() => confirmDeleteMessage(activeMessageMenu.msg)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><TrashIcon className="w-4 h-4" /> Delete</button></li>
-                    </ul>
-                </div>
-            )}
-            <footer className="flex-shrink-0 bg-white/80 backdrop-blur-sm">
-                 <div className="w-full max-w-md mx-auto">
-                    {replyingTo && (
-                        <div className="px-4 pt-2">
-                           <div className="bg-lime-100 rounded-t-lg p-2 flex justify-between items-center border-l-4 border-lime-500 animate-fade-in-up">
-                                <div>
-                                    <p className="text-xs font-bold text-lime-900">
-                                        Replying to {replyingTo.sender_id === currentUser.uid ? 'Yourself' : otherUser.displayName}
-                                    </p>
-                                    <p className="text-sm text-lime-800 truncate max-w-xs sm:max-w-sm">
-                                        {replyingTo.text || (replyingTo.image_url && 'Photo') || (replyingTo.audio_url && 'Voice message')}
-                                    </p>
-                                </div>
-                                <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-lime-800 hover:bg-lime-200">
-                                    <XIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    <div className={`p-3 ${replyingTo ? 'pt-1' : ''}`}>
-                      {imagePreview && (
-                          <div className="relative mb-2">
-                               <div className="relative w-20 h-20 p-1 border rounded bg-white/20"><img src={imagePreview} className="w-full h-full object-cover rounded"/><button onClick={() => {setImageFile(null); setImagePreview(null);}} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">&times;</button></div>
-                               <div className="flex items-center gap-2 mt-2 p-2 bg-black/20 rounded-lg"><Switch checked={isOneTime} onChange={setIsOneTime} /><span className="text-sm text-white">One-Time View</span></div>
-                          </div>
-                      )}
-                      <div className="relative flex items-center">
-                          <label className="p-2 cursor-pointer text-gray-500 hover:text-gray-900"><PaperclipIcon className="w-5 h-5" /><input type="file" className="hidden" onChange={handleFileChange} accept="image/*"/></label>
-                          {isRecording ? (<div className="flex-1 flex items-center justify-center h-10 px-4 bg-gray-100 rounded-full text-sm"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></span>Recording... {new Date(recordingSeconds * 1000).toISOString().substr(14, 5)}</div>
-                          ) : (<input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend(input)}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />)}
-                          
-                          {!input.trim() && !imageFile ? (
-                             <button 
-                              onMouseDown={handleMicPress} 
-                              onMouseUp={handleMicRelease} 
-                              onTouchStart={handleMicPress} 
-                              onTouchEnd={handleMicRelease} 
-                              disabled={isSending} 
-                              className={`ml-2 rounded-full p-3 transition-transform text-white disabled:opacity-50 ${isRecording ? 'bg-red-500 scale-110 animate-pulse' : 'bg-lime-600 hover:bg-lime-700 active:scale-95'}`}
-                             >
-                                 <MicrophoneIcon className="w-6 h-6" />
-                             </button>
-                          ) : (
-                             <button onClick={() => handleSend(input)} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
-                          )}
-                      </div>
-                    </div>
+            <footer className="flex-shrink-0 bg-white/80 backdrop-blur-sm p-3">
+                <div className="relative flex items-center">
+                    <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend()}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />
+                    <button onClick={handleSend} disabled={isSending || !input.trim()} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
                 </div>
             </footer>
         </div>
     );
 };
 
+// --- Sub-component: MessengerAuth ---
+interface MessengerAuthProps {
+  userProfile: UserProfile;
+}
+const MessengerAuth: React.FC<MessengerAuthProps> = ({ userProfile }) => {
+    const [mode, setMode] = useState<'login' | 'signup'>('signup');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { addToast } = useToast();
+
+    useEffect(() => {
+        if(userProfile.display_name) setDisplayName(userProfile.display_name);
+        if(userProfile.uid) { // Assuming Supabase email is in the user object
+            const supabaseUser = supabase.auth.getUser();
+            supabaseUser.then(res => {
+                if(res.data.user?.email) setEmail(res.data.user.email);
+            })
+        }
+    }, [userProfile]);
+
+    const handleSignUp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, { displayName });
+
+            // Also create a user record in RTDB for discovery
+            const userRef = dbRef(db, `users/${userCredential.user.uid}`);
+            await set(userRef, { displayName, photoURL: userProfile.photo_url });
+            
+            addToast("Messaging account created!", "success");
+        } catch(error: any) {
+            addToast(error.message, "error");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            addToast("Logged into Messenger!", "success");
+        } catch(error: any) {
+            addToast(error.message, "error");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    return (
+        <div className="flex items-center justify-center h-full bg-gray-50 p-4">
+          <div className="w-full max-w-sm">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-xl">
+              <div className="flex justify-center items-center mb-4">
+                  <LogoIcon className="w-10 h-10 text-lime-500" />
+                  <h1 className="text-2xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
+                      Messenger
+                  </h1>
+              </div>
+              <p className="text-center text-gray-600 mb-6 text-sm">{mode === 'signup' ? 'Create a separate account for messaging.' : 'Log in to your messaging account.'}</p>
+              
+              <form onSubmit={mode === 'signup' ? handleSignUp : handleLogin}>
+                 <div className="space-y-4">
+                    {mode === 'signup' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
+                    </div>
+                 </div>
+                 <button type="submit" disabled={isSubmitting} className="mt-6 w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                    {isSubmitting ? '...' : (mode === 'signup' ? 'Sign Up' : 'Log In')}
+                 </button>
+              </form>
+              <p className="text-center text-sm text-gray-600 mt-4">
+                 {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
+                <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="font-medium text-lime-600 hover:text-lime-500">
+                    {mode === 'login' ? 'Sign Up' : 'Log In'}
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+    );
+};
 
 // --- Main Component: Messenger ---
 interface MessengerProps {
   userProfile: UserProfile;
-  allUsers: UserProfile[];
+  allUsers: UserProfile[]; // Supabase users, for search
 }
-
 export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) => {
+    const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [view, setView] = useState<'list' | 'chat'>('list');
-    const [selectedChatData, setSelectedChatData] = useState<PrivateChat | null>(null);
-
-    const [tab, setTab] = useState<'chats' | 'discover'>('chats');
-    const [chats, setChats] = useState<PrivateChat[]>([]);
+    const [selectedChatData, setSelectedChatData] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
+    const [tab, setTab] = useState<'chats' | 'add_friend'>('chats');
+    const [chats, setChats] = useState<(ChatMetadata & { unreadCount?: number })[]>([]);
+    const [allFirebaseUsers, setAllFirebaseUsers] = useState<UserProfile[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isMessageDeleting, setIsMessageDeleting] = useState(false);
-    
-    const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; confirmText?: string }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-
+    const [searchState, setSearchState] = useState<'idle' | 'searching' | 'found' | 'not_found'>('idle');
+    const [foundUser, setFoundUser] = useState<UserProfile | null>(null);
     const { addToast } = useToast();
     
     useEffect(() => {
-        setIsDataLoading(true);
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setFirebaseUser(user);
+            setIsAuthLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
-        const fetchChats = async () => {
-            const { data, error } = await supabase
-                .from('private_chats')
-                .select('*')
-                .contains('members', [userProfile.uid])
-                .order('last_activity_timestamp', { ascending: false });
-
-            if (error) {
-                console.error("Error fetching chats:", error);
-                addToast("Could not load your chats.", "error");
-            } else {
-                setChats(data as PrivateChat[]);
-            }
+    useEffect(() => {
+        if (!firebaseUser) {
             setIsDataLoading(false);
+            setChats([]);
+            setAllFirebaseUsers([]);
+            return;
         };
 
-        fetchChats();
+        const myStatusRef = dbRef(db, `status/${firebaseUser.uid}`);
+        const connectedRef = dbRef(db, '.info/connected');
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                set(myStatusRef, { isOnline: true, lastSeen: firebaseServerTimestamp() });
+                onDisconnect(myStatusRef).set({ isOnline: false, lastSeen: firebaseServerTimestamp() });
+            }
+        });
 
-        const channel = supabase
-            .channel(`public:private_chats:members=cs.{"${userProfile.uid}"}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'private_chats',
-                filter: `members=cs.{"${userProfile.uid}"}`
-            }, (payload) => {
-                fetchChats();
-                 if (selectedChatData) {
-                    const updatedSelectedChat = (payload.new as PrivateChat)?.id === selectedChatData.id ? (payload.new as PrivateChat) : null;
-                    if(updatedSelectedChat) {
-                        setSelectedChatData(updatedSelectedChat);
-                    }
-                }
-            })
-            .subscribe();
+        const usersRef = dbRef(db, 'users');
+        const handleUsers = (snapshot: any) => {
+            const usersData = snapshot.val() || {};
+            const usersList = Object.entries(usersData).map(([uid, data]: [string, any]) => ({ uid, display_name: data.displayName, photo_url: data.photoURL }));
+            
+            const statusRef = dbRef(db, 'status');
+            onValue(statusRef, (statusSnap) => {
+                const statuses = statusSnap.val() || {};
+                const usersWithStatus: UserProfile[] = usersList.map((u: any) => ({ ...u, ...statuses[u.uid] }));
+                setAllFirebaseUsers(usersWithStatus);
+            });
+        };
+        onValue(usersRef, handleUsers);
+        
+        const userChatsRef = dbRef(db, `user_chats/${firebaseUser.uid}`);
+        const handleChats = (snapshot: any) => {
+            const chatsData = snapshot.val() || {};
+            if (!chatsData) {
+                setChats([]);
+                setIsDataLoading(false);
+                return;
+            }
+            const chatIds = Object.keys(chatsData);
+            const chatPromises = chatIds.map(chatId => {
+                return new Promise<ChatMetadata & { unreadCount?: number }>(resolve => {
+                    const otherUserId = chatsData[chatId].otherUserId;
+                    const otherUserRef = dbRef(db, `users/${otherUserId}`);
+                    onValue(otherUserRef, (userSnap) => {
+                        const otherUserData = userSnap.val() || {};
+                        resolve({
+                            id: chatId, members: [firebaseUser.uid, otherUserId],
+                            member_info: {
+                                [firebaseUser.uid]: { display_name: firebaseUser.displayName!, photo_url: userProfile.photo_url },
+                                [otherUserId]: { display_name: otherUserData.displayName, photo_url: otherUserData.photoURL }
+                            },
+                            last_message: chatsData[chatId].last_message,
+                            last_activity_timestamp: chatsData[chatId].timestamp,
+                            unreadCount: chatsData[chatId].unreadCount,
+                            created_at: 0
+                        });
+                    }, { onlyOnce: true });
+                });
+            });
+            Promise.all(chatPromises).then(resolvedChats => {
+                resolvedChats.sort((a,b) => (b.last_activity_timestamp || 0) - (a.last_activity_timestamp || 0));
+                setChats(resolvedChats);
+                setIsDataLoading(false);
+            });
+        };
+        onValue(userChatsRef, handleChats);
 
         return () => {
-            supabase.removeChannel(channel);
+            off(usersRef);
+            off(userChatsRef);
         };
-    }, [userProfile.uid, addToast, selectedChatData]);
-    
+    }, [firebaseUser, userProfile.photo_url]);
+
     const handleStartChat = async (otherUser: UserProfile) => {
-        const members = [userProfile.uid, otherUser.uid].sort();
+        if (!firebaseUser) return;
+        const members = [firebaseUser.uid, otherUser.uid].sort();
         const chatId = members.join('_');
-    
-        try {
-            let { data: existingChat, error: selectError } = await supabase
-                .from('private_chats')
-                .select('*')
-                .eq('id', chatId)
-                .single();
-    
-            if (selectError && selectError.code !== 'PGRST116') {
-                throw selectError;
-            }
-            
-            let chatData: PrivateChat;
-    
-            if (!existingChat) {
-                const now = Date.now();
-                const { data: newChat, error: insertError } = await supabase
-                    .from('private_chats')
-                    .insert({
-                        id: chatId,
-                        members,
-                        member_info: {
-                            [userProfile.uid]: { display_name: userProfile.display_name, photo_url: userProfile.photo_url || '' },
-                            [otherUser.uid]: { display_name: otherUser.display_name, photo_url: otherUser.photo_url || '' },
-                        },
-                        created_at: now,
-                        last_activity_timestamp: now,
-                    })
-                    .select()
-                    .single();
-                
-                if (insertError) throw insertError;
-                chatData = newChat as PrivateChat;
-    
-            } else {
-                chatData = existingChat as PrivateChat;
-            }
-    
-            setSelectedChatData(chatData);
-            setView('chat');
-        } catch (error) {
-            console.error("Error starting or accessing chat:", error);
-            addToast("Could not start chat.", "error");
-        }
+        
+        const updates: { [key: string]: any } = {};
+        updates[`user_chats/${firebaseUser.uid}/${chatId}`] = { otherUserId: otherUser.uid, unreadCount: 0, timestamp: firebaseServerTimestamp() };
+        updates[`user_chats/${otherUser.uid}/${chatId}`] = { otherUserId: firebaseUser.uid, unreadCount: 0, timestamp: firebaseServerTimestamp() };
+        
+        await update(dbRef(db), updates);
+        
+        setSelectedChatData({ chatId, otherUser });
+        setView('chat');
+        setTab('chats');
+        setSearchState('idle');
+        setSearchTerm('');
     };
     
-    const handleSelectChat = (chat: PrivateChat) => {
-        setSelectedChatData(chat);
+    const handleSelectChat = (chat: ChatMetadata) => {
+        if (!firebaseUser) return;
+        const otherUserId = chat.members.find(id => id !== firebaseUser.uid)!;
+        const otherUser = allFirebaseUsers.find(u => u.uid === otherUserId) || { uid: otherUserId, display_name: chat.member_info[otherUserId].display_name, photo_url: chat.member_info[otherUserId].photo_url };
+        setSelectedChatData({ chatId: chat.id, otherUser: otherUser as UserProfile });
         setView('chat');
     };
 
-    const handleDeleteChat = async (chatId: string) => {
-        setIsDeleting(true);
-        try {
-            const { error: deleteChatError } = await supabase.from('private_chats').delete().eq('id', chatId);
-            if (deleteChatError) throw deleteChatError;
-    
-            const { data: files } = await supabase.storage.from('private-chats').list(chatId);
-            if (files && files.length > 0) {
-                const filePaths = files.map(f => `${chatId}/${f.name}`);
-                await supabase.storage.from('private-chats').remove(filePaths);
-            }
-            
-            addToast('Chat deleted successfully.', 'success');
-            if (selectedChatData?.id === chatId) {
-                setView('list');
-                setSelectedChatData(null);
-            }
-        } catch (error) {
-            console.error("Error deleting chat:", error);
-            addToast("Failed to delete chat.", 'error');
-        } finally {
-            setIsDeleting(false);
-            setModalState({ ...modalState, isOpen: false });
+    const handleSearchFriend = (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmedSearch = searchTerm.trim().toLowerCase();
+        if (!trimmedSearch) return;
+
+        setSearchState('searching');
+        const results = allFirebaseUsers.filter(u => u.display_name?.toLowerCase().includes(trimmedSearch) && u.uid !== firebaseUser?.uid);
+
+        if (results.length > 0) {
+            setFoundUser(results[0]);
+            setSearchState('found');
+        } else {
+            setFoundUser(null);
+            setSearchState('not_found');
         }
     };
-
-    const handleDeleteMessage = async (chatId: string, message: PrivateMessage) => {
-        setIsMessageDeleting(true);
-        try {
-            const { error } = await supabase.from('private_messages').delete().eq('id', message.id);
-            if (error) throw error;
     
-            const { data: chatData, error: chatError } = await supabase.from('private_chats').select('last_message').eq('id', chatId).single();
-            if (chatError) throw chatError;
-            
-            if (chatData.last_message && chatData.last_message.timestamp === message.timestamp) {
-                const { data: newLastMessages, error: lastMsgError } = await supabase
-                    .from('private_messages')
-                    .select('*')
-                    .eq('chat_id', chatId)
-                    .order('timestamp', { ascending: false })
-                    .limit(1);
-                
-                if (lastMsgError) throw lastMsgError;
-    
-                let newLastMessageData = null;
-                if (newLastMessages && newLastMessages.length > 0) {
-                    const newLastMessage = newLastMessages[0];
-                    const lastMessageText = newLastMessage.text || (newLastMessage.image_url ? (newLastMessage.is_one_time_view ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
-                    newLastMessageData = {
-                        text: lastMessageText,
-                        timestamp: new Date(newLastMessage.timestamp).getTime(),
-                        sender_id: newLastMessage.sender_id,
-                        read_by: [newLastMessage.sender_id],
-                    };
-                }
-                
-                await supabase.from('private_chats').update({ last_message: newLastMessageData }).eq('id', chatId);
-            }
-            addToast('Message deleted.', 'success');
-        } catch (error) {
-            console.error("Error deleting message:", error);
-            addToast("Could not delete message.", 'error');
-        } finally {
-            setIsMessageDeleting(false);
-            setModalState({ ...modalState, isOpen: false });
-        }
-    };
-
-    const confirmDeleteChat = (chat: PrivateChat) => {
-        const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
-        const otherUserName = chat.member_info[otherUserId]?.display_name || 'this user';
-        setModalState({
-            isOpen: true,
-            title: 'Delete Chat',
-            message: `Are you sure you want to permanently delete your conversation with ${otherUserName}? This action cannot be undone.`,
-            onConfirm: () => handleDeleteChat(chat.id),
-            confirmText: 'Delete'
-        });
-    };
-
-    const filteredUsers = allUsers.filter(user => 
-        user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (isAuthLoading) {
+        return <div className="flex items-center justify-center h-full"><p>Loading Messenger...</p></div>;
+    }
+    if (!firebaseUser) {
+        return <MessengerAuth userProfile={userProfile} />;
+    }
 
     const renderListView = () => (
-        <div className="h-full flex flex-col bg-white">
-            <div className="flex-shrink-0 p-4 border-b border-gray-200">
-                <div className="bg-gray-100 p-1 rounded-full flex">
-                    <button onClick={() => setTab('chats')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'chats' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Chats</button>
-                    <button onClick={() => setTab('discover')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'discover' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Discover</button>
+         <div className="h-full flex flex-col bg-white">
+            <header className="flex-shrink-0 p-4 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-gray-800">Messages</h2>
+                    <button onClick={() => firebaseSignOut(auth)} className="text-sm text-gray-500 hover:text-red-600">Logout</button>
                 </div>
-            </div>
+                <div className="mt-4 bg-gray-100 p-1 rounded-full flex">
+                    <button onClick={() => setTab('chats')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'chats' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Chats</button>
+                    <button onClick={() => setTab('add_friend')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'add_friend' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Add Friend</button>
+                </div>
+            </header>
             <div className="flex-1 overflow-y-auto">
                 {tab === 'chats' && (
                     isDataLoading ? <div className="p-4 text-center text-gray-500">Loading chats...</div> :
-                    chats.length === 0 ? <div className="p-4 text-center text-gray-500">No chats yet. Find users in the Discover tab.</div> :
+                    chats.length === 0 ? <div className="p-4 text-center text-gray-500">No chats yet. Find users in the Add Friend tab.</div> :
                     <ul className="divide-y divide-gray-200">{chats.map(chat => {
-                        const otherUserId = chat.members.find(id => id !== userProfile.uid)!;
-                        const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
-                        const isUnread = chat.last_message && !chat.last_message.read_by?.includes(userProfile.uid);
-                        const otherUserPhotoURL = otherUserInfo?.photo_url || chat.member_info[otherUserId]?.photo_url;
-                        return <li key={chat.id} className="group p-4 hover:bg-gray-50 flex items-center gap-4 relative">
-                             <div onClick={() => handleSelectChat(chat)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                        const otherUserId = chat.members.find(id => id !== firebaseUser.uid)!;
+                        const otherUserInfo = allFirebaseUsers.find(u => u.uid === otherUserId);
+                        const isUnread = (chat.unreadCount || 0) > 0;
+                        return <li key={chat.id} onClick={() => handleSelectChat(chat)} className="p-4 hover:bg-gray-50 flex items-center gap-4 cursor-pointer">
                                 <div className="relative flex-shrink-0">
-                                    <Avatar 
-                                        display_name={chat.member_info[otherUserId]?.display_name} 
-                                        photo_url={otherUserPhotoURL} 
-                                        className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}
-                                    />
-                                    <div className="absolute -bottom-1 -right-1">
-                                        <UserStatusIndicator isOnline={otherUserInfo?.is_online} />
-                                    </div>
+                                    <Avatar display_name={chat.member_info[otherUserId]?.display_name} photo_url={chat.member_info[otherUserId]?.photo_url} className={`w-12 h-12 ${isUnread ? 'ring-2 ring-lime-500 ring-offset-2' : ''}`}/>
+                                    <div className="absolute -bottom-1 -right-1"><UserStatusIndicator isOnline={otherUserInfo?.is_online} /></div>
                                 </div>
                                 <div className="flex-1 overflow-hidden">
-                                    <div className="flex justify-between items-center">
-                                        <p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.member_info[otherUserId]?.display_name}</p>
-                                        <p className="text-xs text-gray-400">{chat.last_message ? formatLastSeen(chat.last_message.timestamp) : ''}</p>
-                                    </div>
+                                    <div className="flex justify-between items-center"><p className={`font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{chat.member_info[otherUserId]?.display_name}</p><p className="text-xs text-gray-400">{chat.last_message ? formatLastSeen(chat.last_message.timestamp) : ''}</p></div>
                                     <p className={`text-sm truncate ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{chat.last_message?.text || '...'}</p>
                                 </div>
-                            </div>
-                            <button onClick={() => confirmDeleteChat(chat)} className="p-2 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
                         </li>
                     })}</ul>
                 )}
-                {tab === 'discover' && (
+                {tab === 'add_friend' && (
                     <div className="p-4">
-                        <div className="relative mb-4">
-                            <input 
-                                type="text" 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                                placeholder="Filter users..." 
-                                className="w-full bg-gray-100 border border-gray-300 rounded-full py-2.5 pl-10 pr-4 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none transition-colors"
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            </span>
+                        <form onSubmit={handleSearchFriend} className="flex gap-2 mb-4">
+                            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Enter friend's display name" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none transition-colors"/>
+                            <button type="submit" className="px-4 py-2 rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700 disabled:opacity-50" disabled={searchState === 'searching'}>
+                                {searchState === 'searching' ? '...' : 'Search'}
+                            </button>
+                        </form>
+                        <div className="mt-4">
+                            {searchState === 'searching' && <p className="text-center text-gray-500">Searching...</p>}
+                            {searchState === 'not_found' && <p className="text-center text-gray-500">User not found. Check the name and try again.</p>}
+                            {searchState === 'found' && foundUser && (
+                                <div className="p-3 bg-lime-50 border border-lime-200 rounded-lg flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar display_name={foundUser.display_name} photo_url={foundUser.photo_url} className="w-10 h-10"/>
+                                        <p className="font-semibold text-gray-800">{foundUser.display_name}</p>
+                                    </div>
+                                    <button onClick={() => handleStartChat(foundUser)} className="px-3 py-1.5 text-sm rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700">
+                                        Chat
+                                    </button>
+                                </div>
+                            )}
+                             {searchState === 'idle' && <p className="text-center text-gray-400 text-sm">Find a friend to start a conversation.</p>}
                         </div>
-                        {isDataLoading && allUsers.length === 0 ? (
-                           <div className="p-4 text-center text-gray-500">Loading users...</div>
-                        ) : filteredUsers.length > 0 ? (
-                            filteredUsers.map(user => 
-                                <div key={user.uid} onClick={() => handleStartChat(user)} className="p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-4 rounded-lg">
-                                    <div className="relative flex-shrink-0">
-                                        <Avatar display_name={user.display_name} photo_url={user.photo_url} className="w-12 h-12" />
-                                        <div className="absolute -bottom-1 -right-1">
-                                           <UserStatusIndicator isOnline={user.is_online} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-700">{user.display_name}</p>
-                                        <p className="text-xs text-gray-500">{user.is_online ? `Online` : (user.last_seen ? `Active ${formatLastSeen(user.last_seen)}` : 'Offline')}</p>
-                                    </div>
-                               </div>
-                            )
-                        ) : (
-                            <div className="p-4 text-center text-gray-500">
-                                {searchTerm ? `No users found for "${searchTerm}"` : 'No other users to discover.'}
-                            </div>
-                        )}
                     </div>
                 )}
             </div>
         </div>
     );
-    
-    const getOtherUser = () => {
-        if (!selectedChatData) return null;
-        const otherUserId = selectedChatData.members.find(id => id !== userProfile.uid)!;
-        const otherUserInfo = allUsers.find(u => u.uid === otherUserId);
-        return {
-            uid: otherUserId,
-            displayName: selectedChatData.member_info[otherUserId]?.display_name || 'User',
-            photoURL: otherUserInfo?.photo_url || selectedChatData.member_info[otherUserId]?.photo_url,
-            isOnline: otherUserInfo?.is_online,
-            lastSeen: otherUserInfo?.last_seen
-        };
-    };
-
-    const otherUser = getOtherUser();
 
     return (
         <div className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white md:rounded-xl border border-gray-200">
             {view === 'list' && renderListView()}
-            {view === 'chat' && otherUser && (
+            {view === 'chat' && selectedChatData && (
                 <PrivateChatView 
-                    chat={selectedChatData}
-                    currentUser={userProfile} 
-                    otherUser={otherUser} 
-                    onBack={() => setView('list')} 
-                    onOpenConfirmationModal={(options) => setModalState({ ...options, isOpen: true })}
-                    onDeleteMessage={handleDeleteMessage}
+                    chatId={selectedChatData.chatId}
+                    currentUser={firebaseUser} 
+                    currentUserProfile={userProfile}
+                    otherUser={selectedChatData.otherUser} 
+                    onBack={() => setView('list')}
                 />
             )}
-            <ConfirmationModal
-                isOpen={modalState.isOpen}
-                title={modalState.title}
-                message={modalState.message}
-                onConfirm={modalState.onConfirm}
-                onCancel={() => setModalState({ ...modalState, isOpen: false })}
-                confirmText={modalState.confirmText || 'Confirm'}
-                isConfirming={isDeleting || isMessageDeleting}
-            />
         </div>
     );
 };
