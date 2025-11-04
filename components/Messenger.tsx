@@ -338,22 +338,29 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
 
     const updateTypingStatus = useCallback(async (isTyping: boolean) => {
         if (!chat) return;
-        const { data, error } = await supabase.from('private_chats').select('typing').eq('id', chat.id).single();
-        if (error || !data) return;
+        
+        const currentTyping = chat.typing || [];
+        let needsUpdate = false;
+        let newTyping: string[];
 
-        let currentTyping = data.typing || [];
         if (isTyping && !currentTyping.includes(currentUser.uid)) {
-            currentTyping.push(currentUser.uid);
-        } else if (!isTyping) {
-            currentTyping = currentTyping.filter(id => id !== currentUser.uid);
+            newTyping = [...currentTyping, currentUser.uid];
+            needsUpdate = true;
+        } else if (!isTyping && currentTyping.includes(currentUser.uid)) {
+            newTyping = currentTyping.filter(id => id !== currentUser.uid);
+            needsUpdate = true;
+        } else {
+            newTyping = currentTyping;
         }
-        await supabase.from('private_chats').update({ typing: currentTyping }).eq('id', chat.id);
-    }, [chat?.id, currentUser.uid]);
+        
+        if (needsUpdate) {
+            await supabase.from('private_chats').update({ typing: newTyping }).eq('id', chat.id);
+        }
+    }, [chat, currentUser.uid]);
 
     useEffect(() => {
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        
         if (input) {
             updateTypingStatus(true);
             typingTimeoutRef.current = window.setTimeout(() => {
@@ -362,10 +369,14 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         } else {
             updateTypingStatus(false);
         }
+        
         return () => {
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            // Ensure typing status is set to false on unmount/chat change
+            updateTypingStatus(false);
         };
     }, [input, updateTypingStatus]);
+
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -383,10 +394,34 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         
         setIsSending(true);
 
-        const tempInput = input;
+        const tempInput = textToSend;
         const tempImageFile = imageFile;
+        const tempImagePreview = imagePreview;
         const tempIsOneTime = isOneTime;
         const tempReplyingTo = replyingTo;
+        
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage: PrivateMessage = {
+            id: tempId,
+            chat_id: chat.id,
+            sender_id: currentUser.uid,
+            text: tempInput.trim() || undefined,
+            timestamp: Date.now(),
+            image_url: tempImagePreview || undefined, // Use local blob URL for immediate preview
+            is_one_time_view: tempImageFile ? tempIsOneTime : false,
+            viewed_by: [],
+            reply_to: tempReplyingTo ? {
+                message_id: tempReplyingTo.id, sender_id: tempReplyingTo.sender_id,
+                text: tempReplyingTo.text?.substring(0, 80), image_url: tempReplyingTo.image_url, audio_url: tempReplyingTo.audio_url
+            } : undefined,
+        };
+        
+        // Optimistic UI update
+        if (!audioBlob) { // Don't show optimistic update for audio yet
+            setMessages(prev => [...prev, tempMessage]);
+        }
+        
+        // Clear inputs after capturing their state
         setInput('');
         setImageFile(null);
         setImagePreview(null);
@@ -412,12 +447,11 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 audioUrl = data.publicUrl;
             }
 
-            const messageData: Partial<PrivateMessage> = {
-                chat_id: chat.id,
-                sender_id: currentUser.uid,
+            const messageData: Partial<Omit<PrivateMessage, 'id' | 'timestamp'>> = {
+                chat_id: chat.id, sender_id: currentUser.uid,
             };
 
-            if (textToSend) messageData.text = textToSend;
+            if (tempInput) messageData.text = tempInput;
             if (imageUrl) messageData.image_url = imageUrl;
             if (audioUrl) {
                 messageData.audio_url = audioUrl;
@@ -427,22 +461,28 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                 messageData.is_one_time_view = true;
                 messageData.viewed_by = [];
             }
-            if (tempReplyingTo) {
-                const replyToObject: PrivateMessage['reply_to'] = {
-                    message_id: tempReplyingTo.id,
-                    sender_id: tempReplyingTo.sender_id,
+             if (tempReplyingTo) {
+                messageData.reply_to = {
+                    message_id: tempReplyingTo.id, sender_id: tempReplyingTo.sender_id,
+                    text: tempReplyingTo.text?.substring(0, 80), image_url: tempReplyingTo.image_url, audio_url: tempReplyingTo.audio_url
                 };
-                if (tempReplyingTo.text) replyToObject.text = tempReplyingTo.text.substring(0, 80);
-                if (tempReplyingTo.image_url) replyToObject.image_url = tempReplyingTo.image_url;
-                if (tempReplyingTo.audio_url) replyToObject.audio_url = tempReplyingTo.audio_url;
-                messageData.reply_to = replyToObject;
             }
 
-            const { error: msgError } = await supabase.from('private_messages').insert(messageData as any);
+            const { data: realMessage, error: msgError } = await supabase
+                .from('private_messages')
+                .insert(messageData as any)
+                .select()
+                .single();
+
             if(msgError) throw msgError;
 
+            // Replace temp message with real one
+            if (!audioBlob) {
+                setMessages(prev => prev.map(m => m.id === tempId ? (realMessage as PrivateMessage) : m));
+            }
+
             const now = Date.now();
-            const lastMessageText = textToSend ? textToSend : (imageUrl ? (tempIsOneTime ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
+            const lastMessageText = tempInput ? tempInput : (imageUrl ? (tempIsOneTime ? 'Sent a photo' : 'Sent an image') : 'Sent a voice message');
             const lastMessageData = { text: lastMessageText, timestamp: now, sender_id: currentUser.uid, read_by: [currentUser.uid] };
             
             await supabase.from('private_chats').update({ last_message: lastMessageData, last_activity_timestamp: now }).eq('id', chat.id);
@@ -451,10 +491,14 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
             console.error("Error sending message:", error);
             addToast('Failed to send message.', 'error');
             setInput(tempInput); // Restore input on failure
+            if (!audioBlob) {
+                setMessages(prev => prev.filter(m => m.id !== tempId));
+            }
         } finally {
             setIsSending(false);
         }
     };
+
 
     const handleStartRecording = async () => {
         try {
@@ -758,7 +802,6 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
                         </div>
                     </div>
                  )}
-                 {isSending && <div className="flex justify-end"><div className="p-3 rounded-2xl bg-gray-200"><div className="flex items-center space-x-2"><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div></div></div></div>}
                 <div ref={messagesEndRef} />
             </div>
              {activeMessageMenu && activeMessageMenu.msg.sender_id === currentUser.uid && (
