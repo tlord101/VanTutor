@@ -253,9 +253,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
     const [chats, setChats] = useState<(ChatMetadata & { unreadCount?: number })[]>([]);
     const [allFirebaseUsers, setAllFirebaseUsers] = useState<UserProfile[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchState, setSearchState] = useState<'idle' | 'searching' | 'found' | 'not_found'>('idle');
-    const [foundUser, setFoundUser] = useState<UserProfile | null>(null);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
@@ -375,8 +372,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
         setSelectedChatData({ chatId, otherUser });
         setView('chat');
         setTab('chats');
-        setSearchState('idle');
-        setSearchTerm('');
     };
     
     const handleSelectChat = (chat: ChatMetadata) => {
@@ -385,23 +380,6 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
         const otherUser = allFirebaseUsers.find(u => u.uid === otherUserId) || { uid: otherUserId, display_name: chat.member_info[otherUserId].display_name, photo_url: chat.member_info[otherUserId].photo_url };
         setSelectedChatData({ chatId: chat.id, otherUser: otherUser as UserProfile });
         setView('chat');
-    };
-
-    const handleSearchFriend = (e: React.FormEvent) => {
-        e.preventDefault();
-        const trimmedSearch = searchTerm.trim().toLowerCase();
-        if (!trimmedSearch) return;
-
-        setSearchState('searching');
-        const results = allFirebaseUsers.filter(u => u.display_name?.toLowerCase().includes(trimmedSearch) && u.uid !== firebaseUser?.uid);
-
-        if (results.length > 0) {
-            setFoundUser(results[0]);
-            setSearchState('found');
-        } else {
-            setFoundUser(null);
-            setSearchState('not_found');
-        }
     };
     
     if (isAuthLoading) {
@@ -441,13 +419,13 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
                 </div>
                 <div className="mt-4 bg-gray-100 p-1 rounded-full flex">
                     <button onClick={() => setTab('chats')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'chats' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Chats</button>
-                    <button onClick={() => setTab('add_friend')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'add_friend' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Add Friend</button>
+                    <button onClick={() => setTab('add_friend')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'add_friend' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>All Users</button>
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto">
                 {tab === 'chats' && (
                     isDataLoading ? <div className="p-4 text-center text-gray-500">Loading chats...</div> :
-                    chats.length === 0 ? <div className="p-4 text-center text-gray-500">No chats yet. Find users in the Add Friend tab.</div> :
+                    chats.length === 0 ? <div className="p-4 text-center text-gray-500">No chats yet. Find users in the "All Users" tab.</div> :
                     <ul className="divide-y divide-gray-200">{chats.map(chat => {
                         const otherUserId = chat.members.find(id => id !== firebaseUser.uid)!;
                         const otherUserInfo = allFirebaseUsers.find(u => u.uid === otherUserId);
@@ -465,31 +443,26 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
                     })}</ul>
                 )}
                 {tab === 'add_friend' && (
-                    <div className="p-4">
-                        <p className="text-sm text-gray-500 mb-4 text-center">You can search for any user who has also signed in to VANTUTOR Messenger.</p>
-                        <form onSubmit={handleSearchFriend} className="flex gap-2 mb-4">
-                            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search for friends in Messenger..." className="flex-1 bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none transition-colors"/>
-                            <button type="submit" className="px-4 py-2 rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700 disabled:opacity-50" disabled={searchState === 'searching'}>
-                                {searchState === 'searching' ? '...' : 'Search'}
-                            </button>
-                        </form>
-                        <div className="mt-4">
-                            {searchState === 'searching' && <p className="text-center text-gray-500">Searching...</p>}
-                            {searchState === 'not_found' && <p className="text-center text-gray-500">User not found in Messenger.<br/>Please check the name or ask your friend to sign in.</p>}
-                            {searchState === 'found' && foundUser && (
-                                <div className="p-3 bg-lime-50 border border-lime-200 rounded-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar display_name={foundUser.display_name} photo_url={foundUser.photo_url} className="w-10 h-10"/>
-                                        <p className="font-semibold text-gray-800">{foundUser.display_name}</p>
-                                    </div>
-                                    <button onClick={() => handleStartChat(foundUser)} className="px-3 py-1.5 text-sm rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700">
-                                        Chat
-                                    </button>
+                     isDataLoading ? <div className="p-4 text-center text-gray-500">Loading users...</div> :
+                     <ul className="divide-y divide-gray-200">{
+                        allFirebaseUsers.filter(u => u.uid !== firebaseUser?.uid).length === 0
+                        ? <p className="text-center text-gray-500 p-8">No other users have signed into Messenger yet.</p>
+                        : allFirebaseUsers.filter(u => u.uid !== firebaseUser?.uid).map(user => (
+                            <li key={user.uid} className="p-4 hover:bg-gray-50 flex items-center gap-4 cursor-pointer">
+                                <div className="relative flex-shrink-0">
+                                    <Avatar display_name={user.display_name} photo_url={user.photo_url} className="w-12 h-12" />
+                                    <div className="absolute -bottom-1 -right-1"><UserStatusIndicator isOnline={user.is_online} /></div>
                                 </div>
-                            )}
-                             {searchState === 'idle' && <p className="text-center text-gray-400 text-sm">Find a friend to start a conversation.</p>}
-                        </div>
-                    </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="font-semibold truncate text-gray-800">{user.display_name}</p>
+                                    <p className="text-sm truncate text-gray-500">{user.is_online ? 'Online' : (user.last_seen ? `Active ${formatLastSeen(user.last_seen)}` : 'Offline')}</p>
+                                </div>
+                                <button onClick={() => handleStartChat(user)} className="px-4 py-2 text-sm rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700">
+                                    Chat
+                                </button>
+                            </li>
+                        ))
+                     }</ul>
                 )}
             </div>
         </div>
