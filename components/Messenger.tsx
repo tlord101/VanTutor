@@ -321,8 +321,8 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
         const connectedRef = dbRef(db, '.info/connected');
         onValue(connectedRef, (snap) => {
             if (snap.val() === true) {
-                set(myStatusRef, { isOnline: true, lastSeen: firebaseServerTimestamp() });
-                onDisconnect(myStatusRef).set({ isOnline: false, lastSeen: firebaseServerTimestamp() });
+                set(myStatusRef, { is_online: true, last_seen: firebaseServerTimestamp() });
+                onDisconnect(myStatusRef).set({ is_online: false, last_seen: firebaseServerTimestamp() });
             }
         });
 
