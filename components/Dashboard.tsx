@@ -23,7 +23,6 @@ const StreakIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 interface DashboardProps {
   userProfile: UserProfile;
-  userProgress: UserProgress;
   dashboardData: DashboardData | null;
 }
 
@@ -95,9 +94,9 @@ const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
     </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userProgress, dashboardData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData }) => {
   
-  const completedTopicsCount = Object.keys(userProgress).filter(id => userProgress[id].is_complete).length;
+  const completedTopicsCount = dashboardData?.completedTopicsCount ?? 0;
   const totalTopics = dashboardData?.totalTopics || 0;
   
   const averageScore = dashboardData?.examHistory && dashboardData.examHistory.length > 0

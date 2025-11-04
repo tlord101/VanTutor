@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { UserProfile, PrivateChat, PrivateMessage } from '../types';
 import { supabase } from '../supabase';
@@ -299,7 +298,7 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
         if (!chat) return;
         fetchMessages(chat.id);
 
-        const channel = supabase.channel(`public:private_messages:chat_id=eq.${chat.id}`)
+        const channel = supabase.channel(`public:private_messages:chat_id=eq.${chat.id}`, { config: { broadcast: { self: true } } })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'private_messages', filter: `chat_id=eq.${chat.id}` }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     setMessages(prev => {
@@ -833,15 +832,15 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chat, currentUser, ot
 // --- Main Component: Messenger ---
 interface MessengerProps {
   userProfile: UserProfile;
+  allUsers: UserProfile[];
 }
 
-export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
+export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) => {
     const [view, setView] = useState<'list' | 'chat'>('list');
     const [selectedChatData, setSelectedChatData] = useState<PrivateChat | null>(null);
 
     const [tab, setTab] = useState<'chats' | 'discover'>('chats');
     const [chats, setChats] = useState<PrivateChat[]>([]);
-    const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
@@ -852,41 +851,8 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile }) => {
     const { addToast } = useToast();
     
     useEffect(() => {
-        const fetchAllUsers = async () => {
-            const { data, error } = await supabase.from('users').select('*').neq('uid', userProfile.uid);
-            if (error) {
-                console.error("Error fetching users:", error);
-            } else {
-                setAllUsers(data as UserProfile[]);
-            }
-            setIsDataLoading(false);
-        };
-        fetchAllUsers();
-
-        const channel = supabase.channel('public:users')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, (payload) => {
-                const newUser = payload.new as UserProfile;
-                if (newUser.uid !== userProfile.uid) {
-                    setAllUsers(prev => [newUser, ...prev.filter(u => u.uid !== newUser.uid)]);
-                }
-            })
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users' }, (payload) => {
-                const updatedUser = payload.new as UserProfile;
-                setAllUsers(prev => prev.map(u => u.uid === updatedUser.uid ? updatedUser : u));
-            })
-            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'users' }, (payload) => {
-                 const deletedUser = payload.old as { uid: string };
-                 setAllUsers(prev => prev.filter(u => u.uid !== deletedUser.uid));
-            })
-            .subscribe();
-        
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [userProfile.uid]);
-
-    useEffect(() => {
         const fetchChats = async () => {
+            setIsDataLoading(true);
             const { data, error } = await supabase.from('private_chats').select('*').contains('members', [userProfile.uid]).order('last_activity_timestamp', { ascending: false });
             if (error) {
                 console.error("Error fetching chats:", error);

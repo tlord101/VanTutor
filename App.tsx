@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { User, RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat, LeaderboardEntry, Subject } from './types';
 import { Login } from './components/Login';
@@ -35,6 +35,7 @@ const App: React.FC = () => {
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [notifications, setNotifications] = useState<NotificationType[]>([]);
+    const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     
     const [isLoading, setIsLoading] = useState(true);
     const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -51,6 +52,7 @@ const App: React.FC = () => {
 
     const { addToast } = useToast();
     const tourStatusRef = useRef<'unknown' | 'checked' | 'shown'>('unknown');
+    const presenceChannel = useRef<RealtimeChannel | null>(null);
 
     const startTour = useCallback(() => {
         setActiveItem('dashboard'); // Reset to a known state for the tour
@@ -180,6 +182,73 @@ const App: React.FC = () => {
             supabase.removeChannel(userChannel);
         };
     }, [user, addToast, startTour]);
+
+    // Fetch all users for messenger/presence
+    useEffect(() => {
+        if (!userProfile) return;
+        const fetchAllUsers = async () => {
+            const { data, error } = await supabase.from('users').select('*').neq('uid', userProfile.uid);
+            if (error) {
+                console.error("Error fetching users:", error);
+            } else {
+                setAllUsers(data as UserProfile[]);
+            }
+        };
+        fetchAllUsers();
+    }, [userProfile]);
+
+    // Setup Presence
+    useEffect(() => {
+        if (!userProfile) return;
+
+        const channel = supabase.channel('online-users', {
+            config: {
+                presence: { key: userProfile.uid },
+            },
+        });
+        presenceChannel.current = channel;
+
+        const updateUserStatusInState = (userId: string, isOnline: boolean) => {
+            setAllUsers(prevUsers =>
+                prevUsers.map(u =>
+                    u.uid === userId ? { ...u, is_online: isOnline, last_seen: isOnline ? undefined : Date.now() } : u
+                )
+            );
+        };
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const presenceState = channel.presenceState<{ user_id: string }>();
+                const onlineUserIds = Object.keys(presenceState);
+                setAllUsers(prevUsers =>
+                    prevUsers.map(u => ({ ...u, is_online: onlineUserIds.includes(u.uid) }))
+                );
+            })
+            .on('presence', { event: 'join' }, ({ key }) => {
+                updateUserStatusInState(key, true);
+            })
+            .on('presence', { event: 'leave' }, ({ key }) => {
+                updateUserStatusInState(key, false);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ user_id: userProfile.uid });
+                    await supabase.from('users').update({ is_online: true, last_seen: Date.now() }).eq('uid', userProfile.uid);
+                }
+            });
+
+        return () => {
+            if (presenceChannel.current) {
+                supabase.from('users').update({ is_online: false, last_seen: Date.now() }).eq('uid', userProfile.uid)
+                    .then(() => {
+                        if (presenceChannel.current) {
+                            supabase.removeChannel(presenceChannel.current);
+                            presenceChannel.current = null;
+                        }
+                    });
+            }
+        };
+    }, [userProfile]);
     
     useEffect(() => {
         if (!userProfile) return;
@@ -237,10 +306,21 @@ const App: React.FC = () => {
                 // Fetch Dashboard Data
                 const { data: courseData, error: courseError } = await supabase.from('courses_data').select('subject_list').eq('id', userProfile.course_id).single();
                 if(courseError) throw courseError;
+
+                const subjectsForLevel = (courseData.subject_list || []).filter((subject: Subject) => subject.level === userProfile.level);
                 
-                const totalTopics = (courseData.subject_list || [])
-                    .filter((subject: Subject) => subject.level === userProfile.level)
-                    .reduce((acc: number, subject: Subject) => acc + (subject.topics?.length || 0), 0) || 0;
+                const totalTopics = subjectsForLevel.reduce((acc: number, subject: Subject) => acc + (subject.topics?.length || 0), 0) || 0;
+
+                const topicIdsForLevel = new Set<string>();
+                subjectsForLevel.forEach(subject => {
+                    subject.topics?.forEach(topic => {
+                        topicIdsForLevel.add(topic.topic_id);
+                    });
+                });
+
+                const completedTopicsCount = Object.keys(userProgress)
+                    .filter(topicId => userProgress[topicId].is_complete && topicIdsForLevel.has(topicId))
+                    .length;
                 
                 const { data: examHistory, error: examError } = await supabase.from('exam_history').select('*').eq('user_id', userProfile.uid).order('timestamp', { ascending: false }).limit(5);
                 if(examError) throw examError;
@@ -249,7 +329,12 @@ const App: React.FC = () => {
                 const { data: xpHistory, error: xpError } = await supabase.from('xp_history').select('date, xp').eq('user_id', userProfile.uid).gte('date', thirtyDaysAgo).order('date', { ascending: true });
                 if(xpError) throw xpError;
 
-                setDashboardData({ totalTopics, examHistory: examHistory as ExamHistoryItem[], xpHistory: xpHistory || [] });
+                setDashboardData({ 
+                    totalTopics, 
+                    completedTopicsCount, 
+                    examHistory: examHistory as ExamHistoryItem[], 
+                    xpHistory: xpHistory || [] 
+                });
 
             } catch (error) {
                 console.error("Error setting up dashboard data:", (error as Error).message || error);
@@ -275,13 +360,10 @@ const App: React.FC = () => {
         
         // Private Messages listener for unread count
         const chatsChannel = supabase
-            .channel(`public:private_chats`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'private_chats' }, async (payload) => {
-                const updatedChat = payload.new as PrivateChat;
-                if (updatedChat.members.includes(userProfile.uid)) {
+            .channel(`public:private_chats:members=cs.{"${userProfile.uid}"}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'private_chats', filter: `members=cs.{"${userProfile.uid}"}` }, async () => {
                    const { count } = await supabase.from('private_chats').select('*', { count: 'exact', head: true }).contains('members', [userProfile.uid]).not('last_message->>read_by', 'cs', `{"${userProfile.uid}"}`);
                    setUnreadMessagesCount(count || 0);
-                }
             })
             .subscribe();
 
@@ -347,14 +429,11 @@ const App: React.FC = () => {
             supabase.removeChannel(examHistoryChannel);
             supabase.removeChannel(xpHistoryChannel);
         }
-    }, [userProfile]);
+    }, [userProfile, userProgress]);
 
 
     const handleLogout = async () => {
         try {
-            if(user) {
-              await supabase.from('users').update({ is_online: false, last_seen: Date.now() }).eq('uid', user.id);
-            }
             await supabase.auth.signOut();
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
@@ -606,6 +685,7 @@ const App: React.FC = () => {
                             handleProfileUpdate={handleProfileUpdate}
                             handleDeleteAccount={handleAccountDeletion}
                             startTour={startTour}
+                            allUsers={allUsers}
                         />
                     )}
                 </div>

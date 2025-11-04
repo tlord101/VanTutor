@@ -101,23 +101,40 @@ const TextChat: React.FC<{
         const currentInput = input;
         setInput('');
         setIsLoading(true);
-        let currentConvoId = activeConversationId;
-        
+    
         try {
+            let currentConvoId = activeConversationId;
+    
+            // If it's a new chat, create it before sending the message
             if (!currentConvoId) {
                 const now = Date.now();
-                const { data, error } = await supabase.from('chat_conversations').insert({ user_id: userProfile.uid, title: 'New Chat', created_at: now, last_updated_at: now }).select().single();
-                if (error || !data) throw error || new Error("Failed to create conversation.");
-                currentConvoId = (data as ChatConversation).id;
-                setActiveConversationId(currentConvoId);
-                const titleResult = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: `Generate a very short, concise title (4 words max) for the following user query: "${currentInput}"` });
-                await supabase.from('chat_conversations').update({ title: titleResult.text.replace(/"/g, '') }).eq('id', currentConvoId);
+                const { data: convoData, error: convoError } = await supabase.from('chat_conversations').insert({ user_id: userProfile.uid, title: 'New Chat', created_at: now, last_updated_at: now }).select().single();
+                if (convoError || !convoData) throw convoError;
+                currentConvoId = (convoData as ChatConversation).id;
+                setActiveConversationId(currentConvoId); // This will setup subscription and fetch (0 messages)
+                
+                // Don't wait for title generation
+                ai.models.generateContent({ model: 'gemini-2.5-flash', contents: `Generate a very short, concise title (4 words max) for the following user query: "${currentInput}"` })
+                    .then(titleResult => supabase.from('chat_conversations').update({ title: titleResult.text.replace(/"/g, '') }).eq('id', currentConvoId!).then());
             }
             
-            const tempUserMessage: Message = { id: `temp-${Date.now()}`, conversation_id: currentConvoId, text: currentInput, sender: 'user', timestamp: Date.now() };
-            setMessages(prev => [...prev, tempUserMessage]);
-            await supabase.from('chat_messages').insert({ conversation_id: currentConvoId, text: currentInput, sender: 'user' });
-            if (!geminiChat.current) { geminiChat.current = ai.chats.create({ model: 'gemini-2.5-flash' }); }
+            // Insert user message and get it back with its real ID.
+            const { data: userMessage, error: insertError } = await supabase.from('chat_messages')
+                .insert({ conversation_id: currentConvoId, text: currentInput, sender: 'user' })
+                .select()
+                .single();
+    
+            if (insertError) throw insertError;
+            
+            // Update state with the real message. The subscription will ignore it because the ID will match.
+            setMessages(prev => [...prev, userMessage as Message]);
+    
+            // Now handle the bot response.
+            if (!geminiChat.current) {
+                const history = [...messages, userMessage as Message].map(msg => ({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text || '' }] }));
+                geminiChat.current = ai.chats.create({ model: 'gemini-2.5-flash', history });
+            }
+            
             const stream = await geminiChat.current.sendMessageStream({ message: currentInput });
             const tempBotMessageId = `temp-bot-${Date.now()}`;
             setMessages(prev => [...prev, { id: tempBotMessageId, conversation_id: currentConvoId!, text: '', sender: 'bot', timestamp: Date.now() }]);
@@ -128,11 +145,18 @@ const TextChat: React.FC<{
                 setMessages(prev => prev.map(m => m.id === tempBotMessageId ? {...m, text: fullText} : m));
             }
             
-            await supabase.from('chat_messages').insert({ conversation_id: currentConvoId, text: fullText, sender: 'bot' });
+            const { data: botMessage, error: botInsertError } = await supabase.from('chat_messages').insert({ conversation_id: currentConvoId, text: fullText, sender: 'bot' }).select().single();
+            if (botInsertError) throw botInsertError;
+    
+            // Replace temp bot message with the real one.
+            setMessages(prev => prev.map(m => m.id === tempBotMessageId ? (botMessage as Message) : m));
+            
             await supabase.from('chat_conversations').update({ last_updated_at: Date.now() }).eq('id', currentConvoId);
+    
         } catch (error) {
             console.error("Error sending message:", error);
             addToast("Failed to send message.", "error");
+            setInput(currentInput); // Restore input on error
         } finally {
             setIsLoading(false);
         }

@@ -98,6 +98,7 @@ export interface UserProgress {
 // Type for the Dashboard data
 export interface DashboardData {
     totalTopics: number;
+    completedTopicsCount: number;
     examHistory: ExamHistoryItem[];
     xpHistory: { date: string, xp: number }[];
 }
