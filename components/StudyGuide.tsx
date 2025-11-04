@@ -14,7 +14,8 @@ import { useToast } from '../hooks/useToast';
 import { SparklesIcon } from './icons/SparklesIcon';
 
 declare var __app_id: string;
-const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
+// @ts-ignore
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
@@ -170,7 +171,7 @@ Please start teaching me about "${topic.topic_name}". Give me a simple and clear
 `;
         const result = await attemptApiCall(async () => {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.5-pro',
                 contents: { parts: [{ text: prompt }] },
                 config: { systemInstruction }
             });
@@ -361,7 +362,7 @@ Student: "${tempInput}"
                 }
 
                 const response = await ai.models.generateContent({ 
-                    model: 'gemini-2.5-flash', 
+                    model: 'gemini-2.5-pro', 
                     contents: { parts },
                     config: { systemInstruction } 
                 });

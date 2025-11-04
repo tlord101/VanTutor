@@ -12,7 +12,8 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { ListIcon } from './icons/ListIcon';
 import { Avatar } from './Avatar';
 
-const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
+// @ts-ignore
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- INLINE ICONS ---
 const TextIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -77,7 +78,7 @@ const TextChat: React.FC<{
                     role: msg.sender === 'user' ? 'user' : 'model',
                     parts: [{ text: msg.text || '' }]
                 }));
-                geminiChat.current = ai.chats.create({ model: 'gemini-2.5-flash', history });
+                geminiChat.current = ai.chats.create({ model: 'gemini-2.5-pro', history });
             }
         };
         fetchMessages();
@@ -114,7 +115,7 @@ const TextChat: React.FC<{
                 setActiveConversationId(currentConvoId); // This will setup subscription and fetch (0 messages)
                 
                 // Don't wait for title generation
-                ai.models.generateContent({ model: 'gemini-2.5-flash', contents: `Generate a very short, concise title (4 words max) for the following user query: "${currentInput}"` })
+                ai.models.generateContent({ model: 'gemini-2.5-pro', contents: `Generate a very short, concise title (4 words max) for the following user query: "${currentInput}"` })
                     .then(titleResult => supabase.from('chat_conversations').update({ title: titleResult.text.replace(/"/g, '') }).eq('id', currentConvoId!).then());
             }
             
@@ -132,7 +133,7 @@ const TextChat: React.FC<{
             // Now handle the bot response.
             if (!geminiChat.current) {
                 const history = [...messages, userMessage as Message].map(msg => ({ role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text || '' }] }));
-                geminiChat.current = ai.chats.create({ model: 'gemini-2.5-flash', history });
+                geminiChat.current = ai.chats.create({ model: 'gemini-2.5-pro', history });
             }
             
             const stream = await geminiChat.current.sendMessageStream({ message: currentInput });
