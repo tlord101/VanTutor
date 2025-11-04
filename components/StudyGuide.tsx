@@ -4,7 +4,6 @@ import { supabase } from '../supabase';
 import type { UserProfile, Message, Subject, Topic, UserProgress } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -38,6 +37,58 @@ const SearchIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
 );
+const CalculatorIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m-6 4h6m-6 4h6m2-8a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2h2a2 2 0 012 2v2" />
+    </svg>
+);
+const BeakerIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547a2 2 0 00-.547 1.806l.443 2.387a6 6 0 004.126 3.86l.318.158a6 6 0 003.86.517l2.387.477a6 6 0 003.86-.517l.318-.158a6 6 0 004.126-3.86l.443-2.387a2 2 0 00-.547-1.806z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 10.25L12 3.5l-2.25 6.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 10.25h7.5" />
+    </svg>
+);
+const BookIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v11.494m0 0a7.5 7.5 0 007.5-7.5H4.5a7.5 7.5 0 007.5 7.5z" />
+    </svg>
+);
+const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+);
+
+const getSubjectVisuals = (subjectName: string) => {
+    const lowerName = subjectName.toLowerCase();
+    if (lowerName.includes('algebra') || lowerName.includes('math')) {
+        return {
+            Icon: CalculatorIcon,
+            gradient: 'from-blue-100 to-indigo-100',
+            borderColor: 'border-blue-500',
+            textColor: 'text-blue-800',
+            pathColor: 'bg-blue-300'
+        };
+    }
+    if (lowerName.includes('biology') || lowerName.includes('science')) {
+        return {
+            Icon: BeakerIcon,
+            gradient: 'from-purple-100 to-pink-100',
+            borderColor: 'border-purple-500',
+            textColor: 'text-purple-800',
+            pathColor: 'bg-purple-300'
+        };
+    }
+    return {
+        Icon: BookIcon,
+        gradient: 'from-yellow-100 to-orange-100',
+        borderColor: 'border-yellow-500',
+        textColor: 'text-yellow-800',
+        pathColor: 'bg-yellow-300'
+    };
+};
+
 
 // --- HELPER & MOCK DATA ---
 const mockCourses = [
@@ -59,20 +110,17 @@ const base64ToBlob = (base64: string, mimeType: string): Blob => {
 
 // --- SKELETON LOADER ---
 const StudyGuideSkeleton: React.FC = () => (
-    <div className="space-y-4 animate-pulse p-4 sm:p-6 md:p-8">
-        {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-xl border border-gray-200">
-                <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-                <div className="mt-4 space-y-3">
-                    <div className="h-8 bg-gray-300 rounded w-full"></div>
-                    <div className="h-8 bg-gray-300 rounded w-full"></div>
-                </div>
-            </div>
-        ))}
+    <div className="w-full animate-pulse space-y-12 p-4">
+        <div className="h-10 bg-gray-200 rounded-lg w-1/3 mx-auto"></div>
+        <div className="flex justify-start"> <div className="w-24 h-24 bg-gray-300 rounded-full"></div> </div>
+        <div className="flex justify-end"> <div className="w-24 h-24 bg-gray-300 rounded-full"></div> </div>
+        <div className="flex justify-start"> <div className="w-24 h-24 bg-gray-300 rounded-full"></div> </div>
+        <div className="h-10 bg-gray-200 rounded-lg w-1/3 mx-auto"></div>
+        <div className="flex justify-end"> <div className="w-24 h-24 bg-gray-300 rounded-full"></div> </div>
     </div>
 );
 
-// --- LEARNING INTERFACE COMPONENT ---
+// --- LEARNING INTERFACE COMPONENT (UNCHANGED LOGIC, STYLED TO FIT) ---
 interface LearningInterfaceProps {
     userProfile: UserProfile;
     topic: Topic & { subjectName: string };
@@ -587,42 +635,48 @@ Student: "${tempInput}"
     );
 };
 
-// --- TOPIC & SUBJECT COMPONENTS ---
-const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void }> = ({ topic, isCompleted, onSelect }) => (
-    <button onClick={onSelect} className="w-full text-left p-4 rounded-lg bg-white border border-gray-200 hover:border-lime-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
-        <span className="font-medium text-gray-800">{topic.topic_name}</span>
-        {isCompleted && <CheckCircleIcon className="text-lime-500 flex-shrink-0 ml-2" />}
-    </button>
-);
+// --- NEW LEARNING PATH COMPONENTS ---
+const TopicNode: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void, index: number, pathColor: string }> = ({ topic, isCompleted, onSelect, index, pathColor }) => {
+    const alignment = index % 2 === 0 ? 'justify-start' : 'justify-end';
+    const flexDirection = index % 2 === 0 ? 'flex-row' : 'flex-row-reverse';
 
-const SubjectAccordion: React.FC<{
-    subject: Subject;
-    userProgress: UserProgress;
-    onSelectTopic: (topic: Topic & { subjectName: string }) => void;
-}> = ({ subject, userProgress, onSelectTopic }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    
     return (
-        <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
-                <h3 className="text-lg font-semibold text-gray-900">{subject.subject_name}</h3>
-                <ChevronDownIcon className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-96 mt-4' : 'max-h-0'}`}>
-                <div className="space-y-2 pt-2 border-t border-gray-200">
-                    {subject.topics.map(topic => (
-                        <TopicCard
-                            key={topic.topic_id}
-                            topic={topic}
-                            isCompleted={userProgress[topic.topic_id]?.is_complete || false}
-                            onSelect={() => onSelectTopic({ ...topic, subjectName: subject.subject_name })}
-                        />
-                    ))}
-                </div>
+        <div className={`flex items-center w-full relative ${alignment}`} style={{ animationDelay: `${index * 50}ms`}}>
+            {/* Vertical Path Connector */}
+            <div className={`absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 ${pathColor} opacity-50`}></div>
+
+            <div className={`w-1/2 p-4 flex items-center ${flexDirection}`}>
+                {/* Horizontal Path Connector */}
+                <div className={`flex-1 h-1 ${pathColor} opacity-50`}></div>
+                
+                {/* The Node */}
+                <button 
+                    onClick={onSelect}
+                    className="group flex flex-col items-center flex-shrink-0 w-24"
+                >
+                    <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:shadow-xl
+                        ${isCompleted ? 'bg-lime-500 border-4 border-white shadow-lg' : 'bg-white border-4 border-dashed border-gray-300 group-hover:border-solid group-hover:border-lime-400'}`}
+                    >
+                        {isCompleted ? <CheckIcon className="w-8 h-8 text-white"/> : <BookIcon className="w-8 h-8 text-gray-400 group-hover:text-lime-500 transition-colors" />}
+                    </div>
+                    <p className="mt-2 text-center text-sm font-medium text-gray-700 w-32">{topic.topic_name}</p>
+                </button>
             </div>
         </div>
     );
 };
+
+const SubjectHeader: React.FC<{ subject: Subject }> = ({ subject }) => {
+    const { Icon, gradient, textColor } = getSubjectVisuals(subject.subject_name);
+    return (
+        <div className={`relative flex justify-center py-8`}>
+            <div className={`flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r ${gradient} border border-gray-200 shadow-md`}>
+                <Icon className={`w-8 h-8 ${textColor}`} />
+                <h3 className={`text-xl font-bold ${textColor}`}>{subject.subject_name}</h3>
+            </div>
+        </div>
+    );
+}
 
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
@@ -695,7 +749,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             topic.topic_name.toLowerCase().includes(filter.searchTerm.toLowerCase())
         );
 
-        if (filteredTopics.length === 0) {
+        if (filteredTopics.length === 0 && filter.searchTerm) {
             return null;
         }
 
@@ -721,7 +775,6 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Study Guide</h2>
             <p className="text-gray-600">Explore topics, learn with your AI Tutor, and earn XP.</p>
             
-            {/* Filters */}
             <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 relative">
                     <input 
@@ -748,14 +801,21 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 <StudyGuideSkeleton />
             ) : (
                 filteredSubjects.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="relative space-y-0">
                         {filteredSubjects.map(subject => (
-                            <SubjectAccordion
-                                key={subject.subject_id}
-                                subject={subject}
-                                userProgress={userProgress}
-                                onSelectTopic={setSelectedTopic}
-                            />
+                            <div key={subject.subject_id}>
+                                <SubjectHeader subject={subject} />
+                                {subject.topics.map((topic, index) => (
+                                    <TopicNode
+                                        key={topic.topic_id}
+                                        topic={topic}
+                                        isCompleted={userProgress[topic.topic_id]?.is_complete || false}
+                                        onSelect={() => setSelectedTopic({ ...topic, subjectName: subject.subject_name })}
+                                        index={index}
+                                        pathColor={getSubjectVisuals(subject.subject_name).pathColor}
+                                    />
+                                ))}
+                            </div>
                         ))}
                     </div>
                 ) : (
