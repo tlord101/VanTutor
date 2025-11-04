@@ -7,8 +7,9 @@ import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
 import { Avatar } from './Avatar';
 import { LogoIcon } from './icons/LogoIcon';
+import { GoogleIcon } from './icons/GoogleIcon';
 
-import { db, storage, auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, firebaseSignOut, type FirebaseUser } from '../firebase';
+import { db, storage, auth, onAuthStateChanged, firebaseSignOut, type FirebaseUser, GoogleAuthProvider, signInWithPopup } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, serverTimestamp as firebaseServerTimestamp, onDisconnect } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { supabase } from '../supabase';
@@ -168,99 +169,75 @@ interface MessengerAuthProps {
   userProfile: UserProfile;
 }
 const MessengerAuth: React.FC<MessengerAuthProps> = ({ userProfile }) => {
-    const [mode, setMode] = useState<'login' | 'signup'>('signup');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [displayName, setDisplayName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
 
-    useEffect(() => {
-        if(userProfile.display_name) setDisplayName(userProfile.display_name);
-        if(userProfile.uid) { // Assuming Supabase email is in the user object
-            const supabaseUser = supabase.auth.getUser();
-            supabaseUser.then(res => {
-                if(res.data.user?.email) setEmail(res.data.user.email);
-            })
-        }
-    }, [userProfile]);
-
-    const handleSignUp = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleGoogleSignIn = async () => {
         setIsSubmitting(true);
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await updateProfile(userCredential.user, { displayName });
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
 
-            // Also create a user record in RTDB for discovery
-            const userRef = dbRef(db, `users/${userCredential.user.uid}`);
-            await set(userRef, { displayName, photoURL: userProfile.photo_url });
+            // Create/update user record in RTDB for discovery and presence
+            const userRef = dbRef(db, `users/${user.uid}`);
+            await set(userRef, {
+                displayName: user.displayName,
+                photoURL: user.photoURL, // Use Google's photo, can be updated later
+            });
             
-            addToast("Messaging account created!", "success");
-        } catch(error: any) {
-            addToast(error.message, "error");
+            addToast("Successfully signed into Messenger!", "success");
+            // The onAuthStateChanged listener in the parent Messenger component will handle the UI update.
+        } catch (error: any) {
+            console.error("Google Sign-in error:", error);
+            // Handle common errors
+            if (error.code === 'auth/popup-closed-by-user') {
+                 addToast("Sign-in cancelled.", "info");
+            } else {
+                addToast(error.message, "error");
+            }
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            addToast("Logged into Messenger!", "success");
-        } catch(error: any) {
-            addToast(error.message, "error");
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
     return (
         <div className="flex items-center justify-center h-full bg-gray-50 p-4">
           <div className="w-full max-w-sm">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-xl">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-xl text-center">
               <div className="flex justify-center items-center mb-4">
                   <LogoIcon className="w-10 h-10 text-lime-500" />
                   <h1 className="text-2xl font-bold bg-gradient-to-b from-lime-500 to-green-600 text-transparent bg-clip-text tracking-wider ml-3">
                       Messenger
                   </h1>
               </div>
-              <p className="text-center text-gray-600 mb-6 text-sm">{mode === 'signup' ? 'Create a separate account for messaging.' : 'Log in to your messaging account.'}</p>
-              
-              <form onSubmit={mode === 'signup' ? handleSignUp : handleLogin}>
-                 <div className="space-y-4">
-                    {mode === 'signup' && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
-                        </div>
-                    )}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"/>
-                    </div>
-                 </div>
-                 <button type="submit" disabled={isSubmitting} className="mt-6 w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-                    {isSubmitting ? '...' : (mode === 'signup' ? 'Sign Up' : 'Log In')}
-                 </button>
-              </form>
-              <p className="text-center text-sm text-gray-600 mt-4">
-                 {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
-                <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="font-medium text-lime-600 hover:text-lime-500">
-                    {mode === 'login' ? 'Sign Up' : 'Log In'}
-                </button>
+              <p className="text-gray-600 mb-8">
+                Sign in with your Google account to chat with other learners.
               </p>
+              
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting}
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isSubmitting ? (
+                    <>
+                      <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span>Signing In...</span>
+                    </>
+                ) : (
+                    <>
+                        <GoogleIcon className="w-5 h-5 mr-3" />
+                        Sign in with Google
+                    </>
+                )}
+              </button>
             </div>
           </div>
         </div>
     );
 };
+
 
 // --- Main Component: Messenger ---
 interface MessengerProps {
