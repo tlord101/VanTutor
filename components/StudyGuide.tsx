@@ -171,7 +171,7 @@ Please start teaching me about "${topic.topic_name}". Give me a simple and clear
 `;
         const result = await attemptApiCall(async () => {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-2.5-flash',
                 contents: { parts: [{ text: prompt }] },
                 config: { systemInstruction }
             });
@@ -362,7 +362,7 @@ Student: "${tempInput}"
                 }
 
                 const response = await ai.models.generateContent({ 
-                    model: 'gemini-2.5-pro', 
+                    model: 'gemini-2.5-flash', 
                     contents: { parts },
                     config: { systemInstruction } 
                 });

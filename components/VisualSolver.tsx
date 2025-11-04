@@ -278,7 +278,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
             const promptText = `You are VANTUTOR, an expert AI educator. Analyze the problem in the image and provide a clear, step-by-step tutorial on how to solve it. Break down the solution into simple, easy-to-understand steps. Use Markdown for formatting and LaTeX for any mathematical equations.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-2.5-flash',
                 contents: { parts: [
                     { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
                     { text: promptText }
@@ -308,7 +308,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
             const promptText = `Analyze the problem in the image and provide only the final answer, without any explanation or steps. Be direct and concise.`;
     
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-2.5-flash',
                 contents: { parts: [
                     { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
                     { text: promptText }
