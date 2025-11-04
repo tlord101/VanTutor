@@ -9,7 +9,7 @@ import rehypeKatex from 'rehype-katex';
 import { useToast } from '../hooks/useToast';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
 
 // --- INLINE ICONS ---
 const ShutterIcon: React.FC<{ className?: string }> = ({ className = 'w-16 h-16' }) => (

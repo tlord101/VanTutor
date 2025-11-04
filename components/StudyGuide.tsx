@@ -14,7 +14,7 @@ import { useToast } from '../hooks/useToast';
 import { SparklesIcon } from './icons/SparklesIcon';
 
 declare var __app_id: string;
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
 
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (

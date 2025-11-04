@@ -5,7 +5,7 @@ import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserPr
 import { useToast } from '../hooks/useToast';
 
 declare var __app_id: string;
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
 
 const TIME_PER_QUESTION_SECONDS = 30;
 

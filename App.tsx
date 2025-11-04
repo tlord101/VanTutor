@@ -230,23 +230,44 @@ const App: React.FC = () => {
             })
             .on('presence', { event: 'leave' }, ({ key }) => {
                 updateUserStatusInState(key, false);
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.track({ user_id: userProfile.uid });
-                    await supabase.from('users').update({ is_online: true, last_seen: Date.now() }).eq('uid', userProfile.uid);
-                }
             });
+        
+        const setOnline = async () => {
+             // Supabase presence track
+            await channel.track({ user_id: userProfile.uid });
+            // Update our user table
+            await supabase.from('users').update({ is_online: true, last_seen: Date.now() }).eq('uid', userProfile.uid);
+        };
+        
+        const setOffline = () => {
+            if (!presenceChannel.current) return;
+            // Use fire-and-forget here because this can be called during page unload.
+            supabase.from('users').update({ is_online: false, last_seen: Date.now() }).eq('uid', userProfile.uid).then(() => {});
+            presenceChannel.current.untrack();
+        };
+        
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                setOnline();
+            } else {
+                setOffline();
+            }
+        };
+
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await setOnline();
+            }
+        });
+        
+        window.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
             if (presenceChannel.current) {
-                supabase.from('users').update({ is_online: false, last_seen: Date.now() }).eq('uid', userProfile.uid)
-                    .then(() => {
-                        if (presenceChannel.current) {
-                            supabase.removeChannel(presenceChannel.current);
-                            presenceChannel.current = null;
-                        }
-                    });
+                setOffline();
+                supabase.removeChannel(presenceChannel.current);
+                presenceChannel.current = null;
             }
         };
     }, [userProfile]);

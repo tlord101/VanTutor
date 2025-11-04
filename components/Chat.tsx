@@ -12,7 +12,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { ListIcon } from './icons/ListIcon';
 import { Avatar } from './Avatar';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: "AIzaSyAKYD_WAnLedgm7B_GPA5VcxmUIBdvVs9U" });
 
 // --- INLINE ICONS ---
 const TextIcon: React.FC<{className?: string}> = ({ className }) => (
