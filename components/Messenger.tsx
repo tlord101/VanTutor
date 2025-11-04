@@ -256,6 +256,8 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
     const [searchTerm, setSearchTerm] = useState('');
     const [searchState, setSearchState] = useState<'idle' | 'searching' | 'found' | 'not_found'>('idle');
     const [foundUser, setFoundUser] = useState<UserProfile | null>(null);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
     
     useEffect(() => {
@@ -264,6 +266,18 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             setIsAuthLoading(false);
         });
         return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setIsProfileMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
     }, []);
 
     useEffect(() => {
@@ -395,7 +409,28 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             <header className="flex-shrink-0 p-4 border-b border-gray-200">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-bold text-gray-800">Messages</h2>
-                    <button onClick={() => firebaseSignOut(auth)} className="text-sm text-gray-500 hover:text-red-600">Logout</button>
+                    <div className="relative" ref={profileMenuRef}>
+                        <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-2 text-left p-1 rounded-full hover:bg-gray-100 transition-colors">
+                            <span className="font-semibold text-gray-700 text-sm hidden sm:inline">{firebaseUser!.displayName}</span>
+                            <Avatar display_name={firebaseUser!.displayName} photo_url={firebaseUser!.photoURL} className="w-9 h-9" />
+                        </button>
+                        {isProfileMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-20 animate-fade-in-up">
+                                <div className="p-4 border-b border-gray-200">
+                                    <p className="font-bold text-gray-800 truncate">{firebaseUser!.displayName}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        This is your display name for Messenger. Other users can find you by searching this name.
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={() => { firebaseSignOut(auth); setIsProfileMenuOpen(false); }} 
+                                    className="w-full text-left px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="mt-4 bg-gray-100 p-1 rounded-full flex">
                     <button onClick={() => setTab('chats')} className={`flex-1 p-2 rounded-md font-semibold text-sm transition-colors ${tab === 'chats' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>Chats</button>
@@ -424,15 +459,16 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
                 )}
                 {tab === 'add_friend' && (
                     <div className="p-4">
+                        <p className="text-sm text-gray-500 mb-4 text-center">You can search for any user who has also signed in to VANTUTOR Messenger.</p>
                         <form onSubmit={handleSearchFriend} className="flex gap-2 mb-4">
-                            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Enter friend's display name" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none transition-colors"/>
+                            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search for friends in Messenger..." className="flex-1 bg-gray-100 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none transition-colors"/>
                             <button type="submit" className="px-4 py-2 rounded-lg bg-lime-600 text-white font-semibold hover:bg-lime-700 disabled:opacity-50" disabled={searchState === 'searching'}>
                                 {searchState === 'searching' ? '...' : 'Search'}
                             </button>
                         </form>
                         <div className="mt-4">
                             {searchState === 'searching' && <p className="text-center text-gray-500">Searching...</p>}
-                            {searchState === 'not_found' && <p className="text-center text-gray-500">User not found. Check the name and try again.</p>}
+                            {searchState === 'not_found' && <p className="text-center text-gray-500">User not found in Messenger.<br/>Please check the name or ask your friend to sign in.</p>}
                             {searchState === 'found' && foundUser && (
                                 <div className="p-3 bg-lime-50 border border-lime-200 rounded-lg flex items-center justify-between">
                                     <div className="flex items-center gap-3">
