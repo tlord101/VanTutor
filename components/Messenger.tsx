@@ -182,8 +182,8 @@ const MessengerAuth: React.FC<MessengerAuthProps> = ({ userProfile }) => {
             // Create/update user record in RTDB for discovery and presence
             const userRef = dbRef(db, `users/${user.uid}`);
             await set(userRef, {
-                displayName: user.displayName,
-                photoURL: user.photoURL, // Use Google's photo, can be updated later
+                displayName: userProfile.display_name, // Use Supabase profile name as source of truth
+                photoURL: userProfile.photo_url,      // Use Supabase photo as source of truth
             });
             
             addToast("Successfully signed into Messenger!", "success");
@@ -288,6 +288,13 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             return;
         };
 
+        // Sync Supabase profile data (source of truth) to Firebase RTDB for messenger discovery
+        const userRef = dbRef(db, `users/${firebaseUser.uid}`);
+        update(userRef, {
+            displayName: userProfile.display_name,
+            photoURL: userProfile.photo_url
+        });
+
         const myStatusRef = dbRef(db, `status/${firebaseUser.uid}`);
         const connectedRef = dbRef(db, '.info/connected');
         onValue(connectedRef, (snap) => {
@@ -352,7 +359,7 @@ export const Messenger: React.FC<MessengerProps> = ({ userProfile, allUsers }) =
             off(usersRef);
             off(userChatsRef);
         };
-    }, [firebaseUser, userProfile.photo_url]);
+    }, [firebaseUser, userProfile.display_name, userProfile.photo_url]);
 
     const handleStartChat = async (otherUser: UserProfile) => {
         if (!firebaseUser) return;
