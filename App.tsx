@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat, LeaderboardEntry } from './types';
+import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, PrivateChat, LeaderboardEntry, Subject } from './types';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
 import { Onboarding } from './components/Onboarding';
@@ -237,7 +237,10 @@ const App: React.FC = () => {
                 // Fetch Dashboard Data
                 const { data: courseData, error: courseError } = await supabase.from('courses_data').select('subject_list').eq('id', userProfile.course_id).single();
                 if(courseError) throw courseError;
-                const totalTopics = courseData.subject_list.reduce((acc: number, subject: any) => acc + (subject.topics?.length || 0), 0) || 0;
+                
+                const totalTopics = (courseData.subject_list || [])
+                    .filter((subject: Subject) => subject.level === userProfile.level)
+                    .reduce((acc: number, subject: Subject) => acc + (subject.topics?.length || 0), 0) || 0;
                 
                 const { data: examHistory, error: examError } = await supabase.from('exam_history').select('*').eq('user_id', userProfile.uid).order('timestamp', { ascending: false }).limit(5);
                 if(examError) throw examError;
