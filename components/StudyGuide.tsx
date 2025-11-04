@@ -353,25 +353,33 @@ Student: "${tempInput}"
         }
 
         setIsIllustrating(true);
-        addToast("Creating a realistic image for you...", "info");
+        addToast("Creating a visualization for you...", "info");
 
         const result = await attemptApiCall(async () => {
-            const prompt = `Create a realistic, high-quality photograph representing the following educational concept for a student. The image should look like a real-life photo. Concept: "${promptText}"`;
+            const prompt = `Create a realistic, high-quality image representing the following educational concept for a student. The image should be visually clear and helpful for learning. Concept: "${promptText}"`;
             
             let response;
             const maxRetries = 2;
             for (let i = 0; i <= maxRetries; i++) {
                 try {
-                    response = await ai.models.generateImages({
-                        model: 'imagen-4.0-generate-001',
-                        prompt: prompt,
+                    response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash-image',
+                        contents: {
+                            parts: [{ text: prompt }],
+                        },
                         config: {
-                          numberOfImages: 1,
-                          outputMimeType: 'image/jpeg',
-                          aspectRatio: '1:1',
+                            responseModalities: [Modality.IMAGE],
                         },
                     });
-                    break; 
+                    
+                    const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+                    if (imagePart?.inlineData) {
+                        break; 
+                    } else {
+                        if (i === maxRetries) {
+                           throw new Error("API returned response without image data.");
+                        }
+                    }
                 } catch (error) {
                     console.error(`Image generation attempt ${i + 1} failed:`, error);
                     if (i === maxRetries) {
@@ -385,12 +393,14 @@ Student: "${tempInput}"
                 throw new Error("API call failed to return a response after retries.");
             }
     
-            if (response.generatedImages?.[0]?.image?.imageBytes) {
-                const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-                const mimeType = 'image/jpeg';
+            const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (imagePart?.inlineData) {
+                const base64ImageBytes = imagePart.inlineData.data;
+                const mimeType = imagePart.inlineData.mimeType || 'image/png';
+                const fileExtension = mimeType.split('/')[1] || 'png';
 
                 const imageBlob = base64ToBlob(base64ImageBytes, mimeType);
-                const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topic_id}/${Date.now()}.jpeg`;
+                const filePath = `${userProfile.uid}/study-guide-illustrations/${topic.topic_id}/${Date.now()}.${fileExtension}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('chat-media')
@@ -579,220 +589,182 @@ Student: "${tempInput}"
 
 // --- TOPIC & SUBJECT COMPONENTS ---
 const TopicCard: React.FC<{ topic: Topic, isCompleted: boolean, onSelect: () => void }> = ({ topic, isCompleted, onSelect }) => (
-    <button onClick={onSelect} className="w-full text-left flex items-center justify-between p-3 rounded-lg hover:bg-white/10 transition-colors">
-        <span className="text-white">{topic.topic_name}</span>
-        {isCompleted && <CheckCircleIcon className="w-5 h-5 text-white" />}
+    <button onClick={onSelect} className="w-full text-left p-4 rounded-lg bg-white border border-gray-200 hover:border-lime-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
+        <span className="font-medium text-gray-800">{topic.topic_name}</span>
+        {isCompleted && <CheckCircleIcon className="text-lime-500 flex-shrink-0 ml-2" />}
     </button>
 );
 
-const SubjectAccordion: React.FC<{ subject: Subject, userProgress: UserProgress, onSelectTopic: (topic: Topic, subjectName: string) => void }> = ({ subject, userProgress, onSelectTopic }) => {
-    const [isOpen, setIsOpen] = useState(false); // Default to closed
-    const completedCount = subject.topics.filter(t => userProgress[t.topic_id]?.is_complete).length;
-    const totalCount = subject.topics.length;
-    const isSubjectComplete = completedCount === totalCount;
-
+const SubjectAccordion: React.FC<{
+    subject: Subject;
+    userProgress: UserProgress;
+    onSelectTopic: (topic: Topic & { subjectName: string }) => void;
+}> = ({ subject, userProgress, onSelectTopic }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
     return (
-        <div className="bg-gradient-to-br from-lime-500 to-teal-500 p-4 rounded-xl shadow-lg">
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center">
-                <div className="text-left">
-                    <h3 className="text-lg font-bold text-white">{subject.subject_name}</h3>
-                    <p className="text-sm text-lime-100">{completedCount} / {totalCount} topics completed</p>
-                </div>
-                <div className="flex items-center gap-4 text-white">
-                    {isSubjectComplete && <span className="text-xs font-bold text-teal-800 bg-white px-2 py-1 rounded-full">Complete</span>}
-                    <ChevronDownIcon className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-                </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200">
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
+                <h3 className="text-lg font-semibold text-gray-900">{subject.subject_name}</h3>
+                <ChevronDownIcon className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
-            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen mt-4 pt-4 border-t border-white/30' : 'max-h-0'}`}>
-                {totalCount > 0 ? (
-                    <div className="space-y-1">
-                        {subject.topics.map(topic => (
-                            <TopicCard key={topic.topic_id} topic={topic} isCompleted={userProgress[topic.topic_id]?.is_complete || false} onSelect={() => onSelectTopic(topic, subject.subject_name)} />
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-lime-100 text-sm p-3">No topics available for this subject yet.</p>
-                )}
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-96 mt-4' : 'max-h-0'}`}>
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                    {subject.topics.map(topic => (
+                        <TopicCard
+                            key={topic.topic_id}
+                            topic={topic}
+                            isCompleted={userProgress[topic.topic_id]?.is_complete || false}
+                            onSelect={() => onSelectTopic({ ...topic, subjectName: subject.subject_name })}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );
 };
 
-
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
-    userProfile: UserProfile;
-    userProgress: UserProgress;
-    onXPEarned: (xp: number) => void;
+  userProfile: UserProfile;
+  userProgress: UserProgress;
+  onXPEarned: (xp: number, type: 'lesson') => void;
 }
-
 export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onXPEarned }) => {
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const { addToast } = useToast();
-    
-    useEffect(() => {
-        setIsLoading(true);
-        const fetchCourseData = async () => {
-            try {
-                const { data: courseData, error } = await supabase
-                    .from('courses_data')
-                    .select('subject_list')
-                    .eq('id', userProfile.course_id)
-                    .single();
-                
-                if (error) throw error;
-                
-                if (courseData) {
-                    const allSubjects = courseData.subject_list || [];
-                    const subjectsForLevel = allSubjects.filter((subject: Subject) => subject.level === userProfile.level);
-                    setSubjects(subjectsForLevel);
-                } else {
-                     console.error("Course document not found!");
-                    addToast("Could not load study guide. Course data is missing.", "error");
-                }
-            } catch (err: any) {
-                console.error("Error fetching course data:", err);
-                addToast("An error occurred while loading the study guide.", "error");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchCourseData();
-    }, [userProfile.course_id, userProfile.level, addToast]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState<(Topic & { subjectName: string }) | null>(null);
+  const [filter, setFilter] = useState<{ semester: 'first' | 'second' | 'all'; searchTerm: string }>({ semester: 'all', searchTerm: '' });
+  const { addToast } = useToast();
 
-    const handleMarkComplete = async (topicId: string) => {
-        if (userProgress[topicId]?.is_complete) return;
-
-        try {
-            const { error: progressError } = await supabase
-                .from('user_progress')
-                .upsert({ user_id: userProfile.uid, topic_id: topicId, is_complete: true, xp_earned: 2 });
-
-            if (progressError) throw progressError;
-            
-            if (selectedTopic && selectedTopic.topic_id === topicId) {
-                const { error: notificationError } = await supabase.from('notifications').insert({
-                    user_id: userProfile.uid,
-                    type: 'study_update',
-                    title: 'Topic Complete!',
-                    message: `Great job on finishing "${selectedTopic.topic_name}". You earned 2 XP!`,
-                    is_read: false,
-                });
-                if (notificationError) console.error("Failed to create notification:", notificationError);
-            }
-
-            onXPEarned(2);
-            addToast("Topic marked as complete! +2 XP", "success");
-        } catch (error) {
-            console.error("Failed to mark topic as complete:", error);
-            addToast("Could not save your progress.", "error");
-        }
-    };
-
-    const handleSelectTopic = async (topic: Topic, subjectName: string) => {
-        const isNewTopic = !userProgress[topic.topic_id];
-
-        if (isNewTopic) {
-            try {
-                await supabase.from('notifications').insert({
-                    user_id: userProfile.uid,
-                    type: 'study_update',
-                    title: 'New Topic Started!',
-                    message: `You've begun learning about "${topic.topic_name}". Keep up the great work!`,
-                    is_read: false,
-                });
-            } catch (error) {
-                console.error("Failed to create 'new topic' notification:", error);
-            }
-        }
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+            .from('courses_data')
+            .select('subject_list')
+            .eq('id', userProfile.course_id)
+            .single();
         
-        setSelectedTopic({ ...topic, subjectName });
+        if (error) throw error;
+        
+        if (data && data.subject_list) {
+            const subjectsForLevel: Subject[] = (data.subject_list as Subject[]).filter(s => s.level === userProfile.level);
+            setSubjects(subjectsForLevel);
+        }
+      } catch (err) {
+        console.error("Error fetching subjects:", err);
+        addToast("Could not load study materials.", 'error');
+      } finally {
+        setIsLoading(false);
+      }
     };
+    fetchSubjects();
+  }, [userProfile.course_id, userProfile.level, addToast]);
 
-    const filteredSubjects = subjects
-        .map(subject => ({
-            ...subject,
-            topics: subject.topics.filter(topic =>
-                topic.topic_name.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        }))
-        .filter(subject => subject.topics.length > 0);
-
-    const firstSemesterSubjects = filteredSubjects.filter(s => !s.semester || s.semester === 'first');
-    const secondSemesterSubjects = filteredSubjects.filter(s => s.semester === 'second');
-
-    if (selectedTopic) {
-        return (
-            <LearningInterface 
-                userProfile={userProfile} 
-                topic={selectedTopic}
-                isCompleted={userProgress[selectedTopic.topic_id]?.is_complete || false}
-                onClose={() => setSelectedTopic(null)} 
-                onMarkComplete={handleMarkComplete}
-            />
-        );
+  const handleMarkComplete = async (topicId: string) => {
+    if (userProgress[topicId]?.is_complete) {
+        addToast("You've already completed this topic!", 'info');
+        return;
     }
+    
+    try {
+        const xpEarned = 2;
+        const { error } = await supabase
+            .from('user_progress')
+            .upsert({ user_id: userProfile.uid, topic_id: topicId, is_complete: true, xp_earned: xpEarned });
 
+        if (error) throw error;
+        
+        onXPEarned(xpEarned, 'lesson');
+        addToast(`Topic complete! +${xpEarned} XP`, 'success');
+    } catch (err) {
+        console.error("Failed to mark topic as complete:", err);
+        addToast("Could not save your progress.", 'error');
+    }
+  };
+
+  const filteredSubjects = subjects
+    .map(subject => {
+        if (filter.semester !== 'all' && subject.semester !== filter.semester) {
+            return null;
+        }
+
+        const filteredTopics = subject.topics.filter(topic => 
+            topic.topic_name.toLowerCase().includes(filter.searchTerm.toLowerCase())
+        );
+
+        if (filteredTopics.length === 0) {
+            return null;
+        }
+
+        return { ...subject, topics: filteredTopics };
+    })
+    .filter((s): s is Subject => s !== null);
+
+  if (selectedTopic) {
     return (
-        <div className="flex-1 flex flex-col w-full bg-white rounded-xl border border-gray-200 overflow-hidden">
-             <div className="flex-shrink-0 p-4 sm:p-6 md:px-8 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-                <div className="relative">
-                    <input
-                        type="text"
+      <LearningInterface
+        userProfile={userProfile}
+        topic={selectedTopic}
+        isCompleted={userProgress[selectedTopic.topic_id]?.is_complete || false}
+        onClose={() => setSelectedTopic(null)}
+        onMarkComplete={handleMarkComplete}
+      />
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 md:p-8 rounded-xl border border-gray-200">
+        <div className="flex-shrink-0 mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Study Guide</h2>
+            <p className="text-gray-600">Explore topics, learn with your AI Tutor, and earn XP.</p>
+            
+            {/* Filters */}
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 relative">
+                    <input 
+                        type="text" 
                         placeholder="Search topics..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-gray-100 border border-gray-300 rounded-full py-2.5 pl-10 pr-4 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                        value={filter.searchTerm}
+                        onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
+                        className="w-full bg-gray-100 border border-transparent rounded-lg py-2 pl-10 pr-4 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                     />
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <SearchIcon />
+                       <SearchIcon />
                     </div>
                 </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-                {isLoading && <StudyGuideSkeleton />}
-
-                {!isLoading && (firstSemesterSubjects.length > 0 || secondSemesterSubjects.length > 0) ? (
-                    <div className="space-y-8">
-                        {firstSemesterSubjects.length > 0 && (
-                            <section>
-                                <h2 className="flex items-center gap-3 text-lg font-bold text-lime-800 bg-lime-100 px-4 py-2 rounded-lg border border-lime-200 mb-4">
-                                    <GraduationCapIcon className="w-6 h-6" />
-                                    <span>First Semester</span>
-                                </h2>
-                                <div className="space-y-4">
-                                    {firstSemesterSubjects.map(subject => (
-                                        <SubjectAccordion key={subject.subject_id} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                        {secondSemesterSubjects.length > 0 && (
-                            <section>
-                                <h2 className="flex items-center gap-3 text-lg font-bold text-lime-800 bg-lime-100 px-4 py-2 rounded-lg border border-lime-200 mb-4">
-                                    <GraduationCapIcon className="w-6 h-6" />
-                                    <span>Second Semester</span>
-                                </h2>
-                                <div className="space-y-4">
-                                    {secondSemesterSubjects.map(subject => (
-                                        <SubjectAccordion key={subject.subject_id} subject={subject} userProgress={userProgress} onSelectTopic={handleSelectTopic} />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                    </div>
-                ) : null}
-
-                 {!isLoading && filteredSubjects.length === 0 && (
-                    <div className="text-center text-gray-500 py-10">
-                        <p className="font-semibold">No topics found for '{userProfile.level}' level.</p>
-                        <p className="text-sm">Try adjusting your search term or changing your level in Settings.</p>
-                    </div>
-                 )}
+                <div className="bg-gray-100 p-1 rounded-lg flex">
+                    <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-3 py-1 rounded-md font-semibold text-sm transition-colors ${filter.semester === 'first' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600'}`}>1st Semester</button>
+                    <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-3 py-1 rounded-md font-semibold text-sm transition-colors ${filter.semester === 'second' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600'}`}>2nd Semester</button>
+                    <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-3 py-1 rounded-md font-semibold text-sm transition-colors ${filter.semester === 'all' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600'}`}>All</button>
+                </div>
             </div>
         </div>
-    );
+
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {isLoading ? (
+                <StudyGuideSkeleton />
+            ) : (
+                filteredSubjects.length > 0 ? (
+                    <div className="space-y-4">
+                        {filteredSubjects.map(subject => (
+                            <SubjectAccordion
+                                key={subject.subject_id}
+                                subject={subject}
+                                userProgress={userProgress}
+                                onSelectTopic={setSelectedTopic}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center p-8 text-gray-500">
+                        <p>No topics found matching your filters.</p>
+                    </div>
+                )
+            )}
+        </div>
+    </div>
+  );
 };
