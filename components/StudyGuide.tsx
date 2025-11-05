@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { supabase } from '../supabase';
@@ -418,12 +419,12 @@ Student: "${tempInput}"
             for (let i = 0; i <= maxRetries; i++) {
                 try {
                     response = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash-image',
+                        model: 'gemini-2.0-flash-preview-image-generation',
                         contents: {
                             parts: [{ text: prompt }],
                         },
                         config: {
-                            responseModalities: [Modality.IMAGE],
+                            responseModalities: [Modality.IMAGE, Modality.TEXT],
                         },
                     });
                     
