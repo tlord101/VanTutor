@@ -412,7 +412,7 @@ Student: "${tempInput}"
         addToast("Creating a visualization for you...", "info");
 
         const result = await attemptApiCall(async () => {
-            const prompt = `Create a realistic, high-quality image representing the following educational concept for a student. The image should be visually clear and helpful for learning. Concept: "${promptText}"`;
+            const prompt = `Create a photorealistic and visually clear image that illustrates the following educational concept for a student. The image should be a helpful visual aid for learning. Crucially, the image must not contain any text, words, letters, numbers, or labels. Focus purely on the visual representation. Concept: "${promptText}"`;
             
             let response;
             const maxRetries = 2;
