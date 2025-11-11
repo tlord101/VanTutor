@@ -29,17 +29,17 @@ export { db, storage, serverTimestamp, auth, signInAnonymously, onAuthStateChang
  *                                                                                                *
  *   >>> ACTION REQUIRED: You must add Security Rules to Firebase. <<<                            *
  *                                                                                                *
- *   The 'PERMISSION_DENIED' error is from the Firebase Realtime Database because it has not      *
- *   been configured with rules that allow your app to read and write data securely.              *
+ *   The 'PERMISSION_DENIED' error is from Firebase because it has not been configured with       *
+ *   rules that allow your app to read and write data securely.                                   *
  *                                                                                                *
  *   Please follow these steps exactly:                                                           *
  *                                                                                                *
  *   1. Go to your Firebase project console.                                                      *
- *   2. In the left "Build" menu, click on "Realtime Database".                                   *
- *   3. Click on the "Rules" tab at the top.                                                      *
- *   4. Delete any existing content in the rules editor.                                          *
- *   5. Copy the ENTIRE JSON object from "STEP 1" below.                                          *
- *   6. Paste the rules into the editor and click the "Publish" button.                           *
+ *   2. For the Database: Build > Realtime Database > Rules tab.                                  *
+ *   3. For Storage: Build > Storage > Rules tab.                                                 *
+ *   4. Delete any existing content in the respective rules editors.                              *
+ *   5. Copy the corresponding rules from "STEP 1" and "STEP 2" below.                            *
+ *   6. Paste the rules into the editors and click the "Publish" button for each.                 *
  *                                                                                                *
  **************************************************************************************************
  *                                                                                                *
@@ -95,6 +95,29 @@ export { db, storage, serverTimestamp, auth, signInAnonymously, onAuthStateChang
           }
         }
       }
+    }
+  }
+}
+ *                                                                                                *
+ *                                                                                                *
+ * STEP 2: FIREBASE STORAGE SECURITY RULES                                                        *
+ *                                                                                                *
+ * --- Copy and paste the rules below into your Firebase Storage Rules editor ---                 *
+ *                                                                                                *
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Private chat images: only members of the chat can read/write.
+    // The chat ID is the first folder in the path.
+    match /private_chats/{chatId}/{allPaths=**} {
+      allow read, write: if request.auth != null && 
+                          root.child('user_chats').child(request.auth.uid).child(chatId).exists();
+    }
+    
+    // Allow users to manage their own profile pictures (publicly readable).
+    match /profile-pictures/{userId} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

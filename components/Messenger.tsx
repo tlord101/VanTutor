@@ -47,6 +47,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
     const [input, setInput] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
     const { addToast } = useToast();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<number | null>(null);
@@ -92,28 +94,60 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             updateTypingStatus(false);
         }
     }, [input, chatId, currentUser.uid]);
+    
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                addToast("Image must be under 5MB.", "error");
+                return;
+            }
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSend = async () => {
-        if (!input.trim() || isSending) return;
+        if ((!input.trim() && !imageFile) || isSending) return;
         
         const textToSend = input;
+        const fileToSend = imageFile;
+
         setIsSending(true);
         setInput('');
+        setImageFile(null);
+        setImagePreviewUrl(null);
         updateTypingStatus(false);
         
         try {
+            let imageUrl: string | undefined;
+            if (fileToSend) {
+                const imageRef = storageRef(storage, `private_chats/${chatId}/${new Date().getTime()}-${fileToSend.name}`);
+                const uploadResult = await uploadBytes(imageRef, fileToSend);
+                imageUrl = await getDownloadURL(uploadResult.ref);
+            }
+
             const messageListRef = dbRef(db, `private_messages/${chatId}`);
             const newMessageRef = push(messageListRef);
             const messageData: Omit<PrivateMessage, 'id' | 'chat_id'> = {
                 sender_id: currentUser.uid,
-                text: textToSend.trim(),
+                text: textToSend.trim() || undefined,
+                image_url: imageUrl,
                 timestamp: firebaseServerTimestamp()
             };
 
             await set(newMessageRef, messageData);
             
             const updates: { [key: string]: any } = {};
-            const lastMessagePayload = { text: textToSend, timestamp: firebaseServerTimestamp(), sender_id: currentUser.uid };
+            let lastMessageText = textToSend.trim();
+            if (!lastMessageText && fileToSend) {
+                lastMessageText = '📷 Photo';
+            }
+            const lastMessagePayload = { text: lastMessageText, timestamp: firebaseServerTimestamp(), sender_id: currentUser.uid };
             updates[`user_chats/${currentUser.uid}/${chatId}/last_message`] = lastMessagePayload;
             updates[`user_chats/${currentUser.uid}/${chatId}/timestamp`] = firebaseServerTimestamp();
             updates[`user_chats/${otherUser.uid}/${chatId}/last_message`] = lastMessagePayload;
@@ -146,7 +180,8 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex gap-3 items-end ${msg.sender_id === currentUser.uid ? 'justify-end' : 'justify-start'}`}>
-                       <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender_id === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}>
+                       <div className={`flex flex-col max-w-[80%] p-3 rounded-2xl ${msg.sender_id === currentUser.uid ? 'bg-lime-500 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}>
+                           {msg.image_url && <img src={msg.image_url} alt="Sent media" className="rounded-lg max-w-xs max-h-64 mb-2" />}
                            {msg.text && <div className="text-sm whitespace-pre-wrap"><ReactMarkdown>{msg.text}</ReactMarkdown></div>}
                         </div>
                     </div>
@@ -155,9 +190,24 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
                 <div ref={messagesEndRef} />
             </div>
             <footer className="flex-shrink-0 bg-white/80 backdrop-blur-sm p-3">
+                {imagePreviewUrl && (
+                    <div className="relative w-24 h-24 mb-2 p-1 border border-gray-200 rounded-lg">
+                        <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-cover rounded" />
+                        <button 
+                            onClick={() => { setImageFile(null); setImagePreviewUrl(null); }} 
+                            className="absolute -top-2 -right-2 bg-gray-700 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors"
+                        >
+                            <XIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
                 <div className="relative flex items-center">
+                    <label htmlFor="file-upload" className="mr-2 cursor-pointer p-3 text-gray-500 hover:text-lime-600 transition-colors">
+                        <PaperclipIcon className="w-6 h-6" />
+                    </label>
+                    <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={isSending} />
                     <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => {if (e.key === 'Enter') handleSend()}} placeholder="Type a message..." className="w-full bg-gray-100 border-transparent rounded-full py-2 px-4 text-gray-900 placeholder-gray-500 focus:ring-lime-500 focus:border-lime-500" />
-                    <button onClick={handleSend} disabled={isSending || !input.trim()} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
+                    <button onClick={handleSend} disabled={isSending || (!input.trim() && !imageFile)} className="ml-2 bg-lime-600 rounded-full p-3 text-white hover:bg-lime-700 transition-colors disabled:opacity-50 active:scale-95"><SendIcon className="w-6 h-6" /></button>
                 </div>
             </footer>
         </div>
