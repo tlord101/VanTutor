@@ -133,12 +133,18 @@ const PrivateChatView: React.FC<PrivateChatViewProps> = ({ chatId, currentUser, 
 
             const messageListRef = dbRef(db, `private_messages/${chatId}`);
             const newMessageRef = push(messageListRef);
-            const messageData: Omit<PrivateMessage, 'id' | 'chat_id'> = {
+            const messageData: any = {
                 sender_id: currentUser.uid,
-                text: textToSend.trim() || undefined,
-                image_url: imageUrl,
                 timestamp: firebaseServerTimestamp()
             };
+            
+            // Only add properties if they have values (Firebase doesn't allow undefined)
+            if (textToSend.trim()) {
+                messageData.text = textToSend.trim();
+            }
+            if (imageUrl) {
+                messageData.image_url = imageUrl;
+            }
 
             await set(newMessageRef, messageData);
             
