@@ -3,42 +3,45 @@ import type { AppSettings } from '../types';
 export const APP_SETTINGS_PATH = 'app_settings/global';
 
 export const DEFAULT_USAGE_SETTINGS = {
-  plans: {
+  tiers: {
     free: {
-      name: 'Free Plan',
-      description: 'Fundamental study tools with standard constraints',
-      price: 0,
-      monthly_ai_credits: 10,
-      limits: {
-        courses: 2,
-      },
+      tier_id: 'free',
+      display_name: 'Forever Free',
+      description: 'Fundamental study tools with standard constraints. Good for **upto 1 hour of studytime**.',
+      price_ngn: 0,
+      credit_allocation: 30,
+      max_saved_courses: 2,
+      has_verification_badge: false,
+      badge_color: 'none',
     },
     basic: {
-      name: 'Basic Plan',
-      description: 'Unlock advanced guides and higher limits. Twitter-style blue badge included.',
-      price: 1000,
-      monthly_ai_credits: 50,
-      limits: {
-        courses: 5,
-      },
+      tier_id: 'basic',
+      display_name: 'Basic Plan',
+      description: 'Unlock advanced guides and higher limits. Great for **upto 5 hours of studytime**.',
+      price_ngn: 1000,
+      credit_allocation: 500,
+      max_saved_courses: 5,
+      has_verification_badge: true,
+      badge_color: 'blue',
     },
-    pro: {
-      name: 'Pro Plan',
-      description: 'Ultimate academic assistance with maximum limits. Purple badge included.',
-      price: 2500,
-      monthly_ai_credits: 200,
-      limits: {
-        courses: 15,
-      },
+    premium: {
+      tier_id: 'premium',
+      display_name: 'Premium Pro',
+      description: 'Ultimate academic assistance. Ideal for **unlimited studytime**.',
+      price_ngn: 3000,
+      credit_allocation: 2000,
+      max_saved_courses: -1,
+      has_verification_badge: true,
+      badge_color: 'purple',
     },
   },
   feature_costs: {
-    visual_solve: 2,
+    visual_solve: 4,
     chat_interaction: 1,
     flashcard_generation: 3,
-    ai_quiz_generation: 1,
+    ai_quiz_generation: 2,
     study_guide_lesson: 1,
-    study_guide_extraction: 5,
+    study_guide_extraction: 10,
   },
   feature_models: {
     visual_solve: 'gemini-3.1-flash-lite',
@@ -66,7 +69,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   paystack_secret_key: '',
   custom_user_limit_rpm: 10,
   custom_user_limit_tpm: 250000,
-  usage_settings: DEFAULT_USAGE_SETTINGS,
+  usage_settings: DEFAULT_USAGE_SETTINGS as any, // Temporary cast until types propagate fully
   youtube_api_key: '',
   google_client_id: '',
   google_api_key: '',
@@ -106,33 +109,36 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
       study_guide_extraction: raw.usage_settings.feature_models?.study_guide_extraction || DEFAULT_USAGE_SETTINGS.feature_models.study_guide_extraction,
       title_generation: raw.usage_settings.feature_models?.title_generation || DEFAULT_USAGE_SETTINGS.feature_models.title_generation,
     },
-    plans: {
+    tiers: {
       free: {
-        name: raw.usage_settings.plans?.free?.name || DEFAULT_USAGE_SETTINGS.plans.free.name,
-        description: raw.usage_settings.plans?.free?.description || DEFAULT_USAGE_SETTINGS.plans.free.description,
-        price: typeof raw.usage_settings.plans?.free?.price === 'number' ? raw.usage_settings.plans.free.price : DEFAULT_USAGE_SETTINGS.plans.free.price,
-        monthly_ai_credits: typeof raw.usage_settings.plans?.free?.monthly_ai_credits === 'number' ? raw.usage_settings.plans.free.monthly_ai_credits : DEFAULT_USAGE_SETTINGS.plans.free.monthly_ai_credits,
-        limits: {
-          courses: typeof raw.usage_settings.plans?.free?.limits?.courses === 'number' ? raw.usage_settings.plans.free.limits.courses : DEFAULT_USAGE_SETTINGS.plans.free.limits.courses,
-        }
+        tier_id: raw.usage_settings.tiers?.free?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.free.tier_id,
+        display_name: raw.usage_settings.tiers?.free?.display_name || DEFAULT_USAGE_SETTINGS.tiers.free.display_name,
+        description: raw.usage_settings.tiers?.free?.description || DEFAULT_USAGE_SETTINGS.tiers.free.description,
+        price_ngn: typeof raw.usage_settings.tiers?.free?.price_ngn === 'number' ? raw.usage_settings.tiers.free.price_ngn : DEFAULT_USAGE_SETTINGS.tiers.free.price_ngn,
+        credit_allocation: typeof raw.usage_settings.tiers?.free?.credit_allocation === 'number' ? raw.usage_settings.tiers.free.credit_allocation : DEFAULT_USAGE_SETTINGS.tiers.free.credit_allocation,
+        max_saved_courses: typeof raw.usage_settings.tiers?.free?.max_saved_courses === 'number' ? raw.usage_settings.tiers.free.max_saved_courses : DEFAULT_USAGE_SETTINGS.tiers.free.max_saved_courses,
+        has_verification_badge: typeof raw.usage_settings.tiers?.free?.has_verification_badge === 'boolean' ? raw.usage_settings.tiers.free.has_verification_badge : DEFAULT_USAGE_SETTINGS.tiers.free.has_verification_badge,
+        badge_color: raw.usage_settings.tiers?.free?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.free.badge_color,
       },
       basic: {
-        name: raw.usage_settings.plans?.basic?.name || DEFAULT_USAGE_SETTINGS.plans.basic.name,
-        description: raw.usage_settings.plans?.basic?.description || DEFAULT_USAGE_SETTINGS.plans.basic.description,
-        price: typeof raw.usage_settings.plans?.basic?.price === 'number' ? raw.usage_settings.plans.basic.price : DEFAULT_USAGE_SETTINGS.plans.basic.price,
-        monthly_ai_credits: typeof raw.usage_settings.plans?.basic?.monthly_ai_credits === 'number' ? raw.usage_settings.plans.basic.monthly_ai_credits : DEFAULT_USAGE_SETTINGS.plans.basic.monthly_ai_credits,
-        limits: {
-          courses: typeof raw.usage_settings.plans?.basic?.limits?.courses === 'number' ? raw.usage_settings.plans.basic.limits.courses : DEFAULT_USAGE_SETTINGS.plans.basic.limits.courses,
-        }
+        tier_id: raw.usage_settings.tiers?.basic?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.basic.tier_id,
+        display_name: raw.usage_settings.tiers?.basic?.display_name || DEFAULT_USAGE_SETTINGS.tiers.basic.display_name,
+        description: raw.usage_settings.tiers?.basic?.description || DEFAULT_USAGE_SETTINGS.tiers.basic.description,
+        price_ngn: typeof raw.usage_settings.tiers?.basic?.price_ngn === 'number' ? raw.usage_settings.tiers.basic.price_ngn : DEFAULT_USAGE_SETTINGS.tiers.basic.price_ngn,
+        credit_allocation: typeof raw.usage_settings.tiers?.basic?.credit_allocation === 'number' ? raw.usage_settings.tiers.basic.credit_allocation : DEFAULT_USAGE_SETTINGS.tiers.basic.credit_allocation,
+        max_saved_courses: typeof raw.usage_settings.tiers?.basic?.max_saved_courses === 'number' ? raw.usage_settings.tiers.basic.max_saved_courses : DEFAULT_USAGE_SETTINGS.tiers.basic.max_saved_courses,
+        has_verification_badge: typeof raw.usage_settings.tiers?.basic?.has_verification_badge === 'boolean' ? raw.usage_settings.tiers.basic.has_verification_badge : DEFAULT_USAGE_SETTINGS.tiers.basic.has_verification_badge,
+        badge_color: raw.usage_settings.tiers?.basic?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.basic.badge_color,
       },
-      pro: {
-        name: raw.usage_settings.plans?.pro?.name || DEFAULT_USAGE_SETTINGS.plans.pro.name,
-        description: raw.usage_settings.plans?.pro?.description || DEFAULT_USAGE_SETTINGS.plans.pro.description,
-        price: typeof raw.usage_settings.plans?.pro?.price === 'number' ? raw.usage_settings.plans.pro.price : DEFAULT_USAGE_SETTINGS.plans.pro.price,
-        monthly_ai_credits: typeof raw.usage_settings.plans?.pro?.monthly_ai_credits === 'number' ? raw.usage_settings.plans.pro.monthly_ai_credits : DEFAULT_USAGE_SETTINGS.plans.pro.monthly_ai_credits,
-        limits: {
-          courses: typeof raw.usage_settings.plans?.pro?.limits?.courses === 'number' ? raw.usage_settings.plans.pro.limits.courses : DEFAULT_USAGE_SETTINGS.plans.pro.limits.courses,
-        }
+      premium: {
+        tier_id: raw.usage_settings.tiers?.premium?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.premium.tier_id,
+        display_name: raw.usage_settings.tiers?.premium?.display_name || DEFAULT_USAGE_SETTINGS.tiers.premium.display_name,
+        description: raw.usage_settings.tiers?.premium?.description || DEFAULT_USAGE_SETTINGS.tiers.premium.description,
+        price_ngn: typeof raw.usage_settings.tiers?.premium?.price_ngn === 'number' ? raw.usage_settings.tiers.premium.price_ngn : DEFAULT_USAGE_SETTINGS.tiers.premium.price_ngn,
+        credit_allocation: typeof raw.usage_settings.tiers?.premium?.credit_allocation === 'number' ? raw.usage_settings.tiers.premium.credit_allocation : DEFAULT_USAGE_SETTINGS.tiers.premium.credit_allocation,
+        max_saved_courses: typeof raw.usage_settings.tiers?.premium?.max_saved_courses === 'number' ? raw.usage_settings.tiers.premium.max_saved_courses : DEFAULT_USAGE_SETTINGS.tiers.premium.max_saved_courses,
+        has_verification_badge: typeof raw.usage_settings.tiers?.premium?.has_verification_badge === 'boolean' ? raw.usage_settings.tiers.premium.has_verification_badge : DEFAULT_USAGE_SETTINGS.tiers.premium.has_verification_badge,
+        badge_color: raw.usage_settings.tiers?.premium?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.premium.badge_color,
       }
     },
     additional_prices: {
@@ -141,5 +147,5 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
       studyguide_course_price: typeof raw.usage_settings.additional_prices?.studyguide_course_price === 'number' ? raw.usage_settings.additional_prices.studyguide_course_price : DEFAULT_USAGE_SETTINGS.additional_prices.studyguide_course_price,
       studyguide_request_price: typeof raw.usage_settings.additional_prices?.studyguide_request_price === 'number' ? raw.usage_settings.additional_prices.studyguide_request_price : DEFAULT_USAGE_SETTINGS.additional_prices.studyguide_request_price,
     }
-  } : DEFAULT_USAGE_SETTINGS,
+  } : (DEFAULT_USAGE_SETTINGS as any),
 });

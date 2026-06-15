@@ -2971,7 +2971,7 @@ FORMAT:
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* Free Plan */}
+                                                                        {/* Free Plan */}
                                     <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50 space-y-4">
                                         <h4 className="font-extrabold text-sm text-slate-850 uppercase tracking-wider flex items-center gap-2">
                                             <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
@@ -2979,14 +2979,14 @@ FORMAT:
                                         </h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-1">
-                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Name</label>
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Display Name</label>
                                                 <input
                                                     type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.free?.name || ''}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.free?.display_name || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.free.name = e.target.value;
+                                                        (draft.usage_settings as any).tiers.free.display_name = e.target.value;
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -2994,13 +2994,27 @@ FORMAT:
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Description</label>
-                                                <input
-                                                    type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.free?.description || ''}
+                                                <textarea
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.free?.description || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.free.description = e.target.value;
+                                                        (draft.usage_settings as any).tiers.free.description = e.target.value;
+                                                        setAppSettingsDraft(draft);
+                                                    }}
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                    rows={2}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Price (₦)</label>
+                                                <input
+                                                    type="number"
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.free?.price_ngn ?? 0}
+                                                    onChange={e => {
+                                                        const draft = { ...appSettingsDraft };
+                                                        draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
+                                                        (draft.usage_settings as any).tiers.free.price_ngn = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3010,11 +3024,25 @@ FORMAT:
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Monthly AI Credits</label>
                                                 <input
                                                     type="number"
-                                                    value={appSettingsDraft.usage_settings?.plans?.free?.monthly_ai_credits ?? 0}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.free?.credit_allocation ?? 0}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.free.monthly_ai_credits = Number(e.target.value);
+                                                        (draft.usage_settings as any).tiers.free.credit_allocation = Number(e.target.value);
+                                                        setAppSettingsDraft(draft);
+                                                    }}
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Max Saved Courses (-1 = unlimited)</label>
+                                                <input
+                                                    type="number"
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.free?.max_saved_courses ?? 0}
+                                                    onChange={e => {
+                                                        const draft = { ...appSettingsDraft };
+                                                        draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
+                                                        (draft.usage_settings as any).tiers.free.max_saved_courses = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3026,19 +3054,19 @@ FORMAT:
                                     {/* Basic Plan */}
                                     <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50 space-y-4">
                                         <h4 className="font-extrabold text-sm text-slate-850 uppercase tracking-wider flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                            <span className="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
                                             <span>Basic Plan Settings</span>
                                         </h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-1">
-                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Name</label>
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Display Name</label>
                                                 <input
                                                     type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.basic?.name || ''}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.basic?.display_name || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.basic.name = e.target.value;
+                                                        (draft.usage_settings as any).tiers.basic.display_name = e.target.value;
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3046,27 +3074,27 @@ FORMAT:
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Description</label>
-                                                <input
-                                                    type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.basic?.description || ''}
+                                                <textarea
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.basic?.description || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.basic.description = e.target.value;
+                                                        (draft.usage_settings as any).tiers.basic.description = e.target.value;
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                    rows={2}
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Basic Plan Price (₦)</label>
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Price (₦)</label>
                                                 <input
                                                     type="number"
-                                                    value={appSettingsDraft.usage_settings?.plans?.basic?.price ?? 0}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.basic?.price_ngn ?? 0}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.basic.price = Number(e.target.value);
+                                                        (draft.usage_settings as any).tiers.basic.price_ngn = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3076,11 +3104,25 @@ FORMAT:
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Monthly AI Credits</label>
                                                 <input
                                                     type="number"
-                                                    value={appSettingsDraft.usage_settings?.plans?.basic?.monthly_ai_credits ?? 0}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.basic?.credit_allocation ?? 0}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.basic.monthly_ai_credits = Number(e.target.value);
+                                                        (draft.usage_settings as any).tiers.basic.credit_allocation = Number(e.target.value);
+                                                        setAppSettingsDraft(draft);
+                                                    }}
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Max Saved Courses (-1 = unlimited)</label>
+                                                <input
+                                                    type="number"
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.basic?.max_saved_courses ?? 0}
+                                                    onChange={e => {
+                                                        const draft = { ...appSettingsDraft };
+                                                        draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
+                                                        (draft.usage_settings as any).tiers.basic.max_saved_courses = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3089,22 +3131,22 @@ FORMAT:
                                         </div>
                                     </div>
 
-                                    {/* Pro Plan */}
+                                    {/* Premium Pro Plan */}
                                     <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50 space-y-4">
                                         <h4 className="font-extrabold text-sm text-slate-850 uppercase tracking-wider flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-                                            <span>Pro Plan Settings</span>
+                                            <span className="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+                                            <span>Premium Pro Plan Settings</span>
                                         </h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-1">
-                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Name</label>
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Display Name</label>
                                                 <input
                                                     type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.pro?.name || ''}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.premium?.display_name || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.pro.name = e.target.value;
+                                                        (draft.usage_settings as any).tiers.premium.display_name = e.target.value;
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3112,27 +3154,27 @@ FORMAT:
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Plan Description</label>
-                                                <input
-                                                    type="text"
-                                                    value={appSettingsDraft.usage_settings?.plans?.pro?.description || ''}
+                                                <textarea
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.premium?.description || ''}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.pro.description = e.target.value;
+                                                        (draft.usage_settings as any).tiers.premium.description = e.target.value;
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                    rows={2}
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Pro Plan Price (₦)</label>
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Price (₦)</label>
                                                 <input
                                                     type="number"
-                                                    value={appSettingsDraft.usage_settings?.plans?.pro?.price ?? 0}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.premium?.price_ngn ?? 0}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.pro.price = Number(e.target.value);
+                                                        (draft.usage_settings as any).tiers.premium.price_ngn = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
@@ -3142,11 +3184,25 @@ FORMAT:
                                                 <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Monthly AI Credits</label>
                                                 <input
                                                     type="number"
-                                                    value={appSettingsDraft.usage_settings?.plans?.pro?.monthly_ai_credits ?? 0}
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.premium?.credit_allocation ?? 0}
                                                     onChange={e => {
                                                         const draft = { ...appSettingsDraft };
                                                         draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
-                                                        draft.usage_settings.plans.pro.monthly_ai_credits = Number(e.target.value);
+                                                        (draft.usage_settings as any).tiers.premium.credit_allocation = Number(e.target.value);
+                                                        setAppSettingsDraft(draft);
+                                                    }}
+                                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-450">Max Saved Courses (-1 = unlimited)</label>
+                                                <input
+                                                    type="number"
+                                                    value={(appSettingsDraft.usage_settings as any)?.tiers?.premium?.max_saved_courses ?? 0}
+                                                    onChange={e => {
+                                                        const draft = { ...appSettingsDraft };
+                                                        draft.usage_settings = draft.usage_settings || { ...DEFAULT_USAGE_SETTINGS };
+                                                        (draft.usage_settings as any).tiers.premium.max_saved_courses = Number(e.target.value);
                                                         setAppSettingsDraft(draft);
                                                     }}
                                                     className="w-full p-2.5 border border-slate-200 rounded-xl bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-150 outline-none"

@@ -294,8 +294,9 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettin
   };
 
   const handleUpgradePlan = async (planKey: any) => {
-    const activePlan = (usageSettings.plans as any)[planKey];
-    const amount = activePlan.price;
+    const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
+    const activePlan = (usageSettings as any).tiers[effectivePlanKey];
+    const amount = activePlan.price_ngn;
     const publicKey = appSettings.paystack_public_key?.trim();
     const email = user?.email || `${userProfile.uid}@avelut.com`;
 
@@ -464,11 +465,10 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettin
             <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Current Status</span>
             <div className="flex items-center gap-2 mt-1">
               <h4 className="font-extrabold text-slate-900 text-sm">
-                {userProfile.subscription_status === 'pro' && (usageSettings.plans.pro.name || 'Pro Plan')}
-                {userProfile.subscription_status === 'basic' && (usageSettings.plans.basic.name || 'Basic Plan')}
-                {(userProfile.subscription_status === 'free' || !userProfile.subscription_status) && (usageSettings.plans.free.name || 'Free Plan')}
+                {(userProfile.subscription_status === 'pro' || userProfile.subscription_status === 'premium') && ((usageSettings as any).tiers?.premium?.display_name || 'Premium Plan')}
+                {userProfile.subscription_status === 'basic' && ((usageSettings as any).tiers?.basic?.display_name || 'Basic Plan')}
+                {(userProfile.subscription_status === 'free' || !userProfile.subscription_status) && ((usageSettings as any).tiers?.free?.display_name || 'Free Plan')}
                 {userProfile.subscription_status === 'personal_token' && 'Personal Google Token'}
-                {userProfile.subscription_status === 'premium' && 'Premium Plan'}
               </h4>
               <VerificationBadge status={userProfile.subscription_status || 'free'} />
             </div>

@@ -160,23 +160,22 @@ export interface DashboardData {
     examHistory: ExamHistoryItem[];
 }
 
-export interface PlanLimit {
-  courses: number;
-}
-
-export interface PlanConfig {
-  name: string;
+export interface TierConfig {
+  tier_id: string;
+  display_name: string;
   description: string;
-  price: number;
-  monthly_ai_credits: number;
-  limits: PlanLimit;
+  price_ngn: number;
+  credit_allocation: number;
+  max_saved_courses: number;
+  has_verification_badge: boolean;
+  badge_color: 'none' | 'blue' | 'purple' | string;
 }
 
 export interface UsageSettings {
-  plans: {
-    free: PlanConfig;
-    basic: PlanConfig;
-    pro: PlanConfig;
+  tiers: {
+    free: TierConfig;
+    basic: TierConfig;
+    premium: TierConfig;
   };
   feature_costs: {
     visual_solve: number;

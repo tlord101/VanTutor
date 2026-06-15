@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { UserProfile, AppSettings } from '../types';
 
 interface SubscriptionCardsProps {
   userProfile: UserProfile;
   appSettings: AppSettings;
   isVerifyingKey?: boolean;
-  onSelectPlan: (plan: 'free' | 'basic' | 'pro' | 'personal_token', extraData?: { apiKey: string }) => void;
+  onSelectPlan: (plan: 'free' | 'basic' | 'premium' | 'personal_token', extraData?: { apiKey: string }) => void;
   showCurrentPlan?: boolean;
 }
 
@@ -74,14 +75,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {usageSettings.plans.free.name || 'Forever Free'}
+              {(usageSettings as any).tiers?.free?.display_name || 'Forever Free'}
             </h4>
-            <p className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px]">
-              {usageSettings.plans.free.description || "Perfect if you're just getting started with your study promotion."}
-            </p>
+            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+              <ReactMarkdown>{(usageSettings as any).tiers?.free?.description || "Perfect if you're just getting started with your study promotion."}</ReactMarkdown>
+            </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{usageSettings.plans.free.price}
+                ₦{(usageSettings as any).tiers?.free?.price_ngn}
               </span>
               <span className="text-slate-500 font-bold text-sm">Free</span>
             </div>
@@ -135,14 +136,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {usageSettings.plans.basic.name || 'Student Plan'}
+              {(usageSettings as any).tiers?.basic?.display_name || 'Student Plan'}
             </h4>
-            <p className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px]">
-              {usageSettings.plans.basic.description || "Take your study promotion to the next level."}
-            </p>
+            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+              <ReactMarkdown>{(usageSettings as any).tiers?.basic?.description || "Take your study promotion to the next level."}</ReactMarkdown>
+            </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{billingInterval === 'monthly' ? usageSettings.plans.basic.price || 1000 : Math.round((usageSettings.plans.basic.price || 1000) * 0.75)}
+                ₦{billingInterval === 'monthly' ? (usageSettings as any).tiers?.basic?.price_ngn || 1000 : Math.round(((usageSettings as any).tiers?.basic?.price_ngn || 1000) * 0.75)}
               </span>
               <span className="text-slate-500 font-bold text-sm">/month</span>
             </div>
@@ -180,7 +181,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
 
         {/* Card 3: Pro Plan */}
         <div className={`w-[85vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-purple-300 ${
-          showCurrentPlan && userProfile.subscription_status === 'pro'
+          showCurrentPlan && userProfile.subscription_status === 'premium'
             ? 'border-blue-500 shadow-lg'
             : ''
         }`}>
@@ -193,23 +194,23 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {usageSettings.plans.pro.name || 'Pro Plan'}
+              {(usageSettings as any).tiers?.premium?.display_name || 'Pro Plan'}
             </h4>
-            <p className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px]">
-              {usageSettings.plans.pro.description || "Completely automate your learning progress with maximum options."}
-            </p>
+            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+              <ReactMarkdown>{(usageSettings as any).tiers?.premium?.description || "Completely automate your learning progress with maximum options."}</ReactMarkdown>
+            </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{billingInterval === 'monthly' ? usageSettings.plans.pro.price : Math.round(usageSettings.plans.pro.price * 0.75)}
+                ₦{billingInterval === 'monthly' ? (usageSettings as any).tiers?.premium?.price_ngn : Math.round((usageSettings as any).tiers?.premium?.price_ngn * 0.75)}
               </span>
               <span className="text-slate-500 font-bold text-sm">/month</span>
             </div>
 
-            {showCurrentPlan && userProfile.subscription_status === 'pro' ? (
+            {showCurrentPlan && userProfile.subscription_status === 'premium' ? (
               <span className="w-full text-center py-3 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl block border border-slate-200 mb-6">Current Plan</span>
             ) : (
               <button
-                onClick={() => onSelectPlan('pro')}
+                onClick={() => onSelectPlan('premium')}
                 disabled={isVerifyingKey}
                 className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
               >

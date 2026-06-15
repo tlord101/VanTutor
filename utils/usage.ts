@@ -169,9 +169,9 @@ export const checkAICredits = (
     return { allowed: true, balance: Infinity, cost: 0 };
   }
 
-  const planKey = (userProfile.subscription_status || 'free') as 'free' | 'basic' | 'pro';
+  const planKey = (userProfile.subscription_status === 'pro' ? 'premium' : (userProfile.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
-  const monthlyLimit = usageSettings.plans[planKey]?.monthly_ai_credits ?? DEFAULT_USAGE_SETTINGS.plans.free.monthly_ai_credits;
+  const monthlyLimit = (usageSettings as any).tiers[planKey]?.credit_allocation ?? (DEFAULT_USAGE_SETTINGS as any).tiers.free.credit_allocation;
   
   const balance = userProfile.ai_credits_balance ?? monthlyLimit;
   const allowed = balance >= cost;
@@ -187,9 +187,9 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
     const userRef = dbRef(db, `users/${userId}`);
     const result = await runTransaction(userRef, (profile) => {
       if (profile) {
-        const planKey = (profile.subscription_status || 'free') as 'free' | 'basic' | 'pro';
+        const planKey = (profile.subscription_status === 'pro' ? 'premium' : (profile.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
         const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
-        const defaultLimit = usageSettings.plans[planKey]?.monthly_ai_credits ?? DEFAULT_USAGE_SETTINGS.plans[planKey]?.monthly_ai_credits ?? 10;
+        const defaultLimit = (usageSettings as any).tiers[planKey]?.credit_allocation ?? (DEFAULT_USAGE_SETTINGS as any).tiers[planKey]?.credit_allocation ?? 30;
 
         // If balance is missing, initialize with plan default before deducting
         const currentBalance = profile.ai_credits_balance ?? defaultLimit;
