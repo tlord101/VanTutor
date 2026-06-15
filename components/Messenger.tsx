@@ -103,8 +103,6 @@ const MESSENGER_CACHE_VERSION = 'v1';
 
 const getMessengerCacheKey = (uid: string, suffix: string) => `avelut_messenger_${MESSENGER_CACHE_VERSION}_${uid}_${suffix}`;
 
-
-
 // =======================================================
 // FUNCTIONAL VOICE NOTE PLAYER COMPONENT
 // =======================================================
@@ -152,7 +150,6 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
     let nextRate = 1;
     if (playbackRate === 1) nextRate = 1.5;
     else if (playbackRate === 1.5) nextRate = 2;
-    
     audioRef.current.playbackRate = nextRate;
     setPlaybackRate(nextRate);
   };
@@ -167,7 +164,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 w-[260px] py-1 select-none">
+    <div className="flex items-center gap-3 w-full max-w-full py-1 select-none">
       <button 
         type="button" 
         onClick={togglePlay}
@@ -192,7 +189,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
         )}
       </button>
 
-      <div className="flex-1 flex flex-col gap-1.5 justify-center pr-1">
+      <div className="flex-1 flex flex-col gap-1.5 justify-center pr-1 min-w-0">
         <div className="w-full flex items-center gap-[2px] h-6 relative">
           {[35, 60, 45, 75, 30, 55, 70, 40, 65, 50, 80, 35, 60, 45, 70, 40, 55, 30].map((barHeight, idx, arr) => {
             const barProgress = (idx / arr.length) * 100;
@@ -283,7 +280,6 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
     if (isLocked) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
     setStartX(clientX);
     setStartY(clientY);
     setCurrentX(clientX);
@@ -304,7 +300,6 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
     const deltaY = clientY - startY;
     const deltaX = clientX - startX;
-
     if (deltaY < -80) {
       setIsLocked(true);
       setIsSwiping(false);
@@ -341,7 +336,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className="w-[95%] max-w-6xl mx-auto relative select-none z-40 px-4">
+    <div className="w-[95%] mx-auto relative select-none z-40 px-4">
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
@@ -358,7 +353,6 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
       )}
 
       <div className="w-full flex items-center gap-2 relative">
-     
         {!isRecording && !isLocked && (
           <div className="flex-1 h-[52px] bg-white border border-[#E9ECEF] rounded-full flex items-center pl-3.5 pr-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
             <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 shrink-0 flex items-center justify-center w-9 h-9 mr-1">
@@ -386,7 +380,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
               <span className="text-[16px] font-medium text-[#212529] tabular-nums">{formatTime(recordDuration)}</span>
             </div>
-       
+
             {isLocked ? (
               <div className="flex-1 flex items-center justify-between pl-6 animate-fade-in z-10">
                 <button onClick={discardVoice} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-100 active:scale-90 transition" type="button">
@@ -444,10 +438,10 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
 export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null }> = ({ userProfile, initialChatId = null }) => {
     const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
-  const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
-  const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
+    const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
+    const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
     const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
-  const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
+    const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
     const [isLoading, setIsLoading] = useState(true);
     const [tab, setTab] = useState<'chats' | 'people'>('chats');
     const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
@@ -464,12 +458,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       reactions?: Record<string, string>;
     } | null>(null);
     const [messageActionPosition, setMessageActionPosition] = useState<{ x: number; y: number } | null>(null);
-    
     const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
     const [fetchedUserProfiles, setFetchedUserProfiles] = useState<Record<string, UserProfile>>(() => 
         readCachedJson<Record<string, UserProfile>>(`avelut_resolved_profiles_${userProfile.uid}`, {})
     );
-
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -478,7 +470,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const messageActionMenuRef = useRef<HTMLDivElement>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
-    
+
     // Study Partners contact system states
     const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(getMessengerCacheKey(userProfile.uid, 'study_partners'), {}));
@@ -507,11 +499,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       if (typeof window === 'undefined') return;
       if (!userProfile.notifications_enabled) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
       const title = chat?.otherUser?.display_name
         ? `New message from ${chat.otherUser.display_name}`
         : 'New message received';
-
       const options: any = {
         body: summaryText,
         icon: '/logo_icon.png',
@@ -522,7 +512,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           chatId: chat?.id || '',
         },
       };
-
       try {
         if ('serviceWorker' in navigator) {
           let registration = await navigator.serviceWorker.getRegistration();
@@ -802,7 +791,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         void showIncomingMessageNotification(chat, getLastMessagePreview(chat));
                     }
                 });
-
                 unreadCountsRef.current = nextUnreadCounts;
                 return chatList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             });
@@ -903,7 +891,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             const cloudMsgs = Object.entries(snap.val() || {}).map(([id, msg]: any) => ({ id, ...msg })).sort((a, b) => a.timestamp - b.timestamp);
             setMessages(cloudMsgs);
             
-            // Fixed removal logic to filter out only valid matches safely
             setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
             
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -925,11 +912,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const updateChatMetaFromLatestMessage = async (chatId: string, otherUserId: string) => {
       if (!firebaseUser) return;
-
       const latestSnapshot = await get(dbRef(db, `messages/${chatId}`));
       let summaryText = 'No messages yet';
       let latestTimestamp = Date.now();
-
       if (latestSnapshot.exists()) {
         const cloudMsgs = Object.entries(latestSnapshot.val() || {}).map(([, msg]: any) => msg);
         cloudMsgs.sort((a: any, b: any) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0));
@@ -955,7 +940,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       if (!firebaseUser || !chat?.id || !chat?.otherUserId) return;
       const confirmed = window.confirm(`Delete this chat with ${chat.otherUser?.display_name || 'this user'}?`);
       if (!confirmed) return;
-
       try {
         const updates: any = {};
         updates[`user_chats/${firebaseUser.uid}/${chat.id}`] = null;
@@ -1064,7 +1048,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const quickReactToMessage = async (msg: any, emoji: string) => {
       if (!activeChat || !firebaseUser || !msg?.id || msg?.isUploading) return;
       try {
-        const existingReactions = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
+        const existingReactions = (msg.reactions && typeof msg.reactions === 'object') ?
+          msg.reactions as Record<string, string> : {};
         const reactionPath = dbRef(db, `messages/${activeChat.chatId}/${msg.id}/reactions/${firebaseUser.uid}`);
         if (existingReactions[firebaseUser.uid] === emoji) {
           await remove(reactionPath);
@@ -1087,7 +1072,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             const localTimestamp = Date.now();
             const tempId = `temp_file_${localTimestamp}`;
             const fileType = file.type.startsWith('image/') ? 'image' : 'file';
-            
             const pendingMessage = {
                 id: tempId,
                 senderId: firebaseUser.uid,
@@ -1098,7 +1082,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             };
             setOptimisticMessages(prev => [...prev, pendingMessage]);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-
             try {
                 const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${file.name}`;
                 const fileBucketRef = storageRef(storage, cloudPath);
@@ -1111,9 +1094,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
                 }
             } catch (err) {
-                // Safeguarded catch wrapper from leaking standard error object down state tracking arrays
               addToast(`Failed to upload asset: ${file.name}`, 'error');
-                setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+              setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
             }
         }
     };
@@ -1136,7 +1118,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             };
             setOptimisticMessages(prev => [...prev, pendingMessage]);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-
             try {
                 const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${img.name}`;
                 const fileBucketRef = storageRef(storage, cloudPath);
@@ -1146,7 +1127,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
             } catch (err) {
               addToast('Failed to upload visual layout media.', 'error');
-                setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+              setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
             }
         }
     };
@@ -1239,7 +1220,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         const optimisticMessage = { id: optimisticId, ...data, timestamp: clientTimestamp };
 
         setMessages(prev => [...prev, optimisticMessage]);
-
         try {
           await set(msgRef, data);
           const updates: any = {};
@@ -1250,7 +1230,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           const metaTimestamp = firebaseServerTimestamp();
           
           const participantIds = Array.from(new Set([firebaseUser.uid, activeChat.otherUser.uid]));
-
           participantIds.forEach((participantId) => {
             updates[`user_chats/${participantId}/${activeChat.chatId}/last_message`] = {
               text: summaryText,
@@ -1263,7 +1242,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               ? activeChat.otherUser.uid
               : firebaseUser.uid;
           });
-
           updates[`user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`] = 0;
           if (activeChat.otherUser.uid !== firebaseUser.uid) {
             updates[`user_chats/${activeChat.otherUser.uid}/${activeChat.chatId}/unreadCount`] = increment(1);
@@ -1298,7 +1276,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 timestamp: now
             });
 
-            // Push notification to targetUser
             const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
             await set(notifRef, {
                 id: notifRef.key,
@@ -1308,7 +1285,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 is_read: false,
                 timestamp: now
             });
-
             addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
         } catch (err: any) {
             console.error('Failed to send partner request:', err);
@@ -1329,7 +1305,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             await set(myPartnerRef, true);
             await set(theirPartnerRef, true);
 
-            // Notify acceptor
             const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
             await set(notifRef, {
                 id: notifRef.key,
@@ -1339,7 +1314,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 is_read: false,
                 timestamp: Date.now()
             });
-
             addToast(`You are now study partners with ${targetUser.display_name}!`, 'success');
         } catch (err: any) {
             console.error('Failed to accept request:', err);
@@ -1381,13 +1355,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const msgRef = push(dbRef(db, `messages/${chatId}`));
                 const data = { senderId: firebaseUser.uid, text, type, timestamp: Date.now() };
                 await set(msgRef, data);
-
                 const updates: any = {};
                 let summaryText = text;
                 if (type === 'voice') summaryText = '🎵 Voice message';
                 else if (type === 'image') summaryText = '📷 Image file';
                 else if (type === 'file') summaryText = '📄 Document file';
-                
                 const participantIds = Array.from(new Set([firebaseUser.uid, recipientId]));
                 participantIds.forEach((participantId) => {
                     updates[`user_chats/${participantId}/${chatId}/last_message`] = {
@@ -1401,7 +1373,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         ? recipientId
                         : firebaseUser.uid;
                 });
-
                 updates[`user_chats/${firebaseUser.uid}/${chatId}/unreadCount`] = 0;
                 if (recipientId !== firebaseUser.uid) {
                     updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = increment(1);
@@ -1444,7 +1415,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 </div>
 
                 <div className="flex-1 overflow-y-auto bg-white">
-                    {tab === 'chats' ? activeChats.map(c => (
+                    {tab === 'chats' ?
+                    activeChats.map(c => (
                       <div
                         key={c.id}
                         onClick={() => {
@@ -1482,7 +1454,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                     {getUnreadCount(c) > 0 && (
                                       <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
                                             {getUnreadCount(c) > 99 ? '99+' : getUnreadCount(c)}
-                                        </span>
+                                      </span>
                                     )}
                                 </div>
                                 <p className="text-[11px] mt-1 text-[#6C757D] font-normal">
@@ -1490,7 +1462,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 </p>
                             </div>
                         </div>
-                     )) : filteredPeople.length === 0 ? (
+                    )) : filteredPeople.length === 0 ? (
                         <div className="text-center py-12 px-6 bg-[#F8F9FA]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF]">
                             <span className="text-2xl block mb-2 font-black text-[#6C757D]">👥</span>
                             <p className="text-sm font-bold text-[#212529]">No study mates found</p>
@@ -1540,7 +1512,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     <div className="flex flex-col h-full w-full relative overflow-hidden">
                         
                         {/* 1. STICKY FLOATING Header Bar */}
-                        <div className="absolute top-3 left-3 right-3 h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm rounded-2xl border border-[#E9ECEF]/60">
+                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[95%] h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm rounded-2xl border border-[#E9ECEF]/60">
                             <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
                              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                             <div className="flex-1 min-w-0">
@@ -1549,7 +1521,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 <VerificationBadge status={selectedChatUser.subscription_status} />
                                 <StreakBadge userProfile={selectedChatUser} size="md" />
                               </h2>
-                                <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
+                             <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
                                 {selectedChatUser.is_online ? (
                                         <>
                                             <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
@@ -1561,30 +1533,28 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 2. FULL HEIGHT Message Stream Box Container */}
-                        <div className="w-[95%] h-full absolute inset-0 overflow-y-auto px-4 pt-24 pb-44 md:pb-28 md:px-8 space-y-6 max-w-6xl mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+                        <div className="w-[95%] h-full absolute inset-0 overflow-y-auto px-4 pt-24 pb-44 md:pb-28 md:px-8 space-y-6 mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
                             {combinedMessageStream.length === 0 ? (
                               <div className="flex min-h-[48vh] flex-col items-center justify-center text-center">
                                 <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-white shadow-sm border border-[#E9ECEF]">
                                   <img src="/logo_icon.png" alt="AVELUT" className="h-11 w-11 object-contain" />
                                 </div>
                                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.24em] text-[#6C757D]">New contact</p>
-                                <h2 className="mt-2 text-2xl font-black text-[#212529]">Start a chat to connect</h2>
+                                  <h2 className="mt-2 text-2xl font-black text-[#212529]">Start a chat to connect</h2>
                                 <p className="mt-2 max-w-md text-sm leading-6 text-[#6C757D]">
                                   Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
                                 </p>
                               </div>
                             ) : combinedMessageStream.map((msg) => {
                                 const isMe = msg.senderId === firebaseUser?.uid;
-                                
-                                // Safe string checks on markdown regex match selectors
                                 const rawText = typeof msg.text === 'string' ? msg.text : '';
                                 const imageUrl = msg.type === 'image' ? (rawText.match(/\((.*?)\)/)?.[1] || rawText) : '';
-                              const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
-                              const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
+                                const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
+                                const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
                                 acc[reactionEmoji] = (acc[reactionEmoji] || 0) + 1;
                                 return acc;
-                              }, {});
-                              const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
+                                }, {});
+                                const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
                                 
                                 return (
                                     <div key={msg.id} className="space-y-1">
@@ -1593,10 +1563,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                 <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                                             )}
                                             
-                                            <div className={`px-5 py-3.5 shadow-sm max-w-[95%] text-[15px] md:text-[16px] relative select-text ${
+                                    <div className={`px-5 py-3.5 shadow-sm w-[95%] text-[15px] md:text-[16px] relative select-text ${
                                                 isMe 
-                                                    ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]' 
-                                                    : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
+                                              ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]' 
+                                              : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
                                     }`}
                                       onContextMenu={(event) => {
                                         event.preventDefault();
@@ -1619,7 +1589,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                         const now = Date.now();
                                         const lastTap = lastTapRef.current;
                                         const isDoubleTap = lastTap.id === msg.id && (now - lastTap.time) < 320;
-
                                         if (isDoubleTap) {
                                           void quickReactToMessage(msg, '❤️');
                                           lastTapRef.current = { id: null, time: 0 };
@@ -1641,7 +1610,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                         }
                                       }}
                                     >
-                                                
                                                 {/* Voice Note Player */}
                                                 {msg.type === 'voice' ? (
                                                     <VoiceNotePlayer 
@@ -1660,7 +1628,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                                 Processing Media...
                                                             </div>
                                                         ) : (
-                                                            <img src={imageUrl} alt="Shared Layout Media" className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                                              <img src={imageUrl} alt="Shared Layout Media" className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
                                                         )}
                                                     </div>
                                                 ) : (
@@ -1688,17 +1656,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                                     {sortedReactions.map(([emoji, count]) => (
                                                       <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white/20 text-white' : 'bg-[#E9ECEF] text-[#212529]'}`}>
-                                                        {emoji} {count}
+                                                             {emoji} {count}
                                                       </span>
                                                     ))}
                                                   </div>
                                                 )}
                                             </div>
                                         </div>
-                                        
                                         {!isMe && (
                                             <div className="pl-[46px] text-[13px] text-[#6C757D] font-normal">
-                                            {selectedChatUser.display_name}
+                                                {selectedChatUser.display_name}
                                             </div>
                                         )}
                                     </div>
@@ -1724,7 +1691,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                       onImageSelect={handleImageSelection}
                                     />
                                 ) : (
-                                    <div className="w-full max-w-[760px] mx-auto px-6 py-4 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-lg">
+                                      <div className="w-[95%] mx-auto px-6 py-4 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-lg">
                                         <div className="flex items-center gap-2 text-sm font-bold text-[#856404]">
                                             <span>🔒</span>
                                             <span>You can only message active Study Mates.</span>
@@ -1756,7 +1723,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                         Decline
                                                     </button>
                                                 </div>
-                                            ) : (
+                                              ) : (
                                                 <button
                                                     type="button"
                                                     onClick={() => sendPartnerRequest(selectedChatUser)}
@@ -1766,7 +1733,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                 </button>
                                             )}
                                         </div>
-                                    </div>
+                                     </div>
                                 )}
                             </div>
                         </div>
@@ -1777,7 +1744,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               ref={messageActionMenuRef}
                               className="absolute w-[min(92vw,320px)] rounded-2xl border border-[#E9ECEF] bg-white p-3 shadow-2xl"
                               style={{
-                                left: `${Math.max(12, Math.min((messageActionPosition?.x || 24) - 140, window.innerWidth - 332))}px`,
+                               left: `${Math.max(12, Math.min((messageActionPosition?.x || 24) - 140, window.innerWidth - 332))}px`,
                                 top: `${Math.max(12, Math.min((messageActionPosition?.y || 24) - 80, window.innerHeight - 220))}px`
                               }}
                             >
@@ -1791,7 +1758,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                     className="rounded-full border border-[#E9ECEF] bg-[#F8F9FA] px-2.5 py-1.5 text-base transition hover:bg-[#E9ECEF]"
                                     title={`React with ${emoji}`}
                                   >
-                                    {emoji}
+                                     {emoji}
                                   </button>
                                 ))}
                               </div>
@@ -1803,7 +1770,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 >
                                   Copy message
                                 </button>
-                                <button
+                               <button
                                   type="button"
                                   onClick={() => {
                                     setForwardTargetContent(messageActionTarget.text || '');
@@ -1821,7 +1788,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                   disabled={messageActionTarget.senderId !== firebaseUser?.uid}
                                   className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  Delete message
+                                     Delete message
                                 </button>
                               </div>
                             </div>
@@ -1834,19 +1801,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white shadow-sm border border-[#E9ECEF]">
                       <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
                     </div>
-                    <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529]">AVELUT</h2>
+                     <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529]">AVELUT</h2>
                     <p className="mt-2 text-sm leading-6 text-[#6C757D]">Pick a person to start a new chat and connect with them.</p>
                     </div>
                 )}
             </div>
-            {/* Study Partners network management modal */}
+             {/* Study Partners network management modal */}
             {showPartnerModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[85vh] animate-scale-in">
                         {/* Header */}
                         <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
                             <div>
-                                <h2 className="text-lg font-bold text-[#212529]">Study Partners ({Math.max(0, allUsers.length - 1)} registered)</h2>
+                               <h2 className="text-lg font-bold text-[#212529]">Study Partners ({Math.max(0, allUsers.length - 1)} registered)</h2>
                                 <p className="text-xs text-[#6C757D] font-medium mt-0.5">Build your academic network to collaborate and share lessons.</p>
                             </div>
                             <button
@@ -1857,7 +1824,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 }}
                                 className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#6C757D] hover:text-[#212529] transition border border-[#E9ECEF] shadow-sm font-bold"
                             >
-                                ✕
+                                 ✕
                             </button>
                         </div>
 
@@ -1869,7 +1836,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             >
                                 Find Partners
                             </button>
-                            <button
+                             <button
                                 onClick={() => setPartnerActiveSubTab('requests')}
                                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 ${partnerActiveSubTab === 'requests' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
                             >
@@ -1896,81 +1863,81 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                 onChange={(e) => setSearchPartnerName(e.target.value)}
                                                 className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm"
                                             />
-                                            {searchPartnerName && (
+                                             {searchPartnerName && (
                                                 <button onClick={() => setSearchPartnerName("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6C757D]">✕</button>
                                             )}
                                         </div>
-                                        <select
+                                         <select
                                             value={searchPartnerDept}
                                             onChange={(e) => setSearchPartnerDept(e.target.value)}
                                             className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm cursor-pointer"
-                                        >
+                                         >
                                             <option value="">All Departments</option>
-                                            {Array.from(new Set(allUsers.map(u => u.department_id).filter(Boolean))).map(dept => (
+                                         {Array.from(new Set(allUsers.map(u => u.department_id).filter(Boolean))).map(dept => (
                                                 <option key={dept} value={dept}>{dept}</option>
-                                            ))}
+                                         ))}
                                         </select>
                                     </div>
 
                                     {/* List */}
                                     <div className="space-y-3">
                                         {(() => {
-                                            const filtered = allUsers
+                                             const filtered = allUsers
                                                 .filter(u => u.uid !== firebaseUser?.uid)
                                                 .filter(u => {
                                                     if (searchPartnerName.trim()) {
-                                                        const q = searchPartnerName.toLowerCase();
-                                                        if (!(u.display_name || '').toLowerCase().includes(q)) return false;
+                                                         const q = searchPartnerName.toLowerCase();
+                                                         if (!(u.display_name || '').toLowerCase().includes(q)) return false;
                                                     }
                                                     if (searchPartnerDept) {
-                                                        if (u.department_id !== searchPartnerDept) return false;
+                                                         if (u.department_id !== searchPartnerDept) return false;
                                                     }
                                                     return true;
                                                 });
                                             if (filtered.length === 0) {
                                                 return (
-                                                    <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-dashed border-[#E9ECEF] p-6">
+                                                     <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-dashed border-[#E9ECEF] p-6">
                                                         <span className="text-3xl block mb-2">🔍</span>
-                                                        <p className="text-sm font-bold text-[#212529]">No students found</p>
+                                                         <p className="text-sm font-bold text-[#212529]">No students found</p>
                                                         <p className="text-xs text-[#6C757D] mt-1">Try checking the spelling or selecting another department filter.</p>
                                                     </div>
-                                                );
+                                                 );
                                             }
                                             return filtered.map(u => {
                                                 const isPartner = studyPartners[u.uid] === true;
                                                 const req = partnerRequests[u.uid];
-                                                
+                                                 
                                                 return (
-                                                    <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 hover:bg-neutral-100/70 border border-[#E9ECEF] rounded-2xl transition">
+                                                     <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 hover:bg-neutral-100/70 border border-[#E9ECEF] rounded-2xl transition">
                                                         <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                                                        <div className="min-w-0 flex-1">
+                                                     <div className="min-w-0 flex-1">
                                                             <h4 className="font-semibold text-sm text-[#212529] truncate flex items-center gap-1.5">
                                                                 <span>{u.display_name}</span>
                                                                 <VerificationBadge status={u.subscription_status} />
                                                             </h4>
-                                                            <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'} • {u.level ? `${u.level} Lvl` : 'Lvl N/A'}</p>
+                                                             <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'} • {u.level ? `${u.level} Lvl` : 'Lvl N/A'}</p>
                                                         </div>
-                                                        <div className="shrink-0">
+                                                         <div className="shrink-0">
                                                             {isPartner ? (
                                                                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full flex items-center gap-1">✓ Connected</span>
-                                                            ) : (req as any)?.status === 'sent' ? (
+                                                             ) : (req as any)?.status === 'sent' ? (
                                                                 <button
                                                                     onClick={() => cancelPartnerRequest(u)}
                                                                     className="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
                                                                     title="Cancel Request"
                                                                 >
-                                                                    Pending
+                                                                     Pending
                                                                 </button>
-                                                            ) : (req as any)?.status === 'received' ? (
+                                                             ) : (req as any)?.status === 'received' ? (
                                                                 <div className="flex gap-1.5">
                                                                     <button
                                                                         onClick={() => acceptPartnerRequest(u)}
                                                                         className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
                                                                     >
-                                                                        Accept
+                                                                         Accept
                                                                     </button>
                                                                 </div>
-                                                            ) : (
+                                                             ) : (
                                                                 <button
                                                                     onClick={() => sendPartnerRequest(u)}
                                                                     className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition cursor-pointer select-none"
@@ -1978,8 +1945,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                                     Connect
                                                                 </button>
                                                             )}
-                                                        </div>
-                                                    </div>
+                                                         </div>
+                                                     </div>
                                                 );
                                             });
                                         })()}
@@ -1994,30 +1961,30 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                             {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length === 0 ? (
                                                 <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No incoming requests</p>
                                             ) : (
-                                                Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => {
+                                                 Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => {
                                                     const sender = allUsers.find(x => x.uid === req.senderId) || { display_name: req.senderName, photo_url: '', department_id: '', level: '', uid: req.senderId } as any;
                                                     return (
                                                         <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                                                            <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={sender.display_name || 'Learner'} />
+                                                             <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={sender.display_name || 'Learner'} />
                                                             <div className="min-w-0 flex-1">
                                                                 <h4 className="font-semibold text-sm text-[#212529] truncate">{sender.display_name}</h4>
-                                                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{sender.department_id || 'No Department'}</p>
+                                                              <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{sender.department_id || 'No Department'}</p>
                                                             </div>
-                                                            <div className="flex gap-1.5 shrink-0">
+                                                             <div className="flex gap-1.5 shrink-0">
                                                                 <button
                                                                     onClick={() => acceptPartnerRequest(sender)}
                                                                     className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
                                                                 >
-                                                                    Accept
+                                                                     Accept
                                                                 </button>
                                                                 <button
                                                                     onClick={() => declinePartnerRequest(sender)}
                                                                     className="text-xs font-black uppercase tracking-wider text-[#6C757D] hover:text-red-600 bg-white hover:bg-red-50 border border-[#E9ECEF] hover:border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
                                                                 >
-                                                                    Decline
+                                                                     Decline
                                                                 </button>
-                                                            </div>
-                                                        </div>
+                                                             </div>
+                                                         </div>
                                                     );
                                                 })
                                             )}
@@ -2028,25 +1995,25 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                     <div>
                                         <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Pending Sent Requests</h3>
                                         <div className="space-y-3">
-                                            {Object.values(partnerRequests).filter((req: any) => req.status === 'sent').length === 0 ? (
+                                             {Object.values(partnerRequests).filter((req: any) => req.status === 'sent').length === 0 ? (
                                                 <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No pending sent requests</p>
                                             ) : (
                                                 Object.values(partnerRequests).filter((req: any) => req.status === 'sent').map((req: any) => {
                                                     const receiver = allUsers.find(x => x.uid === req.receiverId) || { display_name: 'Learner', photo_url: '', department_id: '', level: '', uid: req.receiverId } as any;
                                                     return (
-                                                        <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                                                            <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'Learner'} />
+                                                         <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
+                                                             <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'Learner'} />
                                                             <div className="min-w-0 flex-1">
                                                                 <h4 className="font-semibold text-sm text-[#212529] truncate">{receiver.display_name}</h4>
                                                                 <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{receiver.department_id || 'No Department'}</p>
                                                             </div>
-                                                            <button
+                                                             <button
                                                                 onClick={() => cancelPartnerRequest(receiver)}
                                                                 className="text-xs font-black uppercase tracking-wider text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none shrink-0"
-                                                            >
+                                                             >
                                                                 Cancel
-                                                            </button>
-                                                        </div>
+                                                             </button>
+                                                         </div>
                                                     );
                                                 })
                                             )}
@@ -2062,7 +2029,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             {/* Forward Message Modal */}
             {isForwardModalOpen && (
                 <ForwardModal
-                    isOpen={isForwardModalOpen}
+                     isOpen={isForwardModalOpen}
                     onClose={() => {
                         setIsForwardModalOpen(false);
                         setForwardTargetContent('');
@@ -2071,7 +2038,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     messageType={forwardTargetType}
                     studyPartners={studyPartners}
                     allUsers={allUsers}
-                    onForward={async (recipientIds) => {
+                     onForward={async (recipientIds) => {
                         await forwardMessageToUsers(forwardTargetContent, forwardTargetType, recipientIds);
                         setIsForwardModalOpen(false);
                         setForwardTargetContent('');
@@ -2106,14 +2073,12 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
-
     const partnersList = useMemo(() => {
         const list = allUsers.filter(u => studyPartners[u.uid] === true);
         if (!searchQuery.trim()) return list;
         const q = searchQuery.toLowerCase();
         return list.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.department_id || '').toLowerCase().includes(q));
     }, [allUsers, studyPartners, searchQuery]);
-
     const handleToggleSelect = (uid: string) => {
         setSelectedIds(prev =>
             prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
@@ -2129,13 +2094,12 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
             setSubmitting(false);
         }
     };
-
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[75vh] animate-scale-in">
                 {/* Header */}
                 <div className="p-5 border-b border-[#E9ECEF] flex items-center justify-between">
-                    <div>
+                     <div>
                         <h2 className="text-base font-bold text-[#212529]">Forward Message</h2>
                         <p className="text-[11px] text-[#6C757D] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
                     </div>
@@ -2143,7 +2107,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                         onClick={onClose}
                         disabled={submitting}
                         className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition"
-                    >
+                     >
                         ✕
                     </button>
                 </div>
@@ -2158,7 +2122,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
 
                 {/* Search */}
                 <div className="p-4 border-b border-[#E9ECEF]">
-                    <input
+                     <input
                         type="text"
                         placeholder="Search partners..."
                         value={searchQuery}
@@ -2173,28 +2137,28 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                         <p className="text-center text-xs font-medium text-[#6C757D] py-8 italic">No study partners found</p>
                     ) : (
                         partnersList.map(u => {
-                            const isChecked = selectedIds.includes(u.uid);
+                             const isChecked = selectedIds.includes(u.uid);
                             return (
                                 <div
                                     key={u.uid}
                                     onClick={() => handleToggleSelect(u.uid)}
                                     className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
-                                >
+                                 >
                                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                                        <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                                     <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
                                         <div className="min-w-0 flex-1">
                                             <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
-                                            <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
+                                             <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
                                         </div>
                                     </div>
-                                    <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
+                                     <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
                                         borderColor: isChecked ? '#009EE2' : '#CED4DA',
                                         backgroundColor: isChecked ? '#009EE2' : 'transparent'
                                     }}>
                                         {isChecked && (
-                                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                                                 <polyline points="20 6 9 17 4 12" />
-                                            </svg>
+                                             </svg>
                                         )}
                                     </div>
                                 </div>
@@ -2206,15 +2170,15 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                 {/* Footer Actions */}
                 <div className="p-4 border-t border-[#E9ECEF] bg-[#F8F9FA] flex gap-3 shrink-0">
                     <button
-                        onClick={onClose}
+                       onClick={onClose}
                         disabled={submitting}
                         className="flex-1 bg-white hover:bg-neutral-100 border border-[#E9ECEF] text-[#6C757D] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
-                    >
+                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleForwardAction}
-                        disabled={selectedIds.length === 0 || submitting}
+                         disabled={selectedIds.length === 0 || submitting}
                         className="flex-1 bg-[#009EE2] hover:bg-[#0070B8] text-white font-black text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50 disabled:bg-neutral-300"
                     >
                         {submitting ? 'Forwarding...' : `Send (${selectedIds.length})`}
