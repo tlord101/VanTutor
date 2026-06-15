@@ -659,6 +659,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [allDepartments, setAllDepartments] = useState<any[]>([]);
     const [newDeptName, setNewDeptName] = useState('');
     const [courseSearchQuery, setCourseSearchQuery] = useState('');
+    const [bulkDeleteLevel, setBulkDeleteLevel] = useState<string>('100lvl');
     const [managerSelectionDepartmentId, setManagerSelectionDepartmentId] = useState('');
     const [managerSelectionLevel, setManagerSelectionLevel] = useState('');
     const [courseDetailFiles, setCourseDetailFiles] = useState<File[]>([]);
@@ -1472,6 +1473,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         } catch (error: any) {
             console.error("Error merging duplicate courses:", error);
             addToast(error?.message || "Failed to merge duplicate courses", "error");
+        }
+    };
+
+
+    const handleDeleteAllCourses = async () => {
+        if (!window.confirm('Are you ABSOLUTELY SURE you want to delete ALL courses across ALL departments? This cannot be undone!')) return;
+        try {
+            const updates: any = {};
+            allDepartments.forEach(dept => {
+                updates[`departments_data/${dept.id}/course_list`] = null;
+                updates[`textbook_contexts/${dept.id}`] = null;
+            });
+            await update(dbRef(db), updates);
+            await fetchDepartments();
+            addToast('All courses in the system have been deleted.', 'success');
+        } catch (err: any) {
+            console.error('Delete all courses error:', err);
+            addToast(err.message || 'Failed to delete all courses', 'error');
+        }
+    };
+
+    const handleDeleteCoursesByLevel = async () => {
+        if (!window.confirm(`Are you sure you want to delete ALL courses for level ${bulkDeleteLevel} across all departments?`)) return;
+        try {
+            const updates: any = {};
+            allDepartments.forEach(dept => {
+                const existingList = dept.course_list ? normalizeCourseList(dept.course_list) : [];
+                const filtered = existingList.filter(c => normalizeLevel(c.level) !== bulkDeleteLevel);
+                updates[`departments_data/${dept.id}/course_list`] = filtered.length ? filtered : null;
+                updates[`textbook_contexts/${dept.id}/${bulkDeleteLevel}`] = null;
+            });
+            await update(dbRef(db), updates);
+            await fetchDepartments();
+            addToast(`All ${bulkDeleteLevel} courses have been deleted.`, 'success');
+        } catch (err: any) {
+            console.error('Delete level courses error:', err);
+            addToast(err.message || 'Failed to delete level courses', 'error');
         }
     };
 
@@ -4074,6 +4112,36 @@ FORMAT:
                                             >
                                                 Merge Same-Title Courses
                                             </button>
+                                        </div>
+
+                                        <div className="flex flex-col md:flex-row gap-3 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl items-center justify-between">
+                                            <div>
+                                                <h4 className="font-bold text-red-800 text-sm">Danger Zone</h4>
+                                                <p className="text-xs text-red-600">Bulk delete courses across the entire system.</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                <div className="flex items-center gap-1 bg-white border border-red-200 rounded-lg p-1">
+                                                    <select
+                                                        value={bulkDeleteLevel}
+                                                        onChange={e => setBulkDeleteLevel(e.target.value)}
+                                                        className="bg-transparent text-sm font-bold text-red-900 outline-none px-2"
+                                                    >
+                                                        {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                                    </select>
+                                                    <button
+                                                        onClick={handleDeleteCoursesByLevel}
+                                                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded"
+                                                    >
+                                                        Delete by Level
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    onClick={handleDeleteAllCourses}
+                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                                                >
+                                                    Delete ALL Courses
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {filteredGlobalCourses.length ? (
