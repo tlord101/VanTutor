@@ -140,16 +140,25 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
     'Z'
   ].join(' ');
 
+  const [clipId] = useState(() => `nav-clip-${Math.random().toString(36).substr(2, 9)}`);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up">
+      <svg width="0" height="0" className="absolute pointer-events-none">
+        <defs>
+          <clipPath id={clipId}>
+            <path d={pathD} />
+          </clipPath>
+        </defs>
+      </svg>
       <div 
         ref={containerRef}
         className="relative w-full max-w-md h-[calc(76px+env(safe-area-inset-bottom,0px))] bg-transparent"
       >
-        {/* Glassmorphic Background clipped to the custom notch shape using inline path() */}
+        {/* Glassmorphic Background clipped to the custom notch shape */}
         <div 
           className="absolute inset-0 shadow-[0_-8px_30px_rgba(0,45,98,0.08)] z-0"
-          style={{ clipPath: `path('${pathD}')`, WebkitClipPath: `path('${pathD}')` }}
+          style={{ clipPath: `url(#${clipId})`, WebkitClipPath: `url(#${clipId})` }}
         >
            <div className="absolute inset-0 bg-white/95 backdrop-blur-xl"></div>
         </div>
