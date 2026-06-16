@@ -1089,6 +1089,7 @@ const App: React.FC = () => {
                             handleDeleteAccount={handleAccountDeletion}
                             startTour={startTour}
                             triggerScanRef={triggerScanRef}
+                            onNavigate={setActiveItem}
                         />
                     )}
                 </div>

@@ -336,7 +336,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className="w-[95%] mx-auto relative select-none z-40 px-4">
+    <div className="w-full relative select-none z-40 px-2 sm:px-4 md:w-[95%] md:mx-auto">
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
@@ -436,7 +436,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 // MAIN UNIFORM LIGHT THEME MESSENGER
 // ==========================================
 
-export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null }> = ({ userProfile, initialChatId = null }) => {
+export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null; onNavigate?: (tab: string) => void }> = ({ userProfile, initialChatId = null, onNavigate }) => {
     const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
     const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
     const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
@@ -1392,7 +1392,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
                 <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
                     <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
+                        <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         </button>
                         <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
@@ -1680,7 +1680,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 3. FLOATING Bottom Control Anchor Panel Bar */}
-                        <div className="absolute bottom-4 left-0 right-0 z-30 w-full pointer-events-none px-4 md:px-0">
+                        <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none pb-2 bg-white/80 backdrop-blur-md md:bg-transparent md:backdrop-blur-none md:absolute md:bottom-4 md:pb-0">
                             <div className="pointer-events-auto">
                                 {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                                     <AvelutMessageInput

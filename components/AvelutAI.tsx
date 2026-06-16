@@ -47,6 +47,7 @@ interface HistoryItem {
 
 interface AvelutAIProps {
   userProfile: UserProfile;
+  onNavigate?: (tab: string) => void;
 }
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -266,7 +267,7 @@ const ShareUploadIcon = () => (
   </svg>
 );
 
-export default function AvelutAI({ userProfile }: AvelutAIProps) {
+export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
@@ -923,7 +924,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#060814]">
           <header className="flex items-center justify-between border-b border-neutral-800/40 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <button onClick={() => window.history.back()} className="rounded-2xl border border-neutral-800 bg-[#0d1122] p-2 text-slate-300 transition hover:bg-[#1a2133]" aria-label="Go back">
+              <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-neutral-800 bg-[#0d1122] p-2 text-slate-300 transition hover:bg-[#1a2133]" aria-label="Go back">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
               </button>
               <button
@@ -946,7 +947,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
           </header>
 
           {/* Messages List Container */}
-          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-4 sm:px-6">
+          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[110px] md:pb-4 sm:px-6">
             {messages.length === 0 ? (
               <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-600 text-white shadow-lg">
@@ -1093,8 +1094,8 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
           </section>
 
           {/* Integrated AVELUT Input Layout Panel */}
-          <footer className="w-full bg-[#060814] pb-4 px-4 z-30 shrink-0 flex justify-center">
-            <div className="w-full max-w-6xl transition-all duration-300 mb-2.5">
+          <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[#060814]/90 backdrop-blur-md pb-2 px-0 md:relative md:pb-4 md:px-4 md:bg-[#060814] md:backdrop-blur-none shrink-0 flex justify-center">
+            <div className="w-full max-w-6xl transition-all duration-300 md:mb-2.5">
               
               {/* Attachment Preview */}
               {attachments.length > 0 && (
@@ -1108,7 +1109,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
 
               {/* STATES 1, 2, 3: Stadium Input Box Bar */}
               {inputState !== 4 && (
-                <div className="relative w-full min-h-[64px] bg-[#1e1f20] rounded-[32px] flex items-center justify-between pl-4 pr-2 border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="relative w-full min-h-[64px] bg-[#1e1f20] rounded-none md:rounded-[32px] flex items-center justify-between pl-4 pr-2 border-t md:border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                   
                   <div className="relative">
                     <button

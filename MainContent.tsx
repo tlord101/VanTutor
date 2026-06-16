@@ -28,6 +28,7 @@ interface MainContentProps {
     handleDeleteAccount: () => Promise<{ success: boolean; error?: string; }>;
     startTour: () => void;
     triggerScanRef?: React.MutableRefObject<(() => void) | null>;
+    onNavigate?: (tab: string) => void;
 }
 
 const LoadingFallback = () => (
@@ -49,6 +50,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     handleDeleteAccount,
     startTour,
     triggerScanRef,
+    onNavigate,
 }) => {
     if (!userProfile) return null;
 
@@ -77,13 +79,13 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'messenger':
                         return (
                             <ErrorBoundary>
-                                <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} />
+                                <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} onNavigate={onNavigate} />
                             </ErrorBoundary>
                         );
                     case 'chat':
                         return (
                             <ErrorBoundary>
-                                <AvelutAI userProfile={userProfile} />
+                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} />
                             </ErrorBoundary>
                         );
                     case 'admin':
