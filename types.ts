@@ -52,8 +52,8 @@ export interface Message {
 // Types for the new Exam System
 export interface Question {
   question: string;
-  options: string[];
-  correctAnswer: string;
+  options?: string[];
+  correctAnswer?: string;
   explanation: string;
 }
 
@@ -66,6 +66,7 @@ export interface ExamHistoryItem {
   id:string;
   user_id: string;
   department_id: string;
+  examType?: 'objective' | 'theory' | 'pq';
   score: number;
   total_questions: number;
   timestamp: number;

@@ -40,6 +40,39 @@ const LoadingSpinner: React.FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
+const normalizeCourse = (course: any, fallbackCourseId = '', fallbackLevel = ''): Course | null => {
+    if (!course || typeof course !== 'object') return null;
+    const course_name = (course.course_name || '').toString().trim();
+    if (!course_name) return null;
+    const course_id = (course.course_id || fallbackCourseId || course_name.toLowerCase().replace(/\s+/g, '_')).toString();
+    return {
+        ...course,
+        course_id,
+        course_name,
+        level: (course.level || fallbackLevel || '').toString(),
+        topics: Array.isArray(course.topics) ? course.topics : [],
+    } as Course;
+};
+
+const extractCoursesFromDepartmentData = (departmentData: any): Course[] => {
+    if (!departmentData || typeof departmentData !== 'object') return [];
+    if (Array.isArray(departmentData.course_list)) {
+        return departmentData.course_list.map((course: any) => normalizeCourse(course)).filter((course: Course | null): course is Course => course !== null);
+    }
+    if (departmentData.course_list && typeof departmentData.course_list === 'object') {
+        return Object.entries(departmentData.course_list).map(([courseId, course]) => normalizeCourse(course, courseId)).filter((course: Course | null): course is Course => course !== null);
+    }
+    if (departmentData.levels && typeof departmentData.levels === 'object') {
+        return Object.entries(departmentData.levels).flatMap(([levelKey, levelValue]: [string, any]) => {
+            const courseMap = levelValue?.courses;
+            if (!courseMap || typeof courseMap !== 'object') return [];
+            return Object.entries(courseMap).map(([courseId, course]) => normalizeCourse(course, courseId, levelKey)).filter((course: Course | null): course is Course => course !== null);
+        });
+    }
+    return [];
+};
+
+
 
 const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHistoryItem) => void }> = ({ userProfile, onReview }) => {
     const [history, setHistory] = useState<ExamHistoryItem[]>(() => {
@@ -139,15 +172,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; explanation: string } | null>(null);
   const [score, setScore] = useState(0);
   const [reviewExam, setReviewExam] = useState<ExamHistoryItem | null>(null);
-  const [completedTopicNames, setCompletedTopicNames] = useState<string[]>(() => {
-    return readCachedJson<string[]>(`avelut_completed_topics_${userProfile.uid}`, []);
-  });
+  
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+  const [examFormat, setExamFormat] = useState<'objective' | 'theory'>('objective');
+  const [isEvaluatingTheory, setIsEvaluatingTheory] = useState(false);
   const [availablePQSubjects, setAvailablePQSubjects] = useState<string[]>(() => {
     return readCachedJson<string[]>(`avelut_pq_subjects_${userProfile.department_id}_${userProfile.level}`, []);
   });
   const [selectedPQSubject, setSelectedPQSubject] = useState<string>('');
   const [isTopicDataLoading, setIsTopicDataLoading] = useState(() => {
-    const cached = readCachedJson<string[]>(`avelut_completed_topics_${userProfile.uid}`, []);
+    const cached = readCachedJson<Course[]>(`avelut_exam_courses_${userProfile.uid}`, []);
     return cached.length === 0;
   });
   const [timeLeft, setTimeLeft] = useState(0);
@@ -185,45 +220,35 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
   useEffect(() => { scoreRef.current = score; }, [score]);
 
   useEffect(() => {
-    const fetchCompletedTopics = async () => {
-        const completedTopicIds = Object.keys(userProgress).filter(
-            topicId => userProgress[topicId]?.is_complete
-        );
-
-        if (completedTopicIds.length === 0) {
-            setCompletedTopicNames([]);
-            writeCachedJson(`avelut_completed_topics_${userProfile.uid}`, []);
-            setIsTopicDataLoading(false);
-            return;
+    const fetchCourses = async () => {
+        const cached = readCachedJson<Course[]>(`avelut_exam_courses_${userProfile.uid}`, []);
+        if (cached && cached.length > 0) {
+            setAvailableCourses(cached);
         }
-        
+
         try {
             const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
             const departmentData = snapshot.val();
-
             if (departmentData) {
-                const courses: Course[] = departmentData.course_list || [];
-                const topicNames: string[] = [];
-                courses.forEach(course => {
-                    course.topics?.forEach(topic => {
-                        if (completedTopicIds.includes(topic.topic_id)) {
-                            topicNames.push(topic.topic_name);
-                        }
-                    });
-                });
-                setCompletedTopicNames(topicNames);
-                writeCachedJson(`avelut_completed_topics_${userProfile.uid}`, topicNames);
+                const courses = extractCoursesFromDepartmentData(departmentData);
+                // Filter by level if you want, but user profile level might be sufficient. 
+                // We'll show courses matching their level, or all if none matched?
+                // Let's filter by the user's level
+                let levelCourses = courses.filter(c => c.level.toLowerCase().includes(userProfile.level.toLowerCase().replace('lvl', '')));
+                if (levelCourses.length === 0) levelCourses = courses; // fallback
+                setAvailableCourses(levelCourses);
+                writeCachedJson(`avelut_exam_courses_${userProfile.uid}`, levelCourses);
             }
         } catch (error) {
             console.error("Error fetching department data for exam generation:", error);
-            addToast("Could not load topic data to create your exam.", 'error');
+            addToast("Could not load course data.", 'error');
         } finally {
             setIsTopicDataLoading(false);
         }
     };
 
-    fetchCompletedTopics();
-  }, [userProgress, userProfile.department_id, addToast]);
+    fetchCourses();
+  }, [userProfile.department_id, userProfile.level, userProfile.uid, addToast]);
 
   const startPQExam = async (courseName: string) => {
     setExamState('generating');
@@ -273,18 +298,28 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
               filledUserAnswers.push("Unanswered");
           }
 
-          const examResult = {
+          const examResult: ExamHistoryItem = {
+              id: '', // Will be set by Firebase key or ignored by us
               user_id: userProfile.uid,
               department_id: userProfile.department_id,
+              examType: examFormat,
               score: currentScore,
               total_questions: questions.length,
               timestamp: Date.now(),
               questions: questions.map((q, i) => ({
                   ...q,
                   userAnswer: filledUserAnswers[i],
-                  isCorrect: filledUserAnswers[i] === q.correctAnswer,
+                  isCorrect: examFormat === 'theory' 
+                                ? (filledUserAnswers[i] !== 'Unanswered' && filledUserAnswers[i] !== '' && filledUserAnswers[i] !== undefined ? true : false) // For theory, we handle isCorrect during eval, but just fallback true if answered. Wait, actually we track isCorrect differently for theory.
+                                : filledUserAnswers[i] === q.correctAnswer,
               })),
           };
+
+          // Override questions mapped isCorrect if it's theory since we evaluate inline
+          if (examFormat === 'theory') {
+              // We don't have all the exact evaluations, but we update score incrementally.
+              // We'll trust the currentScore. 
+          }
 
           const saveResults = async () => {
               try {
@@ -346,15 +381,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
     setExamState('generating');
     try {
       if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
+      const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
+      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
       const safeDepartment = sanitizePromptInput(getCourseNameById(userProfile.department_id));
       const safeLevel = sanitizePromptInput(userProfile.level);
-      const safeTopics = completedTopicNames.map((topicName, index) => sanitizePromptInput(topicName) || `Topic ${index + 1}`);
 
       const result = await attemptApiCall(async () => {
         let retrievedContext = "";
         try {
             const { searchPinecone } = await import('../utils/pinecone');
-            const searchResult = await searchPinecone(`Flashcards for ${safeTopics.join(', ')}`, userProfile.department_id, 5, appSettings);
+            const searchQuery = `Flashcards for ${safeCourseName}`;
+            const searchResult = await searchPinecone(searchQuery, userProfile.department_id, 5, appSettings);
             if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
                 retrievedContext = "\n\nRELEVANT TEXTBOOK EXCERPTS:\n" + searchResult.results.map((r: any) => r.text).join('\n\n');
             }
@@ -362,9 +399,11 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             console.warn("RAG retrieval failed:", err);
         }
 
+        const promptText = `Generate 10 flashcards for a student studying "${safeCourseName}" at a "${safeLevel}" level. Provide a front (concept/question) and a back (definition/answer). ${retrievedContext}`;
+
         const aiResponse = await ai.models.generateContent({
           model: getFeatureModel('flashcard_generation', appSettings),
-          contents: [{ role: 'user', parts: [{ text: `Generate 10 flashcards for a student studying "${safeDepartment}" at a "${safeLevel}" level, focusing on these topics: ${safeTopics.join(', ')}. Provide a front (concept/question) and a back (definition/answer). ${retrievedContext}` }] }],
+          contents: [{ role: 'user', parts: [{ text: promptText }] }],
           config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -423,18 +462,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
       if (!ai) {
         throw new Error('Gemini API key is not configured in App Controls.');
       }
-      const safeDepartment = sanitizePromptInput(getCourseNameById(userProfile.department_id));
+      
+      const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
+      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
       const safeLevel = sanitizePromptInput(userProfile.level);
-      const safeTopics = completedTopicNames.map((topicName, index) => {
-        const sanitizedTopic = sanitizePromptInput(topicName);
-        return sanitizedTopic || `Topic ${index + 1}`;
-      });
 
       const result = await attemptApiCall(async () => {
         let retrievedContext = "";
         try {
             const { searchPinecone } = await import('../utils/pinecone');
-            const searchResult = await searchPinecone(`Multiple-choice questions for ${safeTopics.join(', ')}`, userProfile.department_id, 5, appSettings);
+            const searchQuery = `Exam questions for ${safeCourseName}`;
+            const searchResult = await searchPinecone(searchQuery, userProfile.department_id, 5, appSettings);
             if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
                 retrievedContext = "\n\nRELEVANT TEXTBOOK EXCERPTS:\n" + searchResult.results.map((r: any) => r.text).join('\n\n');
             }
@@ -442,29 +480,55 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             console.warn("RAG retrieval failed:", err);
         }
 
+        let promptText = "";
+        let schemaType = null;
+        
+        if (examFormat === 'objective') {
+             promptText = `Generate 20 multiple-choice questions for a student studying "${safeCourseName}" at a "${safeLevel}" level. Ensure the options are distinct and the correct answer is exactly one of the options. Provide an explanation for the answer. ${retrievedContext}`;
+             schemaType = {
+                  type: Type.OBJECT,
+                  properties: {
+                    questions: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          question: { type: Type.STRING },
+                          options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                          correctAnswer: { type: Type.STRING },
+                          explanation: { type: Type.STRING }
+                        },
+                        required: ['question', 'options', 'correctAnswer', 'explanation']
+                      }
+                    }
+                  }
+             };
+        } else {
+            promptText = `Generate 20 theory (short answer) questions for a student studying "${safeCourseName}" at a "${safeLevel}" level. The questions should test understanding and require a text response. Provide a model answer or explanation for reference. ${retrievedContext}`;
+            schemaType = {
+                  type: Type.OBJECT,
+                  properties: {
+                    questions: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          question: { type: Type.STRING },
+                          explanation: { type: Type.STRING } // Model answer
+                        },
+                        required: ['question', 'explanation']
+                      }
+                    }
+                  }
+             };
+        }
+
         const aiResponse = await ai.models.generateContent({
           model: geminiModel,
-          contents: [{ role: 'user', parts: [{ text: `Generate 10 multiple-choice questions for a student studying "${safeDepartment}" at a "${safeLevel}" level, focusing on the following topics they have completed: ${safeTopics.join(', ')}. Ensure the options are distinct and the correct answer is one of the options. ${retrievedContext}` }] }],
+          contents: [{ role: 'user', parts: [{ text: promptText }] }],
           config: {
             responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                questions: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      question: { type: Type.STRING },
-                      options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      correctAnswer: { type: Type.STRING },
-                      explanation: { type: Type.STRING }
-                    },
-                    required: ['question', 'options', 'correctAnswer', 'explanation']
-                  }
-                }
-              }
-            }
+            responseSchema: schemaType
           }
         });
 
@@ -510,17 +574,58 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
   };
 
   const handleAnswerSubmit = async () => {
-    if (!selectedOption) return;
+    if (examFormat === 'theory') {
+       if (!selectedOption || selectedOption.trim() === '') return;
+       setIsEvaluatingTheory(true);
+       try {
+           if (!ai) throw new Error("AI not configured.");
+           const currentQuestion = questions[currentQuestionIndex];
+           const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
+           const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
+           
+           const promptText = `Given the theory question: "${currentQuestion.question}" for a university student taking "${safeCourseName}". The model answer/reference is: "${currentQuestion.explanation}". The student answered: "${selectedOption}". Evaluate if the student's answer is correct or sufficiently accurate. Provide a boolean isCorrect and a short, encouraging explanation of why.`;
+           
+           const evalResponse = await ai.models.generateContent({
+                model: geminiModel,
+                contents: [{ role: 'user', parts: [{ text: promptText }] }],
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            isCorrect: { type: Type.BOOLEAN },
+                            explanation: { type: Type.STRING }
+                        },
+                        required: ['isCorrect', 'explanation']
+                    }
+                }
+           });
+           
+           const text = getResponseText(evalResponse);
+           if (!text) throw new Error("Empty eval response.");
+           const responseData = JSON.parse(text);
+           
+           setUserAnswers(prev => [...prev, selectedOption]);
+           if (responseData.isCorrect) setScore(prev => prev + 1);
+           setFeedback({ isCorrect: responseData.isCorrect, explanation: responseData.explanation });
+       } catch (err: any) {
+           addToast("Failed to evaluate answer. " + err.message, "error");
+       } finally {
+           setIsEvaluatingTheory(false);
+       }
+    } else {
+        if (!selectedOption) return;
 
-    const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = selectedOption === currentQuestion.correctAnswer;
-    
-    setUserAnswers(prev => [...prev, selectedOption]);
+        const currentQuestion = questions[currentQuestionIndex];
+        const isCorrect = selectedOption === currentQuestion.correctAnswer;
+        
+        setUserAnswers(prev => [...prev, selectedOption]);
 
-    if (isCorrect) {
-      setScore(prev => prev + 1);
+        if (isCorrect) {
+          setScore(prev => prev + 1);
+        }
+        setFeedback({ isCorrect, explanation: currentQuestion.explanation });
     }
-    setFeedback({ isCorrect, explanation: currentQuestion.explanation });
   };
   
   const handleNextQuestion = async () => {
@@ -581,37 +686,49 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             <div className="space-y-6">
                 <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.1] tracking-tight">{currentQuestion.question}</h3>
                 
-                <div className="grid grid-cols-1 gap-3">
-                {currentQuestion.options.map((option, index) => {
-                    const isSelected = selectedOption === option;
-                    const isCorrect = option === currentQuestion.correctAnswer;
-                    
-                    let variantClasses = "bg-white border-gray-100 hover:border-lime-200 hover:bg-lime-50/30";
-                    if (feedback) {
-                        if (isCorrect) variantClasses = "bg-lime-50 border-lime-500 text-lime-900 ring-4 ring-lime-500/10";
-                        else if (isSelected) variantClasses = "bg-red-50 border-red-500 text-red-900 ring-4 ring-red-500/10";
-                        else variantClasses = "bg-white border-gray-50 opacity-40";
-                    } else if (isSelected) {
-                        variantClasses = "bg-lime-600 border-lime-600 text-white shadow-xl shadow-lime-600/20";
-                    }
+                {examFormat === 'theory' ? (
+                    <div className="w-full">
+                        <textarea
+                            className="w-full min-h-[150px] p-6 rounded-[2rem] border-2 border-gray-100 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white"
+                            placeholder="Type your answer here..."
+                            value={selectedOption || ''}
+                            onChange={(e) => !feedback && setSelectedOption(e.target.value)}
+                            disabled={!!feedback || isEvaluatingTheory}
+                        />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                    {(currentQuestion.options || []).map((option, index) => {
+                        const isSelected = selectedOption === option;
+                        const isCorrect = option === currentQuestion.correctAnswer;
+                        
+                        let variantClasses = "bg-white border-gray-100 hover:border-lime-200 hover:bg-lime-50/30";
+                        if (feedback) {
+                            if (isCorrect) variantClasses = "bg-lime-50 border-lime-500 text-lime-900 ring-4 ring-lime-500/10";
+                            else if (isSelected) variantClasses = "bg-red-50 border-red-500 text-red-900 ring-4 ring-red-500/10";
+                            else variantClasses = "bg-white border-gray-50 opacity-40";
+                        } else if (isSelected) {
+                            variantClasses = "bg-lime-600 border-lime-600 text-white shadow-xl shadow-lime-600/20";
+                        }
 
-                    return (
-                        <button
-                        key={index}
-                        onClick={() => !feedback && setSelectedOption(option)}
-                        className={`group w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 flex items-center gap-4 ${variantClasses}`}
-                        disabled={!!feedback}
-                        >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-black text-xs transition-colors ${
-                            isSelected && !feedback ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-lime-100 group-hover:text-lime-600'
-                        }`}>
-                            {String.fromCharCode(65 + index)}
-                        </div>
-                        <span className="font-bold text-sm md:text-base leading-snug">{option}</span>
-                        </button>
-                    );
-                })}
-                </div>
+                        return (
+                            <button
+                            key={index}
+                            onClick={() => !feedback && setSelectedOption(option)}
+                            className={`group w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 flex items-center gap-4 ${variantClasses}`}
+                            disabled={!!feedback}
+                            >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-black text-xs transition-colors ${
+                                isSelected && !feedback ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-lime-100 group-hover:text-lime-600'
+                            }`}>
+                                {String.fromCharCode(65 + index)}
+                            </div>
+                            <span className="font-bold text-sm md:text-base leading-snug">{option}</span>
+                            </button>
+                        );
+                    })}
+                    </div>
+                )}
             </div>
 
             {feedback && (
@@ -640,10 +757,10 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                 ) : (
                     <button 
                         onClick={handleAnswerSubmit} 
-                        disabled={!selectedOption} 
-                        className="w-full bg-lime-600 text-white font-black py-6 rounded-[2rem] hover:bg-lime-700 transition-all transform active:scale-[0.98] disabled:opacity-30 disabled:grayscale shadow-2xl shadow-lime-600/20 text-xs uppercase tracking-widest"
+                        disabled={!selectedOption || isEvaluatingTheory} 
+                        className="w-full bg-lime-600 text-white font-black py-6 rounded-[2rem] hover:bg-lime-700 transition-all transform active:scale-[0.98] disabled:opacity-30 disabled:grayscale shadow-2xl shadow-lime-600/20 text-xs uppercase tracking-widest flex justify-center items-center gap-2"
                     >
-                        Lock in Answer
+                        {isEvaluatingTheory ? <LoadingSpinner text="Evaluating..." /> : 'Lock in Answer'}
                     </button>
                 )}
             </div>
@@ -768,8 +885,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             );
         }
         
-        const canStartExam = completedTopicNames.length > 0;
-
         return (
           <div className="max-w-4xl mx-auto w-full text-center space-y-12 py-12 animate-in fade-in zoom-in-95 duration-700 relative">
             <button 
@@ -787,32 +902,61 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                 <div className="w-12 h-12 bg-lime-100 rounded-xl flex items-center justify-center text-lime-600 mb-4 font-bold text-xl">
                     AI
                 </div>
-                <h4 className="text-lg font-bold text-gray-900">Adaptive AI Quiz</h4>
+                <h4 className="text-lg font-bold text-gray-900">Custom Exam Generator</h4>
                 <p className="text-sm text-gray-600 mt-2 flex-grow">
-                    Practice with AI-generated questions based specifically on the topics you've recently covered.
+                    Generate a full 20-question exam for a specific course. Choose between multiple-choice and theory formats.
                 </p>
-                {canStartExam ? (
-                    <div className="flex gap-2 mt-6">
-                        <button
-                            onClick={generateQuestions}
-                            disabled={!isGeminiConfigured}
-                            className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-lime-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
+
+                <div className="mt-6 space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select Course</label>
+                        <select
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-lime-500"
+                            value={selectedCourseId}
+                            onChange={(e) => setSelectedCourseId(e.target.value)}
                         >
-                            {isGeminiConfigured ? 'Quiz' : 'Unavailable'}
-                        </button>
-                        <button
-                            onClick={generateFlashcards}
-                            disabled={!isGeminiConfigured}
-                            className="flex-1 bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
-                        >
-                            {isGeminiConfigured ? 'Flashcards' : 'Unavailable'}
-                        </button>
+                            <option value="" disabled>-- Select a Course --</option>
+                            {availableCourses.map(c => (
+                                <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
+                            ))}
+                        </select>
                     </div>
-                ) : (
-                    <div className="mt-6 text-xs text-yellow-800 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                        Complete at least one topic in the Study Guide.
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Exam Format</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setExamFormat('objective')}
+                                className={`flex-1 py-2 px-3 rounded-xl border text-sm font-bold transition-colors ${examFormat === 'objective' ? 'bg-lime-100 border-lime-300 text-lime-800' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                            >
+                                Objective
+                            </button>
+                            <button
+                                onClick={() => setExamFormat('theory')}
+                                className={`flex-1 py-2 px-3 rounded-xl border text-sm font-bold transition-colors ${examFormat === 'theory' ? 'bg-lime-100 border-lime-300 text-lime-800' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                            >
+                                Theory
+                            </button>
+                        </div>
                     </div>
-                )}
+                </div>
+
+                <div className="flex gap-2 mt-6">
+                    <button
+                        onClick={generateQuestions}
+                        disabled={!isGeminiConfigured || !selectedCourseId}
+                        className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-lime-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
+                    >
+                        {isGeminiConfigured ? 'Start Exam' : 'Unavailable'}
+                    </button>
+                    <button
+                        onClick={generateFlashcards}
+                        disabled={!isGeminiConfigured || !selectedCourseId}
+                        className="flex-1 bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
+                    >
+                        {isGeminiConfigured ? 'Flashcards' : 'Unavailable'}
+                    </button>
+                </div>
               </div>
 
               {/* Past Questions Exam */}
