@@ -966,6 +966,23 @@ const App: React.FC = () => {
         );
     }
     
+    if (isUploadCenterRoute) {
+        if (!appSettings.upload_center_uploads_enabled) {
+            return (
+                <ComingSoonScreen
+                    title="Textbook uploads are paused"
+                    subtitle="The upload center is temporarily locked by an administrator."
+                    supportText="Please check back later or contact an admin for access."
+                />
+            );
+        }
+        return (
+            <ErrorBoundary>
+                <UploadCenter />
+            </ErrorBoundary>
+        );
+    }
+
     if (!user) {
         return (
             <div key="auth-state" className="min-h-screen">
@@ -989,23 +1006,6 @@ const App: React.FC = () => {
                     supportText="If you are an admin, open the admin panel to manage launch settings."
                 />
             </div>
-        );
-    }
-
-    if (isUploadCenterRoute) {
-        if (!appSettings.upload_center_uploads_enabled) {
-            return (
-                <ComingSoonScreen
-                    title="Textbook uploads are paused"
-                    subtitle="The upload center is temporarily locked by an administrator."
-                    supportText="Please check back later or contact an admin for access."
-                />
-            );
-        }
-        return (
-            <ErrorBoundary>
-                <UploadCenter />
-            </ErrorBoundary>
         );
     }
 
