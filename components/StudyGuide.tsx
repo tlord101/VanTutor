@@ -1261,7 +1261,14 @@ Student: "${tempInput}"
         <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <button
+                  onClick={onClose}
+                  aria-label="Back to curriculum"
+                  title="Back"
+                  className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full active:scale-95"
+                >
+                  <ArrowLeftIcon />
+                </button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     <button 
@@ -1269,7 +1276,8 @@ Student: "${tempInput}"
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        aria-label="Watch video tutorials"
+                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm active:scale-95"
                     >
                         Video Tutorial
                     </button>
@@ -1277,7 +1285,8 @@ Student: "${tempInput}"
                     <div className="relative">
                         <button 
                             onClick={() => setShowShareDropdown(!showShareDropdown)}
-                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
+                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none active:scale-95"
+                            aria-label="More share options"
                             title="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1538,6 +1547,7 @@ Student: "${tempInput}"
                             } 
                         }} 
                         placeholder="Ask a question..." 
+                        aria-label="Ask a question"
                         className="w-full bg-white border border-gray-300 rounded-[24px] py-3.5 pl-12 pr-14 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500 focus:outline-none resize-none overflow-y-auto max-h-[180px] transition-all"
                         rows={1}
                         disabled={isThinking || isIllustrating}
@@ -1545,9 +1555,19 @@ Student: "${tempInput}"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
+                    <label
+                      className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors active:scale-95"
+                      title="Attach image"
+                    >
                         <PaperclipIcon className="w-5 h-5" />
-                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleFileChange}
+                          disabled={isThinking || isIllustrating}
+                          accept="image/*"
+                          aria-label="Attach image"
+                        />
                     </label>
                     <button 
                         onClick={(e) => {
@@ -1555,7 +1575,9 @@ Student: "${tempInput}"
                             handleSend();
                         }} 
                         disabled={isThinking || isIllustrating || (!input.trim() && !file)}
-                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
+                        aria-label="Send message"
+                        title="Send"
+                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md active:scale-95"
                     >
                         <SendIcon className="w-5 h-5" />
                     </button>
@@ -1583,7 +1605,9 @@ Student: "${tempInput}"
                     <h3 className="text-base font-black uppercase tracking-widest text-slate-700">Video Tutorials</h3>
                     <button 
                         onClick={() => setIsTutorialsOpen(false)}
-                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors"
+                        aria-label="Close tutorials"
+                        title="Close"
+                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors active:scale-95"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -2039,6 +2063,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         <input 
                             type="text" 
                             placeholder="Find a topic..."
+                            aria-label="Search topics"
                             value={filter.searchTerm}
                             onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
                             className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald focus:border-emerald focus:outline-none transition-all"
@@ -2348,7 +2373,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                     <span className="text-white text-sm font-black tracking-wide truncate pr-4">{video.title}</span>
                     <button 
                         onClick={handleClose}
-                        className="text-white/80 hover:text-white bg-black/40 hover:bg-black/60 p-2 rounded-full backdrop-blur-sm transition-all"
+                        aria-label="Close video player"
+                        title="Close"
+                        className="text-white/80 hover:text-white bg-black/40 hover:bg-black/60 p-2 rounded-full backdrop-blur-sm transition-all active:scale-95"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2394,7 +2421,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                             {/* Play/Pause */}
                             <button 
                                 onClick={togglePlay}
-                                className="text-white hover:text-blue-400 transition-colors p-1"
+                                aria-label={isPlaying ? "Pause" : "Play"}
+                                title={isPlaying ? "Pause" : "Play"}
+                                className="text-white hover:text-blue-400 transition-colors p-1 active:scale-95"
                             >
                                 {isPlaying ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
                             </button>
@@ -2403,12 +2432,15 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                             <div className="flex items-center gap-2 group/volume">
                                 <button 
                                     onClick={toggleMute}
-                                    className="text-white hover:text-blue-400 transition-colors p-1"
+                                    aria-label={isMuted ? "Unmute" : "Mute"}
+                                    title={isMuted ? "Unmute" : "Mute"}
+                                    className="text-white hover:text-blue-400 transition-colors p-1 active:scale-95"
                                 >
                                     {isMuted || volume === 0 ? <MuteIcon className="w-5 h-5" /> : <VolumeHighIcon className="w-5 h-5" />}
                                 </button>
                                 <input 
                                     type="range"
+                                    aria-label="Volume"
                                     min={0}
                                     max={100}
                                     value={isMuted ? 0 : volume}
@@ -2421,7 +2453,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                         {/* Fullscreen */}
                         <button 
                             onClick={toggleFullscreen}
-                            className="text-white hover:text-blue-400 transition-colors p-1"
+                            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                            className="text-white hover:text-blue-400 transition-colors p-1 active:scale-95"
                         >
                             {isFullscreen ? <FullscreenExitIcon className="w-5 h-5" /> : <FullscreenEnterIcon className="w-5 h-5" />}
                         </button>
