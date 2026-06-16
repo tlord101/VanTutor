@@ -169,7 +169,9 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
         type="button" 
         onClick={togglePlay}
         disabled={isUploading}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${
+        aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
+        title={isPlaying ? "Pause" : "Play"}
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 active:scale-95 ${
           isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-[#F8F9FA] text-[#486380] hover:bg-[#E9ECEF]'
         } ${isUploading ? 'cursor-not-allowed' : ''}`}
       >
@@ -337,8 +339,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
   return (
     <div className="w-[95%] mx-auto relative select-none z-40 px-4">
-      <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
-      <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
+      <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" aria-label="Upload files" />
+      <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" aria-label="Upload images" />
 
       {isRecording && !isLocked && (
         <div 
@@ -355,7 +357,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
       <div className="w-full flex items-center gap-2 relative">
         {!isRecording && !isLocked && (
           <div className="flex-1 h-[52px] bg-white border border-[#E9ECEF] rounded-full flex items-center pl-3.5 pr-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 shrink-0 flex items-center justify-center w-9 h-9 mr-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach file"
+              title="Attach file"
+              className="hover:opacity-85 transition active:scale-95 shrink-0 flex items-center justify-center w-9 h-9 mr-1"
+            >
               <AttachmentIcon />
             </button>
             <div className="flex-1 h-full flex items-center min-w-0">
@@ -365,10 +373,17 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && executeTextSend()}
                 placeholder="Message"
+                aria-label="Type a message"
                 className="w-full h-full bg-transparent text-[16px] text-[#212529] placeholder-[#80868B] outline-none border-none focus:ring-0"
               />
             </div>
-            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-9 h-9 ml-1">
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              aria-label="Take or upload photo"
+              title="Camera"
+              className="hover:opacity-85 transition active:scale-95 flex items-center justify-center w-9 h-9 ml-1"
+            >
               <CameraIcon />
             </button>
           </div>
@@ -383,7 +398,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
             {isLocked ? (
               <div className="flex-1 flex items-center justify-between pl-6 animate-fade-in z-10">
-                <button onClick={discardVoice} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-100 active:scale-90 transition" type="button">
+                <button
+                  onClick={discardVoice}
+                  aria-label="Discard voice recording"
+                  title="Discard"
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-100 active:scale-95 transition"
+                  type="button"
+                >
                   <TrashIcon />
                 </button>
                 <span className="text-xs text-[#6C757D] font-semibold tracking-wider">RECORDING LOCKED</span>
@@ -401,11 +422,23 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
         <div style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
           {hasText ? (
-            <button type="button" onClick={executeTextSend} className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100">
+            <button
+              type="button"
+              onClick={executeTextSend}
+              aria-label="Send message"
+              title="Send"
+              className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100"
+            >
               <SendIcon />
             </button>
           ) : isLocked ? (
-            <button type="button" onClick={() => stopRecording(true)} className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100 animate-pulse">
+            <button
+              type="button"
+              onClick={() => stopRecording(true)}
+              aria-label="Send voice note"
+              title="Send voice note"
+              className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100 animate-pulse"
+            >
               <SendIcon />
             </button>
           ) : (
@@ -420,6 +453,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onTouchStart={handleVoicePress}
                 onTouchMove={handleVoiceMove}
                 onTouchEnd={handleVoiceRelease}
+                aria-label="Record voice note"
+                title="Hold to record"
                 className={`w-[52px] h-[52px] bg-[#009EE2] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-all select-none touch-none ${isRecording ? 'scale-125 bg-[#0089C4]' : 'hover:bg-[#0089C4] active:scale-95'}`}
               >
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
@@ -1403,12 +1438,18 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             <input 
                                 type="text"
                                 placeholder="Search study mates..."
+                                aria-label="Search study mates"
                                 value={peopleSearchQuery}
                                 onChange={(e) => setPeopleSearchQuery(e.target.value)}
                                 className="w-full bg-white text-sm text-[#212529] placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
                             />
                             {peopleSearchQuery && (
-                                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] text-xs hover:text-[#212529]">✕</button>
+                                <button
+                                  onClick={() => setPeopleSearchQuery("")}
+                                  aria-label="Clear search"
+                                  title="Clear"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] text-xs hover:text-[#212529] active:scale-95 transition-transform"
+                                >✕</button>
                             )}
                         </div>
                     )}
@@ -1497,6 +1538,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 <button
                     onClick={() => setShowPartnerModal(true)}
                     className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40"
+                    aria-label="Add study partner"
                     title="Add Study Partner"
                 >
                     <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1513,7 +1555,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         
                         {/* 1. STICKY FLOATING Header Bar */}
                         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[95%] h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm rounded-2xl border border-[#E9ECEF]/60">
-                            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
+                            <button
+                              onClick={() => setActiveChat(null)}
+                              aria-label="Back to chat list"
+                              title="Back"
+                              className="lg:hidden text-[#6C757D] mr-1 text-lg active:scale-95 transition-transform"
+                            >←</button>
                              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                             <div className="flex-1 min-w-0">
                               <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
