@@ -233,6 +233,7 @@ export const UploadCenter: React.FC = () => {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [isUploadingCourseKey, setIsUploadingCourseKey] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<{ status: string; percent: number } | null>(null);
   const [requestCourseKey, setRequestCourseKey] = useState('');
   const [requestNote, setRequestNote] = useState('');
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -368,16 +369,16 @@ export const UploadCenter: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const availableCourses = catalog.filter(entry => normalizeLevel(entry.course.level) === selectedLevel && normalizeSemester(entry.course.semester) === selectedSemester && !entry.hasTextbook);
-    if (!availableCourses.length) return;
-    if (!availableCourses.some(entry => entry.key === requestCourseKey) && requestCourseKey) return;
+    const availableCoursesList = catalog.filter(entry => normalizeLevel(entry.course.level) === selectedLevel && normalizeSemester(entry.course.semester) === selectedSemester);
+    if (!availableCoursesList.length) return;
+    if (!availableCoursesList.some(entry => entry.key === requestCourseKey) && requestCourseKey) return;
     if (!requestCourseKey) {
-      setRequestCourseKey(availableCourses[0].key);
+      setRequestCourseKey(availableCoursesList[0].key);
     }
   }, [catalog, requestCourseKey, selectedLevel, selectedSemester]);
 
   const availableCourses = useMemo(() => (
-    catalog.filter(entry => normalizeLevel(entry.course.level) === selectedLevel && normalizeSemester(entry.course.semester) === selectedSemester && !entry.hasTextbook)
+    catalog.filter(entry => normalizeLevel(entry.course.level) === selectedLevel && normalizeSemester(entry.course.semester) === selectedSemester)
   ), [catalog, selectedLevel, selectedSemester]);
 
   const requestableCourses = useMemo(() => (
@@ -524,19 +525,23 @@ export const UploadCenter: React.FC = () => {
     }
 
     setIsUploadingCourseKey(courseEntry.key);
+    setUploadProgress({ status: 'Starting upload...', percent: 5 });
     try {
       const uploadedUrls: string[] = [];
       const extractedTopicGroups: Topic[][] = [];
 
       for (let index = 0; index < pdfFiles.length; index += 1) {
         const file = pdfFiles[index];
+        setUploadProgress({ status: `Uploading PDF to storage (${index + 1}/${pdfFiles.length})...`, percent: 10 + (index * 5) });
         const uploadToken = `${Date.now()}_${index}_${file.lastModified}_${file.size}`;
         const fileRef = storageRef(storage, `textbooks/uploader/${currentUser.uid}/${courseEntry.key}/${uploadToken}_${file.name}`);
         const result = await uploadBytes(fileRef, file);
         const downloadURL = await getDownloadURL(result.ref);
         uploadedUrls.push(downloadURL);
 
+        setUploadProgress({ status: `Extracting textbook contents (${index + 1}/${pdfFiles.length})...`, percent: 20 + (index * 5) });
         const base64PDF = await fileToBase64(file);
+        setUploadProgress({ status: `AI extracting syllabus topics (${index + 1}/${pdfFiles.length})...`, percent: 35 + (index * 5) });
         const prompt = `Analyze this PDF textbook for "${courseEntry.course.course_name}" at "${courseEntry.course.level}" level.
 Extract a comprehensive syllabus/course outline into a structured JSON array of topics with concise grounding context.
 
@@ -684,13 +689,16 @@ FORMAT:
 
       // 💡 PINECONE VECTOR SYNC TRIGGER FOR UPLOAD CENTER
       try {
+        setUploadProgress({ status: 'Preparing PDF text for vector indexing...', percent: 60 });
         const { extractTextFromPDF } = await import('../utils/pdfExtraction');
         const { ingestTextToPinecone } = await import('../utils/pinecone');
 
         addToast('Extracting textbook content...', 'info');
+        setUploadProgress({ status: 'Parsing raw text from PDF for database...', percent: 65 });
         const rawText = await extractTextFromPDF(pdfFiles[0]);
         
         addToast('Syncing to Pinecone database...', 'info');
+        setUploadProgress({ status: 'Connecting to Pinecone...', percent: 70 });
         const ingestResult = await ingestTextToPinecone(
           rawText,
           courseEntry.key,
@@ -698,7 +706,20 @@ FORMAT:
           courseEntry.course.level,
           courseEntry.course.semester || selectedSemester,
           appSettings,
-          (progress) => console.log(progress)
+          (progress) => {
+            let percent = 80;
+            if (progress.includes('Split text')) percent = 75;
+            if (progress.includes('Upserting chunks')) {
+              const match = progress.match(/Upserting chunks batch to Pinecone \((\d+)\/(\d+)\)/);
+              if (match) {
+                 const current = parseInt(match[1]);
+                 const total = parseInt(match[2]);
+                 percent = 75 + Math.round((current / total) * 25);
+              }
+            }
+            setUploadProgress({ status: progress, percent });
+            console.log(progress);
+          }
         );
 
         if (!ingestResult.success) {
@@ -714,6 +735,7 @@ FORMAT:
       addToast(error?.message || 'Could not upload the course.', 'error');
     } finally {
       setIsUploadingCourseKey('');
+      setUploadProgress(null);
       if (fileInputRefs.current[courseEntry.key]) {
         fileInputRefs.current[courseEntry.key]!.value = '';
       }
@@ -1177,8 +1199,17 @@ FORMAT:
                 <div className="rounded-[24px] border border-dashed border-orange-200 bg-white p-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">Loading courses...</div>
               ) : availableCourses.length ? (
                 availableCourses.map((entry) => (
-                  <div key={entry.key} className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-500">No textbook uploaded</p>
+                  <div key={entry.key} className={`rounded-[24px] border bg-white p-5 shadow-sm transition ${entry.hasTextbook ? 'border-green-200' : 'border-orange-100'}`}>
+                    <div className="flex items-center justify-between">
+                      {entry.hasTextbook ? (
+                        <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.22em] text-green-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Textbook Uploaded
+                        </p>
+                      ) : (
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-500">No textbook uploaded</p>
+                      )}
+                    </div>
                     <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">{entry.course.course_name}</h3>
                     <p className="mt-1 text-sm text-slate-500">{entry.course.course_code || entry.course.course_id}</p>
                     <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
@@ -1203,9 +1234,9 @@ FORMAT:
                         type="button"
                         onClick={() => fileInputRefs.current[entry.key]?.click()}
                         disabled={isUploadingCourseKey === entry.key}
-                        className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={`flex-1 rounded-2xl px-4 py-3 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${entry.hasTextbook ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-900 hover:bg-orange-600'}`}
                       >
-                        {isUploadingCourseKey === entry.key ? 'Uploading...' : 'Upload textbook PDF'}
+                        {isUploadingCourseKey === entry.key ? 'Uploading...' : entry.hasTextbook ? 'Upload another PDF' : 'Upload textbook PDF'}
                       </button>
                       <button
                         type="button"
@@ -1328,6 +1359,30 @@ FORMAT:
                 </div>
               )}
             </section>
+          </div>
+        )}
+
+        {/* Live Upload Progress Modal */}
+        {uploadProgress && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm animate-fade-in">
+            <div className="w-full max-w-md rounded-[32px] border border-orange-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)]">
+              <div className="flex flex-col items-center text-center">
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-orange-50">
+                  <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
+                  <div className="absolute inset-0 rounded-full border-4 border-orange-500 border-l-transparent border-t-transparent animate-spin"></div>
+                  <svg className="h-6 w-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                </div>
+                <h3 className="mt-4 text-xl font-black tracking-tight text-slate-900">Uploading Textbook</h3>
+                <p className="mt-1 text-sm font-medium text-orange-600">{uploadProgress.status}</p>
+                <div className="mt-6 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div 
+                    className="h-2 rounded-full bg-[linear-gradient(90deg,_#ea580c,_#f97316)] transition-all duration-300 ease-out" 
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  ></div>
+                </div>
+                <p className="mt-2 text-xs font-bold text-slate-400">{Math.min(uploadProgress.percent, 100)}% Complete</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
