@@ -125,30 +125,36 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
 
     return (
         <div className="space-y-3">
-            {history.map(exam => (
-                <div key={exam.id} className="group bg-white p-5 rounded-[2rem] border border-gray-100 flex justify-between items-center transition-all hover:shadow-xl hover:-translate-y-1">
+            {history.map(exam => {
+                const percentage = Math.round((exam.score / exam.total_questions) * 100);
+                return (
+                <div key={exam.id} className="group bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-gray-200/50 flex justify-between items-center transition-all duration-300 hover:shadow-xl hover:bg-white hover:-translate-y-1">
                     <div className="flex gap-4 items-center">
-                        <div className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-lime-600">
-                             <GraduationCapIcon className="w-5 h-5" />
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${percentage >= 80 ? 'bg-lime-100 text-lime-600' : percentage >= 50 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                             <GraduationCapIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{getCourseNameById(exam.department_id)}</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{getCourseNameById(exam.department_id)}</p>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">
                                 {new Date(exam.timestamp).toLocaleDateString()}
                             </p>
                         </div>
                     </div>
-                    <div className="text-right flex items-center gap-4">
-                        <p className="font-black text-lime-600 text-lg">{exam.score}/{exam.total_questions}</p>
+                    <div className="text-right flex items-center gap-5">
+                        <div className="flex flex-col items-end">
+                             <p className={`font-black text-lg leading-none ${percentage >= 80 ? 'text-lime-600' : percentage >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{percentage}%</p>
+                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">{exam.score}/{exam.total_questions} Correct</p>
+                        </div>
                         <button 
                             onClick={() => onReview(exam)} 
-                            className="p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:text-lime-600 hover:bg-lime-50 transition-all active:scale-95"
+                            className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:text-white hover:bg-gray-900 transition-all duration-300 active:scale-95"
                         >
                             <ChevronDownIcon className="w-5 h-5 -rotate-90" />
                         </button>
                     </div>
                 </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
@@ -669,61 +675,81 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
         if (!currentQuestion) return null;
         return (
           <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
-                <div className="px-4">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Question</p>
-                    <p className="text-lg font-black text-gray-900">{currentQuestionIndex + 1} <span className="text-gray-300 mx-1">/</span> {questions.length}</p>
+            <div className="bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border border-gray-200/50 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-1.5 bg-gray-100 w-full">
+                    <div 
+                        className="h-full bg-gradient-to-r from-lime-400 to-lime-600 transition-all duration-500 ease-out"
+                        style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+                    />
                 </div>
-                
-                <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl shadow-sm ring-1 ring-gray-100">
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${timeLeft < 30 ? 'bg-red-500' : 'bg-lime-500'}`}></div>
-                    <span className={`font-black text-xl tracking-tighter tabular-nums ${timeLeft < 30 ? 'text-red-500' : 'text-gray-900'}`}>
-                        {Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}
-                    </span>
+                <div className="flex justify-between items-center mt-2">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Question</p>
+                        <p className="text-2xl font-black text-gray-900 tracking-tighter">
+                            {currentQuestionIndex + 1} <span className="text-gray-300 mx-1 text-xl">/</span> <span className="text-gray-400 text-xl">{questions.length}</span>
+                        </p>
+                    </div>
+                    
+                    <div className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border ${timeLeft < 30 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-lime-50/50 border-lime-100 text-lime-700'}`}>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${timeLeft < 30 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-lime-500 shadow-[0_0_8px_rgba(132,204,22,0.6)]'}`}></div>
+                        <span className="font-black tracking-widest tabular-nums">
+                            {Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div className="space-y-6">
-                <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.1] tracking-tight">{currentQuestion.question}</h3>
+                <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.25] tracking-tight">{currentQuestion.question}</h3>
                 
                 {examFormat === 'theory' ? (
-                    <div className="w-full">
+                    <div className="w-full relative group">
                         <textarea
-                            className="w-full min-h-[150px] p-6 rounded-[2rem] border-2 border-gray-100 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white"
-                            placeholder="Type your answer here..."
+                            className="w-full min-h-[180px] p-6 rounded-[2rem] border-2 border-gray-200/60 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white/50 backdrop-blur-sm shadow-inner text-base md:text-lg"
+                            placeholder="Construct your response here..."
                             value={selectedOption || ''}
                             onChange={(e) => !feedback && setSelectedOption(e.target.value)}
                             disabled={!!feedback || isEvaluatingTheory}
                         />
+                        <div className="absolute top-4 right-4 text-gray-300 group-focus-within:text-lime-400 transition-colors pointer-events-none">
+                             <GraduationCapIcon className="w-6 h-6 opacity-30" />
+                        </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-4">
                     {(currentQuestion.options || []).map((option, index) => {
                         const isSelected = selectedOption === option;
                         const isCorrect = option === currentQuestion.correctAnswer;
                         
-                        let variantClasses = "bg-white border-gray-100 hover:border-lime-200 hover:bg-lime-50/30";
+                        let variantClasses = "bg-white/80 backdrop-blur-sm border-gray-200/60 hover:border-lime-300 hover:bg-lime-50/50 hover:shadow-md";
+                        let indicatorClasses = "bg-gray-100 text-gray-400 group-hover:bg-lime-200 group-hover:text-lime-700";
+
                         if (feedback) {
-                            if (isCorrect) variantClasses = "bg-lime-50 border-lime-500 text-lime-900 ring-4 ring-lime-500/10";
-                            else if (isSelected) variantClasses = "bg-red-50 border-red-500 text-red-900 ring-4 ring-red-500/10";
-                            else variantClasses = "bg-white border-gray-50 opacity-40";
+                            if (isCorrect) {
+                                variantClasses = "bg-lime-50 border-lime-500 text-lime-900 ring-4 ring-lime-500/20 shadow-lg shadow-lime-500/10 scale-[1.02] z-10";
+                                indicatorClasses = "bg-lime-500 text-white";
+                            }
+                            else if (isSelected) {
+                                variantClasses = "bg-red-50 border-red-400 text-red-900 ring-4 ring-red-500/10 shadow-md";
+                                indicatorClasses = "bg-red-400 text-white";
+                            }
+                            else variantClasses = "bg-white/50 border-gray-100 opacity-50 grayscale";
                         } else if (isSelected) {
-                            variantClasses = "bg-lime-600 border-lime-600 text-white shadow-xl shadow-lime-600/20";
+                            variantClasses = "bg-gradient-to-r from-lime-600 to-lime-500 border-lime-500 text-white shadow-xl shadow-lime-500/30 scale-[1.02] z-10";
+                            indicatorClasses = "bg-white/20 text-white";
                         }
 
                         return (
                             <button
                             key={index}
                             onClick={() => !feedback && setSelectedOption(option)}
-                            className={`group w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 flex items-center gap-4 ${variantClasses}`}
+                            className={`group w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 flex items-center gap-5 ${variantClasses}`}
                             disabled={!!feedback}
                             >
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-black text-xs transition-colors ${
-                                isSelected && !feedback ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-lime-100 group-hover:text-lime-600'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 font-black text-sm transition-colors ${indicatorClasses}`}>
                                 {String.fromCharCode(65 + index)}
                             </div>
-                            <span className="font-bold text-sm md:text-base leading-snug">{option}</span>
+                            <span className={`font-bold text-base md:text-lg leading-snug ${isSelected && !feedback ? 'text-white' : ''}`}>{option}</span>
                             </button>
                         );
                     })}
@@ -732,16 +758,18 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             </div>
 
             {feedback && (
-                <div className={`p-8 rounded-[2.5rem] animate-in zoom-in-95 duration-300 ${feedback.isCorrect ? 'bg-lime-50 border border-lime-100' : 'bg-red-50 border border-red-100'}`}>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className={`p-2 rounded-xl ${feedback.isCorrect ? 'bg-lime-500 text-white' : 'bg-red-500 text-white'}`}>
-                            {feedback.isCorrect ? <CheckIcon className="w-5 h-5" /> : <XIcon className="w-5 h-5" />}
+                <div className={`p-8 rounded-[2.5rem] animate-in slide-in-from-bottom-4 duration-500 shadow-xl ${feedback.isCorrect ? 'bg-gradient-to-br from-lime-50 to-lime-100/50 border-2 border-lime-200' : 'bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200'}`}>
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className={`p-3 rounded-2xl shadow-inner ${feedback.isCorrect ? 'bg-lime-500 text-white shadow-lime-600/50' : 'bg-red-500 text-white shadow-red-600/50'}`}>
+                            {feedback.isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
                         </div>
-                        <h4 className={`text-lg font-black uppercase tracking-tight ${feedback.isCorrect ? 'text-lime-700' : 'text-red-700'}`}>
-                            {feedback.isCorrect ? 'Genius Move!' : 'Not Quite...'}
+                        <h4 className={`text-2xl font-black tracking-tight ${feedback.isCorrect ? 'text-lime-700' : 'text-red-700'}`}>
+                            {feedback.isCorrect ? 'Brilliant!' : 'Not Quite...'}
                         </h4>
                     </div>
-                    <p className={`text-sm font-bold leading-relaxed ${feedback.isCorrect ? 'text-lime-800/70' : 'text-red-800/70'}`}>{feedback.explanation}</p>
+                    <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-white">
+                        <p className="text-sm font-bold leading-relaxed text-gray-700">{feedback.explanation}</p>
+                    </div>
                 </div>
             )}
 
@@ -749,7 +777,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                 {feedback ? (
                     <button 
                         onClick={handleNextQuestion} 
-                        className="w-full flex items-center justify-center gap-3 bg-gray-900 text-white font-black py-6 rounded-[2rem] hover:bg-black transition-all transform active:scale-[0.98] shadow-2xl shadow-black/10 text-xs uppercase tracking-widest"
+                        className="w-full flex items-center justify-center gap-3 bg-gray-900 text-white font-black py-5 rounded-2xl hover:bg-black transition-all transform hover:-translate-y-1 active:translate-y-0 shadow-xl shadow-gray-900/20 text-sm uppercase tracking-widest"
                     >
                         {currentQuestionIndex < questions.length - 1 ? 'Next Challenge' : 'See Results'}
                         <ChevronDownIcon className="w-5 h-5 -rotate-90" />
@@ -758,9 +786,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                     <button 
                         onClick={handleAnswerSubmit} 
                         disabled={!selectedOption || isEvaluatingTheory} 
-                        className="w-full bg-lime-600 text-white font-black py-6 rounded-[2rem] hover:bg-lime-700 transition-all transform active:scale-[0.98] disabled:opacity-30 disabled:grayscale shadow-2xl shadow-lime-600/20 text-xs uppercase tracking-widest flex justify-center items-center gap-2"
+                        className="w-full bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-5 rounded-2xl hover:from-lime-400 hover:to-lime-500 transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 shadow-xl shadow-lime-600/30 text-sm uppercase tracking-widest flex justify-center items-center gap-3"
                     >
-                        {isEvaluatingTheory ? <LoadingSpinner text="Evaluating..." /> : 'Lock in Answer'}
+                        {isEvaluatingTheory ? <LoadingSpinner text="Analyzing Response..." /> : 'Submit Answer'}
                     </button>
                 )}
             </div>
@@ -770,30 +798,61 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
       case 'completed':
           const xpEarned = score * 10;
           const percentage = Math.round((score / questions.length) * 100);
+          const circumference = 2 * Math.PI * 80;
+          const strokeDashoffset = circumference - (percentage / 100) * circumference;
+          
         return (
-          <div className="max-w-md mx-auto text-center space-y-10 py-10 animate-in zoom-in-95 duration-500">
-            <div className="relative inline-block">
+          <div className="max-w-md mx-auto text-center space-y-10 py-10 animate-in zoom-in-95 duration-700 relative">
+            <div className="relative inline-flex items-center justify-center">
                 <div className="absolute inset-0 bg-lime-400 rounded-full blur-3xl opacity-20 animate-pulse"></div>
-                <div className="relative w-48 h-48 rounded-full border-8 border-gray-50 flex flex-col items-center justify-center bg-white shadow-3xl">
+                <svg className="w-56 h-56 transform -rotate-90 relative z-10" viewBox="0 0 200 200">
+                    <circle 
+                        className="text-gray-100" 
+                        strokeWidth="12" 
+                        stroke="currentColor" 
+                        fill="transparent" 
+                        r="80" 
+                        cx="100" 
+                        cy="100" 
+                    />
+                    <circle 
+                        className={`transition-all duration-1000 ease-out drop-shadow-lg ${percentage >= 80 ? 'text-lime-500' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}`}
+                        strokeWidth="12" 
+                        strokeDasharray={circumference} 
+                        strokeDashoffset={strokeDashoffset} 
+                        strokeLinecap="round" 
+                        stroke="currentColor" 
+                        fill="transparent" 
+                        r="80" 
+                        cx="100" 
+                        cy="100" 
+                    />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center inset-0 z-20">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Score</p>
-                    <p className="text-6xl font-black text-gray-900 tracking-tighter">{score}</p>
-                    <div className="h-px w-12 bg-gray-100 my-2"></div>
-                    <p className="text-sm font-black text-lime-600 uppercase tracking-widest">{questions.length} total</p>
+                    <p className="text-6xl font-black text-gray-900 tracking-tighter tabular-nums">{percentage}<span className="text-2xl text-gray-400">%</span></p>
+                    <div className="h-px w-12 bg-gray-200 my-2"></div>
+                    <p className={`text-xs font-black uppercase tracking-widest ${percentage >= 80 ? 'text-lime-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
+                        {score} / {questions.length}
+                    </p>
                 </div>
             </div>
 
-            <div>
-                <h3 className="text-4xl font-black text-gray-900 tracking-tighter mb-2">
-                    {percentage >= 80 ? 'Masterfully Done.' : percentage >= 50 ? 'Strong effort.' : 'Keep studying.'}
+            <div className="space-y-3">
+                <h3 className="text-4xl font-black text-gray-900 tracking-tighter">
+                    {percentage >= 80 ? 'Masterfully Done.' : percentage >= 50 ? 'Solid Effort.' : 'Keep Training.'}
                 </h3>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">You earned +{xpEarned} XP for your progress</p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-50 rounded-full border border-amber-200 text-amber-700">
+                    <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                    <p className="text-xs font-black uppercase tracking-widest">+{xpEarned} XP Earned</p>
+                </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-                <button onClick={resetExam} className="w-full bg-lime-600 text-white font-black py-5 rounded-[2rem] hover:bg-lime-700 transition-all shadow-xl shadow-lime-600/20 text-xs uppercase tracking-widest">
+            <div className="flex flex-col gap-3 mt-4">
+                <button onClick={resetExam} className="w-full bg-gradient-to-b from-gray-900 to-black text-white font-black py-5 rounded-2xl hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-gray-900/20 text-sm uppercase tracking-widest">
                     Start New Training
                 </button>
-                <button onClick={() => setExamState('history')} className="w-full bg-white text-gray-400 font-black py-5 rounded-[2rem] border border-gray-100 hover:text-gray-900 hover:bg-gray-50 transition-all text-xs uppercase tracking-widest">
+                <button onClick={() => setExamState('history')} className="w-full bg-white text-gray-500 font-black py-5 rounded-2xl border-2 border-gray-100 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm uppercase tracking-widest">
                     View Performance History
                 </button>
             </div>
@@ -823,15 +882,19 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
         if (!reviewExam) return null;
           return (
               <div className="max-w-3xl mx-auto space-y-10 py-8 animate-in slide-in-from-right-8 duration-500">
-                  <div className="flex justify-between items-center bg-gray-900 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                      <div>
-                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-2">Reviewing Session</p>
-                        <h3 className="text-2xl font-black tracking-tighter leading-none">{getCourseNameById(reviewExam.department_id)}</h3>
-                        <p className="text-xs font-bold text-white/60 mt-2 uppercase tracking-widest">{new Date(reviewExam.timestamp).toLocaleDateString()}</p>
+                  <div className="relative overflow-hidden flex justify-between items-center bg-gradient-to-r from-gray-900 to-black text-white p-8 rounded-[2.5rem] shadow-2xl">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                      <div className="relative z-10">
+                        <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em] mb-2">Performance Report</p>
+                        <h3 className="text-3xl font-black tracking-tighter leading-none">{getCourseNameById(reviewExam.department_id)}</h3>
+                        <div className="flex items-center gap-3 mt-4">
+                            <span className="px-3 py-1 bg-white/10 rounded-lg text-xs font-bold text-white/80 uppercase tracking-widest backdrop-blur-sm">{new Date(reviewExam.timestamp).toLocaleDateString()}</span>
+                            <span className="px-3 py-1 bg-lime-500/20 text-lime-400 rounded-lg text-xs font-bold uppercase tracking-widest backdrop-blur-sm">Score: {reviewExam.score}/{reviewExam.total_questions}</span>
+                        </div>
                       </div>
                       <button 
                         onClick={() => setExamState('history')} 
-                        className="bg-white/10 hover:bg-white/20 p-4 rounded-2xl transition-colors text-white"
+                        className="relative z-10 bg-white/10 hover:bg-white text-white hover:text-gray-900 p-4 rounded-2xl transition-all duration-300 backdrop-blur-md"
                       >
                         <XIcon className="w-5 h-5" />
                       </button>
@@ -839,34 +902,34 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
 
                   <div className="space-y-6">
                       {reviewExam.questions.map((q, index) => (
-                          <div key={index} className="group bg-white p-8 rounded-[2.5rem] border border-gray-100 hover:shadow-xl transition-all duration-500">
+                          <div key={index} className="group bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:bg-white hover:border-gray-300/50 transition-all duration-500">
                               <div className="flex justify-between items-start mb-6">
                                   <div>
-                                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Observation {index + 1}</p>
-                                      <h4 className="text-xl font-black text-gray-900 leading-tight pr-8">{q.question}</h4>
+                                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Observation {index + 1}</p>
+                                      <h4 className="text-xl md:text-2xl font-black text-gray-900 leading-tight pr-8">{q.question}</h4>
                                   </div>
-                                  <div className={`p-2 rounded-xl shrink-0 ${q.isCorrect ? 'bg-lime-50 text-lime-600' : 'bg-red-50 text-red-600'}`}>
-                                      {q.isCorrect ? <CheckIcon className="w-5 h-5" /> : <XIcon className="w-5 h-5" />}
+                                  <div className={`p-3 rounded-2xl shrink-0 shadow-sm ${q.isCorrect ? 'bg-lime-100 text-lime-600 border border-lime-200/50' : 'bg-red-100 text-red-600 border border-red-200/50'}`}>
+                                      {q.isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
                                   </div>
                               </div>
                               
                               <div className="space-y-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className={`p-5 rounded-2xl ${q.isCorrect ? 'bg-lime-50/50 border border-lime-100' : 'bg-red-50/50 border border-red-100'}`}>
-                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Your Answer</p>
-                                          <p className={`text-sm font-black ${q.isCorrect ? 'text-lime-700' : 'text-red-700'}`}>{q.userAnswer}</p>
+                                      <div className={`p-6 rounded-[1.5rem] shadow-inner ${q.isCorrect ? 'bg-lime-50/50 border border-lime-100/80' : 'bg-red-50/50 border border-red-100/80'}`}>
+                                          <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${q.isCorrect ? 'text-lime-600/70' : 'text-red-600/70'}`}>Your Response</p>
+                                          <p className={`text-base font-black ${q.isCorrect ? 'text-lime-800' : 'text-red-800'}`}>{q.userAnswer}</p>
                                       </div>
                                       {!q.isCorrect && (
-                                          <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100">
-                                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Correct Answer</p>
-                                              <p className="text-sm font-black text-gray-900">{q.correctAnswer}</p>
+                                          <div className="p-6 rounded-[1.5rem] bg-gray-50 border border-gray-200/60 shadow-inner">
+                                              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Model Answer</p>
+                                              <p className="text-base font-black text-gray-900">{q.correctAnswer}</p>
                                           </div>
                                       )}
                                   </div>
                                   
-                                  <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100/50">
-                                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Explanation</p>
-                                      <p className="text-sm font-bold text-gray-600 leading-relaxed">{q.explanation}</p>
+                                  <div className="bg-gray-50/80 backdrop-blur-sm p-6 rounded-[1.5rem] border border-gray-200/50">
+                                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Analysis</p>
+                                      <p className="text-sm font-bold text-gray-700 leading-relaxed">{q.explanation}</p>
                                   </div>
                               </div>
                           </div>
@@ -898,42 +961,50 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* AI Generated Exam */}
-              <div className="bg-white border-2 border-lime-100 rounded-2xl p-6 hover:border-lime-500 transition-all text-left flex flex-col">
-                <div className="w-12 h-12 bg-lime-100 rounded-xl flex items-center justify-center text-lime-600 mb-4 font-bold text-xl">
-                    AI
+              <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(132,204,22,0.12)] hover:border-lime-200/60 transition-all duration-500 text-left flex flex-col overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+                <div className="relative z-10">
+                    <div className="w-14 h-14 bg-gradient-to-br from-lime-100 to-lime-50 border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 mb-6 font-black text-2xl shadow-sm">
+                        AI
+                    </div>
+                    <h4 className="text-xl font-black text-gray-900 tracking-tight">Custom Exam Generator</h4>
+                    <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">
+                        Generate a full 20-question exam for a specific course. Choose between multiple-choice and theory formats.
+                    </p>
                 </div>
-                <h4 className="text-lg font-bold text-gray-900">Custom Exam Generator</h4>
-                <p className="text-sm text-gray-600 mt-2 flex-grow">
-                    Generate a full 20-question exam for a specific course. Choose between multiple-choice and theory formats.
-                </p>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-8 space-y-5 relative z-10 flex-grow">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select Course</label>
-                        <select
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-lime-500"
-                            value={selectedCourseId}
-                            onChange={(e) => setSelectedCourseId(e.target.value)}
-                        >
-                            <option value="" disabled>-- Select a Course --</option>
-                            {availableCourses.map(c => (
-                                <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
-                            ))}
-                        </select>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
+                        <div className="relative">
+                            <select
+                                className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-400 transition-all appearance-none shadow-sm"
+                                value={selectedCourseId}
+                                onChange={(e) => setSelectedCourseId(e.target.value)}
+                            >
+                                <option value="" disabled>Choose your subject...</option>
+                                {availableCourses.map(c => (
+                                    <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDownIcon className="w-5 h-5" />
+                            </div>
+                        </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Exam Format</label>
-                        <div className="flex gap-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Exam Format</label>
+                        <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
                             <button
                                 onClick={() => setExamFormat('objective')}
-                                className={`flex-1 py-2 px-3 rounded-xl border text-sm font-bold transition-colors ${examFormat === 'objective' ? 'bg-lime-100 border-lime-300 text-lime-800' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                                className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all duration-300 ${examFormat === 'objective' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'}`}
                             >
                                 Objective
                             </button>
                             <button
                                 onClick={() => setExamFormat('theory')}
-                                className={`flex-1 py-2 px-3 rounded-xl border text-sm font-bold transition-colors ${examFormat === 'theory' ? 'bg-lime-100 border-lime-300 text-lime-800' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                                className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all duration-300 ${examFormat === 'theory' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'}`}
                             >
                                 Theory
                             </button>
@@ -941,18 +1012,18 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                     </div>
                 </div>
 
-                <div className="flex gap-2 mt-6">
+                <div className="flex gap-3 mt-8 relative z-10">
                     <button
                         onClick={generateQuestions}
                         disabled={!isGeminiConfigured || !selectedCourseId}
-                        className="flex-1 bg-lime-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-lime-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
+                        className="flex-1 bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-4 px-4 rounded-2xl hover:from-lime-400 hover:to-lime-500 shadow-lg shadow-lime-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-xs uppercase tracking-widest"
                     >
                         {isGeminiConfigured ? 'Start Exam' : 'Unavailable'}
                     </button>
                     <button
                         onClick={generateFlashcards}
                         disabled={!isGeminiConfigured || !selectedCourseId}
-                        className="flex-1 bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 text-xs"
+                        className="flex-1 bg-white border border-gray-200 text-gray-700 font-black py-4 px-4 rounded-2xl hover:bg-gray-50 hover:border-gray-300 shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-widest"
                     >
                         {isGeminiConfigured ? 'Flashcards' : 'Unavailable'}
                     </button>
@@ -960,14 +1031,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
               </div>
 
               {/* Past Questions Exam */}
-              <div className="bg-white border-2 border-purple-100 rounded-2xl p-6 hover:border-purple-500 transition-all text-left flex flex-col">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 mb-4">
-                  <GraduationCapIcon className="w-6 h-6" />
+              <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(168,85,247,0.12)] hover:border-purple-200/60 transition-all duration-500 text-left flex flex-col overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+                <div className="relative z-10">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50 rounded-2xl flex items-center justify-center text-purple-600 mb-6 font-black shadow-sm">
+                      <GraduationCapIcon className="w-7 h-7" />
+                    </div>
+                    <h4 className="text-xl font-black text-gray-900 tracking-tight">Past Question Mock</h4>
+                    <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">
+                      Test yourself with real past questions uploaded by administrators for your course.
+                    </p>
                 </div>
-                <h4 className="text-lg font-bold text-gray-900">Past Question Mock</h4>
-                <p className="text-sm text-gray-600 mt-2 flex-grow">
-                  Test yourself with real past questions uploaded by administrators for your course.
-                </p>
                 
                  {availablePQSubjects.filter(s => {
                   if (userProfile?.subscription_status === 'premium' || userProfile?.is_admin) return true;
@@ -976,27 +1050,35 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
                   const selectedNormalized = userProfile.selected_free_course_id.toLowerCase().replace(/[\s_]/g, '');
                   return subjectNormalized === selectedNormalized;
                 }).length > 0 ? (
-                  <div className="mt-6 space-y-3">
-                    <select 
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500"
-                      onChange={(e) => setSelectedPQSubject(e.target.value)}
-                      value={selectedPQSubject}
-                    >
-                      <option value="">Select Subject</option>
-                      {availablePQSubjects.filter(s => {
-                        if (userProfile?.subscription_status === 'premium' || userProfile?.is_admin) return true;
-                        if (!userProfile?.selected_free_course_id) return false;
-                        const subjectNormalized = s.toLowerCase().replace(/[\s_]/g, '');
-                        const selectedNormalized = userProfile.selected_free_course_id.toLowerCase().replace(/[\s_]/g, '');
-                        return subjectNormalized === selectedNormalized;
-                      }).map(s => (
-                        <option key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</option>
-                      ))}
-                    </select>
+                  <div className="mt-8 space-y-5 relative z-10">
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Subject</label>
+                        <div className="relative">
+                            <select 
+                              className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all appearance-none shadow-sm"
+                              onChange={(e) => setSelectedPQSubject(e.target.value)}
+                              value={selectedPQSubject}
+                            >
+                              <option value="" disabled>Choose your subject...</option>
+                              {availablePQSubjects.filter(s => {
+                                if (userProfile?.subscription_status === 'premium' || userProfile?.is_admin) return true;
+                                if (!userProfile?.selected_free_course_id) return false;
+                                const subjectNormalized = s.toLowerCase().replace(/[\s_]/g, '');
+                                const selectedNormalized = userProfile.selected_free_course_id.toLowerCase().replace(/[\s_]/g, '');
+                                return subjectNormalized === selectedNormalized;
+                              }).map(s => (
+                                <option key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</option>
+                              ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDownIcon className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
                     <button
                         onClick={() => selectedPQSubject && startPQExam(selectedPQSubject)}
                         disabled={!selectedPQSubject}
-                        className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        className="w-full bg-gradient-to-b from-purple-500 to-purple-600 text-white font-black py-4 px-4 rounded-2xl hover:from-purple-400 hover:to-purple-500 shadow-lg shadow-purple-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-xs uppercase tracking-widest mt-3"
                     >
                         Start Mock Exam
                     </button>
