@@ -165,13 +165,12 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
 
   return (
     <div className="flex items-center gap-3 w-full max-w-full py-1 select-none">
-      <button 
-        type="button" 
+      <button
+        type="button"
         onClick={togglePlay}
         disabled={isUploading}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${
-          isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-[#F8F9FA] text-[#486380] hover:bg-[#E9ECEF]'
-        } ${isUploading ? 'cursor-not-allowed' : ''}`}
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-[#F8F9FA] text-[#486380] hover:bg-[#E9ECEF]'
+          } ${isUploading ? 'cursor-not-allowed' : ''}`}
       >
         {isUploading ? (
           <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -180,11 +179,11 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
           </svg>
         ) : isPlaying ? (
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
           </svg>
         ) : (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
+            <path d="M8 5v14l11-7z" />
           </svg>
         )}
       </button>
@@ -195,15 +194,15 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
             const barProgress = (idx / arr.length) * 100;
             const isPlayed = progressPercent >= barProgress;
             return (
-              <div 
+              <div
                 key={idx}
                 className="flex-1 rounded-full transition-colors duration-150"
-                style={{ 
+                style={{
                   height: `${barHeight}%`,
                   backgroundColor: isUploading
                     ? (isMe ? 'rgba(255,255,255,0.2)' : '#E9ECEF')
-                    : isPlayed 
-                      ? (isMe ? '#FFFFFF' : '#009EE2') 
+                    : isPlayed
+                      ? (isMe ? '#FFFFFF' : '#009EE2')
                       : (isMe ? 'rgba(255,255,255,0.3)' : '#E9ECEF')
                 }}
               />
@@ -213,13 +212,12 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
 
         <div className={`flex justify-between items-center text-[11px] font-medium ${isMe ? 'text-white/80' : 'text-[#6C757D]'}`}>
           <span>{isUploading ? "Uploading..." : formatTime(isPlaying ? currentTime : duration)}</span>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleSpeedChange}
             disabled={isUploading}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${
-              isMe ? 'border-white/30 hover:bg-white/10' : 'border-[#E9ECEF] hover:bg-neutral-100'
-            } ${isUploading ? 'opacity-40 cursor-not-allowed' : ''}`}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white/10' : 'border-[#E9ECEF] hover:bg-neutral-100'
+              } ${isUploading ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {playbackRate}x
           </button>
@@ -266,7 +264,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const [currentY, setCurrentY] = useState(0);
   const [currentX, setCurrentX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -341,7 +339,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
       {isRecording && !isLocked && (
-        <div 
+        <div
           className="absolute right-[21px] bottom-[64px] w-[52px] h-[120px] bg-white rounded-full flex flex-col items-center justify-start py-4 gap-2 border border-[#E9ECEF] shadow-xl z-20"
           style={{ transform: `translateY(${Math.max(-20, swipeDeltaY * 0.15)}px)` }}
         >
@@ -359,7 +357,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
               <AttachmentIcon />
             </button>
             <div className="flex-1 h-full flex items-center min-w-0">
-              <input 
+              <input
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -411,7 +409,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
           ) : (
             <div className="relative">
               {isRecording && <div className="absolute -inset-2 bg-[#009EE2]/20 rounded-full animate-ping pointer-events-none" />}
-              <button 
+              <button
                 type="button"
                 onMouseDown={handleVoicePress}
                 onMouseMove={handleVoiceMove}
@@ -422,7 +420,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onTouchEnd={handleVoiceRelease}
                 className={`w-[52px] h-[52px] bg-[#009EE2] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-all select-none touch-none ${isRecording ? 'scale-125 bg-[#0089C4]' : 'hover:bg-[#0089C4] active:scale-95'}`}
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
               </button>
             </div>
           )}
@@ -437,1758 +435,1757 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 // ==========================================
 
 export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null; onNavigate?: (tab: string) => void }> = ({ userProfile, initialChatId = null, onNavigate }) => {
-    const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
-    const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
-    const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
-    const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
-    const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
-    const [isLoading, setIsLoading] = useState(true);
-    const [tab, setTab] = useState<'chats' | 'people'>('chats');
-    const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
-    const [isAppActive, setIsAppActive] = useState(() => typeof document === 'undefined' ? true : document.visibilityState === 'visible');
-    const [isRecording, setIsRecording] = useState(false);
-    const [isLocked, setIsLocked] = useState(false);
-    const [recordDuration, setRecordDuration] = useState(0);
-    const [messageActionTarget, setMessageActionTarget] = useState<{
-      id: string;
-      senderId?: string;
-      text?: string;
-      type?: string;
-      isUploading?: boolean;
-      reactions?: Record<string, string>;
-    } | null>(null);
-    const [messageActionPosition, setMessageActionPosition] = useState<{ x: number; y: number } | null>(null);
-    const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
-    const [fetchedUserProfiles, setFetchedUserProfiles] = useState<Record<string, UserProfile>>(() => 
-        readCachedJson<Record<string, UserProfile>>(`avelut_resolved_profiles_${userProfile.uid}`, {})
-    );
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const startYRef = useRef<number>(0);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const messageActionMenuRef = useRef<HTMLDivElement>(null);
-    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
+  const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
+  const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
+  const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
+  const [isLoading, setIsLoading] = useState(true);
+  const [tab, setTab] = useState<'chats' | 'people'>('chats');
+  const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
+  const [isAppActive, setIsAppActive] = useState(() => typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const [messageActionTarget, setMessageActionTarget] = useState<{
+    id: string;
+    senderId?: string;
+    text?: string;
+    type?: string;
+    isUploading?: boolean;
+    reactions?: Record<string, string>;
+  } | null>(null);
+  const [messageActionPosition, setMessageActionPosition] = useState<{ x: number; y: number } | null>(null);
+  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
+  const [fetchedUserProfiles, setFetchedUserProfiles] = useState<Record<string, UserProfile>>(() =>
+    readCachedJson<Record<string, UserProfile>>(`avelut_resolved_profiles_${userProfile.uid}`, {})
+  );
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startYRef = useRef<number>(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageActionMenuRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
 
-    // Study Partners contact system states
-    const [showPartnerModal, setShowPartnerModal] = useState(false);
-    const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(getMessengerCacheKey(userProfile.uid, 'study_partners'), {}));
-    const [partnerRequests, setPartnerRequests] = useState<Record<string, any>>(() => readCachedJson<Record<string, any>>(getMessengerCacheKey(userProfile.uid, 'partner_requests'), {}));
-    const [searchPartnerName, setSearchPartnerName] = useState('');
-    const [searchPartnerDept, setSearchPartnerDept] = useState('');
-    const [partnerActiveSubTab, setPartnerActiveSubTab] = useState<'find' | 'requests'>('find');
+  // Study Partners contact system states
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(getMessengerCacheKey(userProfile.uid, 'study_partners'), {}));
+  const [partnerRequests, setPartnerRequests] = useState<Record<string, any>>(() => readCachedJson<Record<string, any>>(getMessengerCacheKey(userProfile.uid, 'partner_requests'), {}));
+  const [searchPartnerName, setSearchPartnerName] = useState('');
+  const [searchPartnerDept, setSearchPartnerDept] = useState('');
+  const [partnerActiveSubTab, setPartnerActiveSubTab] = useState<'find' | 'requests'>('find');
 
-    // Forwarding states
-    const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
-    const [forwardTargetContent, setForwardTargetContent] = useState('');
-    const [forwardTargetType, setForwardTargetType] = useState('text');
+  // Forwarding states
+  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
+  const [forwardTargetContent, setForwardTargetContent] = useState('');
+  const [forwardTargetType, setForwardTargetType] = useState('text');
 
-    const chatRowLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const suppressNextChatOpenRef = useRef(false);
-    const unreadCountsRef = useRef<Record<string, number>>({});
-    const lastNotificationTimestampRef = useRef<Record<string, number>>({});
-    const { addToast } = useToast();
+  const chatRowLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextChatOpenRef = useRef(false);
+  const unreadCountsRef = useRef<Record<string, number>>({});
+  const lastNotificationTimestampRef = useRef<Record<string, number>>({});
+  const { addToast } = useToast();
 
-    const closeMessageActions = () => {
-      setMessageActionTarget(null);
-      setMessageActionPosition(null);
+  const closeMessageActions = () => {
+    setMessageActionTarget(null);
+    setMessageActionPosition(null);
+  };
+
+  const showIncomingMessageNotification = async (chat: any, summaryText: string) => {
+    if (typeof window === 'undefined') return;
+    if (!userProfile.notifications_enabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const title = chat?.otherUser?.display_name
+      ? `New message from ${chat.otherUser.display_name}`
+      : 'New message received';
+    const options: any = {
+      body: summaryText,
+      icon: '/logo_icon.png',
+      badge: '/logo_icon.png',
+      tag: `messenger-${chat?.id || 'chat'}`,
+      renotify: true,
+      data: {
+        chatId: chat?.id || '',
+      },
     };
-
-    const showIncomingMessageNotification = async (chat: any, summaryText: string) => {
-      if (typeof window === 'undefined') return;
-      if (!userProfile.notifications_enabled) return;
-      if (!('Notification' in window) || Notification.permission !== 'granted') return;
-      const title = chat?.otherUser?.display_name
-        ? `New message from ${chat.otherUser.display_name}`
-        : 'New message received';
-      const options: any = {
-        body: summaryText,
-        icon: '/logo_icon.png',
-        badge: '/logo_icon.png',
-        tag: `messenger-${chat?.id || 'chat'}`,
-        renotify: true,
-        data: {
-          chatId: chat?.id || '',
-        },
-      };
-      try {
-        if ('serviceWorker' in navigator) {
-          let registration = await navigator.serviceWorker.getRegistration();
-          if (!registration) {
-            registration = await navigator.serviceWorker.register('/service-worker.js');
-          }
-          if (registration?.showNotification) {
-            await registration.showNotification(title, options);
-            return;
-          }
+    try {
+      if ('serviceWorker' in navigator) {
+        let registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) {
+          registration = await navigator.serviceWorker.register('/service-worker.js');
         }
-
-        new Notification(title, options);
-      } catch (error) {
-        console.error('Failed to show messenger notification:', error);
-      }
-    };
-
-    useEffect(() => {
-      if (!messageActionTarget) return;
-      const onPointerDown = (event: MouseEvent | TouchEvent) => {
-        if (!messageActionMenuRef.current) return;
-        if (event.target instanceof Node && !messageActionMenuRef.current.contains(event.target)) {
-          closeMessageActions();
-        }
-      };
-      const onEscape = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') closeMessageActions();
-      };
-
-      document.addEventListener('mousedown', onPointerDown);
-      document.addEventListener('touchstart', onPointerDown);
-      document.addEventListener('keydown', onEscape);
-      return () => {
-        document.removeEventListener('mousedown', onPointerDown);
-        document.removeEventListener('touchstart', onPointerDown);
-        document.removeEventListener('keydown', onEscape);
-      };
-    }, [messageActionTarget]);
-
-    const filteredPeople = useMemo(() => {
-        const partnersOnly = allUsers.filter(u => studyPartners[u.uid] === true);
-        if (!peopleSearchQuery.trim()) return partnersOnly;
-        const normalizedQuery = peopleSearchQuery.toLowerCase();
-        return allUsers
-            .filter(u => u.uid !== firebaseUser?.uid)
-            .filter(u => {
-                const name = (u.display_name || "").toLowerCase();
-                const dept = (u.department_id || "").toLowerCase();
-                return name.includes(normalizedQuery) || dept.includes(normalizedQuery);
-            });
-    }, [allUsers, studyPartners, peopleSearchQuery, firebaseUser]);
-
-    const activeChats = useMemo(() => {
-        return chats.filter(c => {
-            const partnerId = c.otherUserId || c.otherUser?.uid;
-            return studyPartners[partnerId] === true;
-        });
-    }, [chats, studyPartners]);
-
-    const userMap = useMemo(() => new Map(allUsers.map(user => [user.uid, user])), [allUsers]);
-
-    const userMapRef = useRef(userMap);
-    const fetchedUserProfilesRef = useRef(fetchedUserProfiles);
-
-    useEffect(() => {
-        userMapRef.current = userMap;
-    }, [userMap]);
-
-    useEffect(() => {
-        fetchedUserProfilesRef.current = fetchedUserProfiles;
-    }, [fetchedUserProfiles]);
-
-    const selectedChatUser = activeChat?.otherUser || createFallbackChatUser(activeChat?.chatId || '');
-
-    const getUnreadCountForUser = useCallback((otherUserId: string) => {
-      if (!firebaseUser) return 0;
-      const chatId = [firebaseUser.uid, otherUserId].sort().join('_');
-      const chat = chats.find(item => item.id === chatId);
-      return chat ? getUnreadCount(chat) : 0;
-    }, [chats, firebaseUser]);
-
-    const ensureChatThreadRecord = useCallback(async (otherUser: UserProfile) => {
-      if (!firebaseUser) return null;
-      const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
-      const currentThreadRef = dbRef(db, `user_chats/${firebaseUser.uid}/${chatId}`);
-      const recipientThreadRef = dbRef(db, `user_chats/${otherUser.uid}/${chatId}`);
-      const snapshot = await get(currentThreadRef);
-      const recipientSnapshot = await get(recipientThreadRef);
-      const now = Date.now();
-
-      if (!snapshot.exists()) {
-        await set(currentThreadRef, {
-          otherUserId: otherUser.uid,
-          timestamp: now,
-          unreadCount: 0,
-          last_message: {
-            text: 'Start a conversation',
-            senderId: firebaseUser.uid,
-            timestamp: now,
-            type: 'text',
-          },
-        });
-      }
-
-      if (!recipientSnapshot.exists()) {
-        await set(recipientThreadRef, {
-          otherUserId: firebaseUser.uid,
-          timestamp: now,
-          unreadCount: 0,
-          last_message: {
-            text: 'Start a conversation',
-            senderId: firebaseUser.uid,
-            timestamp: now,
-            type: 'text',
-          },
-        });
-      }
-
-      return chatId;
-    }, [firebaseUser]);
-
-    const openChatWithUser = useCallback((otherUser: UserProfile) => {
-      if (!firebaseUser) return;
-
-      const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
-      setActiveChat({ chatId, otherUser });
-      setTab('chats');
-
-      void ensureChatThreadRecord(otherUser);
-    }, [ensureChatThreadRecord, firebaseUser]);
-
-    useEffect(() => {
-        const unsub = onAuthStateChanged(auth, user => { 
-            setFirebaseUser(user); 
-            setIsLoading(false); 
-        });
-        return unsub;
-    }, []);
-
-    useEffect(() => {
-        if (!firebaseUser) return;
-        const usersRef = dbRef(db, 'users');
-        const unsubscribe = onValue(usersRef, (snap) => {
-            const data = snap.val() || {};
-            setAllUsers(Object.entries(data).map(([uid, u]: any) => ({
-                uid,
-                display_name: u.displayName || u.display_name || 'Learner',
-                photo_url: u.photoURL || u.photo_url || '',
-                is_online: u.is_online || false,
-                last_seen: u.last_seen || 0,
-                subscription_status: u.subscription_status || 'free',
-                department_id: u.department_id || '',
-                level: u.level || '',
-                current_streak: u.current_streak || 0,
-                last_streak_date: u.last_streak_date || '',
-                last_activity_date: u.last_activity_date || 0,
-                notifications_enabled: u.notifications_enabled || false,
-            })));
-        });
-        return () => off(usersRef, 'value', unsubscribe);
-    }, [firebaseUser]);
-
-    useEffect(() => {
-        if (!firebaseUser) return;
-        const partnersRef = dbRef(db, `study_partners/${firebaseUser.uid}`);
-        const unsubscribePartners = onValue(partnersRef, (snap) => {
-            setStudyPartners(snap.val() || {});
-        });
-
-        const requestsRef = dbRef(db, `partner_requests/${firebaseUser.uid}`);
-        const unsubscribeRequests = onValue(requestsRef, (snap) => {
-            setPartnerRequests(snap.val() || {});
-        });
-
-        return () => {
-            off(partnersRef, 'value', unsubscribePartners);
-            off(requestsRef, 'value', unsubscribeRequests);
-        };
-    }, [firebaseUser]);
-
-    useEffect(() => {
-      const handleVisibilityChange = () => setIsAppActive(document.visibilityState === 'visible');
-      const handleFocus = () => setIsAppActive(true);
-      const handleBlur = () => setIsAppActive(false);
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('focus', handleFocus);
-      window.addEventListener('blur', handleBlur);
-
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('focus', handleFocus);
-        window.removeEventListener('blur', handleBlur);
-      };
-    }, []);
-
-    useEffect(() => {
-      if (!firebaseUser) return;
-
-      const presenceRef = dbRef(db, `users/${firebaseUser.uid}`);
-      const connectedRef = dbRef(db, '.info/connected');
-      let activeConnection = false;
-
-      const syncPresence = async (online: boolean) => {
-        await update(presenceRef, {
-          is_online: online,
-          last_seen: firebaseServerTimestamp()
-        });
-      };
-
-      const unsubscribeConnected = onValue(connectedRef, async (snapshot) => {
-        const connected = snapshot.val() === true;
-        activeConnection = connected;
-
-        if (connected && isAppActive) {
-          const presenceDisconnect = onDisconnect(presenceRef);
-          await presenceDisconnect.update({
-            is_online: false,
-            last_seen: firebaseServerTimestamp()
-          });
-          await syncPresence(true);
-        }
-      });
-
-      if (isAppActive && activeConnection) {
-        syncPresence(true);
-      } else if (!isAppActive) {
-        syncPresence(false);
-      }
-
-      return () => {
-        off(connectedRef, 'value', unsubscribeConnected);
-        syncPresence(false);
-      };
-    }, [firebaseUser, isAppActive]);
-
-    useEffect(() => {
-        if (!firebaseUser) return;
-        const userChatsRef = dbRef(db, `user_chats/${firebaseUser.uid}`);
-        onValue(userChatsRef, (snap) => {
-            const rawVal = snap.val() || {};
-            setChats(prevChats => {
-                const chatList = Object.entries(rawVal).map(([chatId, details]: any) => {
-                    const otherUserId = details.otherUserId || chatId;
-                    const existingChat = prevChats.find(c => c.id === chatId);
-                    let otherUser = existingChat?.otherUser;
-                    if (!otherUser || otherUser.display_name === 'Unknown user') {
-                        otherUser = userMapRef.current.get(otherUserId) || fetchedUserProfilesRef.current[otherUserId] || createFallbackChatUser(otherUserId);
-                    }
-                    return {
-                        id: chatId,
-                        ...details,
-                        otherUser
-                    };
-                });
-
-                const nextUnreadCounts: Record<string, number> = {};
-                chatList.forEach((chat) => {
-                    const unreadCount = getUnreadCount(chat);
-                    nextUnreadCounts[chat.id] = unreadCount;
-
-                    const previousUnread = unreadCountsRef.current[chat.id] || 0;
-                    const lastMessageTimestamp = Number(chat?.last_message?.timestamp || chat?.timestamp || 0);
-                    const lastNotifiedTimestamp = lastNotificationTimestampRef.current[chat.id] || 0;
-                    const lastSenderId = getLastMessageSenderId(chat);
-                    const hasIncomingUnread = unreadCount > previousUnread && unreadCount > 0;
-
-                    if (
-                        hasIncomingUnread &&
-                        lastSenderId &&
-                        lastSenderId !== firebaseUser.uid &&
-                        lastMessageTimestamp > 0 &&
-                        lastMessageTimestamp !== lastNotifiedTimestamp
-                    ) {
-                        lastNotificationTimestampRef.current[chat.id] = lastMessageTimestamp;
-                        void showIncomingMessageNotification(chat, getLastMessagePreview(chat));
-                    }
-                });
-                unreadCountsRef.current = nextUnreadCounts;
-                return chatList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            });
-            setIsLoading(false);
-        });
-    }, [firebaseUser]);
-
-    useEffect(() => {
-      if (!firebaseUser) return;
-      writeCachedJson(getMessengerCacheKey(userProfile.uid, 'chats'), chats);
-    }, [chats, firebaseUser, userProfile.uid]);
-
-    useEffect(() => {
-      if (!firebaseUser || !allUsers.length) return;
-      writeCachedJson(getMessengerCacheKey(userProfile.uid, 'all_users'), allUsers);
-    }, [allUsers, firebaseUser, userProfile.uid]);
-
-    useEffect(() => {
-      if (!firebaseUser) return;
-      writeCachedJson(getMessengerCacheKey(userProfile.uid, 'study_partners'), studyPartners);
-    }, [studyPartners, firebaseUser, userProfile.uid]);
-
-    useEffect(() => {
-      if (!firebaseUser) return;
-      writeCachedJson(getMessengerCacheKey(userProfile.uid, 'partner_requests'), partnerRequests);
-    }, [partnerRequests, firebaseUser, userProfile.uid]);
-
-    const pendingFetches = useRef<Set<string>>(new Set());
-
-    useEffect(() => {
-        if (!chats.length) return;
-        chats.forEach(async (chat) => {
-            const otherUserId = chat.otherUserId || chat.otherUser?.uid;
-            if (!otherUserId) return;
-            const resolvedUser = userMap.get(otherUserId) || fetchedUserProfiles[otherUserId];
-            if (!resolvedUser && !pendingFetches.current.has(otherUserId)) {
-                pendingFetches.current.add(otherUserId);
-                try {
-                    const snapshot = await get(dbRef(db, `users/${otherUserId}`));
-                    if (snapshot.exists()) {
-                        const u = snapshot.val();
-                        const profile: UserProfile = {
-                            uid: otherUserId,
-                            display_name: u.displayName || u.display_name || 'Unknown User',
-                            photo_url: u.photoURL || u.photo_url || '',
-                            is_online: !!u.is_online,
-                            last_seen: u.last_seen || 0,
-                            department_id: u.department_id || '',
-                            level: u.level || '',
-                            current_streak: u.current_streak || 0,
-                            last_activity_date: u.last_activity_date || Date.now(),
-                            notifications_enabled: !!u.notifications_enabled,
-                            subscription_status: u.subscription_status || 'free',
-                        };
-                        setFetchedUserProfiles(prev => {
-                            const next = { ...prev, [otherUserId]: profile };
-                            writeCachedJson(`avelut_resolved_profiles_${userProfile.uid}`, next);
-                            return next;
-                        });
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch profile for user:", otherUserId, err);
-                } finally {
-                    pendingFetches.current.delete(otherUserId);
-                }
-            }
-        });
-    }, [chats, userMap]);
-
-    useEffect(() => {
-      if (!chats.length) return;
-      setChats(prevChats => prevChats.map(chat => {
-        const otherUserId = chat.otherUserId || chat.otherUser?.uid;
-        const resolvedUser = otherUserId ? (userMap.get(otherUserId) || fetchedUserProfiles[otherUserId]) : undefined;
-        return resolvedUser ? { ...chat, otherUser: resolvedUser } : chat;
-      }));
-    }, [userMap, fetchedUserProfiles]);
-
-    useEffect(() => {
-      if (!initialChatId || !chats.length) return;
-      const nextChat = chats.find(chat => chat.id === initialChatId);
-      if (!nextChat) return;
-      setActiveChat({ chatId: nextChat.id, otherUser: nextChat.otherUser });
-      setTab('chats');
-    }, [initialChatId, chats]);
-
-    useEffect(() => {
-      if (!activeChat) {
-        setMessages([]);
-        return;
-      }
-
-      setMessages(readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), []));
-        setOptimisticMessages([]);
-        const messagesRef = dbRef(db, `messages/${activeChat.chatId}`);
-        const messagesQuery = query(messagesRef, limitToLast(50));
-        onValue(messagesQuery, (snap) => {
-            const cloudMsgs = Object.entries(snap.val() || {}).map(([id, msg]: any) => ({ id, ...msg })).sort((a, b) => a.timestamp - b.timestamp);
-            setMessages(cloudMsgs);
-            
-            setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
-            
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-            if (firebaseUser) {
-              set(dbRef(db, `user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`), 0);
-            }
-        });
-        return () => off(messagesRef);
-    }, [activeChat, firebaseUser, userProfile.uid]);
-
-    useEffect(() => {
-      if (!firebaseUser || !activeChat) return;
-      writeCachedJson(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), messages);
-    }, [activeChat, firebaseUser, messages, userProfile.uid]);
-
-    const combinedMessageStream = useMemo(() => {
-        return [...messages, ...optimisticMessages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-    }, [messages, optimisticMessages]);
-
-    const updateChatMetaFromLatestMessage = async (chatId: string, otherUserId: string) => {
-      if (!firebaseUser) return;
-      const latestSnapshot = await get(dbRef(db, `messages/${chatId}`));
-      let summaryText = 'No messages yet';
-      let latestTimestamp = Date.now();
-      if (latestSnapshot.exists()) {
-        const cloudMsgs = Object.entries(latestSnapshot.val() || {}).map(([, msg]: any) => msg);
-        cloudMsgs.sort((a: any, b: any) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0));
-        const lastMessage: any = cloudMsgs[cloudMsgs.length - 1] || {};
-        latestTimestamp = Number(lastMessage?.timestamp || Date.now());
-        if (lastMessage?.type === 'voice') summaryText = '🎵 Voice message';
-        else if (lastMessage?.type === 'image') summaryText = '📷 Image file';
-        else if (lastMessage?.type === 'file') summaryText = '📄 Document file';
-        else summaryText = (lastMessage?.text || 'No messages yet').toString();
-      }
-
-      const updates: any = {};
-      const participantIds = Array.from(new Set([firebaseUser.uid, otherUserId]));
-
-      participantIds.forEach((participantId) => {
-        updates[`user_chats/${participantId}/${chatId}/last_message`] = { text: summaryText };
-        updates[`user_chats/${participantId}/${chatId}/timestamp`] = latestTimestamp;
-      });
-      await update(dbRef(db), updates);
-    };
-
-    const handleDeleteChatThread = async (chat: any) => {
-      if (!firebaseUser || !chat?.id || !chat?.otherUserId) return;
-      const confirmed = window.confirm(`Delete this chat with ${chat.otherUser?.display_name || 'this user'}?`);
-      if (!confirmed) return;
-      try {
-        const updates: any = {};
-        updates[`user_chats/${firebaseUser.uid}/${chat.id}`] = null;
-        updates[`user_chats/${chat.otherUserId}/${chat.id}`] = null;
-        updates[`messages/${chat.id}`] = null;
-        await update(dbRef(db), updates);
-        if (activeChat?.chatId === chat.id) {
-          setActiveChat(null);
-          setMessages([]);
-          setOptimisticMessages([]);
-        }
-        addToast('Chat deleted successfully.', 'success');
-      } catch (error: any) {
-        console.error('Failed to delete chat thread:', error);
-        addToast(error?.message || 'Failed to delete chat.', 'error');
-      }
-    };
-
-    const startChatRowLongPress = (chat: any) => {
-      if (chatRowLongPressTimerRef.current) {
-        clearTimeout(chatRowLongPressTimerRef.current);
-      }
-      chatRowLongPressTimerRef.current = setTimeout(() => {
-        suppressNextChatOpenRef.current = true;
-        void handleDeleteChatThread(chat);
-      }, 520);
-    };
-
-    const clearChatRowLongPress = () => {
-      if (chatRowLongPressTimerRef.current) {
-        clearTimeout(chatRowLongPressTimerRef.current);
-        chatRowLongPressTimerRef.current = null;
-      }
-    };
-
-    const openMessageActions = (msg: any, x: number, y: number) => {
-      if (msg?.isUploading) return;
-      setMessageActionTarget({
-        id: msg.id,
-        senderId: msg.senderId,
-        text: msg.text,
-        type: msg.type,
-        isUploading: msg.isUploading,
-        reactions: msg.reactions || {}
-      });
-      setMessageActionPosition({ x, y });
-    };
-
-    const copyMessageContent = async () => {
-      if (!messageActionTarget) return;
-      const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
-      const copiedValue = messageActionTarget.type === 'image'
-        ? (rawText.match(/\((.*?)\)/)?.[1] || rawText)
-        : rawText;
-      if (!copiedValue) {
-        addToast('Nothing to copy.', 'info');
-        closeMessageActions();
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(copiedValue);
-        addToast('Message copied.', 'success');
-      } catch (error) {
-        addToast('Copy failed on this device.', 'error');
-      }
-      closeMessageActions();
-    };
-
-    const deleteSelectedMessage = async () => {
-      if (!messageActionTarget || !activeChat || !firebaseUser) return;
-      if (messageActionTarget.senderId !== firebaseUser.uid) {
-        addToast('You can only delete your own messages.', 'info');
-        closeMessageActions();
-        return;
-      }
-
-      try {
-        await remove(dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}`));
-        await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
-        addToast('Message deleted.', 'success');
-      } catch (error: any) {
-        console.error('Failed to delete message:', error);
-        addToast(error?.message || 'Failed to delete message.', 'error');
-      }
-      closeMessageActions();
-    };
-
-    const reactToMessage = async (emoji: string) => {
-      if (!messageActionTarget || !activeChat || !firebaseUser) return;
-      try {
-        const reactionPath = dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}/reactions/${firebaseUser.uid}`);
-        const currentReaction = messageActionTarget.reactions?.[firebaseUser.uid];
-        if (currentReaction === emoji) {
-          await remove(reactionPath);
-        } else {
-          await set(reactionPath, emoji);
-        }
-      } catch (error: any) {
-        console.error('Failed to react to message:', error);
-        addToast(error?.message || 'Failed to add reaction.', 'error');
-      }
-      closeMessageActions();
-    };
-
-    const quickReactToMessage = async (msg: any, emoji: string) => {
-      if (!activeChat || !firebaseUser || !msg?.id || msg?.isUploading) return;
-      try {
-        const existingReactions = (msg.reactions && typeof msg.reactions === 'object') ?
-          msg.reactions as Record<string, string> : {};
-        const reactionPath = dbRef(db, `messages/${activeChat.chatId}/${msg.id}/reactions/${firebaseUser.uid}`);
-        if (existingReactions[firebaseUser.uid] === emoji) {
-          await remove(reactionPath);
-          addToast('Reaction removed.', 'info');
-        } else {
-          await set(reactionPath, emoji);
-          addToast('Reacted with ❤️', 'success');
-        }
-      } catch (error: any) {
-        console.error('Failed to quick react to message:', error);
-        addToast(error?.message || 'Quick reaction failed.', 'error');
-      }
-    };
-
-    const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
-        const selectedFiles = Array.from(e.target.files);
-        for (const fileItem of selectedFiles) {
-            const file = fileItem as any;
-            const localTimestamp = Date.now();
-            const tempId = `temp_file_${localTimestamp}`;
-            const fileType = file.type.startsWith('image/') ? 'image' : 'file';
-            const pendingMessage = {
-                id: tempId,
-                senderId: firebaseUser.uid,
-                text: `[📄 ${file.name}]()`,
-                type: fileType,
-                timestamp: localTimestamp,
-                isUploading: true
-            };
-            setOptimisticMessages(prev => [...prev, pendingMessage]);
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-            try {
-                const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${file.name}`;
-                const fileBucketRef = storageRef(storage, cloudPath);
-                const snapshot = await uploadBytes(fileBucketRef, file);
-                const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-                setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-                if (file.type.startsWith('image/')) {
-                    await sendMsg(`![${file.name}](${fileDownloadUrl})`, 'image');
-                } else {
-                    await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
-                }
-            } catch (err) {
-              addToast(`Failed to upload asset: ${file.name}`, 'error');
-              setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-            }
-        }
-    };
-
-    const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
-        const selectedImages = Array.from(e.target.files);
-        for (const imgItem of selectedImages) {
-            const img = imgItem as any;
-            const localTimestamp = Date.now();
-            const tempId = `temp_img_${localTimestamp}`;
-            
-            const pendingMessage = {
-                id: tempId,
-                senderId: firebaseUser.uid,
-                text: `![Captured Image]()`,
-                type: 'image',
-                timestamp: localTimestamp,
-                isUploading: true
-            };
-            setOptimisticMessages(prev => [...prev, pendingMessage]);
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-            try {
-                const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${img.name}`;
-                const fileBucketRef = storageRef(storage, cloudPath);
-                const snapshot = await uploadBytes(fileBucketRef, img);
-                const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-                setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-                await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
-            } catch (err) {
-              addToast('Failed to upload visual layout media.', 'error');
-              setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-            }
-        }
-    };
-
-    const startRecording = async (e: any) => {
-        if (!activeChat) return;
-        if (e && 'preventDefault' in e) e.preventDefault();
-        startYRef.current = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = recorder;
-            audioChunksRef.current = [];
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
-            };
-
-            (recorder as any).shouldSave = true;
-
-            recorder.onstop = async () => {
-                if ((recorder as any).shouldSave && firebaseUser) {
-                    const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                    if (blob.size > 1000) {
-                        const localTimestamp = Date.now();
-                        const tempId = `temp_vn_${localTimestamp}`;
-                        const blobLocalUrl = URL.createObjectURL(blob);
-
-                        const pendingMessage = {
-                            id: tempId,
-                            senderId: firebaseUser.uid,
-                            text: `[Voice Note](${blobLocalUrl})`,
-                            type: 'voice',
-                            timestamp: localTimestamp,
-                            isUploading: true
-                        };
-                        
-                        setOptimisticMessages(prev => [...prev, pendingMessage]);
-                        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-
-                        try {
-                            const path = `voice_notes/${activeChat?.chatId}/${localTimestamp}.webm`;
-                            const url = await getDownloadURL(await uploadBytes(storageRef(storage, path), blob).then(s => s.ref));
-                            setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
-                            await sendMsg(`[Voice Note](${url})`, 'voice');
-                        } catch (uploadError) {
-                            console.error("Voice Note storage syncing failure:", uploadError);
-                            setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
-                        }
-                    }
-                }
-                stream.getTracks().forEach(t => t.stop());
-            };
-
-            recorder.start();
-            setIsRecording(true);
-            setRecordDuration(0);
-            if (timerRef.current) clearInterval(timerRef.current);
-            timerRef.current = setInterval(() => setRecordDuration(prev => prev + 1), 1000);
-        } catch (err) { 
-          addToast('Mic entry parameters rejected.', 'error');
-        }
-    };
-
-    const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!isRecording || isLocked) return;
-        const currentY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        if (startYRef.current - currentY > 80) setIsLocked(true);
-    };
-
-    const stopRecording = (shouldSave: boolean) => {
-        setIsRecording(false);
-        setIsLocked(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (mediaRecorderRef.current) {
-            (mediaRecorderRef.current as any).shouldSave = shouldSave;
-            mediaRecorderRef.current.stop();
-        }
-    };
-
-    const sendMsg = async (text: string, type = 'text') => {
-        if ((!text.trim() && type === 'text') || !activeChat || !firebaseUser) {
-          addToast('Open a chat first, then send a message.', 'info');
+        if (registration?.showNotification) {
+          await registration.showNotification(title, options);
           return;
         }
+      }
 
-        const msgRef = push(dbRef(db, `messages/${activeChat.chatId}`));
-        const clientTimestamp = Date.now();
-        const optimisticId = msgRef.key || `${clientTimestamp}`;
-        const data = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp() };
-        const optimisticMessage = { id: optimisticId, ...data, timestamp: clientTimestamp };
+      new Notification(title, options);
+    } catch (error) {
+      console.error('Failed to show messenger notification:', error);
+    }
+  };
 
-        setMessages(prev => [...prev, optimisticMessage]);
-        try {
-          await set(msgRef, data);
-          const updates: any = {};
-          let summaryText = text;
-          if (type === 'voice') summaryText = '🎵 Voice message';
-          else if (type === 'image') summaryText = '📷 Image file';
-          else if (type === 'file') summaryText = '📄 Document file';
-          const metaTimestamp = firebaseServerTimestamp();
-          
-          const participantIds = Array.from(new Set([firebaseUser.uid, activeChat.otherUser.uid]));
-          participantIds.forEach((participantId) => {
-            updates[`user_chats/${participantId}/${activeChat.chatId}/last_message`] = {
-              text: summaryText,
-              senderId: firebaseUser.uid,
-              timestamp: metaTimestamp,
-              type,
-            };
-            updates[`user_chats/${participantId}/${activeChat.chatId}/timestamp`] = metaTimestamp;
-            updates[`user_chats/${participantId}/${activeChat.chatId}/otherUserId`] = participantId === firebaseUser.uid
-              ? activeChat.otherUser.uid
-              : firebaseUser.uid;
-          });
-          updates[`user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`] = 0;
-          if (activeChat.otherUser.uid !== firebaseUser.uid) {
-            updates[`user_chats/${activeChat.otherUser.uid}/${activeChat.chatId}/unreadCount`] = increment(1);
+  useEffect(() => {
+    if (!messageActionTarget) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!messageActionMenuRef.current) return;
+      if (event.target instanceof Node && !messageActionMenuRef.current.contains(event.target)) {
+        closeMessageActions();
+      }
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMessageActions();
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [messageActionTarget]);
+
+  const filteredPeople = useMemo(() => {
+    const partnersOnly = allUsers.filter(u => studyPartners[u.uid] === true);
+    if (!peopleSearchQuery.trim()) return partnersOnly;
+    const normalizedQuery = peopleSearchQuery.toLowerCase();
+    return allUsers
+      .filter(u => u.uid !== firebaseUser?.uid)
+      .filter(u => {
+        const name = (u.display_name || "").toLowerCase();
+        const dept = (u.department_id || "").toLowerCase();
+        return name.includes(normalizedQuery) || dept.includes(normalizedQuery);
+      });
+  }, [allUsers, studyPartners, peopleSearchQuery, firebaseUser]);
+
+  const activeChats = useMemo(() => {
+    return chats.filter(c => {
+      const partnerId = c.otherUserId || c.otherUser?.uid;
+      return studyPartners[partnerId] === true;
+    });
+  }, [chats, studyPartners]);
+
+  const userMap = useMemo(() => new Map(allUsers.map(user => [user.uid, user])), [allUsers]);
+
+  const userMapRef = useRef(userMap);
+  const fetchedUserProfilesRef = useRef(fetchedUserProfiles);
+
+  useEffect(() => {
+    userMapRef.current = userMap;
+  }, [userMap]);
+
+  useEffect(() => {
+    fetchedUserProfilesRef.current = fetchedUserProfiles;
+  }, [fetchedUserProfiles]);
+
+  const selectedChatUser = activeChat?.otherUser || createFallbackChatUser(activeChat?.chatId || '');
+
+  const getUnreadCountForUser = useCallback((otherUserId: string) => {
+    if (!firebaseUser) return 0;
+    const chatId = [firebaseUser.uid, otherUserId].sort().join('_');
+    const chat = chats.find(item => item.id === chatId);
+    return chat ? getUnreadCount(chat) : 0;
+  }, [chats, firebaseUser]);
+
+  const ensureChatThreadRecord = useCallback(async (otherUser: UserProfile) => {
+    if (!firebaseUser) return null;
+    const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
+    const currentThreadRef = dbRef(db, `user_chats/${firebaseUser.uid}/${chatId}`);
+    const recipientThreadRef = dbRef(db, `user_chats/${otherUser.uid}/${chatId}`);
+    const snapshot = await get(currentThreadRef);
+    const recipientSnapshot = await get(recipientThreadRef);
+    const now = Date.now();
+
+    if (!snapshot.exists()) {
+      await set(currentThreadRef, {
+        otherUserId: otherUser.uid,
+        timestamp: now,
+        unreadCount: 0,
+        last_message: {
+          text: 'Start a conversation',
+          senderId: firebaseUser.uid,
+          timestamp: now,
+          type: 'text',
+        },
+      });
+    }
+
+    if (!recipientSnapshot.exists()) {
+      await set(recipientThreadRef, {
+        otherUserId: firebaseUser.uid,
+        timestamp: now,
+        unreadCount: 0,
+        last_message: {
+          text: 'Start a conversation',
+          senderId: firebaseUser.uid,
+          timestamp: now,
+          type: 'text',
+        },
+      });
+    }
+
+    return chatId;
+  }, [firebaseUser]);
+
+  const openChatWithUser = useCallback((otherUser: UserProfile) => {
+    if (!firebaseUser) return;
+
+    const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
+    setActiveChat({ chatId, otherUser });
+    setTab('chats');
+
+    void ensureChatThreadRecord(otherUser);
+  }, [ensureChatThreadRecord, firebaseUser]);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, user => {
+      setFirebaseUser(user);
+      setIsLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const usersRef = dbRef(db, 'users');
+    const unsubscribe = onValue(usersRef, (snap) => {
+      const data = snap.val() || {};
+      setAllUsers(Object.entries(data).map(([uid, u]: any) => ({
+        uid,
+        display_name: u.displayName || u.display_name || 'Learner',
+        photo_url: u.photoURL || u.photo_url || '',
+        is_online: u.is_online || false,
+        last_seen: u.last_seen || 0,
+        subscription_status: u.subscription_status || 'free',
+        department_id: u.department_id || '',
+        level: u.level || '',
+        current_streak: u.current_streak || 0,
+        last_streak_date: u.last_streak_date || '',
+        last_activity_date: u.last_activity_date || 0,
+        notifications_enabled: u.notifications_enabled || false,
+      })));
+    });
+    return () => off(usersRef, 'value', unsubscribe);
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const partnersRef = dbRef(db, `study_partners/${firebaseUser.uid}`);
+    const unsubscribePartners = onValue(partnersRef, (snap) => {
+      setStudyPartners(snap.val() || {});
+    });
+
+    const requestsRef = dbRef(db, `partner_requests/${firebaseUser.uid}`);
+    const unsubscribeRequests = onValue(requestsRef, (snap) => {
+      setPartnerRequests(snap.val() || {});
+    });
+
+    return () => {
+      off(partnersRef, 'value', unsubscribePartners);
+      off(requestsRef, 'value', unsubscribeRequests);
+    };
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => setIsAppActive(document.visibilityState === 'visible');
+    const handleFocus = () => setIsAppActive(true);
+    const handleBlur = () => setIsAppActive(false);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const presenceRef = dbRef(db, `users/${firebaseUser.uid}`);
+    const connectedRef = dbRef(db, '.info/connected');
+    let activeConnection = false;
+
+    const syncPresence = async (online: boolean) => {
+      await update(presenceRef, {
+        is_online: online,
+        last_seen: firebaseServerTimestamp()
+      });
+    };
+
+    const unsubscribeConnected = onValue(connectedRef, async (snapshot) => {
+      const connected = snapshot.val() === true;
+      activeConnection = connected;
+
+      if (connected && isAppActive) {
+        const presenceDisconnect = onDisconnect(presenceRef);
+        await presenceDisconnect.update({
+          is_online: false,
+          last_seen: firebaseServerTimestamp()
+        });
+        await syncPresence(true);
+      }
+    });
+
+    if (isAppActive && activeConnection) {
+      syncPresence(true);
+    } else if (!isAppActive) {
+      syncPresence(false);
+    }
+
+    return () => {
+      off(connectedRef, 'value', unsubscribeConnected);
+      syncPresence(false);
+    };
+  }, [firebaseUser, isAppActive]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const userChatsRef = dbRef(db, `user_chats/${firebaseUser.uid}`);
+    onValue(userChatsRef, (snap) => {
+      const rawVal = snap.val() || {};
+      setChats(prevChats => {
+        const chatList = Object.entries(rawVal).map(([chatId, details]: any) => {
+          const otherUserId = details.otherUserId || chatId;
+          const existingChat = prevChats.find(c => c.id === chatId);
+          let otherUser = existingChat?.otherUser;
+          if (!otherUser || otherUser.display_name === 'Unknown user') {
+            otherUser = userMapRef.current.get(otherUserId) || fetchedUserProfilesRef.current[otherUserId] || createFallbackChatUser(otherUserId);
           }
-          await update(dbRef(db), updates);
-        } catch (error: any) {
-          setMessages(prev => prev.filter(message => message.id !== optimisticId));
-          console.error('Failed to send message:', error);
-          addToast(error?.message || 'Message failed to send.', 'error');
-        }
-    };
+          return {
+            id: chatId,
+            ...details,
+            otherUser
+          };
+        });
 
-    const sendPartnerRequest = async (targetUser: UserProfile) => {
-        if (!firebaseUser || !userProfile) return;
+        const nextUnreadCounts: Record<string, number> = {};
+        chatList.forEach((chat) => {
+          const unreadCount = getUnreadCount(chat);
+          nextUnreadCounts[chat.id] = unreadCount;
+
+          const previousUnread = unreadCountsRef.current[chat.id] || 0;
+          const lastMessageTimestamp = Number(chat?.last_message?.timestamp || chat?.timestamp || 0);
+          const lastNotifiedTimestamp = lastNotificationTimestampRef.current[chat.id] || 0;
+          const lastSenderId = getLastMessageSenderId(chat);
+          const hasIncomingUnread = unreadCount > previousUnread && unreadCount > 0;
+
+          if (
+            hasIncomingUnread &&
+            lastSenderId &&
+            lastSenderId !== firebaseUser.uid &&
+            lastMessageTimestamp > 0 &&
+            lastMessageTimestamp !== lastNotifiedTimestamp
+          ) {
+            lastNotificationTimestampRef.current[chat.id] = lastMessageTimestamp;
+            void showIncomingMessageNotification(chat, getLastMessagePreview(chat));
+          }
+        });
+        unreadCountsRef.current = nextUnreadCounts;
+        return chatList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      });
+      setIsLoading(false);
+    });
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'chats'), chats);
+  }, [chats, firebaseUser, userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUser || !allUsers.length) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'all_users'), allUsers);
+  }, [allUsers, firebaseUser, userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'study_partners'), studyPartners);
+  }, [studyPartners, firebaseUser, userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'partner_requests'), partnerRequests);
+  }, [partnerRequests, firebaseUser, userProfile.uid]);
+
+  const pendingFetches = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!chats.length) return;
+    chats.forEach(async (chat) => {
+      const otherUserId = chat.otherUserId || chat.otherUser?.uid;
+      if (!otherUserId) return;
+      const resolvedUser = userMap.get(otherUserId) || fetchedUserProfiles[otherUserId];
+      if (!resolvedUser && !pendingFetches.current.has(otherUserId)) {
+        pendingFetches.current.add(otherUserId);
         try {
-            const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
-            const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
-            
-            const now = Date.now();
-            await set(myRequestRef, {
-                status: 'sent',
-                senderName: userProfile.display_name || 'Learner',
-                senderId: firebaseUser.uid,
-                receiverId: targetUser.uid,
-                timestamp: now
+          const snapshot = await get(dbRef(db, `users/${otherUserId}`));
+          if (snapshot.exists()) {
+            const u = snapshot.val();
+            const profile: UserProfile = {
+              uid: otherUserId,
+              display_name: u.displayName || u.display_name || 'Unknown User',
+              photo_url: u.photoURL || u.photo_url || '',
+              is_online: !!u.is_online,
+              last_seen: u.last_seen || 0,
+              department_id: u.department_id || '',
+              level: u.level || '',
+              current_streak: u.current_streak || 0,
+              last_activity_date: u.last_activity_date || Date.now(),
+              notifications_enabled: !!u.notifications_enabled,
+              subscription_status: u.subscription_status || 'free',
+            };
+            setFetchedUserProfiles(prev => {
+              const next = { ...prev, [otherUserId]: profile };
+              writeCachedJson(`avelut_resolved_profiles_${userProfile.uid}`, next);
+              return next;
             });
-            await set(theirRequestRef, {
-                status: 'received',
-                senderName: userProfile.display_name || 'Learner',
-                senderId: firebaseUser.uid,
-                receiverId: targetUser.uid,
-                timestamp: now
-            });
-
-            const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
-            await set(notifRef, {
-                id: notifRef.key,
-                title: 'New Study Partner Request',
-                message: `${userProfile.display_name || 'A user'} sent you a study partner request!`,
-                type: 'study_partner_request',
-                is_read: false,
-                timestamp: now
-            });
-            addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
-        } catch (err: any) {
-            console.error('Failed to send partner request:', err);
-            addToast('Failed to send request: ' + err.message, 'error');
+          }
+        } catch (err) {
+          console.error("Failed to fetch profile for user:", otherUserId, err);
+        } finally {
+          pendingFetches.current.delete(otherUserId);
         }
-    };
+      }
+    });
+  }, [chats, userMap]);
 
-    const acceptPartnerRequest = async (targetUser: UserProfile) => {
-        if (!firebaseUser || !userProfile) return;
-        try {
-            const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
-            const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
-            await remove(myRequestRef);
-            await remove(theirRequestRef);
+  useEffect(() => {
+    if (!chats.length) return;
+    setChats(prevChats => prevChats.map(chat => {
+      const otherUserId = chat.otherUserId || chat.otherUser?.uid;
+      const resolvedUser = otherUserId ? (userMap.get(otherUserId) || fetchedUserProfiles[otherUserId]) : undefined;
+      return resolvedUser ? { ...chat, otherUser: resolvedUser } : chat;
+    }));
+  }, [userMap, fetchedUserProfiles]);
 
-            const myPartnerRef = dbRef(db, `study_partners/${firebaseUser.uid}/${targetUser.uid}`);
-            const theirPartnerRef = dbRef(db, `study_partners/${targetUser.uid}/${firebaseUser.uid}`);
-            await set(myPartnerRef, true);
-            await set(theirPartnerRef, true);
+  useEffect(() => {
+    if (!initialChatId || !chats.length) return;
+    const nextChat = chats.find(chat => chat.id === initialChatId);
+    if (!nextChat) return;
+    setActiveChat({ chatId: nextChat.id, otherUser: nextChat.otherUser });
+    setTab('chats');
+  }, [initialChatId, chats]);
 
-            const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
-            await set(notifRef, {
-                id: notifRef.key,
-                title: 'Study Partner Request Accepted',
-                message: `${userProfile.display_name || 'A user'} accepted your study partner request!`,
-                type: 'study_partner_accepted',
-                is_read: false,
-                timestamp: Date.now()
-            });
-            addToast(`You are now study partners with ${targetUser.display_name}!`, 'success');
-        } catch (err: any) {
-            console.error('Failed to accept request:', err);
-            addToast('Failed to accept request: ' + err.message, 'error');
+  useEffect(() => {
+    if (!activeChat) {
+      setMessages([]);
+      return;
+    }
+
+    setMessages(readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), []));
+    setOptimisticMessages([]);
+    const messagesRef = dbRef(db, `messages/${activeChat.chatId}`);
+    const messagesQuery = query(messagesRef, limitToLast(50));
+    onValue(messagesQuery, (snap) => {
+      const cloudMsgs = Object.entries(snap.val() || {}).map(([id, msg]: any) => ({ id, ...msg })).sort((a, b) => a.timestamp - b.timestamp);
+      setMessages(cloudMsgs);
+
+      setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
+
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      if (firebaseUser) {
+        set(dbRef(db, `user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`), 0);
+      }
+    });
+    return () => off(messagesRef);
+  }, [activeChat, firebaseUser, userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUser || !activeChat) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), messages);
+  }, [activeChat, firebaseUser, messages, userProfile.uid]);
+
+  const combinedMessageStream = useMemo(() => {
+    return [...messages, ...optimisticMessages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  }, [messages, optimisticMessages]);
+
+  const updateChatMetaFromLatestMessage = async (chatId: string, otherUserId: string) => {
+    if (!firebaseUser) return;
+    const latestSnapshot = await get(dbRef(db, `messages/${chatId}`));
+    let summaryText = 'No messages yet';
+    let latestTimestamp = Date.now();
+    if (latestSnapshot.exists()) {
+      const cloudMsgs = Object.entries(latestSnapshot.val() || {}).map(([, msg]: any) => msg);
+      cloudMsgs.sort((a: any, b: any) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0));
+      const lastMessage: any = cloudMsgs[cloudMsgs.length - 1] || {};
+      latestTimestamp = Number(lastMessage?.timestamp || Date.now());
+      if (lastMessage?.type === 'voice') summaryText = '🎵 Voice message';
+      else if (lastMessage?.type === 'image') summaryText = '📷 Image file';
+      else if (lastMessage?.type === 'file') summaryText = '📄 Document file';
+      else summaryText = (lastMessage?.text || 'No messages yet').toString();
+    }
+
+    const updates: any = {};
+    const participantIds = Array.from(new Set([firebaseUser.uid, otherUserId]));
+
+    participantIds.forEach((participantId) => {
+      updates[`user_chats/${participantId}/${chatId}/last_message`] = { text: summaryText };
+      updates[`user_chats/${participantId}/${chatId}/timestamp`] = latestTimestamp;
+    });
+    await update(dbRef(db), updates);
+  };
+
+  const handleDeleteChatThread = async (chat: any) => {
+    if (!firebaseUser || !chat?.id || !chat?.otherUserId) return;
+    const confirmed = window.confirm(`Delete this chat with ${chat.otherUser?.display_name || 'this user'}?`);
+    if (!confirmed) return;
+    try {
+      const updates: any = {};
+      updates[`user_chats/${firebaseUser.uid}/${chat.id}`] = null;
+      updates[`user_chats/${chat.otherUserId}/${chat.id}`] = null;
+      updates[`messages/${chat.id}`] = null;
+      await update(dbRef(db), updates);
+      if (activeChat?.chatId === chat.id) {
+        setActiveChat(null);
+        setMessages([]);
+        setOptimisticMessages([]);
+      }
+      addToast('Chat deleted successfully.', 'success');
+    } catch (error: any) {
+      console.error('Failed to delete chat thread:', error);
+      addToast(error?.message || 'Failed to delete chat.', 'error');
+    }
+  };
+
+  const startChatRowLongPress = (chat: any) => {
+    if (chatRowLongPressTimerRef.current) {
+      clearTimeout(chatRowLongPressTimerRef.current);
+    }
+    chatRowLongPressTimerRef.current = setTimeout(() => {
+      suppressNextChatOpenRef.current = true;
+      void handleDeleteChatThread(chat);
+    }, 520);
+  };
+
+  const clearChatRowLongPress = () => {
+    if (chatRowLongPressTimerRef.current) {
+      clearTimeout(chatRowLongPressTimerRef.current);
+      chatRowLongPressTimerRef.current = null;
+    }
+  };
+
+  const openMessageActions = (msg: any, x: number, y: number) => {
+    if (msg?.isUploading) return;
+    setMessageActionTarget({
+      id: msg.id,
+      senderId: msg.senderId,
+      text: msg.text,
+      type: msg.type,
+      isUploading: msg.isUploading,
+      reactions: msg.reactions || {}
+    });
+    setMessageActionPosition({ x, y });
+  };
+
+  const copyMessageContent = async () => {
+    if (!messageActionTarget) return;
+    const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
+    const copiedValue = messageActionTarget.type === 'image'
+      ? (rawText.match(/\((.*?)\)/)?.[1] || rawText)
+      : rawText;
+    if (!copiedValue) {
+      addToast('Nothing to copy.', 'info');
+      closeMessageActions();
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(copiedValue);
+      addToast('Message copied.', 'success');
+    } catch (error) {
+      addToast('Copy failed on this device.', 'error');
+    }
+    closeMessageActions();
+  };
+
+  const deleteSelectedMessage = async () => {
+    if (!messageActionTarget || !activeChat || !firebaseUser) return;
+    if (messageActionTarget.senderId !== firebaseUser.uid) {
+      addToast('You can only delete your own messages.', 'info');
+      closeMessageActions();
+      return;
+    }
+
+    try {
+      await remove(dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}`));
+      await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
+      addToast('Message deleted.', 'success');
+    } catch (error: any) {
+      console.error('Failed to delete message:', error);
+      addToast(error?.message || 'Failed to delete message.', 'error');
+    }
+    closeMessageActions();
+  };
+
+  const reactToMessage = async (emoji: string) => {
+    if (!messageActionTarget || !activeChat || !firebaseUser) return;
+    try {
+      const reactionPath = dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}/reactions/${firebaseUser.uid}`);
+      const currentReaction = messageActionTarget.reactions?.[firebaseUser.uid];
+      if (currentReaction === emoji) {
+        await remove(reactionPath);
+      } else {
+        await set(reactionPath, emoji);
+      }
+    } catch (error: any) {
+      console.error('Failed to react to message:', error);
+      addToast(error?.message || 'Failed to add reaction.', 'error');
+    }
+    closeMessageActions();
+  };
+
+  const quickReactToMessage = async (msg: any, emoji: string) => {
+    if (!activeChat || !firebaseUser || !msg?.id || msg?.isUploading) return;
+    try {
+      const existingReactions = (msg.reactions && typeof msg.reactions === 'object') ?
+        msg.reactions as Record<string, string> : {};
+      const reactionPath = dbRef(db, `messages/${activeChat.chatId}/${msg.id}/reactions/${firebaseUser.uid}`);
+      if (existingReactions[firebaseUser.uid] === emoji) {
+        await remove(reactionPath);
+        addToast('Reaction removed.', 'info');
+      } else {
+        await set(reactionPath, emoji);
+        addToast('Reacted with ❤️', 'success');
+      }
+    } catch (error: any) {
+      console.error('Failed to quick react to message:', error);
+      addToast(error?.message || 'Quick reaction failed.', 'error');
+    }
+  };
+
+  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
+    const selectedFiles = Array.from(e.target.files);
+    for (const fileItem of selectedFiles) {
+      const file = fileItem as any;
+      const localTimestamp = Date.now();
+      const tempId = `temp_file_${localTimestamp}`;
+      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
+      const pendingMessage = {
+        id: tempId,
+        senderId: firebaseUser.uid,
+        text: `[📄 ${file.name}]()`,
+        type: fileType,
+        timestamp: localTimestamp,
+        isUploading: true
+      };
+      setOptimisticMessages(prev => [...prev, pendingMessage]);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      try {
+        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${file.name}`;
+        const fileBucketRef = storageRef(storage, cloudPath);
+        const snapshot = await uploadBytes(fileBucketRef, file);
+        const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        if (file.type.startsWith('image/')) {
+          await sendMsg(`![${file.name}](${fileDownloadUrl})`, 'image');
+        } else {
+          await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
         }
-    };
+      } catch (err) {
+        addToast(`Failed to upload asset: ${file.name}`, 'error');
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      }
+    }
+  };
 
-    const declinePartnerRequest = async (targetUser: UserProfile) => {
-        if (!firebaseUser) return;
-        try {
-            const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
-            const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
-            await remove(myRequestRef);
-            await remove(theirRequestRef);
-            addToast(`Declined request from ${targetUser.display_name}`, 'info');
-        } catch (err: any) {
-            console.error('Failed to decline request:', err);
-        }
-    };
+  const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
+    const selectedImages = Array.from(e.target.files);
+    for (const imgItem of selectedImages) {
+      const img = imgItem as any;
+      const localTimestamp = Date.now();
+      const tempId = `temp_img_${localTimestamp}`;
 
-    const cancelPartnerRequest = async (targetUser: UserProfile) => {
-        if (!firebaseUser) return;
-        try {
-            const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
-            const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
-            await remove(myRequestRef);
-            await remove(theirRequestRef);
-            addToast(`Cancelled request to ${targetUser.display_name}`, 'info');
-        } catch (err: any) {
-            console.error('Failed to cancel request:', err);
-        }
-    };
+      const pendingMessage = {
+        id: tempId,
+        senderId: firebaseUser.uid,
+        text: `![Captured Image]()`,
+        type: 'image',
+        timestamp: localTimestamp,
+        isUploading: true
+      };
+      setOptimisticMessages(prev => [...prev, pendingMessage]);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      try {
+        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${img.name}`;
+        const fileBucketRef = storageRef(storage, cloudPath);
+        const snapshot = await uploadBytes(fileBucketRef, img);
+        const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
+      } catch (err) {
+        addToast('Failed to upload visual layout media.', 'error');
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      }
+    }
+  };
 
-    const forwardMessageToUsers = async (text: string, type = 'text', recipientUserIds: string[]) => {
-        if (!firebaseUser) return;
-        try {
-            for (const recipientId of recipientUserIds) {
-                const chatId = [firebaseUser.uid, recipientId].sort().join('_');
-                const msgRef = push(dbRef(db, `messages/${chatId}`));
-                const data = { senderId: firebaseUser.uid, text, type, timestamp: Date.now() };
-                await set(msgRef, data);
-                const updates: any = {};
-                let summaryText = text;
-                if (type === 'voice') summaryText = '🎵 Voice message';
-                else if (type === 'image') summaryText = '📷 Image file';
-                else if (type === 'file') summaryText = '📄 Document file';
-                const participantIds = Array.from(new Set([firebaseUser.uid, recipientId]));
-                participantIds.forEach((participantId) => {
-                    updates[`user_chats/${participantId}/${chatId}/last_message`] = {
-                        text: summaryText,
-                        senderId: firebaseUser.uid,
-                        timestamp: Date.now(),
-                        type,
-                    };
-                    updates[`user_chats/${participantId}/${chatId}/timestamp`] = Date.now();
-                    updates[`user_chats/${participantId}/${chatId}/otherUserId`] = participantId === firebaseUser.uid
-                        ? recipientId
-                        : firebaseUser.uid;
-                });
-                updates[`user_chats/${firebaseUser.uid}/${chatId}/unreadCount`] = 0;
-                if (recipientId !== firebaseUser.uid) {
-                    updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = increment(1);
-                }
-                await update(dbRef(db), updates);
+  const startRecording = async (e: any) => {
+    if (!activeChat) return;
+    if (e && 'preventDefault' in e) e.preventDefault();
+    startYRef.current = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      (recorder as any).shouldSave = true;
+
+      recorder.onstop = async () => {
+        if ((recorder as any).shouldSave && firebaseUser) {
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          if (blob.size > 1000) {
+            const localTimestamp = Date.now();
+            const tempId = `temp_vn_${localTimestamp}`;
+            const blobLocalUrl = URL.createObjectURL(blob);
+
+            const pendingMessage = {
+              id: tempId,
+              senderId: firebaseUser.uid,
+              text: `[Voice Note](${blobLocalUrl})`,
+              type: 'voice',
+              timestamp: localTimestamp,
+              isUploading: true
+            };
+
+            setOptimisticMessages(prev => [...prev, pendingMessage]);
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+            try {
+              const path = `voice_notes/${activeChat?.chatId}/${localTimestamp}.webm`;
+              const url = await getDownloadURL(await uploadBytes(storageRef(storage, path), blob).then(s => s.ref));
+              setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+              await sendMsg(`[Voice Note](${url})`, 'voice');
+            } catch (uploadError) {
+              console.error("Voice Note storage syncing failure:", uploadError);
+              setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
             }
-            addToast('Message forwarded successfully!', 'success');
-        } catch (err: any) {
-            console.error('Failed to forward:', err);
-            addToast('Failed to forward message: ' + err.message, 'error');
+          }
         }
-    };
+        stream.getTracks().forEach(t => t.stop());
+      };
 
-    return (
-        <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] font-sans antialiased text-[#212529]">
-            {/* Sidebar Pane */}
-            <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
-                <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
-                    <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                        </button>
-                        <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
-                    </div>
-                    <div className="flex gap-2 bg-[#E9ECEF] p-1 rounded-full mb-3">
-                        <button onClick={() => setTab('chats')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
-                        <button onClick={() => setTab('people')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
-                    </div>
+      recorder.start();
+      setIsRecording(true);
+      setRecordDuration(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => setRecordDuration(prev => prev + 1), 1000);
+    } catch (err) {
+      addToast('Mic entry parameters rejected.', 'error');
+    }
+  };
 
-                    {/* Search Bar */}
-                    {tab === 'people' && (
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                placeholder="Search study mates..."
-                                value={peopleSearchQuery}
-                                onChange={(e) => setPeopleSearchQuery(e.target.value)}
-                                className="w-full bg-white text-sm text-[#212529] placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
-                            />
-                            {peopleSearchQuery && (
-                                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] text-xs hover:text-[#212529]">✕</button>
-                            )}
-                        </div>
+  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isRecording || isLocked) return;
+    const currentY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    if (startYRef.current - currentY > 80) setIsLocked(true);
+  };
+
+  const stopRecording = (shouldSave: boolean) => {
+    setIsRecording(false);
+    setIsLocked(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (mediaRecorderRef.current) {
+      (mediaRecorderRef.current as any).shouldSave = shouldSave;
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const sendMsg = async (text: string, type = 'text') => {
+    if ((!text.trim() && type === 'text') || !activeChat || !firebaseUser) {
+      addToast('Open a chat first, then send a message.', 'info');
+      return;
+    }
+
+    const msgRef = push(dbRef(db, `messages/${activeChat.chatId}`));
+    const clientTimestamp = Date.now();
+    const optimisticId = msgRef.key || `${clientTimestamp}`;
+    const data = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp() };
+    const optimisticMessage = { id: optimisticId, ...data, timestamp: clientTimestamp };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    try {
+      await set(msgRef, data);
+      const updates: any = {};
+      let summaryText = text;
+      if (type === 'voice') summaryText = '🎵 Voice message';
+      else if (type === 'image') summaryText = '📷 Image file';
+      else if (type === 'file') summaryText = '📄 Document file';
+      const metaTimestamp = firebaseServerTimestamp();
+
+      const participantIds = Array.from(new Set([firebaseUser.uid, activeChat.otherUser.uid]));
+      participantIds.forEach((participantId) => {
+        updates[`user_chats/${participantId}/${activeChat.chatId}/last_message`] = {
+          text: summaryText,
+          senderId: firebaseUser.uid,
+          timestamp: metaTimestamp,
+          type,
+        };
+        updates[`user_chats/${participantId}/${activeChat.chatId}/timestamp`] = metaTimestamp;
+        updates[`user_chats/${participantId}/${activeChat.chatId}/otherUserId`] = participantId === firebaseUser.uid
+          ? activeChat.otherUser.uid
+          : firebaseUser.uid;
+      });
+      updates[`user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`] = 0;
+      if (activeChat.otherUser.uid !== firebaseUser.uid) {
+        updates[`user_chats/${activeChat.otherUser.uid}/${activeChat.chatId}/unreadCount`] = increment(1);
+      }
+      await update(dbRef(db), updates);
+    } catch (error: any) {
+      setMessages(prev => prev.filter(message => message.id !== optimisticId));
+      console.error('Failed to send message:', error);
+      addToast(error?.message || 'Message failed to send.', 'error');
+    }
+  };
+
+  const sendPartnerRequest = async (targetUser: UserProfile) => {
+    if (!firebaseUser || !userProfile) return;
+    try {
+      const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
+      const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
+
+      const now = Date.now();
+      await set(myRequestRef, {
+        status: 'sent',
+        senderName: userProfile.display_name || 'Learner',
+        senderId: firebaseUser.uid,
+        receiverId: targetUser.uid,
+        timestamp: now
+      });
+      await set(theirRequestRef, {
+        status: 'received',
+        senderName: userProfile.display_name || 'Learner',
+        senderId: firebaseUser.uid,
+        receiverId: targetUser.uid,
+        timestamp: now
+      });
+
+      const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
+      await set(notifRef, {
+        id: notifRef.key,
+        title: 'New Study Partner Request',
+        message: `${userProfile.display_name || 'A user'} sent you a study partner request!`,
+        type: 'study_partner_request',
+        is_read: false,
+        timestamp: now
+      });
+      addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
+    } catch (err: any) {
+      console.error('Failed to send partner request:', err);
+      addToast('Failed to send request: ' + err.message, 'error');
+    }
+  };
+
+  const acceptPartnerRequest = async (targetUser: UserProfile) => {
+    if (!firebaseUser || !userProfile) return;
+    try {
+      const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
+      const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
+      await remove(myRequestRef);
+      await remove(theirRequestRef);
+
+      const myPartnerRef = dbRef(db, `study_partners/${firebaseUser.uid}/${targetUser.uid}`);
+      const theirPartnerRef = dbRef(db, `study_partners/${targetUser.uid}/${firebaseUser.uid}`);
+      await set(myPartnerRef, true);
+      await set(theirPartnerRef, true);
+
+      const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
+      await set(notifRef, {
+        id: notifRef.key,
+        title: 'Study Partner Request Accepted',
+        message: `${userProfile.display_name || 'A user'} accepted your study partner request!`,
+        type: 'study_partner_accepted',
+        is_read: false,
+        timestamp: Date.now()
+      });
+      addToast(`You are now study partners with ${targetUser.display_name}!`, 'success');
+    } catch (err: any) {
+      console.error('Failed to accept request:', err);
+      addToast('Failed to accept request: ' + err.message, 'error');
+    }
+  };
+
+  const declinePartnerRequest = async (targetUser: UserProfile) => {
+    if (!firebaseUser) return;
+    try {
+      const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
+      const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
+      await remove(myRequestRef);
+      await remove(theirRequestRef);
+      addToast(`Declined request from ${targetUser.display_name}`, 'info');
+    } catch (err: any) {
+      console.error('Failed to decline request:', err);
+    }
+  };
+
+  const cancelPartnerRequest = async (targetUser: UserProfile) => {
+    if (!firebaseUser) return;
+    try {
+      const myRequestRef = dbRef(db, `partner_requests/${firebaseUser.uid}/${targetUser.uid}`);
+      const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${firebaseUser.uid}`);
+      await remove(myRequestRef);
+      await remove(theirRequestRef);
+      addToast(`Cancelled request to ${targetUser.display_name}`, 'info');
+    } catch (err: any) {
+      console.error('Failed to cancel request:', err);
+    }
+  };
+
+  const forwardMessageToUsers = async (text: string, type = 'text', recipientUserIds: string[]) => {
+    if (!firebaseUser) return;
+    try {
+      for (const recipientId of recipientUserIds) {
+        const chatId = [firebaseUser.uid, recipientId].sort().join('_');
+        const msgRef = push(dbRef(db, `messages/${chatId}`));
+        const data = { senderId: firebaseUser.uid, text, type, timestamp: Date.now() };
+        await set(msgRef, data);
+        const updates: any = {};
+        let summaryText = text;
+        if (type === 'voice') summaryText = '🎵 Voice message';
+        else if (type === 'image') summaryText = '📷 Image file';
+        else if (type === 'file') summaryText = '📄 Document file';
+        const participantIds = Array.from(new Set([firebaseUser.uid, recipientId]));
+        participantIds.forEach((participantId) => {
+          updates[`user_chats/${participantId}/${chatId}/last_message`] = {
+            text: summaryText,
+            senderId: firebaseUser.uid,
+            timestamp: Date.now(),
+            type,
+          };
+          updates[`user_chats/${participantId}/${chatId}/timestamp`] = Date.now();
+          updates[`user_chats/${participantId}/${chatId}/otherUserId`] = participantId === firebaseUser.uid
+            ? recipientId
+            : firebaseUser.uid;
+        });
+        updates[`user_chats/${firebaseUser.uid}/${chatId}/unreadCount`] = 0;
+        if (recipientId !== firebaseUser.uid) {
+          updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = increment(1);
+        }
+        await update(dbRef(db), updates);
+      }
+      addToast('Message forwarded successfully!', 'success');
+    } catch (err: any) {
+      console.error('Failed to forward:', err);
+      addToast('Failed to forward message: ' + err.message, 'error');
+    }
+  };
+
+  return (
+    <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] font-sans antialiased text-[#212529]">
+      {/* Sidebar Pane */}
+      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
+        <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
+          <div className="flex items-center gap-2 mb-4">
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
+          </div>
+          <div className="flex gap-2 bg-[#E9ECEF] p-1 rounded-full mb-3">
+            <button onClick={() => setTab('chats')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
+            <button onClick={() => setTab('people')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
+          </div>
+
+          {/* Search Bar */}
+          {tab === 'people' && (
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search study mates..."
+                value={peopleSearchQuery}
+                onChange={(e) => setPeopleSearchQuery(e.target.value)}
+                className="w-full bg-white text-sm text-[#212529] placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
+              />
+              {peopleSearchQuery && (
+                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] text-xs hover:text-[#212529]">✕</button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto bg-white">
+          {tab === 'chats' ?
+            activeChats.map(c => (
+              <div
+                key={c.id}
+                onClick={() => {
+                  if (suppressNextChatOpenRef.current) {
+                    suppressNextChatOpenRef.current = false;
+                    return;
+                  }
+                  setActiveChat({ chatId: c.id, otherUser: c.otherUser });
+                }}
+                onTouchStart={() => startChatRowLongPress(c)}
+                onTouchEnd={clearChatRowLongPress}
+                onTouchCancel={clearChatRowLongPress}
+                onTouchMove={clearChatRowLongPress}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  void handleDeleteChatThread(c);
+                }}
+                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA]' : ''}`}
+              >
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'Learner'} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
+                      <span>{c.otherUser?.display_name}</span>
+                      <VerificationBadge status={c.otherUser?.subscription_status} />
+                      {c.otherUser && <StreakBadge userProfile={c.otherUser} size="sm" />}
+                    </h3>
+                    <span className="text-[12px] text-[#6C757D]">10:16 AM</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <DoubleCheckIcon color="#009EE2" />
+                      <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
+                    </div>
+                    {getUnreadCount(c) > 0 && (
+                      <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
+                        {getUnreadCount(c) > 99 ? '99+' : getUnreadCount(c)}
+                      </span>
                     )}
+                  </div>
+                  <p className="text-[11px] mt-1 text-[#6C757D] font-normal">
+                    {c.otherUser?.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(c.otherUser?.last_seen)}
+                  </p>
                 </div>
+              </div>
+            )) : filteredPeople.length === 0 ? (
+              <div className="text-center py-12 px-6 bg-[#F8F9FA]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF]">
+                <span className="text-2xl block mb-2 font-black text-[#6C757D]">👥</span>
+                <p className="text-sm font-bold text-[#212529]">No study mates found</p>
+                <p className="text-xs text-[#6C757D] mt-1">
+                  {peopleSearchQuery ? "No matches for your search." : "Build your network to collaborate and share chats."}
+                </p>
+              </div>
+            ) : filteredPeople.map(u => {
+              const unreadCount = getUnreadCountForUser(u.uid);
+              return (
+                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition">
+                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
+                      <span>{u.display_name}</span>
+                      <VerificationBadge status={u.subscription_status} />
+                      <StreakBadge userProfile={u} size="sm" />
+                    </h3>
+                    <p className="text-[11px] text-[#6C757D] font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+        </div>
 
-                <div className="flex-1 overflow-y-auto bg-white">
-                    {tab === 'chats' ?
-                    activeChats.map(c => (
-                      <div
-                        key={c.id}
-                        onClick={() => {
-                          if (suppressNextChatOpenRef.current) {
-                            suppressNextChatOpenRef.current = false;
-                            return;
-                          }
-                          setActiveChat({ chatId: c.id, otherUser: c.otherUser });
-                        }}
-                        onTouchStart={() => startChatRowLongPress(c)}
-                        onTouchEnd={clearChatRowLongPress}
-                        onTouchCancel={clearChatRowLongPress}
-                        onTouchMove={clearChatRowLongPress}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          void handleDeleteChatThread(c);
-                        }}
-                        className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA]' : ''}`}
-                      >
-                             <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'Learner'} />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-0.5">
-                                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
-                                      <span>{c.otherUser?.display_name}</span>
-                                      <VerificationBadge status={c.otherUser?.subscription_status} />
-                                      {c.otherUser && <StreakBadge userProfile={c.otherUser} size="sm" />}
-                                    </h3>
-                                    <span className="text-[12px] text-[#6C757D]">10:16 AM</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1 min-w-0">
-                                        <DoubleCheckIcon color="#009EE2" />
-                                      <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
-                                    </div>
-                                    {getUnreadCount(c) > 0 && (
-                                      <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                            {getUnreadCount(c) > 99 ? '99+' : getUnreadCount(c)}
-                                      </span>
-                                    )}
-                                </div>
-                                <p className="text-[11px] mt-1 text-[#6C757D] font-normal">
-                                    {c.otherUser?.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(c.otherUser?.last_seen)}
-                                </p>
-                            </div>
-                        </div>
-                    )) : filteredPeople.length === 0 ? (
-                        <div className="text-center py-12 px-6 bg-[#F8F9FA]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF]">
-                            <span className="text-2xl block mb-2 font-black text-[#6C757D]">👥</span>
-                            <p className="text-sm font-bold text-[#212529]">No study mates found</p>
-                            <p className="text-xs text-[#6C757D] mt-1">
-                                {peopleSearchQuery ? "No matches for your search." : "Build your network to collaborate and share chats."}
-                            </p>
-                        </div>
-                    ) : filteredPeople.map(u => {
-                        const unreadCount = getUnreadCountForUser(u.uid);
-                        return (
-                        <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition">
-                             <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                            <div className="min-w-0 flex-1">
-                              <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
-                                <span>{u.display_name}</span>
-                                <VerificationBadge status={u.subscription_status} />
-                                <StreakBadge userProfile={u} size="sm" />
-                              </h3>
-                              <p className="text-[11px] text-[#6C757D] font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
-                            </div>
-                            {unreadCount > 0 && (
-                              <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                              </span>
-                            )}
-                        </div>
-                        );
-                    })}
-                </div>
-                
-                {/* FAB: Add Study Partner */}
-                <button
-                    onClick={() => setShowPartnerModal(true)}
-                    className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40"
-                    title="Add Study Partner"
-                >
-                    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                </button>
+        {/* FAB: Add Study Partner */}
+        <button
+          onClick={() => setShowPartnerModal(true)}
+          className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40"
+          title="Add Study Partner"
+        >
+          <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Main Chat Viewport */}
+      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+        {activeChat ? (
+          <div className="flex flex-col h-full w-full relative overflow-hidden">
+
+            {/* 1. STICKY FLOATING Header Bar */}
+            <div className="absolute top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm border-b border-[#E9ECEF]/60">
+              <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
+              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
+              <div className="flex-1 min-w-0">
+                <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
+                  <span>{selectedChatUser.display_name}</span>
+                  <VerificationBadge status={selectedChatUser.subscription_status} />
+                  <StreakBadge userProfile={selectedChatUser} size="md" />
+                </h2>
+                <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
+                  {selectedChatUser.is_online ? (
+                    <>
+                      <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
+                      <span className="text-[#28A745]">Online</span>
+                    </>
+                  ) : formatLastSeen(selectedChatUser.last_seen)}
+                </p>
+              </div>
             </div>
 
-            {/* Main Chat Viewport */}
-            <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
-                {activeChat ? (
-                    <div className="flex flex-col h-full w-full relative overflow-hidden">
-                        
-                        {/* 1. STICKY FLOATING Header Bar */}
-                        <div className="absolute top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm border-b border-[#E9ECEF]/60">
-                            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
-                             <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
-                            <div className="flex-1 min-w-0">
-                              <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
-                                <span>{selectedChatUser.display_name}</span>
-                                <VerificationBadge status={selectedChatUser.subscription_status} />
-                                <StreakBadge userProfile={selectedChatUser} size="md" />
-                              </h2>
-                             <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
-                                {selectedChatUser.is_online ? (
-                                        <>
-                                            <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
-                                            <span className="text-[#28A745]">Online</span>
-                                        </>
-                                ) : formatLastSeen(selectedChatUser.last_seen)}
-                                </p>
-                            </div>
-                        </div>
+            {/* 2. Messages List */}
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+              {combinedMessageStream.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center px-4">
+                  <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2]">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-[#212529] mb-2 text-center">Start a Conversation</h3>
+                  <p className="text-[#6C757D] text-center max-w-sm text-sm">
+                    Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
+                  </p>
+                </div>
+              ) : combinedMessageStream.map((msg) => {
+                const isMe = msg.senderId === firebaseUser?.uid;
+                const rawText = typeof msg.text === 'string' ? msg.text : '';
+                const imageUrl = msg.type === 'image' ? (rawText.match(/\((.*?)\)/)?.[1] || rawText) : '';
+                const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
+                const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
+                  acc[reactionEmoji] = (acc[reactionEmoji] || 0) + 1;
+                  return acc;
+                }, {});
+                const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
 
-                        {/* 2. Messages List */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
-                            {combinedMessageStream.length === 0 ? (
-                              <div className="h-full flex flex-col items-center justify-center px-4">
-                                <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2]">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                  </svg>
-                                </div>
-                                <h3 className="text-xl font-bold text-[#212529] mb-2 text-center">Start a Conversation</h3>
-                                <p className="text-[#6C757D] text-center max-w-sm text-sm">
-                                  Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
-                                </p>
+                return (
+                  <div key={msg.id} className="space-y-1">
+                    <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      {!isMe && (
+                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
+                      )}
+
+                      <div className={`px-5 py-3.5 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${isMe
+                          ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]'
+                          : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
+                        }`}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          openMessageActions(msg, event.clientX, event.clientY);
+                        }}
+                        onTouchStart={(event) => {
+                          if (!event.touches[0]) return;
+                          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                          const touch = event.touches[0];
+                          longPressTimerRef.current = setTimeout(() => {
+                            openMessageActions(msg, touch.clientX, touch.clientY);
+                          }, 800);
+                        }}
+                        onTouchEnd={() => {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+
+                          const now = Date.now();
+                          const lastTap = lastTapRef.current;
+                          const isDoubleTap = lastTap.id === msg.id && (now - lastTap.time) < 320;
+                          if (isDoubleTap) {
+                            void quickReactToMessage(msg, '❤️');
+                            lastTapRef.current = { id: null, time: 0 };
+                            return;
+                          }
+
+                          lastTapRef.current = { id: msg.id, time: now };
+                        }}
+                        onTouchMove={() => {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onTouchCancel={() => {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                      >
+                        {/* Voice Note Player */}
+                        {msg.type === 'voice' ? (
+                          <VoiceNotePlayer
+                            src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
+                            isMe={isMe}
+                            isUploading={msg.isUploading}
+                          />
+                        ) : msg.type === 'image' ? (
+                          <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-neutral-100 relative">
+                            {msg.isUploading || !imageUrl ? (
+                              <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+                                <svg className="animate-spin h-6 w-6 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing Media...
                               </div>
-                            ) : combinedMessageStream.map((msg) => {
-                                const isMe = msg.senderId === firebaseUser?.uid;
-                                const rawText = typeof msg.text === 'string' ? msg.text : '';
-                                const imageUrl = msg.type === 'image' ? (rawText.match(/\((.*?)\)/)?.[1] || rawText) : '';
-                                const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
-                                const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
-                                acc[reactionEmoji] = (acc[reactionEmoji] || 0) + 1;
-                                return acc;
-                                }, {});
-                                const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
-                                
-                                return (
-                                    <div key={msg.id} className="space-y-1">
-                                        <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                            {!isMe && (
-                                                <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
-                                            )}
-                                            
-                                    <div className={`px-5 py-3.5 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${
-                                                isMe 
-                                              ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]' 
-                                              : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
-                                    }`}
-                                      onContextMenu={(event) => {
-                                        event.preventDefault();
-                                        openMessageActions(msg, event.clientX, event.clientY);
-                                      }}
-                                      onTouchStart={(event) => {
-                                        if (!event.touches[0]) return;
-                                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-                                        const touch = event.touches[0];
-                                        longPressTimerRef.current = setTimeout(() => {
-                                          openMessageActions(msg, touch.clientX, touch.clientY);
-                                        }, 800);
-                                      }}
-                                      onTouchEnd={() => {
-                                        if (longPressTimerRef.current) {
-                                          clearTimeout(longPressTimerRef.current);
-                                          longPressTimerRef.current = null;
-                                        }
-
-                                        const now = Date.now();
-                                        const lastTap = lastTapRef.current;
-                                        const isDoubleTap = lastTap.id === msg.id && (now - lastTap.time) < 320;
-                                        if (isDoubleTap) {
-                                          void quickReactToMessage(msg, '❤️');
-                                          lastTapRef.current = { id: null, time: 0 };
-                                          return;
-                                        }
-
-                                        lastTapRef.current = { id: msg.id, time: now };
-                                      }}
-                                      onTouchMove={() => {
-                                        if (longPressTimerRef.current) {
-                                          clearTimeout(longPressTimerRef.current);
-                                          longPressTimerRef.current = null;
-                                        }
-                                      }}
-                                      onTouchCancel={() => {
-                                        if (longPressTimerRef.current) {
-                                          clearTimeout(longPressTimerRef.current);
-                                          longPressTimerRef.current = null;
-                                        }
-                                      }}
-                                    >
-                                                {/* Voice Note Player */}
-                                                {msg.type === 'voice' ? (
-                                                    <VoiceNotePlayer 
-                                                        src={rawText.match(/\((.*?)\)/)?.[1] || rawText} 
-                                                        isMe={isMe}
-                                                        isUploading={msg.isUploading}
-                                                    />
-                                                ) : msg.type === 'image' ? (
-                                                    <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-neutral-100 relative">
-                                                        {msg.isUploading || !imageUrl ? (
-                                                            <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
-                                                                <svg className="animate-spin h-6 w-6 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                </svg>
-                                                                Processing Media...
-                                                            </div>
-                                                        ) : (
-                                                              <img src={imageUrl} alt="Shared Layout Media" className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans">
-                                                        <ReactMarkdown 
-                                                            components={{
-                                                                p: ({node, ...props}) => <p className="m-0 inline" {...props} />,
-                                                                a: ({node, ...props}) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
-                                                            }}
-                                                        >
-                                                            {rawText}
-                                                        </ReactMarkdown>
-                                                    </div>
-                                                )}
-
-                                                {/* Meta Timestamp */}
-                                                <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D]'}`}>
-                                                    <span className="uppercase font-normal tracking-tight">
-                                                        {msg.isUploading ? 'Sending...' : '12:53 PM'}
-                                                    </span>
-                                                    {isMe && !msg.isUploading && <DoubleCheckIcon color="white" />}
-                                                </div>
-
-                                                {sortedReactions.length > 0 && (
-                                                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                    {sortedReactions.map(([emoji, count]) => (
-                                                      <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white/20 text-white' : 'bg-[#E9ECEF] text-[#212529]'}`}>
-                                                             {emoji} {count}
-                                                      </span>
-                                                    ))}
-                                                  </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {!isMe && (
-                                            <div className="pl-[46px] text-[13px] text-[#6C757D] font-normal">
-                                                {selectedChatUser.display_name}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                            <div ref={messagesEndRef} />
-                        </div>
-
-                        {/* 3. Bottom Control Anchor Panel Bar */}
-                        <div className="fixed bottom-0 left-0 right-0 md:relative w-full shrink-0 z-[100] bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
-                                {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
-                                    <AvelutMessageInput
-                                      onSend={(text) => sendMsg(text, 'text')}
-                                      startRecording={startRecording}
-                                      handleMove={handleMove}
-                                      stopRecording={stopRecording}
-                                      isRecording={isRecording}
-                                      isLocked={isLocked}
-                                      setIsLocked={setIsLocked}
-                                      recordDuration={recordDuration}
-                                      onFileSelect={handleFileSelection}
-                                      onImageSelect={handleImageSelection}
-                                    />
-                                ) : (
-                                      <div className="w-[95%] mx-auto px-6 py-4 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-lg">
-                                        <div className="flex items-center gap-2 text-sm font-bold text-[#856404]">
-                                            <span>🔒</span>
-                                            <span>You can only message active Study Mates.</span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 justify-center">
-                                            {partnerRequests[selectedChatUser.uid]?.status === 'sent' ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => cancelPartnerRequest(selectedChatUser)}
-                                                    className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-xl border border-amber-200 transition-all select-none shadow-sm cursor-pointer"
-                                                    title="Cancel Request"
-                                                >
-                                                    Pending Approval (Cancel)
-                                                </button>
-                                            ) : partnerRequests[selectedChatUser.uid]?.status === 'received' ? (
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => acceptPartnerRequest(selectedChatUser)}
-                                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all select-none shadow-sm cursor-pointer"
-                                                    >
-                                                        Accept Request
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => declinePartnerRequest(selectedChatUser)}
-                                                        className="px-4 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
-                                                    >
-                                                        Decline
-                                                    </button>
-                                                </div>
-                                              ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => sendPartnerRequest(selectedChatUser)}
-                                                    className="px-5 py-2.5 bg-[#009EE2] hover:bg-[#0070B8] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all select-none shadow-sm cursor-pointer"
-                                                >
-                                                    Add Study Mate
-                                                </button>
-                                            )}
-                                        </div>
-                                     </div>
-                                )}
-                        </div>
-
-                        {messageActionTarget && (
-                          <div className="fixed inset-0 z-40 bg-black/20">
-                            <div
-                              ref={messageActionMenuRef}
-                              className="absolute w-[min(92vw,320px)] rounded-2xl border border-[#E9ECEF] bg-white p-3 shadow-2xl"
-                              style={{
-                               left: `${Math.max(12, Math.min((messageActionPosition?.x || 24) - 140, window.innerWidth - 332))}px`,
-                                top: `${Math.max(12, Math.min((messageActionPosition?.y || 24) - 80, window.innerHeight - 220))}px`
+                            ) : (
+                              <img src={imageUrl} alt="Shared Layout Media" className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans">
+                            <ReactMarkdown
+                              components={{
+                                p: ({ node, ...props }) => <p className="m-0 inline" {...props} />,
+                                a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
                               }}
                             >
-                              <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#6C757D]">Message actions</p>
-                              <div className="mb-3 flex flex-wrap gap-2">
-                                {REACTION_EMOJIS.map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => void reactToMessage(emoji)}
-                                    className="rounded-full border border-[#E9ECEF] bg-[#F8F9FA] px-2.5 py-1.5 text-base transition hover:bg-[#E9ECEF]"
-                                    title={`React with ${emoji}`}
-                                  >
-                                     {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="space-y-2">
-                                <button
-                                  type="button"
-                                  onClick={() => void copyMessageContent()}
-                                  className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
-                                >
-                                  Copy message
-                                </button>
-                               <button
-                                  type="button"
-                                  onClick={() => {
-                                    setForwardTargetContent(messageActionTarget.text || '');
-                                    setForwardTargetType(messageActionTarget.type || 'text');
-                                    setIsForwardModalOpen(true);
-                                    closeMessageActions();
-                                  }}
-                                  className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
-                                >
-                                  Forward message
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void deleteSelectedMessage()}
-                                  disabled={messageActionTarget.senderId !== firebaseUser?.uid}
-                                  className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                     Delete message
-                                </button>
-                              </div>
-                            </div>
+                              {rawText}
+                            </ReactMarkdown>
                           </div>
                         )}
 
+                        {/* Meta Timestamp */}
+                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D]'}`}>
+                          <span className="uppercase font-normal tracking-tight">
+                            {msg.isUploading ? 'Sending...' : '12:53 PM'}
+                          </span>
+                          {isMe && !msg.isUploading && <DoubleCheckIcon color="white" />}
+                        </div>
+
+                        {sortedReactions.length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {sortedReactions.map(([emoji, count]) => (
+                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white/20 text-white' : 'bg-[#E9ECEF] text-[#212529]'}`}>
+                                {emoji} {count}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                ) : (
-                  <div className="mx-auto max-w-md px-6 text-center select-none">
-                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white shadow-sm border border-[#E9ECEF]">
-                      <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
-                    </div>
-                     <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529]">AVELUT</h2>
-                    <p className="mt-2 text-sm leading-6 text-[#6C757D]">Pick a person to start a new chat and connect with them.</p>
-                    </div>
-                )}
+                    {!isMe && (
+                      <div className="pl-[46px] text-[13px] text-[#6C757D] font-normal">
+                        {selectedChatUser.display_name}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
             </div>
-             {/* Study Partners network management modal */}
-            {showPartnerModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[85vh] animate-scale-in">
-                        {/* Header */}
-                        <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
-                            <div>
-                               <h2 className="text-lg font-bold text-[#212529]">Study Partners ({Math.max(0, allUsers.length - 1)} registered)</h2>
-                                <p className="text-xs text-[#6C757D] font-medium mt-0.5">Build your academic network to collaborate and share lessons.</p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setShowPartnerModal(false);
-                                    setSearchPartnerName('');
-                                    setSearchPartnerDept('');
-                                }}
-                                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#6C757D] hover:text-[#212529] transition border border-[#E9ECEF] shadow-sm font-bold"
-                            >
-                                 ✕
-                            </button>
-                        </div>
 
-                        {/* Tabs */}
-                        <div className="flex border-b border-[#E9ECEF] bg-[#F8F9FA] px-4 py-2 shrink-0 gap-2">
-                            <button
-                                onClick={() => setPartnerActiveSubTab('find')}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition ${partnerActiveSubTab === 'find' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
-                            >
-                                Find Partners
-                            </button>
-                             <button
-                                onClick={() => setPartnerActiveSubTab('requests')}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 ${partnerActiveSubTab === 'requests' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
-                            >
-                                Requests
-                                {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length > 0 && (
-                                    <span className="bg-red-500 text-white rounded-full text-[10px] font-black h-4.5 w-4.5 flex items-center justify-center animate-pulse">
-                                        {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length}
-                                    </span>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto p-6 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                            {partnerActiveSubTab === 'find' ? (
-                                <div className="space-y-4">
-                                    {/* Filters */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                placeholder="Search by name..."
-                                                value={searchPartnerName}
-                                                onChange={(e) => setSearchPartnerName(e.target.value)}
-                                                className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm"
-                                            />
-                                             {searchPartnerName && (
-                                                <button onClick={() => setSearchPartnerName("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6C757D]">✕</button>
-                                            )}
-                                        </div>
-                                         <select
-                                            value={searchPartnerDept}
-                                            onChange={(e) => setSearchPartnerDept(e.target.value)}
-                                            className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm cursor-pointer"
-                                         >
-                                            <option value="">All Departments</option>
-                                         {Array.from(new Set(allUsers.map(u => u.department_id).filter(Boolean))).map(dept => (
-                                                <option key={dept} value={dept}>{dept}</option>
-                                         ))}
-                                        </select>
-                                    </div>
-
-                                    {/* List */}
-                                    <div className="space-y-3">
-                                        {(() => {
-                                             const filtered = allUsers
-                                                .filter(u => u.uid !== firebaseUser?.uid)
-                                                .filter(u => {
-                                                    if (searchPartnerName.trim()) {
-                                                         const q = searchPartnerName.toLowerCase();
-                                                         if (!(u.display_name || '').toLowerCase().includes(q)) return false;
-                                                    }
-                                                    if (searchPartnerDept) {
-                                                         if (u.department_id !== searchPartnerDept) return false;
-                                                    }
-                                                    return true;
-                                                });
-                                            if (filtered.length === 0) {
-                                                return (
-                                                     <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-dashed border-[#E9ECEF] p-6">
-                                                        <span className="text-3xl block mb-2">🔍</span>
-                                                         <p className="text-sm font-bold text-[#212529]">No students found</p>
-                                                        <p className="text-xs text-[#6C757D] mt-1">Try checking the spelling or selecting another department filter.</p>
-                                                    </div>
-                                                 );
-                                            }
-                                            return filtered.map(u => {
-                                                const isPartner = studyPartners[u.uid] === true;
-                                                const req = partnerRequests[u.uid];
-                                                 
-                                                return (
-                                                     <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 hover:bg-neutral-100/70 border border-[#E9ECEF] rounded-2xl transition">
-                                                        <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                                                     <div className="min-w-0 flex-1">
-                                                            <h4 className="font-semibold text-sm text-[#212529] truncate flex items-center gap-1.5">
-                                                                <span>{u.display_name}</span>
-                                                                <VerificationBadge status={u.subscription_status} />
-                                                            </h4>
-                                                             <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'} • {u.level ? `${u.level} Lvl` : 'Lvl N/A'}</p>
-                                                        </div>
-                                                         <div className="shrink-0">
-                                                            {isPartner ? (
-                                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full flex items-center gap-1">✓ Connected</span>
-                                                             ) : (req as any)?.status === 'sent' ? (
-                                                                <button
-                                                                    onClick={() => cancelPartnerRequest(u)}
-                                                                    className="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                                                    title="Cancel Request"
-                                                                >
-                                                                     Pending
-                                                                </button>
-                                                             ) : (req as any)?.status === 'received' ? (
-                                                                <div className="flex gap-1.5">
-                                                                    <button
-                                                                        onClick={() => acceptPartnerRequest(u)}
-                                                                        className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                                                    >
-                                                                         Accept
-                                                                    </button>
-                                                                </div>
-                                                             ) : (
-                                                                <button
-                                                                    onClick={() => sendPartnerRequest(u)}
-                                                                    className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                                                >
-                                                                    Connect
-                                                                </button>
-                                                            )}
-                                                         </div>
-                                                     </div>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-6">
-                                    {/* Received */}
-                                    <div>
-                                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Received Partner Requests</h3>
-                                        <div className="space-y-3">
-                                            {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length === 0 ? (
-                                                <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No incoming requests</p>
-                                            ) : (
-                                                 Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => {
-                                                    const sender = allUsers.find(x => x.uid === req.senderId) || { display_name: req.senderName, photo_url: '', department_id: '', level: '', uid: req.senderId } as any;
-                                                    return (
-                                                        <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                                                             <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={sender.display_name || 'Learner'} />
-                                                            <div className="min-w-0 flex-1">
-                                                                <h4 className="font-semibold text-sm text-[#212529] truncate">{sender.display_name}</h4>
-                                                              <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{sender.department_id || 'No Department'}</p>
-                                                            </div>
-                                                             <div className="flex gap-1.5 shrink-0">
-                                                                <button
-                                                                    onClick={() => acceptPartnerRequest(sender)}
-                                                                    className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                                                >
-                                                                     Accept
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => declinePartnerRequest(sender)}
-                                                                    className="text-xs font-black uppercase tracking-wider text-[#6C757D] hover:text-red-600 bg-white hover:bg-red-50 border border-[#E9ECEF] hover:border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                                                >
-                                                                     Decline
-                                                                </button>
-                                                             </div>
-                                                         </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Sent */}
-                                    <div>
-                                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Pending Sent Requests</h3>
-                                        <div className="space-y-3">
-                                             {Object.values(partnerRequests).filter((req: any) => req.status === 'sent').length === 0 ? (
-                                                <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No pending sent requests</p>
-                                            ) : (
-                                                Object.values(partnerRequests).filter((req: any) => req.status === 'sent').map((req: any) => {
-                                                    const receiver = allUsers.find(x => x.uid === req.receiverId) || { display_name: 'Learner', photo_url: '', department_id: '', level: '', uid: req.receiverId } as any;
-                                                    return (
-                                                         <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                                                             <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'Learner'} />
-                                                            <div className="min-w-0 flex-1">
-                                                                <h4 className="font-semibold text-sm text-[#212529] truncate">{receiver.display_name}</h4>
-                                                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{receiver.department_id || 'No Department'}</p>
-                                                            </div>
-                                                             <button
-                                                                onClick={() => cancelPartnerRequest(receiver)}
-                                                                className="text-xs font-black uppercase tracking-wider text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none shrink-0"
-                                                             >
-                                                                Cancel
-                                                             </button>
-                                                         </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Forward Message Modal */}
-            {isForwardModalOpen && (
-                <ForwardModal
-                     isOpen={isForwardModalOpen}
-                    onClose={() => {
-                        setIsForwardModalOpen(false);
-                        setForwardTargetContent('');
-                    }}
-                    messageText={forwardTargetContent}
-                    messageType={forwardTargetType}
-                    studyPartners={studyPartners}
-                    allUsers={allUsers}
-                     onForward={async (recipientIds) => {
-                        await forwardMessageToUsers(forwardTargetContent, forwardTargetType, recipientIds);
-                        setIsForwardModalOpen(false);
-                        setForwardTargetContent('');
-                    }}
+            {/* 3. Bottom Control Anchor Panel Bar */}
+            <div className="fixed bottom-0 left-0 right-0 md:relative w-full shrink-0 z-[100] bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
+              {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
+                <AvelutMessageInput
+                  onSend={(text) => sendMsg(text, 'text')}
+                  startRecording={startRecording}
+                  handleMove={handleMove}
+                  stopRecording={stopRecording}
+                  isRecording={isRecording}
+                  isLocked={isLocked}
+                  setIsLocked={setIsLocked}
+                  recordDuration={recordDuration}
+                  onFileSelect={handleFileSelection}
+                  onImageSelect={handleImageSelection}
                 />
+              ) : (
+                <div className="w-[95%] mx-auto px-6 py-4 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-lg">
+                  <div className="flex items-center gap-2 text-sm font-bold text-[#856404]">
+                    <span>🔒</span>
+                    <span>You can only message active Study Mates.</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {partnerRequests[selectedChatUser.uid]?.status === 'sent' ? (
+                      <button
+                        type="button"
+                        onClick={() => cancelPartnerRequest(selectedChatUser)}
+                        className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-xl border border-amber-200 transition-all select-none shadow-sm cursor-pointer"
+                        title="Cancel Request"
+                      >
+                        Pending Approval (Cancel)
+                      </button>
+                    ) : partnerRequests[selectedChatUser.uid]?.status === 'received' ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => acceptPartnerRequest(selectedChatUser)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                        >
+                          Accept Request
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => declinePartnerRequest(selectedChatUser)}
+                          className="px-4 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => sendPartnerRequest(selectedChatUser)}
+                        className="px-5 py-2.5 bg-[#009EE2] hover:bg-[#0070B8] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                      >
+                        Add Study Mate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {messageActionTarget && (
+              <div className="fixed inset-0 z-40 bg-black/20">
+                <div
+                  ref={messageActionMenuRef}
+                  className="absolute w-[min(92vw,320px)] rounded-2xl border border-[#E9ECEF] bg-white p-3 shadow-2xl"
+                  style={{
+                    left: `${Math.max(12, Math.min((messageActionPosition?.x || 24) - 140, window.innerWidth - 332))}px`,
+                    top: `${Math.max(12, Math.min((messageActionPosition?.y || 24) - 80, window.innerHeight - 220))}px`
+                  }}
+                >
+                  <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#6C757D]">Message actions</p>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {REACTION_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => void reactToMessage(emoji)}
+                        className="rounded-full border border-[#E9ECEF] bg-[#F8F9FA] px-2.5 py-1.5 text-base transition hover:bg-[#E9ECEF]"
+                        title={`React with ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyMessageContent()}
+                      className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
+                    >
+                      Copy message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForwardTargetContent(messageActionTarget.text || '');
+                        setForwardTargetType(messageActionTarget.type || 'text');
+                        setIsForwardModalOpen(true);
+                        closeMessageActions();
+                      }}
+                      className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
+                    >
+                      Forward message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteSelectedMessage()}
+                      disabled={messageActionTarget.senderId !== firebaseUser?.uid}
+                      className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Delete message
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
+          </div>
+        ) : (
+          <div className="mx-auto max-w-md px-6 text-center select-none">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white shadow-sm border border-[#E9ECEF]">
+              <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
+            </div>
+            <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529]">AVELUT</h2>
+            <p className="mt-2 text-sm leading-6 text-[#6C757D]">Pick a person to start a new chat and connect with them.</p>
+          </div>
+        )}
+      </div>
+      {/* Study Partners network management modal */}
+      {showPartnerModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[85vh] animate-scale-in">
+            {/* Header */}
+            <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
+              <div>
+                <h2 className="text-lg font-bold text-[#212529]">Study Partners ({Math.max(0, allUsers.length - 1)} registered)</h2>
+                <p className="text-xs text-[#6C757D] font-medium mt-0.5">Build your academic network to collaborate and share lessons.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPartnerModal(false);
+                  setSearchPartnerName('');
+                  setSearchPartnerDept('');
+                }}
+                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#6C757D] hover:text-[#212529] transition border border-[#E9ECEF] shadow-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-[#E9ECEF] bg-[#F8F9FA] px-4 py-2 shrink-0 gap-2">
+              <button
+                onClick={() => setPartnerActiveSubTab('find')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition ${partnerActiveSubTab === 'find' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
+              >
+                Find Partners
+              </button>
+              <button
+                onClick={() => setPartnerActiveSubTab('requests')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 ${partnerActiveSubTab === 'requests' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
+              >
+                Requests
+                {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length > 0 && (
+                  <span className="bg-red-500 text-white rounded-full text-[10px] font-black h-4.5 w-4.5 flex items-center justify-center animate-pulse">
+                    {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {partnerActiveSubTab === 'find' ? (
+                <div className="space-y-4">
+                  {/* Filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search by name..."
+                        value={searchPartnerName}
+                        onChange={(e) => setSearchPartnerName(e.target.value)}
+                        className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm"
+                      />
+                      {searchPartnerName && (
+                        <button onClick={() => setSearchPartnerName("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6C757D]">✕</button>
+                      )}
+                    </div>
+                    <select
+                      value={searchPartnerDept}
+                      onChange={(e) => setSearchPartnerDept(e.target.value)}
+                      className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm cursor-pointer"
+                    >
+                      <option value="">All Departments</option>
+                      {Array.from(new Set(allUsers.map(u => u.department_id).filter(Boolean))).map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* List */}
+                  <div className="space-y-3">
+                    {(() => {
+                      const filtered = allUsers
+                        .filter(u => u.uid !== firebaseUser?.uid)
+                        .filter(u => {
+                          if (searchPartnerName.trim()) {
+                            const q = searchPartnerName.toLowerCase();
+                            if (!(u.display_name || '').toLowerCase().includes(q)) return false;
+                          }
+                          if (searchPartnerDept) {
+                            if (u.department_id !== searchPartnerDept) return false;
+                          }
+                          return true;
+                        });
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-dashed border-[#E9ECEF] p-6">
+                            <span className="text-3xl block mb-2">🔍</span>
+                            <p className="text-sm font-bold text-[#212529]">No students found</p>
+                            <p className="text-xs text-[#6C757D] mt-1">Try checking the spelling or selecting another department filter.</p>
+                          </div>
+                        );
+                      }
+                      return filtered.map(u => {
+                        const isPartner = studyPartners[u.uid] === true;
+                        const req = partnerRequests[u.uid];
+
+                        return (
+                          <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 hover:bg-neutral-100/70 border border-[#E9ECEF] rounded-2xl transition">
+                            <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-sm text-[#212529] truncate flex items-center gap-1.5">
+                                <span>{u.display_name}</span>
+                                <VerificationBadge status={u.subscription_status} />
+                              </h4>
+                              <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'} • {u.level ? `${u.level} Lvl` : 'Lvl N/A'}</p>
+                            </div>
+                            <div className="shrink-0">
+                              {isPartner ? (
+                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full flex items-center gap-1">✓ Connected</span>
+                              ) : (req as any)?.status === 'sent' ? (
+                                <button
+                                  onClick={() => cancelPartnerRequest(u)}
+                                  className="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
+                                  title="Cancel Request"
+                                >
+                                  Pending
+                                </button>
+                              ) : (req as any)?.status === 'received' ? (
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => acceptPartnerRequest(u)}
+                                    className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
+                                  >
+                                    Accept
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => sendPartnerRequest(u)}
+                                  className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition cursor-pointer select-none"
+                                >
+                                  Connect
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Received */}
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Received Partner Requests</h3>
+                    <div className="space-y-3">
+                      {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length === 0 ? (
+                        <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No incoming requests</p>
+                      ) : (
+                        Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => {
+                          const sender = allUsers.find(x => x.uid === req.senderId) || { display_name: req.senderName, photo_url: '', department_id: '', level: '', uid: req.senderId } as any;
+                          return (
+                            <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
+                              <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={sender.display_name || 'Learner'} />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-sm text-[#212529] truncate">{sender.display_name}</h4>
+                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{sender.department_id || 'No Department'}</p>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => acceptPartnerRequest(sender)}
+                                  className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() => declinePartnerRequest(sender)}
+                                  className="text-xs font-black uppercase tracking-wider text-[#6C757D] hover:text-red-600 bg-white hover:bg-red-50 border border-[#E9ECEF] hover:border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sent */}
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Pending Sent Requests</h3>
+                    <div className="space-y-3">
+                      {Object.values(partnerRequests).filter((req: any) => req.status === 'sent').length === 0 ? (
+                        <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No pending sent requests</p>
+                      ) : (
+                        Object.values(partnerRequests).filter((req: any) => req.status === 'sent').map((req: any) => {
+                          const receiver = allUsers.find(x => x.uid === req.receiverId) || { display_name: 'Learner', photo_url: '', department_id: '', level: '', uid: req.receiverId } as any;
+                          return (
+                            <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
+                              <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'Learner'} />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-sm text-[#212529] truncate">{receiver.display_name}</h4>
+                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{receiver.department_id || 'No Department'}</p>
+                              </div>
+                              <button
+                                onClick={() => cancelPartnerRequest(receiver)}
+                                className="text-xs font-black uppercase tracking-wider text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none shrink-0"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-    );
+      )}
+
+      {/* Forward Message Modal */}
+      {isForwardModalOpen && (
+        <ForwardModal
+          isOpen={isForwardModalOpen}
+          onClose={() => {
+            setIsForwardModalOpen(false);
+            setForwardTargetContent('');
+          }}
+          messageText={forwardTargetContent}
+          messageType={forwardTargetType}
+          studyPartners={studyPartners}
+          allUsers={allUsers}
+          onForward={async (recipientIds) => {
+            await forwardMessageToUsers(forwardTargetContent, forwardTargetType, recipientIds);
+            setIsForwardModalOpen(false);
+            setForwardTargetContent('');
+          }}
+        />
+      )}
+
+    </div>
+  );
 };
 
 // Standalone Forward Modal component for reuse and clean scope
 interface ForwardModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    messageText: string;
-    messageType: string;
-    studyPartners: Record<string, boolean>;
-    allUsers: UserProfile[];
-    onForward: (recipientIds: string[]) => Promise<void>;
+  isOpen: boolean;
+  onClose: () => void;
+  messageText: string;
+  messageType: string;
+  studyPartners: Record<string, boolean>;
+  allUsers: UserProfile[];
+  onForward: (recipientIds: string[]) => Promise<void>;
 }
 
 const ForwardModal: React.FC<ForwardModalProps> = ({
-    isOpen,
-    onClose,
-    messageText,
-    messageType,
-    studyPartners,
-    allUsers,
-    onForward
+  isOpen,
+  onClose,
+  messageText,
+  messageType,
+  studyPartners,
+  allUsers,
+  onForward
 }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [submitting, setSubmitting] = useState(false);
-    const partnersList = useMemo(() => {
-        const list = allUsers.filter(u => studyPartners[u.uid] === true);
-        if (!searchQuery.trim()) return list;
-        const q = searchQuery.toLowerCase();
-        return list.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.department_id || '').toLowerCase().includes(q));
-    }, [allUsers, studyPartners, searchQuery]);
-    const handleToggleSelect = (uid: string) => {
-        setSelectedIds(prev =>
-            prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
-        );
-    };
-
-    const handleForwardAction = async () => {
-        if (selectedIds.length === 0) return;
-        setSubmitting(true);
-        try {
-            await onForward(selectedIds);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[75vh] animate-scale-in">
-                {/* Header */}
-                <div className="p-5 border-b border-[#E9ECEF] flex items-center justify-between">
-                     <div>
-                        <h2 className="text-base font-bold text-[#212529]">Forward Message</h2>
-                        <p className="text-[11px] text-[#6C757D] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        disabled={submitting}
-                        className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition"
-                     >
-                        ✕
-                    </button>
-                </div>
-
-                {/* Content preview */}
-                <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] text-xs font-medium text-[#6C757D]">
-                    <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] mb-1">Message Preview</span>
-                    <p className="truncate max-w-full italic text-neutral-600">
-                        {messageType === 'voice' ? '🎵 Voice message' : messageType === 'image' ? '📷 Image file' : messageText}
-                    </p>
-                </div>
-
-                {/* Search */}
-                <div className="p-4 border-b border-[#E9ECEF]">
-                     <input
-                        type="text"
-                        placeholder="Search partners..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#F8F9FA] text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
-                    />
-                </div>
-
-                {/* List */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {partnersList.length === 0 ? (
-                        <p className="text-center text-xs font-medium text-[#6C757D] py-8 italic">No study partners found</p>
-                    ) : (
-                        partnersList.map(u => {
-                             const isChecked = selectedIds.includes(u.uid);
-                            return (
-                                <div
-                                    key={u.uid}
-                                    onClick={() => handleToggleSelect(u.uid)}
-                                    className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
-                                 >
-                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                     <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                                        <div className="min-w-0 flex-1">
-                                            <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
-                                             <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
-                                        </div>
-                                    </div>
-                                     <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
-                                        borderColor: isChecked ? '#009EE2' : '#CED4DA',
-                                        backgroundColor: isChecked ? '#009EE2' : 'transparent'
-                                    }}>
-                                        {isChecked && (
-                                             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12" />
-                                             </svg>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-
-                {/* Footer Actions */}
-                <div className="p-4 border-t border-[#E9ECEF] bg-[#F8F9FA] flex gap-3 shrink-0">
-                    <button
-                       onClick={onClose}
-                        disabled={submitting}
-                        className="flex-1 bg-white hover:bg-neutral-100 border border-[#E9ECEF] text-[#6C757D] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
-                     >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleForwardAction}
-                         disabled={selectedIds.length === 0 || submitting}
-                        className="flex-1 bg-[#009EE2] hover:bg-[#0070B8] text-white font-black text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50 disabled:bg-neutral-300"
-                    >
-                        {submitting ? 'Forwarding...' : `Send (${selectedIds.length})`}
-                    </button>
-                </div>
-            </div>
-        </div>
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const partnersList = useMemo(() => {
+    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.department_id || '').toLowerCase().includes(q));
+  }, [allUsers, studyPartners, searchQuery]);
+  const handleToggleSelect = (uid: string) => {
+    setSelectedIds(prev =>
+      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
     );
+  };
+
+  const handleForwardAction = async () => {
+    if (selectedIds.length === 0) return;
+    setSubmitting(true);
+    try {
+      await onForward(selectedIds);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[75vh] animate-scale-in">
+        {/* Header */}
+        <div className="p-5 border-b border-[#E9ECEF] flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-[#212529]">Forward Message</h2>
+            <p className="text-[11px] text-[#6C757D] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content preview */}
+        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] text-xs font-medium text-[#6C757D]">
+          <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] mb-1">Message Preview</span>
+          <p className="truncate max-w-full italic text-neutral-600">
+            {messageType === 'voice' ? '🎵 Voice message' : messageType === 'image' ? '📷 Image file' : messageText}
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 border-b border-[#E9ECEF]">
+          <input
+            type="text"
+            placeholder="Search partners..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#F8F9FA] text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
+          />
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {partnersList.length === 0 ? (
+            <p className="text-center text-xs font-medium text-[#6C757D] py-8 italic">No study partners found</p>
+          ) : (
+            partnersList.map(u => {
+              const isChecked = selectedIds.includes(u.uid);
+              return (
+                <div
+                  key={u.uid}
+                  onClick={() => handleToggleSelect(u.uid)}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
+                      <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
+                    borderColor: isChecked ? '#009EE2' : '#CED4DA',
+                    backgroundColor: isChecked ? '#009EE2' : 'transparent'
+                  }}>
+                    {isChecked && (
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-[#E9ECEF] bg-[#F8F9FA] flex gap-3 shrink-0">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 bg-white hover:bg-neutral-100 border border-[#E9ECEF] text-[#6C757D] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleForwardAction}
+            disabled={selectedIds.length === 0 || submitting}
+            className="flex-1 bg-[#009EE2] hover:bg-[#0070B8] text-white font-black text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50 disabled:bg-neutral-300"
+          >
+            {submitting ? 'Forwarding...' : `Send (${selectedIds.length})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
