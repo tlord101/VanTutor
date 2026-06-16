@@ -1094,7 +1094,7 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
           </section>
 
           {/* Integrated AVELUT Input Layout Panel */}
-          <footer className="w-full shrink-0 z-40 bg-[#060814] pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
+          <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-[#060814] pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
             <div className="w-full max-w-6xl transition-all duration-300 md:mb-2.5">
               
               {/* Attachment Preview */}

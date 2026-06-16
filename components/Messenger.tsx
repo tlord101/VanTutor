@@ -1538,7 +1538,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 2. Messages List */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-4 md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
+                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
                             onScroll={handleScroll}
                             ref={scrollContainerRef}>
                             {combinedMessageStream.length === 0 ? (
@@ -1683,7 +1683,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 3. Bottom Control Anchor Panel Bar */}
-                        <div className="w-full shrink-0 z-40 bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
+                        <div className="fixed bottom-0 left-0 right-0 md:relative w-full shrink-0 z-[100] bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
                                 {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                                     <AvelutMessageInput
                                       onSend={(text) => sendMsg(text, 'text')}
