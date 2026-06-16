@@ -25,6 +25,42 @@ import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from
 
 declare var __app_id: string;
 
+// Stable Markdown components for optimized rendering performance
+const STUDY_GUIDE_MARKDOWN_COMPONENTS: any = {
+    // Headings
+    h1: ({node, ...props}: any) => <h1 className="text-xl font-bold text-gray-900 mb-3 mt-2" {...props} />,
+    h2: ({node, ...props}: any) => <h2 className="text-lg font-bold text-gray-900 mb-2 mt-3" {...props} />,
+    h3: ({node, ...props}: any) => <h3 className="text-base font-semibold text-gray-800 mb-2 mt-2" {...props} />,
+    // Paragraphs with better spacing
+    p: ({node, ...props}: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800" {...props} />,
+    // Bold - highlighted key concepts
+    strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
+    // Italics for emphasis
+    em: ({node, ...props}: any) => <em className="italic text-lime-700 font-medium" {...props} />,
+    // Lists with better styling
+    ul: ({node, ...props}: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
+    li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
+    // Links
+    a: ({node, ...props}: any) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+    // Code blocks
+    code: ({node, inline, ...props}: any) =>
+        inline ? (
+            <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
+        ) : (
+            <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
+        ),
+    pre: ({node, ...props}: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
+    // Blockquotes for notes
+    blockquote: ({node, ...props}: any) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
+    // Tables
+    table: ({node, ...props}: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 text-xs" {...props} /></div>,
+    th: ({node, ...props}: any) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900" {...props} />,
+    td: ({node, ...props}: any) => <td className="px-3 py-2 border-t border-gray-200" {...props} />,
+    // Horizontal rules
+    hr: ({node, ...props}: any) => <hr className="my-4 border-gray-300" {...props} />,
+};
+
 // --- INLINE ICONS ---
 const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1376,40 +1412,7 @@ Student: "${tempInput}"
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                 rehypePlugins={[rehypeKatex]}
-                                                components={{
-                                                    // Headings
-                                                    h1: ({node, ...props}) => <h1 className="text-xl font-bold text-gray-900 mb-3 mt-2" {...props} />,
-                                                    h2: ({node, ...props}) => <h2 className="text-lg font-bold text-gray-900 mb-2 mt-3" {...props} />,
-                                                    h3: ({node, ...props}) => <h3 className="text-base font-semibold text-gray-800 mb-2 mt-2" {...props} />,
-                                                    // Paragraphs with better spacing
-                                                    p: ({node, ...props}) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800" {...props} />,
-                                                    // Bold - highlighted key concepts
-                                                    strong: ({node, ...props}) => <strong className="font-bold text-gray-900 bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
-                                                    // Italics for emphasis
-                                                    em: ({node, ...props}) => <em className="italic text-lime-700 font-medium" {...props} />,
-                                                    // Lists with better styling
-                                                    ul: ({node, ...props}) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                    ol: ({node, ...props}) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                    li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
-                                                    // Links
-                                                    a: ({node, ...props}) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                                    // Code blocks
-                                                    code: ({node, inline, ...props}: any) => 
-                                                        inline ? (
-                                                            <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
-                                                        ) : (
-                                                            <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
-                                                        ),
-                                                    pre: ({node, ...props}) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
-                                                    // Blockquotes for notes
-                                                    blockquote: ({node, ...props}) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
-                                                    // Tables
-                                                    table: ({node, ...props}) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 text-xs" {...props} /></div>,
-                                                    th: ({node, ...props}) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900" {...props} />,
-                                                    td: ({node, ...props}) => <td className="px-3 py-2 border-t border-gray-200" {...props} />,
-                                                    // Horizontal rules
-                                                    hr: ({node, ...props}) => <hr className="my-4 border-gray-300" {...props} />,
-                                                }}
+                                                components={STUDY_GUIDE_MARKDOWN_COMPONENTS}
                                             >
                                                 {cleanText}
                                             </ReactMarkdown>
@@ -1460,30 +1463,7 @@ Student: "${tempInput}"
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkMath]}
                                             rehypePlugins={[rehypeKatex]}
-                                            components={{
-                                                h1: ({node, ...props}) => <h1 className="text-xl font-bold text-gray-900 mb-3 mt-2" {...props} />,
-                                                h2: ({node, ...props}) => <h2 className="text-lg font-bold text-gray-900 mb-2 mt-3" {...props} />,
-                                                h3: ({node, ...props}) => <h3 className="text-base font-semibold text-gray-800 mb-2 mt-2" {...props} />,
-                                                p: ({node, ...props}) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800" {...props} />,
-                                                strong: ({node, ...props}) => <strong className="font-bold text-gray-900 bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
-                                                em: ({node, ...props}) => <em className="italic text-lime-700 font-medium" {...props} />,
-                                                ul: ({node, ...props}) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                ol: ({node, ...props}) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
-                                                a: ({node, ...props}) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                                code: ({node, inline, ...props}: any) => 
-                                                    inline ? (
-                                                        <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
-                                                    ) : (
-                                                        <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
-                                                    ),
-                                                pre: ({node, ...props}) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
-                                                blockquote: ({node, ...props}) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
-                                                table: ({node, ...props}) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 text-xs" {...props} /></div>,
-                                                th: ({node, ...props}) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900" {...props} />,
-                                                td: ({node, ...props}) => <td className="px-3 py-2 border-t border-gray-200" {...props} />,
-                                                hr: ({node, ...props}) => <hr className="my-4 border-gray-300" {...props} />,
-                                            }}
+                                            components={STUDY_GUIDE_MARKDOWN_COMPONENTS}
                                         >
                                             {cleanStreamingText}
                                         </ReactMarkdown>

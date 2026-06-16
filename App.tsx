@@ -380,9 +380,6 @@ const App: React.FC = () => {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const triggerScanRef = useRef<(() => void) | null>(null);
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
-    const ai = useMemo(() => (
-        createAvelutAI(appSettings, userProfile)
-    ), [appSettings, userProfile]);
     const isUploadCenterRoute = getWindowPathname().startsWith('/upload-center');
     const isAdminRoute = getWindowPathname().startsWith('/admin');
 
