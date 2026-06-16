@@ -1538,9 +1538,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 2. Messages List */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
-                            onScroll={handleScroll}
-                            ref={scrollContainerRef}>
+                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
                             {combinedMessageStream.length === 0 ? (
                               <div className="h-full flex flex-col items-center justify-center px-4">
                                 <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
