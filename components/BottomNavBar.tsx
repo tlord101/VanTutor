@@ -123,22 +123,32 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   const xRight = cx + halfNotch;
 
   // Custom SVG path drawing the rounded corners and smooth center notch cutout
+  const safeNavWidth = Math.max(navWidth, 300);
+  const safeHeight = Math.max(height, 50);
+
   const pathD = [
-    `M 0 ${height}`,
+    `M 0 ${safeHeight}`,
     `L 0 ${r}`,
     `A ${r} ${r} 0 0 1 ${r} 0`,
     `L ${xLeft} 0`,
     `C ${cx - 38} 0, ${cx - 44} ${depth}, ${cx} ${depth}`,
     `C ${cx + 44} ${depth}, ${cx + 38} 0, ${xRight} 0`,
-    `L ${navWidth - r} 0`,
-    `A ${r} ${r} 0 0 1 ${navWidth} ${r}`,
-    `L ${navWidth} ${height}`,
-    `L 0 ${height}`,
+    `L ${safeNavWidth - r} 0`,
+    `A ${r} ${r} 0 0 1 ${safeNavWidth} ${r}`,
+    `L ${safeNavWidth} ${safeHeight}`,
+    `L 0 ${safeHeight}`,
     'Z'
   ].join(' ');
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up">
+      <svg width="0" height="0" className="absolute pointer-events-none">
+        <defs>
+          <clipPath id="bottom-nav-clip">
+            <path d={pathD} />
+          </clipPath>
+        </defs>
+      </svg>
       <div 
         ref={containerRef}
         className="relative w-full max-w-md h-[calc(76px+env(safe-area-inset-bottom,0px))] bg-transparent"
@@ -146,7 +156,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
         {/* Glassmorphic Background clipped to the custom notch shape using inline path() */}
         <div 
           className="absolute inset-0 shadow-[0_-8px_30px_rgba(0,45,98,0.08)] z-0"
-          style={{ clipPath: `path('${pathD}')` }}
+          style={{ clipPath: `url(#bottom-nav-clip)`, WebkitClipPath: `url(#bottom-nav-clip)` }}
         >
            <div className="absolute inset-0 bg-white/95 backdrop-blur-xl"></div>
         </div>

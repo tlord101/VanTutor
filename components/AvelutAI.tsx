@@ -1109,7 +1109,7 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
 
               {/* STATES 1, 2, 3: Stadium Input Box Bar */}
               {inputState !== 4 && (
-                <div className="relative w-full min-h-[64px] bg-[#1e1f20] rounded-none md:rounded-[32px] flex items-center justify-between pl-4 pr-2 border-t md:border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="relative w-[96%] mx-auto md:w-full min-h-[64px] bg-[#1e1f20] rounded-[32px] flex items-center justify-between pl-4 pr-2 border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                   
                   <div className="relative">
                     <button
