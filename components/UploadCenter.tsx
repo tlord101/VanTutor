@@ -370,8 +370,14 @@ export const UploadCenter: React.FC = () => {
 
   useEffect(() => {
     const availableCoursesList = catalog.filter(entry => normalizeLevel(entry.course.level) === selectedLevel && normalizeSemester(entry.course.semester) === selectedSemester);
-    if (!availableCoursesList.length) return;
-    if (!availableCoursesList.some(entry => entry.key === requestCourseKey) && requestCourseKey) return;
+    if (!availableCoursesList.length) {
+      if (requestCourseKey) setRequestCourseKey('');
+      return;
+    }
+    if (!availableCoursesList.some(entry => entry.key === requestCourseKey) && requestCourseKey) {
+      setRequestCourseKey('');
+      return;
+    }
     if (!requestCourseKey) {
       setRequestCourseKey(availableCoursesList[0].key);
     }
