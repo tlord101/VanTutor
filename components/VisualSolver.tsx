@@ -32,6 +32,90 @@ interface TutorialDisplayProps {
     onClose: () => void;
 }
 
+// Stable Markdown components for optimized rendering performance
+const VISUAL_SOLVER_MARKDOWN_COMPONENTS: any = {
+    // Main headings - Problem Title
+    h1: ({node, ...props}: any) => (
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-6 pb-4 border-b-2 border-indigo-200 mt-2" {...props} />
+    ),
+    // Section headings - Steps, Analysis, etc.
+    h2: ({node, ...props}: any) => (
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8 pt-4 border-t border-gray-200 flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />
+    ),
+    // Sub-sections
+    h3: ({node, ...props}: any) => (
+        <h3 className="text-xl sm:text-2xl font-semibold text-indigo-700 mb-3 mt-6 pl-4 border-l-4 border-indigo-400" {...props} />
+    ),
+    // Minor headings
+    h4: ({node, ...props}: any) => (
+        <h4 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 mt-4" {...props} />
+    ),
+    // Paragraphs with better spacing and readability
+    p: ({node, ...props}: any) => (
+        <p className="mb-5 text-base sm:text-lg leading-relaxed text-gray-700 tracking-wide" {...props} />
+    ),
+    // Bold text - for key concepts
+    strong: ({node, ...props}: any) => (
+        <strong className="font-bold text-gray-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />
+    ),
+    // Italic text - for emphasis
+    em: ({node, ...props}: any) => (
+        <em className="italic text-indigo-600 font-medium" {...props} />
+    ),
+    // Unordered lists with better styling
+    ul: ({node, ...props}: any) => (
+        <ul className="list-none space-y-3 my-5 pl-1" {...props} />
+    ),
+    // List items with custom bullets
+    li: ({node, ...props}: any) => (
+        <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />
+    ),
+    // Ordered lists for steps
+    ol: ({node, ...props}: any) => (
+        <ol className="list-none space-y-4 my-6 counter-reset-[step]" {...props} />
+    ),
+    // Code blocks with syntax highlighting style
+    code: ({node, inline, ...props}: any) =>
+        inline ? (
+            <code className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono text-sm border border-indigo-200" {...props} />
+        ) : (
+            <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 font-mono text-sm leading-relaxed border-l-4 border-indigo-500" {...props} />
+        ),
+    // Pre blocks for code
+    pre: ({node, ...props}: any) => (
+        <pre className="bg-gray-900 rounded-lg overflow-hidden my-5 shadow-lg" {...props} />
+    ),
+    // Blockquotes for important notes
+    blockquote: ({node, ...props}: any) => (
+        <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-6 pr-4 py-4 my-5 rounded-r-lg shadow-sm" {...props} />
+    ),
+    // Tables with better styling
+    table: ({node, ...props}: any) => (
+        <div className="overflow-x-auto my-6 shadow-md rounded-lg">
+            <table className="min-w-full divide-y divide-gray-200 border border-gray-200" {...props} />
+        </div>
+    ),
+    thead: ({node, ...props}: any) => (
+        <thead className="bg-indigo-600 text-white" {...props} />
+    ),
+    tbody: ({node, ...props}: any) => (
+        <tbody className="bg-white divide-y divide-gray-200" {...props} />
+    ),
+    tr: ({node, ...props}: any) => (
+        <tr className="hover:bg-gray-50 transition-colors" {...props} />
+    ),
+    th: ({node, ...props}: any) => (
+        <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />
+    ),
+    td: ({node, ...props}: any) => (
+        <td className="px-6 py-4 text-sm text-gray-700" {...props} />
+    ),
+    // Horizontal rules
+    hr: ({node, ...props}: any) => (
+        <hr className="my-8 border-t-2 border-gray-200" {...props} />
+    ),
+};
+
 const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose }) => {
     return (
         <div className="w-full h-full flex flex-col bg-gradient-to-b from-gray-50 to-white">
@@ -44,88 +128,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
-                            components={{
-                                // Main headings - Problem Title
-                                h1: ({node, ...props}) => (
-                                    <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-6 pb-4 border-b-2 border-indigo-200 mt-2" {...props} />
-                                ),
-                                // Section headings - Steps, Analysis, etc.
-                                h2: ({node, ...props}) => (
-                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8 pt-4 border-t border-gray-200 flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />
-                                ),
-                                // Sub-sections
-                                h3: ({node, ...props}) => (
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-indigo-700 mb-3 mt-6 pl-4 border-l-4 border-indigo-400" {...props} />
-                                ),
-                                // Minor headings
-                                h4: ({node, ...props}) => (
-                                    <h4 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 mt-4" {...props} />
-                                ),
-                                // Paragraphs with better spacing and readability
-                                p: ({node, ...props}) => (
-                                    <p className="mb-5 text-base sm:text-lg leading-relaxed text-gray-700 tracking-wide" {...props} />
-                                ),
-                                // Bold text - for key concepts
-                                strong: ({node, ...props}) => (
-                                    <strong className="font-bold text-gray-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />
-                                ),
-                                // Italic text - for emphasis
-                                em: ({node, ...props}) => (
-                                    <em className="italic text-indigo-600 font-medium" {...props} />
-                                ),
-                                // Unordered lists with better styling
-                                ul: ({node, ...props}) => (
-                                    <ul className="list-none space-y-3 my-5 pl-1" {...props} />
-                                ),
-                                // List items with custom bullets
-                                li: ({node, ...props}) => (
-                                    <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />
-                                ),
-                                // Ordered lists for steps
-                                ol: ({node, ...props}) => (
-                                    <ol className="list-none space-y-4 my-6 counter-reset-[step]" {...props} />
-                                ),
-                                // Code blocks with syntax highlighting style
-                                code: ({node, inline, ...props}: any) => 
-                                    inline ? (
-                                        <code className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono text-sm border border-indigo-200" {...props} />
-                                    ) : (
-                                        <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 font-mono text-sm leading-relaxed border-l-4 border-indigo-500" {...props} />
-                                    ),
-                                // Pre blocks for code
-                                pre: ({node, ...props}) => (
-                                    <pre className="bg-gray-900 rounded-lg overflow-hidden my-5 shadow-lg" {...props} />
-                                ),
-                                // Blockquotes for important notes
-                                blockquote: ({node, ...props}) => (
-                                    <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-6 pr-4 py-4 my-5 rounded-r-lg shadow-sm" {...props} />
-                                ),
-                                // Tables with better styling
-                                table: ({node, ...props}) => (
-                                    <div className="overflow-x-auto my-6 shadow-md rounded-lg">
-                                        <table className="min-w-full divide-y divide-gray-200 border border-gray-200" {...props} />
-                                    </div>
-                                ),
-                                thead: ({node, ...props}) => (
-                                    <thead className="bg-indigo-600 text-white" {...props} />
-                                ),
-                                tbody: ({node, ...props}) => (
-                                    <tbody className="bg-white divide-y divide-gray-200" {...props} />
-                                ),
-                                tr: ({node, ...props}) => (
-                                    <tr className="hover:bg-gray-50 transition-colors" {...props} />
-                                ),
-                                th: ({node, ...props}) => (
-                                    <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />
-                                ),
-                                td: ({node, ...props}) => (
-                                    <td className="px-6 py-4 text-sm text-gray-700" {...props} />
-                                ),
-                                // Horizontal rules
-                                hr: ({node, ...props}) => (
-                                    <hr className="my-8 border-t-2 border-gray-200" {...props} />
-                                ),
-                            }}
+                            components={VISUAL_SOLVER_MARKDOWN_COMPONENTS}
                         >
                             {tutorialText}
                         </ReactMarkdown>

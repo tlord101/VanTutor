@@ -49,6 +49,16 @@ interface AvelutAIProps {
   userProfile: UserProfile;
 }
 
+// Stable Markdown components for optimized rendering performance
+const AVELUT_AI_MARKDOWN_COMPONENTS: any = {
+  p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200" {...props} />,
+  ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-200" {...props} />,
+  ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-200" {...props} />,
+  li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+  strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
+  pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-100 border border-neutral-800/40" {...props} />,
+};
+
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const truncateTitle = (text: string) => {
@@ -1011,14 +1021,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
-                            components={{
-                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200" {...props} />,
-                              ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-200" {...props} />,
-                              ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-200" {...props} />,
-                              li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
-                              strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                              pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-100 border border-neutral-800/40" {...props} />,
-                            }}
+                            components={AVELUT_AI_MARKDOWN_COMPONENTS}
                           >
                             {message.text}
                           </ReactMarkdown>
@@ -1055,14 +1058,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200" {...props} />,
-                          ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-200" {...props} />,
-                          ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-200" {...props} />,
-                          li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
-                          strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                          pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-100 border border-neutral-800/40" {...props} />,
-                        }}
+                        components={AVELUT_AI_MARKDOWN_COMPONENTS}
                       >
                         {streamingBotText}
                       </ReactMarkdown>
