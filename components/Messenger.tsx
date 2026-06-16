@@ -1391,7 +1391,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             {/* Sidebar Pane */}
             <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
                 <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
-                    <h1 className="text-xl font-bold text-[#212529] mb-4">Messages</h1>
+                    <div className="flex items-center gap-2 mb-4">
+                        <button onClick={() => window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                        <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
+                    </div>
                     <div className="flex gap-2 bg-[#E9ECEF] p-1 rounded-full mb-3">
                         <button onClick={() => setTab('chats')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
                         <button onClick={() => setTab('people')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
@@ -1512,7 +1517,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     <div className="flex flex-col h-full w-full relative overflow-hidden">
                         
                         {/* 1. STICKY FLOATING Header Bar */}
-                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[95%] h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm rounded-2xl border border-[#E9ECEF]/60">
+                        <div className="absolute top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm border-b border-[#E9ECEF]/60">
                             <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
                              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                             <div className="flex-1 min-w-0">
@@ -1533,7 +1538,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 2. FULL HEIGHT Message Stream Box Container */}
-                        <div className="w-[95%] h-full absolute inset-0 overflow-y-auto px-4 pt-24 pb-44 md:pb-28 md:px-8 space-y-6 mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+                        <div className="w-full h-full absolute inset-0 overflow-y-auto px-4 pt-20 pb-24 md:pb-20 md:px-8 space-y-6 mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
                             {combinedMessageStream.length === 0 ? (
                               <div className="flex min-h-[48vh] flex-col items-center justify-center text-center">
                                 <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-white shadow-sm border border-[#E9ECEF]">
@@ -1563,7 +1568,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                                 <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                                             )}
                                             
-                                    <div className={`px-5 py-3.5 shadow-sm w-[95%] text-[15px] md:text-[16px] relative select-text ${
+                                    <div className={`px-5 py-3.5 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${
                                                 isMe 
                                               ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]' 
                                               : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
@@ -1675,7 +1680,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         </div>
 
                         {/* 3. FLOATING Bottom Control Anchor Panel Bar */}
-                        <div className="absolute bottom-20 md:bottom-6 left-0 right-0 z-30 w-full pointer-events-none px-4 md:px-0">
+                        <div className="absolute bottom-4 left-0 right-0 z-30 w-full pointer-events-none px-4 md:px-0">
                             <div className="pointer-events-auto">
                                 {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                                     <AvelutMessageInput

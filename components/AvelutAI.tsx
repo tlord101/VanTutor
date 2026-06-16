@@ -923,6 +923,9 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#060814]">
           <header className="flex items-center justify-between border-b border-neutral-800/40 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
+              <button onClick={() => window.history.back()} className="rounded-2xl border border-neutral-800 bg-[#0d1122] p-2 text-slate-300 transition hover:bg-[#1a2133]" aria-label="Go back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(true)}
@@ -957,7 +960,7 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto flex w-[95%] max-w-6xl flex-col gap-4">
+              <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
                 {messages.map((message, idx) => {
                   // If this is the last bot message and it's redundant with streaming, hide it temporarily
                   if (streamingBotText !== null &&
@@ -1090,8 +1093,8 @@ export default function AvelutAI({ userProfile }: AvelutAIProps) {
           </section>
 
           {/* Integrated AVELUT Input Layout Panel */}
-          <footer className="w-full bg-[#060814] pb-[92px] md:pb-4 px-4 z-30 shrink-0 flex justify-center">
-            <div className="w-[95%] max-w-6xl transition-all duration-300 mb-2.5">
+          <footer className="w-full bg-[#060814] pb-4 px-4 z-30 shrink-0 flex justify-center">
+            <div className="w-full max-w-6xl transition-all duration-300 mb-2.5">
               
               {/* Attachment Preview */}
               {attachments.length > 0 && (

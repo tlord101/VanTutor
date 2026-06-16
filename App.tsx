@@ -1070,7 +1070,7 @@ const App: React.FC = () => {
                     id="main-scroll-container"
                     className={
                         activeItem === 'chat' || activeItem === 'messenger'
-                        ? "flex-1 min-h-0 overflow-hidden flex flex-col content-with-bottom-nav"
+                        ? "flex-1 min-h-0 overflow-hidden flex flex-col"
                         : "flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav isolate"
                     }
                 >
@@ -1124,7 +1124,7 @@ const App: React.FC = () => {
                       setActiveItem('visual_solver');
                   }
               }}
-              isVisible={true}
+              isVisible={activeItem !== 'chat' && activeItem !== 'messenger'}
               userProfile={userProfile}
             />
             <GuidedTour 
