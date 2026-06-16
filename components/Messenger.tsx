@@ -336,7 +336,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className="w-full relative select-none z-40 px-2 sm:px-4 md:w-[95%] md:mx-auto">
+    <div className="w-full relative select-none z-40 bg-[#F8F9FA] pb-2 pt-2 md:w-full md:mx-auto">
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
@@ -1537,16 +1537,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             </div>
                         </div>
 
-                        {/* 2. FULL HEIGHT Message Stream Box Container */}
-                        <div className="w-full h-full absolute inset-0 overflow-y-auto px-4 pt-20 pb-24 md:pb-20 md:px-8 space-y-6 mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+                        {/* 2. Messages List */}
+                        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-4 md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
+                            onScroll={handleScroll}
+                            ref={scrollContainerRef}>
                             {combinedMessageStream.length === 0 ? (
-                              <div className="flex min-h-[48vh] flex-col items-center justify-center text-center">
-                                <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-white shadow-sm border border-[#E9ECEF]">
-                                  <img src="/logo_icon.png" alt="AVELUT" className="h-11 w-11 object-contain" />
+                              <div className="h-full flex flex-col items-center justify-center px-4">
+                                <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2]">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                  </svg>
                                 </div>
-                                <p className="mt-5 text-xs font-bold uppercase tracking-[0.24em] text-[#6C757D]">New contact</p>
-                                  <h2 className="mt-2 text-2xl font-black text-[#212529]">Start a chat to connect</h2>
-                                <p className="mt-2 max-w-md text-sm leading-6 text-[#6C757D]">
+                                <h3 className="text-xl font-bold text-[#212529] mb-2 text-center">Start a Conversation</h3>
+                                <p className="text-[#6C757D] text-center max-w-sm text-sm">
                                   Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
                                 </p>
                               </div>
@@ -1679,9 +1682,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* 3. FLOATING Bottom Control Anchor Panel Bar */}
-                        <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none pb-2 bg-white/80 backdrop-blur-md md:bg-transparent md:backdrop-blur-none md:absolute md:bottom-4 md:pb-0">
-                            <div className="pointer-events-auto">
+                        {/* 3. Bottom Control Anchor Panel Bar */}
+                        <div className="w-full shrink-0 z-40 bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
                                 {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                                     <AvelutMessageInput
                                       onSend={(text) => sendMsg(text, 'text')}
@@ -1740,7 +1742,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                         </div>
                                      </div>
                                 )}
-                            </div>
                         </div>
 
                         {messageActionTarget && (

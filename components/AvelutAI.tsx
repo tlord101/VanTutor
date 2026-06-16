@@ -947,7 +947,7 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
           </header>
 
           {/* Messages List Container */}
-          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[110px] md:pb-4 sm:px-6">
+          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
             {messages.length === 0 ? (
               <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-600 text-white shadow-lg">
@@ -1094,7 +1094,7 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
           </section>
 
           {/* Integrated AVELUT Input Layout Panel */}
-          <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[#060814]/90 backdrop-blur-md pb-2 px-0 md:relative md:pb-4 md:px-4 md:bg-[#060814] md:backdrop-blur-none shrink-0 flex justify-center">
+          <footer className="w-full shrink-0 z-40 bg-[#060814] pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
             <div className="w-full max-w-6xl transition-all duration-300 md:mb-2.5">
               
               {/* Attachment Preview */}
@@ -1109,7 +1109,7 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
 
               {/* STATES 1, 2, 3: Stadium Input Box Bar */}
               {inputState !== 4 && (
-                <div className="relative w-[96%] mx-auto md:w-full min-h-[64px] bg-[#1e1f20] rounded-[32px] flex items-center justify-between pl-4 pr-2 border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="relative w-full min-h-[64px] bg-[#1e1f20] rounded-[24px] flex items-center justify-between pl-4 pr-2 border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                   
                   <div className="relative">
                     <button
