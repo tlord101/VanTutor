@@ -442,10 +442,18 @@ export const UploadCenter: React.FC = () => {
         const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
         const profileSnapshot = await get(dbRef(db, `uploaders/${credential.user.uid}`));
         if (!profileSnapshot.exists()) {
-          await firebaseSignOut(firebaseAuth);
-          throw new Error('This account is not registered as an uploader. Please sign up first.');
+          // Auto-enroll the user as an uploader if they exist in the system but lack an uploader profile
+          const displayName = createUserDisplayName(credential.user.email || email.trim());
+          await set(dbRef(db, `uploaders/${credential.user.uid}`), {
+            uid: credential.user.uid,
+            email: credential.user.email || email.trim(),
+            display_name: displayName,
+            created_at: Date.now(),
+          });
+          addToast('Account upgraded to Uploader.', 'success');
+        } else {
+          addToast('Signed in successfully.', 'success');
         }
-        addToast('Signed in successfully.', 'success');
       }
     } catch (error: any) {
       console.error('Uploader auth failed:', error);
@@ -736,6 +744,9 @@ FORMAT:
         console.error("Upload Center Vector indexing sync fallback caught:", vectorErr);
         addToast('Warning: Textbook uploaded but vector search sync failed.', 'info');
       }
+      
+      // Refresh the catalog so the UI shows the green badge for the newly uploaded course
+      void loadCatalog();
     } catch (error: any) {
       console.error('Upload failed:', error);
       addToast(error?.message || 'Could not upload the course.', 'error');

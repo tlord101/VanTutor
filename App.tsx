@@ -610,7 +610,7 @@ const App: React.FC = () => {
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             off(connectedRef, 'value', unsubscribeConnected);
         };
-    }, [userProfile, user]);
+    }, [userProfile?.uid, user]);
     
     useEffect(() => {
         if (!userProfile) return;

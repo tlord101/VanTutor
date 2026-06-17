@@ -42,9 +42,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
       for (let entry of entries) {
-        setNavSize({
-          width: entry.contentRect.width,
-          height: containerRef.current?.clientHeight || 76
+        setNavSize(prev => {
+          const newWidth = entry.contentRect.width;
+          const newHeight = containerRef.current?.clientHeight || 76;
+          if (prev.width === newWidth && prev.height === newHeight) return prev;
+          return { width: newWidth, height: newHeight };
         });
       }
     });
