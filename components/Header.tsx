@@ -14,6 +14,7 @@ interface HeaderProps {
   onCalendarClick?: () => void;
   unreadMessagesCount?: number;
   rightActions?: React.ReactNode;
+  leftActions?: React.ReactNode;
   userProfile?: UserProfile;
 }
 
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
     onCalendarClick,
     unreadMessagesCount = 0,
     rightActions,
+    leftActions,
     userProfile
 }) => {
 
@@ -33,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
         <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6 bg-transparent">
             <div className="flex items-center">
                 <div className="flex items-center gap-3">
+                    {leftActions && <div className="flex items-center">{leftActions}</div>}
                     <h2 className="text-2xl md:text-3xl font-bold text-charcoal tracking-tighter uppercase">
                         {currentPageLabel}
                     </h2>

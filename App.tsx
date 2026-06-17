@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
 import { DEFAULT_USAGE_SETTINGS } from './utils/appSettings';
-import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment } from './types';
+import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment, HeaderConfig } from './types';
 import { awardDailyStreak } from './utils/streaks';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp'; 
@@ -271,6 +271,7 @@ const App: React.FC = () => {
     const [notifications, setNotifications] = useState<NotificationType[]>([]);
     const [examHistory, setExamHistory] = useState<ExamHistoryItem[]>([]);
     const [departmentData, setDepartmentData] = useState<any>(null);
+    const [customHeaderConfig, setCustomHeaderConfig] = useState<HeaderConfig | null>(null);
 
     const { addToast } = useToast();
     const lastNotifiedRef = useRef<Record<string, boolean>>({});
@@ -1057,7 +1058,7 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
-                    currentPageLabel={currentPageLabel}
+                    currentPageLabel={customHeaderConfig?.title || currentPageLabel}
                     unreadCount={unreadCount}
                     onNotificationsClick={() => setIsNotificationsPanelOpen(true)}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
@@ -1065,6 +1066,8 @@ const App: React.FC = () => {
                     onCalendarClick={() => setIsCalendarOpen(true)}
                     unreadMessagesCount={unreadMessagesCount}
                     userProfile={userProfile}
+                    leftActions={customHeaderConfig?.leftActions}
+                    rightActions={customHeaderConfig?.rightActions}
                 />
                 <div 
                     id="main-scroll-container"
@@ -1090,6 +1093,7 @@ const App: React.FC = () => {
                             startTour={startTour}
                             triggerScanRef={triggerScanRef}
                             onNavigate={setActiveItem}
+                            setCustomHeaderConfig={setCustomHeaderConfig}
                         />
                     )}
                 </div>

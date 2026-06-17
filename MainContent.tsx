@@ -29,6 +29,7 @@ interface MainContentProps {
     startTour: () => void;
     triggerScanRef?: React.MutableRefObject<(() => void) | null>;
     onNavigate?: (tab: string) => void;
+    setCustomHeaderConfig: (config: any) => void;
 }
 
 const LoadingFallback = () => (
@@ -51,6 +52,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     startTour,
     triggerScanRef,
     onNavigate,
+    setCustomHeaderConfig,
 }) => {
     if (!userProfile) return null;
 
@@ -79,13 +81,13 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'messenger':
                         return (
                             <ErrorBoundary>
-                                <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} onNavigate={onNavigate} />
+                                <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
                             </ErrorBoundary>
                         );
                     case 'chat':
                         return (
                             <ErrorBoundary>
-                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} />
+                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
                             </ErrorBoundary>
                         );
                     case 'admin':

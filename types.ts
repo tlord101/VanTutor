@@ -316,3 +316,9 @@ export interface EmailConfig {
   from_email: string;
   from_name: string;
 }
+
+export interface HeaderConfig {
+  title?: React.ReactNode;
+  leftActions?: React.ReactNode;
+  rightActions?: React.ReactNode;
+}

@@ -434,7 +434,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 // MAIN UNIFORM LIGHT THEME MESSENGER
 // ==========================================
 
-export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null; onNavigate?: (tab: string) => void }> = ({ userProfile, initialChatId = null, onNavigate }) => {
+export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null; onNavigate?: (tab: string) => void; setCustomHeaderConfig?: (config: any) => void }> = ({ userProfile, initialChatId = null, onNavigate, setCustomHeaderConfig }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
   const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
@@ -1384,21 +1384,68 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
+  useEffect(() => {
+    if (!setCustomHeaderConfig) return;
+
+    if (activeChat?.otherUser) {
+      setCustomHeaderConfig({
+        title: (
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
+              <span>{activeChat.otherUser.display_name}</span>
+              <VerificationBadge status={activeChat.otherUser.subscription_status} />
+              <StreakBadge userProfile={activeChat.otherUser} size="sm" />
+            </h2>
+            <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
+              {activeChat.otherUser.is_online ? (
+                <>
+                  <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
+                  <span className="text-[#28A745]">Online</span>
+                </>
+              ) : formatLastSeen(activeChat.otherUser.last_seen)}
+            </p>
+          </div>
+        ),
+        leftActions: (
+          <>
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-1 mr-2 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200" aria-label="Go back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] mr-3" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'Learner'} />
+          </>
+        ),
+        rightActions: null
+      });
+    } else {
+      setCustomHeaderConfig({
+        title: (
+          <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
+        ),
+        leftActions: (
+          <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-2 rounded-full bg-neutral-200/50 hover:bg-neutral-200 mr-2" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+        ),
+        rightActions: (
+          <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-full text-sm shrink-0">
+            <button onClick={() => setTab('chats')} className={`px-4 py-1.5 rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
+            <button onClick={() => setTab('people')} className={`px-4 py-1.5 rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
+          </div>
+        )
+      });
+    }
+
+    return () => {
+      setCustomHeaderConfig(null);
+    };
+  }, [setCustomHeaderConfig, activeChat, tab, onNavigate]);
+
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] font-sans antialiased text-[#212529]">
       {/* Sidebar Pane */}
       <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
         <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
-          <div className="flex items-center gap-2 mb-4">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-1 rounded-full bg-neutral-200/50 hover:bg-neutral-200">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
-          </div>
-          <div className="flex gap-2 bg-[#E9ECEF] p-1 rounded-full mb-3">
-            <button onClick={() => setTab('chats')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
-            <button onClick={() => setTab('people')} className={`flex-1 py-1.5 text-sm rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
-          </div>
 
           {/* Search Bar */}
           {tab === 'people' && (
@@ -1514,26 +1561,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
 
-            {/* 1. STICKY FLOATING Header Bar */}
-            <div className="absolute top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md flex items-center px-4 md:px-6 gap-3 z-30 shadow-sm border-b border-[#E9ECEF]/60">
-              <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] mr-1 text-lg">←</button>
-              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
-              <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
-                  <span>{selectedChatUser.display_name}</span>
-                  <VerificationBadge status={selectedChatUser.subscription_status} />
-                  <StreakBadge userProfile={selectedChatUser} size="md" />
-                </h2>
-                <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
-                  {selectedChatUser.is_online ? (
-                    <>
-                      <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
-                      <span className="text-[#28A745]">Online</span>
-                    </>
-                  ) : formatLastSeen(selectedChatUser.last_seen)}
-                </p>
-              </div>
-            </div>
+
 
             {/* 2. Messages List */}
             <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
@@ -1561,14 +1589,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
 
                 return (
-                  <div key={msg.id} className="space-y-1">
+                  <div key={msg.id} className="my-4 space-y-1">
                     <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
                         <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                       )}
 
-                      <div className={`px-5 py-3.5 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${isMe
-                          ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px]'
+                      <div className={`p-4 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${isMe
+                          ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px] border border-[#009EE2]/20'
                           : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
                         }`}
                         onContextMenu={(event) => {

@@ -48,6 +48,7 @@ interface HistoryItem {
 interface AvelutAIProps {
   userProfile: UserProfile;
   onNavigate?: (tab: string) => void;
+  setCustomHeaderConfig?: (config: any) => void;
 }
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -267,7 +268,7 @@ const ShareUploadIcon = () => (
   </svg>
 );
 
-export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
+export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
@@ -448,6 +449,46 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
 
     return messages.length > 0 ? 'Current chat' : 'New chat';
   }, [activeHistoryId, history, messages.length]);
+
+  useEffect(() => {
+    if (setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        title: (
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.35em] text-emerald-500 hidden sm:block">AVELUT AI</p>
+            <h1 className="text-base sm:text-lg font-bold text-slate-100 truncate max-w-[150px] sm:max-w-xs">{conversationSummary}</h1>
+          </div>
+        ),
+        leftActions: (
+          <>
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 sm:p-2 text-slate-300 transition hover:bg-[#1a2133] mr-2" aria-label="Go back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 sm:w-5 sm:h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 sm:p-2 text-slate-300 md:hidden mr-2"
+              aria-label="Open assistant history"
+              title="Open assistant history"
+            >
+              <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+          </>
+        ),
+        rightActions: (
+          <div className="rounded-full bg-emerald-950/50 border border-emerald-800/30 px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-emerald-400 truncate max-w-[100px] sm:max-w-[200px]">
+            {statusText}
+          </div>
+        )
+      });
+    }
+    
+    return () => {
+        if (setCustomHeaderConfig) {
+            setCustomHeaderConfig(null);
+        }
+    };
+  }, [setCustomHeaderConfig, conversationSummary, statusText, onNavigate]);
 
   const clearAttachment = () => {
     setAttachments([]);
@@ -922,32 +963,9 @@ export default function AvelutAI({ userProfile, onNavigate }: AvelutAIProps) {
 
         {/* Main Content Area */}
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#060814]">
-          <header className="flex items-center justify-between border-b border-neutral-800/40 px-4 py-4 sm:px-6">
-            <div className="flex items-center gap-3">
-              <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-neutral-800 bg-[#0d1122] p-2 text-slate-300 transition hover:bg-[#1a2133]" aria-label="Go back">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="rounded-2xl border border-neutral-800 bg-[#0d1122] p-2 text-slate-300 md:hidden"
-                aria-label="Open assistant history"
-                title="Open assistant history"
-              >
-                <MenuIcon className="h-5 w-5" />
-              </button>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-500">AVELUT AI</p>
-                <h1 className="text-lg font-bold text-slate-100 sm:text-2xl truncate max-w-[200px] sm:max-w-md">{conversationSummary}</h1>
-              </div>
-            </div>
-            <div className="rounded-full bg-emerald-950/50 border border-emerald-800/30 px-3 py-1 text-xs font-semibold text-emerald-400">
-              {statusText}
-            </div>
-          </header>
 
           {/* Messages List Container */}
-          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+          <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
             {messages.length === 0 ? (
               <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-600 text-white shadow-lg">
