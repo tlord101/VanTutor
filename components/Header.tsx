@@ -17,7 +17,12 @@ interface HeaderProps {
   userProfile?: UserProfile;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+/**
+ * BOLT OPTIMIZATION: Component Memoization
+ * Header contains multiple status indicators and counts.
+ * Memoizing it prevents layout thrashing during rapid user interaction.
+ */
+export const Header: React.FC<HeaderProps> = React.memo(({
     currentPageLabel, 
     onNotificationsClick, 
     unreadCount = 0, 
@@ -91,4 +96,4 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
         </header>
     );
-};
+});
