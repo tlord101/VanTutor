@@ -164,7 +164,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 w-full max-w-full py-1 select-none">
+    <div className="flex items-center gap-3 w-full min-w-[220px] sm:min-w-[260px] max-w-full py-1 select-none">
       <button
         type="button"
         onClick={togglePlay}
