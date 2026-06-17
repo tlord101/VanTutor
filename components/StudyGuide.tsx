@@ -394,6 +394,37 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const messageActionMenuRef = useRef<HTMLDivElement>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Diagnostic feature states
+    const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
+    const [diagnosticResults, setDiagnosticResults] = useState<any>(null); // Type: DiagnosticResult
+    const [isGeneratingDiagnostic, setIsGeneratingDiagnostic] = useState(false);
+    const [diagnosticQuestions, setDiagnosticQuestions] = useState<any[]>([]); // Type: Question[]
+    const [currentDiagnosticIndex, setCurrentDiagnosticIndex] = useState(0);
+    const [diagnosticAnswers, setDiagnosticAnswers] = useState<Record<number, string>>({});
+    const [isGradingDiagnostic, setIsGradingDiagnostic] = useState(false);
+    const [isLearningPathOpen, setIsLearningPathOpen] = useState(false);
+
+    // Fetch existing diagnostic results for this course
+    useEffect(() => {
+        if (!userProfile?.uid || !course?.course_id) return;
+        const diagnosticsRef = dbRef(db, `users/${userProfile.uid}/diagnostics/${course.course_id}`);
+        const unsubscribe = onValue(diagnosticsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setDiagnosticResults(data);
+                // Wait to close modal if they were in the middle of taking it, or close if they just opened course
+                if (diagnosticQuestions.length === 0) {
+                    setShowDiagnosticModal(false);
+                }
+            } else {
+                setDiagnosticResults(null);
+                // Trigger the modal if they haven't taken it yet
+                setShowDiagnosticModal(true);
+            }
+        });
+        return () => off(diagnosticsRef, 'value', unsubscribe);
+    }, [userProfile?.uid, course?.course_id, diagnosticQuestions.length]); // Safe dependency array to prevent #300
+
     useEffect(() => {
         if (!userProfile) return;
         const partnersRef = dbRef(db, `study_partners/${userProfile.uid}`);
@@ -524,6 +555,112 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
         }
     };
 
+    const generateDiagnosticTest = async () => {
+        if (!ai || !course) return;
+        setIsGeneratingDiagnostic(true);
+        try {
+            const courseTopics = course.topics?.map(t => t.topic_name).join(', ') || 'General course topics';
+            const prompt = `
+Generate a 10-question multiple-choice diagnostic test for the university-level course: '${course.course_name}'.
+The test MUST cover these specific topics: ${courseTopics}
+
+For each question, indicate which specific 'topic_name' from the list above it best tests.
+Return valid JSON as an array of questions.
+            `;
+            
+            const response = await ai.models.generateContent({
+                model: getFeatureModel('ai_quiz_generation', appSettings),
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                question: { type: Type.STRING },
+                                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                correctAnswer: { type: Type.STRING },
+                                explanation: { type: Type.STRING },
+                                topic_name: { type: Type.STRING }
+                            },
+                            required: ['question', 'options', 'correctAnswer', 'explanation', 'topic_name']
+                        }
+                    }
+                }
+            });
+            
+            const responseText = (response as any).text || '';
+            const data = JSON.parse(responseText);
+            if (Array.isArray(data) && data.length > 0) {
+                setDiagnosticQuestions(data);
+                setCurrentDiagnosticIndex(0);
+                setDiagnosticAnswers({});
+            } else {
+                throw new Error("Invalid question data.");
+            }
+        } catch (error) {
+            console.error("Diagnostic generation failed", error);
+            addToast("Failed to generate diagnostic test.", 'error');
+            setShowDiagnosticModal(false);
+        } finally {
+            setIsGeneratingDiagnostic(false);
+        }
+    };
+
+    const handleDiagnosticSubmit = async () => {
+        if (!userProfile?.uid || !course?.course_id || diagnosticQuestions.length === 0) return;
+        setIsGradingDiagnostic(true);
+        try {
+            const topicScores: Record<string, { correct: number, total: number }> = {};
+            
+            // Initialize for all known topics in case some weren't tested
+            course.topics?.forEach(t => {
+                topicScores[t.topic_id] = { correct: 0, total: 0 };
+            });
+
+            diagnosticQuestions.forEach((q, index) => {
+                const isCorrect = diagnosticAnswers[index] === q.correctAnswer;
+                // Find matching topic_id
+                const matchedTopic = course.topics?.find(t => t.topic_name.toLowerCase() === (q.topic_name || '').toLowerCase());
+                const tId = matchedTopic ? matchedTopic.topic_id : (course.topics?.[0]?.topic_id || 'unknown');
+                
+                if (!topicScores[tId]) {
+                    topicScores[tId] = { correct: 0, total: 0 };
+                }
+                topicScores[tId].total += 1;
+                if (isCorrect) topicScores[tId].correct += 1;
+            });
+
+            const topic_results: Record<string, any> = {};
+            for (const [tId, stats] of Object.entries(topicScores)) {
+                let score = 0;
+                let status = 'Review Recommended'; // Default
+                if (stats.total > 0) {
+                    score = Math.round((stats.correct / stats.total) * 100);
+                    if (score >= 80) status = 'Mastered';
+                    else if (score < 50) status = 'Critical Focus';
+                }
+                topic_results[tId] = { score, status };
+            }
+
+            const payload = {
+                timestamp: Date.now(),
+                topic_results
+            };
+
+            await set(dbRef(db, `users/${userProfile.uid}/diagnostics/${course.course_id}`), payload);
+            setDiagnosticResults(payload);
+            setShowDiagnosticModal(false);
+            addToast("Diagnostic completed! Your learning path has been personalized.", 'success');
+        } catch (error) {
+            console.error("Diagnostic submit failed", error);
+            addToast("Failed to save results.", 'error');
+        } finally {
+            setIsGradingDiagnostic(false);
+        }
+    };
+
     const fetchTutorials = async () => {
         if (tutorials.length > 0 || isTutorialsLoading) return;
         setIsTutorialsLoading(true);
@@ -650,7 +787,7 @@ Return valid JSON as a list of objects with keys: title, description, searchQuer
             }
         };
         fetchTextbook();
-    }, [userProfile.department_id, userProfile.level, course.course_name, course.course_id]);
+    }, [userProfile.department_id, userProfile.level, course]);
 
     const systemInstruction = `You are AVELUT, an expert AI educator. Your primary goal is to provide a comprehensive and complete understanding of the given topic for a student at their specified level.
 
@@ -825,7 +962,6 @@ ${selectedTopicContext ? `\n\nSELECTED TOPIC BOUNDARY:\n${selectedTopicContext}`
             stopTracking();
             void saveStudyDuration();
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [course.course_id, userProfile.uid]);
 
     const initiateAutoTeach = useCallback(async () => {
@@ -917,7 +1053,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
             setStreamingBotText(null);
             setIsThinking(false);
         }
-    }, [ai, addToast, attemptApiCall, geminiModel, isAppSettingsLoading, onClose, selectedTopicContext, systemInstruction, course.course_name, course.course_id, course.course_name, userProfile.department_id, userProfile.level, userProfile.uid, appSettings, course.course_id, course.course_id]);
+    }, [ai, addToast, attemptApiCall, geminiModel, isAppSettingsLoading, onClose, selectedTopicContext, systemInstruction, course, userProfile, appSettings, isThinking]);
 
     const handleMarkTopicComplete = async () => {
         try {
@@ -1264,6 +1400,14 @@ Student: "${tempInput}"
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
+                    {!diagnosticResults && (
+                        <button 
+                            onClick={() => setShowDiagnosticModal(true)}
+                            className="flex items-center px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        >
+                            Pre-Test
+                        </button>
+                    )}
                     <button 
                         onClick={() => {
                             setIsTutorialsOpen(true);
@@ -1273,6 +1417,15 @@ Student: "${tempInput}"
                     >
                         Video Tutorial
                     </button>
+
+                    {diagnosticResults && (
+                        <button 
+                            onClick={() => setIsLearningPathOpen(!isLearningPathOpen)}
+                            className="flex items-center px-4 py-2 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        >
+                            Learning Path
+                        </button>
+                    )}
                     
                     <div className="relative">
                         <button 
@@ -1649,10 +1802,77 @@ Student: "${tempInput}"
                 </div>
             </div>
 
-            {/* Backdrop for Drawer */}
-            {isTutorialsOpen && (
+            {/* Learning Path bottom drawer */}
+            <div className={`fixed inset-x-0 bottom-0 z-40 transform transition-transform duration-500 ease-in-out bg-white rounded-t-[2.5rem] shadow-2xl border-t border-gray-100 flex flex-col max-h-[80vh] min-h-[40vh] ${isLearningPathOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+                {/* Drag Handle & Close */}
+                <div className="flex flex-col items-center py-3 border-b border-gray-100 shrink-0 relative">
+                    <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                    <h3 className="text-base font-black uppercase tracking-widest text-slate-700">Learning Path</h3>
+                    <button 
+                        onClick={() => setIsLearningPathOpen(false)}
+                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* Drawer Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {diagnosticResults ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {course.topics?.map((topic, idx) => {
+                                const result = diagnosticResults.topic_results?.[topic.topic_id];
+                                const status = result?.status || 'Not Evaluated';
+                                const score = result?.score || 0;
+                                
+                                let badgeColor = 'bg-gray-100 text-gray-600 border-gray-200';
+                                let icon = '⚪';
+                                
+                                if (status === 'Mastered') {
+                                    badgeColor = 'bg-green-50 text-green-700 border-green-200';
+                                    icon = '🟢';
+                                } else if (status === 'Review Recommended') {
+                                    badgeColor = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                                    icon = '🟡';
+                                } else if (status === 'Critical Focus') {
+                                    badgeColor = 'bg-red-50 text-red-700 border-red-200';
+                                    icon = '🔴';
+                                }
+
+                                return (
+                                    <div key={idx} className={`flex items-start gap-4 p-4 border rounded-2xl transition-all text-left ${badgeColor}`}>
+                                        <div className="text-2xl mt-1">{icon}</div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h4 className="font-extrabold text-sm line-clamp-1">{topic.topic_name}</h4>
+                                                {result && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50">{score}%</span>}
+                                            </div>
+                                            <p className="text-xs opacity-80 mt-1 line-clamp-2 leading-relaxed">{status}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center text-center py-8 px-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                            <span className="text-3xl mb-2">📋</span>
+                            <h4 className="font-extrabold text-sm text-gray-700">No Learning Path Yet</h4>
+                            <p className="text-xs text-gray-500 mt-1 font-semibold max-w-sm">Take the Pre-Test to generate your personalized learning path.</p>
+                            <button 
+                                onClick={() => { setIsLearningPathOpen(false); setShowDiagnosticModal(true); }}
+                                className="mt-4 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full text-xs font-bold transition-colors"
+                            >
+                                Take Pre-Test
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Backdrop for Drawers */}
+            {(isTutorialsOpen || isLearningPathOpen) && (
                 <div 
-                    onClick={() => setIsTutorialsOpen(false)}
+                    onClick={() => { setIsTutorialsOpen(false); setIsLearningPathOpen(false); }}
                     className="fixed inset-0 bg-black/20 z-30 backdrop-blur-xs transition-opacity"
                 />
             )}
@@ -1831,6 +2051,109 @@ Student: "${tempInput}"
                             onClick={() => setShareModalUrl(null)}
                             className="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition"
                         >Done</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Diagnostic Modal */}
+            {showDiagnosticModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[85vh]">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                            <div>
+                                <h2 className="text-xl font-black">Course Pre-Test</h2>
+                                <p className="text-sm opacity-90 mt-1">Let's find out what you already know.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowDiagnosticModal(false)}
+                                className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white text-sm font-bold transition"
+                            >✕</button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {isGeneratingDiagnostic ? (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                                    <h3 className="font-bold text-gray-900">Generating Assessment...</h3>
+                                    <p className="text-sm text-gray-500 text-center max-w-xs mt-2">AI is reviewing the textbook to create a personalized diagnostic test.</p>
+                                </div>
+                            ) : diagnosticQuestions.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🎯</div>
+                                    <h3 className="font-bold text-gray-900 mb-2">Ready to personalize your path?</h3>
+                                    <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">Take a quick 10-question test. We'll identify your strong areas so you can skip what you already know and focus on what matters.</p>
+                                    <button 
+                                        onClick={generateDiagnosticTest}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-full font-bold transition shadow-lg shadow-emerald-500/30"
+                                    >
+                                        Start Diagnostic Test
+                                    </button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Question {currentDiagnosticIndex + 1} of {diagnosticQuestions.length}</span>
+                                        <div className="flex gap-1">
+                                            {diagnosticQuestions.map((_, i) => (
+                                                <div key={i} className={`h-2 w-6 rounded-full ${i === currentDiagnosticIndex ? 'bg-emerald-500' : i < currentDiagnosticIndex ? 'bg-emerald-200' : 'bg-gray-200'}`} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 className="text-lg font-bold text-gray-900 mb-6">{diagnosticQuestions[currentDiagnosticIndex].question}</h3>
+                                    
+                                    <div className="space-y-3">
+                                        {diagnosticQuestions[currentDiagnosticIndex].options.map((opt: string, i: number) => {
+                                            const isSelected = diagnosticAnswers[currentDiagnosticIndex] === opt;
+                                            return (
+                                                <div 
+                                                    key={i}
+                                                    onClick={() => setDiagnosticAnswers(prev => ({ ...prev, [currentDiagnosticIndex]: opt }))}
+                                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-gray-500'}`}>
+                                                            {String.fromCharCode(65 + i)}
+                                                        </div>
+                                                        <span className={`font-medium ${isSelected ? 'text-emerald-900' : 'text-gray-700'}`}>{opt}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {diagnosticQuestions.length > 0 && !isGeneratingDiagnostic && (
+                            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between">
+                                <button
+                                    disabled={currentDiagnosticIndex === 0}
+                                    onClick={() => setCurrentDiagnosticIndex(p => Math.max(0, p - 1))}
+                                    className="px-6 py-2.5 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Previous
+                                </button>
+                                
+                                {currentDiagnosticIndex < diagnosticQuestions.length - 1 ? (
+                                    <button
+                                        disabled={!diagnosticAnswers[currentDiagnosticIndex]}
+                                        onClick={() => setCurrentDiagnosticIndex(p => p + 1)}
+                                        className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                ) : (
+                                    <button
+                                        disabled={!diagnosticAnswers[currentDiagnosticIndex] || isGradingDiagnostic}
+                                        onClick={handleDiagnosticSubmit}
+                                        className="px-8 py-2.5 rounded-xl font-bold text-sm bg-gray-900 text-white hover:bg-black transition disabled:opacity-50 shadow-lg"
+                                    >
+                                        {isGradingDiagnostic ? 'Grading...' : 'Submit & Build Path'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

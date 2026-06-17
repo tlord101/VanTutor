@@ -104,6 +104,18 @@ export interface Course {
   };
 }
 
+export interface DiagnosticTopicResult {
+  score: number;
+  status: 'Mastered' | 'Review Recommended' | 'Critical Focus';
+}
+
+export interface DiagnosticResult {
+  timestamp: number;
+  topic_results: {
+    [topic_id: string]: DiagnosticTopicResult;
+  };
+}
+
 export interface Department {
   id: string;
   name: string;
