@@ -690,9 +690,9 @@ ${retrievedContext}
                                         <span className="font-semibold">Back</span>
                                     </button>
                                 </div>
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 sm:p-6 pt-8 sm:pt-12 max-h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                    <div className="max-w-sm mx-auto space-y-2 sm:space-y-3 pb-safe">
-                                        <div className="mb-2 sm:mb-4">
+                                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                    <div className="w-full max-w-sm space-y-3 sm:space-y-4">
+                                        <div className="mb-4">
                                             <textarea
                                                 value={customPrompt}
                                                 onChange={(e) => setCustomPrompt(e.target.value)}

@@ -1114,7 +1114,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           {/* Integrated AVELUT Input Layout Panel */}
           <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-[#060814] pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
-            <div className="w-full max-w-6xl transition-all duration-300 mb-2.5 md:mb-[20px]">
+            <div className="w-full max-w-6xl transition-all duration-300 mb-5 md:mb-[30px]">
               
               {/* Attachment Preview */}
               {attachments.length > 0 && (

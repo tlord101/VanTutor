@@ -1596,9 +1596,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
                       )}
 
-                      <div className={`p-4 shadow-sm w-[95%] mx-auto md:mx-0 md:w-fit md:max-w-[76%] text-[15px] md:text-[16px] relative select-text ${isMe
-                          ? 'bg-[#009EE2] text-white rounded-[24px] rounded-tr-[4px] border border-[#009EE2]/20'
-                          : 'bg-white text-[#212529] rounded-[24px] rounded-bl-[4px] border border-[#E9ECEF]'
+                      <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative select-text ${isMe
+                          ? 'bg-[#DCF8C6] text-[#111B21] rounded-2xl rounded-tr-sm border border-[#DCF8C6]/50'
+                          : 'bg-white text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF]'
                         }`}
                         onContextMenu={(event) => {
                           event.preventDefault();
