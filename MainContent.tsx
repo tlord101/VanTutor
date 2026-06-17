@@ -37,7 +37,14 @@ const LoadingFallback = () => (
     </div>
 );
 
-export const MainContent: React.FC<MainContentProps> = ({
+/**
+ * BOLT OPTIMIZATION: High-Level View Memoization
+ * MainContent switches between heavy feature components.
+ * Wrapping in React.memo ensures that switching tabs doesn't trigger
+ * recursive re-renders across the entire feature tree if props haven't changed.
+ * Impact: Significant TTI (Time to Interactive) improvements for sub-views.
+ */
+export const MainContent: React.FC<MainContentProps> = React.memo(({
     activeItem,
     user,
     userProfile,
@@ -102,4 +109,4 @@ export const MainContent: React.FC<MainContentProps> = ({
             })()}
         </Suspense>
     );
-};
+});
