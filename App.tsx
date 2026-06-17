@@ -140,41 +140,80 @@ const PWAInstallBannerOverlay: React.FC = () => {
     if (Capacitor.isNativePlatform() || isStandalone || dismissed) return null;
 
     return (
-        <div className="fixed inset-0 z-[99998] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Install AVELUT">
-            <div className="relative w-full max-w-sm overflow-hidden rounded-[32px] border border-brand-100 bg-white shadow-2xl p-6 text-center animate-scale-in">
+        <div className="fixed inset-0 z-[99998] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Add AVELUT to Home Screen">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[32px] border border-neutral-100 bg-white shadow-2xl p-6 md:p-8 text-center animate-scale-in">
                 <button
                     type="button"
                     onClick={() => setDismissed(true)}
-                    className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors"
+                    className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
                     aria-label="Close"
                 >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
 
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-50 mb-4 border border-brand-100 shadow-inner">
-                    <img src="/logo_icon.png" alt="AVELUT" className="h-10 w-10 object-contain" />
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-neutral-50 mb-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-neutral-100">
+                    <img src="/logo_icon.png" alt="AVELUT" className="h-12 w-12 object-contain drop-shadow-sm" />
                 </div>
                 
-                <h2 className="text-2xl font-black tracking-tighter text-charcoal mb-2">
-                    Install AVELUT
+                <h2 className="text-2xl font-black tracking-tight text-neutral-900 mb-2">
+                    Add to Home Screen
                 </h2>
                 
-                <p className="text-sm leading-relaxed text-charcoal/70 mb-6 font-medium">
-                    {canTriggerNativeInstall
-                        ? 'Get the full App experience! Install AVELUT directly to your home screen for faster access, offline capabilities, and instant notifications.'
-                        : isIOS
-                            ? 'Get the App experience! Tap the Share button below and select "Add to Home Screen".'
-                            : 'Get the App experience! Open your browser menu and select "Install app".'}
+                <p className="text-[15px] leading-relaxed text-neutral-600 mb-6 font-medium">
+                    Install AVELUT directly on your mobile phone for instant access. <span className="text-brand-600 font-bold">No Google Play Store needed!</span>
                 </p>
 
-                {canTriggerNativeInstall && (
+                {canTriggerNativeInstall ? (
                     <button
                         type="button"
                         onClick={() => executeInstallationPipeline()}
-                        className="w-full rounded-2xl bg-brand-600 py-4 text-[13px] font-black uppercase tracking-widest text-white shadow-lg shadow-brand-500/30 transition hover:bg-brand-500 active:scale-95"
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#009EE2] hover:bg-[#0070B8] py-4 text-[14px] font-black uppercase tracking-wider text-white shadow-lg shadow-[#009EE2]/30 transition active:scale-95"
                     >
-                        Install App Now
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Add to Home Screen
                     </button>
+                ) : isIOS ? (
+                    <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-100 text-left space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-[#007AFF]">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-neutral-700">1. Tap the <strong className="text-neutral-900">Share</strong> button at the bottom of your screen.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-neutral-700">2. Scroll down and select <strong className="text-neutral-900">Add to Home Screen</strong>.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-100 text-left space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                                    <circle cx="12" cy="5" r="1.5"></circle>
+                                    <circle cx="12" cy="12" r="1.5"></circle>
+                                    <circle cx="12" cy="19" r="1.5"></circle>
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-neutral-700">1. Tap the <strong className="text-neutral-900">Browser Menu</strong> (three dots) at the top right.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-neutral-700">2. Select <strong className="text-neutral-900">Install app</strong> or <strong className="text-neutral-900">Add to Home screen</strong>.</p>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
