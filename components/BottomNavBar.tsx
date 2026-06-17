@@ -37,6 +37,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [navSize, setNavSize] = useState({ width: 375, height: 76 });
+  const [clipId] = useState(() => `nav-clip-${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -141,8 +142,6 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
     `L 0 ${safeHeight}`,
     'Z'
   ].join(' ');
-
-  const [clipId] = useState(() => `nav-clip-${Math.random().toString(36).substr(2, 9)}`);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up">
