@@ -496,6 +496,15 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   };
 
+  const handleAttachmentFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setAttachments(files);
+      setInputState(1);
+    }
+    e.target.value = '';
+  };
+
   const startNewChat = () => {
     setActiveHistoryId(null);
     setMessages([]);
@@ -1320,6 +1329,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           </footer>
         </main>
       </div>
+
+      <input 
+        type="file" 
+        className="hidden" 
+        ref={attachmentInputRef} 
+        onChange={handleAttachmentFileSelect} 
+        multiple 
+      />
 
       <LimitExceededModal
         isOpen={showLimitModal}
