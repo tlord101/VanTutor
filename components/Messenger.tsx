@@ -1414,7 +1414,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] mr-3" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'Learner'} />
           </>
         ),
-        rightActions: null
+        rightActions: null,
+        hideBottomNav: true
       });
     } else {
       setCustomHeaderConfig({

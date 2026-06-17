@@ -1129,7 +1129,7 @@ const App: React.FC = () => {
                       setActiveItem('visual_solver');
                   }
               }}
-              isVisible={activeItem !== 'chat' && activeItem !== 'messenger'}
+              isVisible={activeItem !== 'chat' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
             <GuidedTour 

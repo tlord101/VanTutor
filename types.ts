@@ -321,4 +321,5 @@ export interface HeaderConfig {
   title?: React.ReactNode;
   leftActions?: React.ReactNode;
   rightActions?: React.ReactNode;
+  hideBottomNav?: boolean;
 }
