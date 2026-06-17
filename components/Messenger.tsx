@@ -1597,7 +1597,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       )}
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative select-text ${isMe
-                          ? 'bg-[#DCF8C6] text-[#111B21] rounded-2xl rounded-tr-sm border border-[#DCF8C6]/50'
+                          ? 'bg-[#0d1122] text-white rounded-2xl rounded-tr-sm border border-[#0d1122]/50'
                           : 'bg-white text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF]'
                         }`}
                         onContextMenu={(event) => {
