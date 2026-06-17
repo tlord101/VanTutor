@@ -1199,6 +1199,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     // Textbook State
     const [isUploading, setIsUploading] = useState(false);
     const [extractionProgress, setExtractionProgress] = useState('');
+    const [adminUploadProgress, setAdminUploadProgress] = useState<{status: string, percent: number} | null>(null);
     const [isMigrating, setIsMigrating] = useState(false);
     const [migrationProgress, setMigrationProgress] = useState('');
 
@@ -1890,9 +1891,6 @@ FORMAT:
         }
         let syncDepartmentIds = getUniqueIds(overrideDepartmentIds || [departmentId, ...targetDepartmentIds]);
 
-        // If auto-sync is enabled and we only have the primary department selected,
-        // expand the sync list to include all departments that offer the same course
-        // (so an upload to one department reflects across departments offering that course).
         if (autoSyncToOfferingDepartments && syncDepartmentIds.length <= 1) {
             try {
                 const courseKey = getCourseMergeKey(selectedCourse);
@@ -1920,14 +1918,14 @@ FORMAT:
         const { course_name, level } = selectedCourse;
 
         setIsUploading(true);
-        setExtractionProgress(`Uploading 1/${pdfFiles.length} to storage...`);
+        setAdminUploadProgress({ status: `Uploading 1/${pdfFiles.length} to storage...`, percent: 5 });
 
         try {
             const uploadedUrls: string[] = [];
 
             for (let index = 0; index < pdfFiles.length; index++) {
                 const file = pdfFiles[index];
-                setExtractionProgress(`Uploading ${index + 1}/${pdfFiles.length} to storage...`);
+                setAdminUploadProgress({ status: `Uploading ${index + 1}/${pdfFiles.length} to storage...`, percent: 10 + (index * 5) });
 
                 // 1. Upload to Firebase Storage
                 const uploadToken = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
@@ -1939,7 +1937,7 @@ FORMAT:
                 uploadedUrls.push(downloadURL);
             }
 
-            setExtractionProgress('Saving to database...');
+            setAdminUploadProgress({ status: 'Saving to database...', percent: 40 });
 
             // 3. Save textbook context + course updates to every selected department
             let primaryDepartmentCourses: Course[] | null = null;
@@ -2000,26 +1998,26 @@ FORMAT:
             await fetchDepartments();
 
             // 💡 PINECONE VECTOR SYNC TRIGGER
-            setExtractionProgress("Syncing semantic vectors to Pinecone database cluster...");
+            setAdminUploadProgress({ status: "Preparing vector extraction...", percent: 50 });
             try {
                 const { extractTextFromPDF } = await import('../utils/pdfExtraction');
                 const { ingestTextToPinecone } = await import('../utils/pinecone');
 
                 let rawText = '';
                 if (files && files.length > 0) {
-                    setExtractionProgress('Extracting textbook content locally...');
+                    setAdminUploadProgress({ status: 'Extracting textbook content locally...', percent: 60 });
                     rawText = await extractTextFromPDF(files[0]);
                 } else if (primaryPdfUrl) {
-                    setExtractionProgress('Downloading remote textbook for extraction...');
+                    setAdminUploadProgress({ status: 'Downloading remote textbook for extraction...', percent: 60 });
                     const response = await fetch(primaryPdfUrl);
                     if (!response.ok) throw new Error("Failed to download remote PDF");
                     const blob = await response.blob();
-                    setExtractionProgress('Extracting textbook content...');
+                    setAdminUploadProgress({ status: 'Extracting textbook content...', percent: 65 });
                     rawText = await extractTextFromPDF(blob);
                 }
 
                 if (rawText) {
-                    setExtractionProgress('Syncing to Pinecone database...');
+                    setAdminUploadProgress({ status: 'Syncing to Pinecone database...', percent: 70 });
                     const ingestResult = await ingestTextToPinecone(
                         rawText,
                         courseKey,
@@ -2027,7 +2025,19 @@ FORMAT:
                         level,
                         selectedCourse.semester || '',
                         appSettings,
-                        (progress) => setExtractionProgress(progress)
+                        (progress) => {
+                            let percent = 80;
+                            if (progress.includes('Split text')) percent = 75;
+                            if (progress.includes('Upserting chunks')) {
+                                const match = progress.match(/Upserting chunks batch to Pinecone \((\d+)\/(\d+)\)/);
+                                if (match) {
+                                    const current = parseInt(match[1]);
+                                    const total = parseInt(match[2]);
+                                    percent = 75 + Math.round((current / total) * 25);
+                                }
+                            }
+                            setAdminUploadProgress({ status: progress, percent });
+                        }
                     );
 
                     if (!ingestResult.success) throw new Error(ingestResult.message || "Vector ingestion failed.");
@@ -2042,7 +2052,7 @@ FORMAT:
             addToast(`Upload failed: ${error.message}`, "error");
         } finally {
             setIsUploading(false);
-            setExtractionProgress('');
+            setAdminUploadProgress(null);
         }
     };
 
@@ -4416,8 +4426,15 @@ FORMAT:
                                                             className="group flex items-center justify-between gap-3 p-5 rounded-2xl border border-slate-100 bg-slate-50 text-left hover:border-lime-200 hover:bg-lime-50/50 transition duration-200 cursor-pointer shadow-sm hover:shadow-md"
                                                         >
                                                             <div>
-                                                                <div className="font-bold text-gray-900 leading-tight group-hover:text-lime-700 transition">{course.course_name}</div>
-                                                                <div className="text-xs text-gray-500 mt-1 font-semibold">{course.course_code || course.course_id}</div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <div className="font-bold text-gray-900 leading-tight group-hover:text-lime-700 transition">{course.course_name}</div>
+                                                                    {(normalizeTextbookUrls(course).length > 0 || Boolean((course as any).textbook_shared_key)) && (
+                                                                        <span title="Textbook Uploaded" className="flex items-center justify-center w-5 h-5 rounded-full bg-lime-100 text-lime-600">
+                                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 font-semibold">{course.course_code || course.course_id}</div>
                                                             </div>
                                                             <div className="flex items-center gap-3">
                                                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${course.semester === 'first' ? 'bg-blue-50 text-blue-700 border-blue-155' : 'bg-orange-50 text-orange-700 border-orange-155'}`}>
@@ -5890,6 +5907,30 @@ FORMAT:
                     )}
                 </main>
             </div>
+
+            {/* Live Upload Progress Modal */}
+            {adminUploadProgress && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm animate-in fade-in">
+                    <div className="w-full max-w-md rounded-[32px] border border-lime-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)]">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-lime-50">
+                                <div className="absolute inset-0 rounded-full border-4 border-lime-100"></div>
+                                <div className="absolute inset-0 rounded-full border-4 border-lime-500 border-l-transparent border-t-transparent animate-spin"></div>
+                                <svg className="h-6 w-6 text-lime-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            </div>
+                            <h3 className="mt-4 text-xl font-black tracking-tight text-slate-900">Uploading Textbook</h3>
+                            <p className="mt-1 text-sm font-medium text-lime-600">{adminUploadProgress.status}</p>
+                            <div className="mt-6 w-full overflow-hidden rounded-full bg-slate-100">
+                                <div 
+                                    className="h-2 rounded-full bg-[linear-gradient(90deg,_#65a30d,_#84cc16)] transition-all duration-300 ease-out" 
+                                    style={{ width: `${adminUploadProgress.percent}%` }}
+                                ></div>
+                            </div>
+                            <p className="mt-2 text-xs font-bold text-slate-400">{Math.min(adminUploadProgress.percent, 100)}% Complete</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
