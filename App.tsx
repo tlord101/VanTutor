@@ -1068,6 +1068,7 @@ const App: React.FC = () => {
                     userProfile={userProfile}
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
+                    className={customHeaderConfig?.className}
                 />
                 <div 
                     id="main-scroll-container"

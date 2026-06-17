@@ -16,6 +16,7 @@ interface HeaderProps {
   rightActions?: React.ReactNode;
   leftActions?: React.ReactNode;
   userProfile?: UserProfile;
+  className?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -28,11 +29,12 @@ export const Header: React.FC<HeaderProps> = ({
     unreadMessagesCount = 0,
     rightActions,
     leftActions,
-    userProfile
+    userProfile,
+    className
 }) => {
 
     return (
-        <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6 bg-transparent">
+        <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6 ${className || 'bg-transparent'}`}>
             <div className="flex items-center">
                 <div className="flex items-center gap-3">
                     {leftActions && <div className="flex items-center">{leftActions}</div>}

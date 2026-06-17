@@ -479,7 +479,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           <div className="rounded-full bg-emerald-950/50 border border-emerald-800/30 px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-emerald-400 truncate max-w-[100px] sm:max-w-[200px]">
             {statusText}
           </div>
-        )
+        ),
+        className: 'bg-[#060814]'
       });
     }
     
