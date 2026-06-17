@@ -10,7 +10,7 @@ const planConfigs = {
 export const useApiLimiter = () => {
   const config = planConfigs.free;
   const rateLimiter = useRef<RateLimiter>(new RateLimiter(config.maxRequests, config.intervalMs));
-  
+
   const attemptApiCall = useCallback(async <T,>(apiCallFn: () => Promise<T>) => {
     const check = rateLimiter.current.check();
     if (!check.allowed) {
