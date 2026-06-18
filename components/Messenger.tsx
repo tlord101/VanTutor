@@ -894,6 +894,18 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       if (firebaseUser) {
         set(dbRef(db, `user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`), 0);
+        
+        const updates: any = {};
+        let needsUpdate = false;
+        cloudMsgs.forEach((msg: any) => {
+          if (msg.senderId !== firebaseUser.uid && !msg.isRead) {
+            updates[`${msg.id}/isRead`] = true;
+            needsUpdate = true;
+          }
+        });
+        if (needsUpdate) {
+          update(dbRef(db, `messages/${activeChat.chatId}`), updates).catch(console.error);
+        }
       }
     });
     return () => off(messagesRef);
@@ -1681,7 +1693,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           <span className="uppercase font-normal tracking-tight">
                             {msg.isUploading ? 'Sending...' : '12:53 PM'}
                           </span>
-                          {isMe && !msg.isUploading && <DoubleCheckIcon color="white" />}
+                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? "#009EE2" : "#8696a0"} />}
                         </div>
 
                         {sortedReactions.length > 0 && (
