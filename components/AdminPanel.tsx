@@ -2209,6 +2209,20 @@ FORMAT:
             ].some((value) => (value || '').toString().toLowerCase().includes(query));
         });
     }, [allDepartments, courseCatalog, courseSearchQuery]);
+    const handleForceGlobalRefresh = async () => {
+        if (!window.confirm("WARNING: This will force ALL active users to clear their cache and reload the application. This action cannot be undone. Do you want to proceed?")) {
+            return;
+        }
+        try {
+            const refreshRef = dbRef(db, 'system_signals/force_refresh_timestamp');
+            await set(refreshRef, Date.now());
+            addToast("Global refresh signal sent to all devices.", "success");
+        } catch (error) {
+            console.error("Failed to send global refresh signal:", error);
+            addToast("Failed to send refresh signal.", "error");
+        }
+    };
+
     const isCourseImportDisabled = (
         isCourseImporting ||
         !courseRegistrationFiles.length ||
@@ -3900,7 +3914,24 @@ FORMAT:
                                     </label>
                                 </div>
 
-                                <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
+                                <hr className="border-gray-100 my-4" />
+
+                                <div>
+                                    <h4 className="text-base font-black text-red-600">Global App Operations</h4>
+                                    <p className="text-xs text-gray-500">Critical platform-wide controls that immediately affect all connected users.</p>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleForceGlobalRefresh}
+                                        className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-black uppercase tracking-widest text-red-700 hover:bg-red-100 transition"
+                                    >
+                                        Force Global App Refresh
+                                    </button>
+                                    <p className="mt-2 text-xs text-red-500">Forces all connected devices to instantly clear their caches and reload the application (users will remain logged in).</p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3 pt-6 border-t border-gray-100 mt-6">
                                     <button
                                         type="button"
                                         onClick={handleSaveAppSettings}

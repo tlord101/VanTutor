@@ -11,22 +11,33 @@ export const NativePullToRefresh: React.FC = () => {
     let currentY = 0;
     let isPulling = false;
 
-    // We check if the main scroll container is at the top
-    const getScrollTop = () => {
+    // Recursively check if the touch target or any of its scrollable parents are scrolled down
+    const getScrollTop = (target: EventTarget | null) => {
+      let current = target as HTMLElement | null;
+      while (current && current !== document.body && current !== document.documentElement) {
+        const style = window.getComputedStyle(current);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          if (current.scrollTop > 0) return current.scrollTop;
+        }
+        current = current.parentElement;
+      }
       const mainContainer = document.getElementById('main-scroll-container');
-      if (mainContainer) return mainContainer.scrollTop;
+      if (mainContainer && mainContainer.scrollTop > 0) return mainContainer.scrollTop;
       return window.scrollY || document.documentElement.scrollTop;
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (getScrollTop() > 0) return;
+      // Only allow pull-to-refresh if the touch starts near the top header area
+      if (e.touches[0].clientY > 150) return;
+      if (getScrollTop(e.target) > 0) return;
+      
       startY = e.touches[0].clientY;
       currentY = e.touches[0].clientY;
       isPulling = true;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isPulling || getScrollTop() > 0 || refreshing) {
+      if (!isPulling || getScrollTop(e.target) > 0 || refreshing) {
         isPulling = false;
         return;
       }
@@ -37,6 +48,9 @@ export const NativePullToRefresh: React.FC = () => {
         // Slow down the pull effect (resistance)
         const resistance = distance * 0.4;
         setPullDistance(Math.min(resistance, MAX_PULL));
+      } else {
+        // If swiping up, cancel the pull
+        isPulling = false;
       }
     };
 

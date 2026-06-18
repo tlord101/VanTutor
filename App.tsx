@@ -57,6 +57,7 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { useToast } from './hooks/useToast';
 import { useApiLimiter } from './hooks/useApiLimiter';
 import { useAppSettings } from './hooks/useAppSettings';
+import { useGlobalRefresh } from './hooks/useGlobalRefresh';
 import { navigationItems, adminNavigationItems } from './constants';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import GuidedTour, { TourStep } from './components/GuidedTour';
@@ -303,6 +304,7 @@ const playAlarmSound = () => {
 // ==========================================
 const App: React.FC = () => {
     useAutoPermissions();
+    useGlobalRefresh();
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
