@@ -1511,7 +1511,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <DoubleCheckIcon color="#009EE2" />
+                      {c.last_message?.senderId === firebaseUser?.uid && (
+                        <DoubleCheckIcon color={c.last_message?.isRead ? "#009EE2" : "#8696a0"} />
+                      )}
                       <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
                     </div>
                     {getUnreadCount(c) > 0 && (
