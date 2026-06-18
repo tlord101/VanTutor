@@ -87,7 +87,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' | 'app' | 'analytics' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs';
+type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' | 'app' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -96,7 +96,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'notifications', 'emails', 'app', 'analytics', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'notifications', 'emails', 'app', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -2272,7 +2272,6 @@ FORMAT:
         { id: 'users', label: 'User Control', icon: Users, path: '/admin/users' },
         { id: 'notifications', label: 'Send Notifications', icon: Bell, path: '/admin/notifications' },
         { id: 'emails', label: 'Send Emails', icon: Mail, path: '/admin/emails' },
-        { id: 'analytics', label: 'Usage Analytics', icon: Activity, path: '/admin/analytics' },
         { id: 'payments', label: 'Payments Control', icon: CreditCard, path: '/admin/payments' },
         { id: 'app', label: 'App Settings', icon: SettingsIcon, path: '/admin/app' },
         { id: 'email-configs', label: 'Email Settings', icon: Mail, path: '/admin/email-configs' },
@@ -3573,11 +3572,14 @@ FORMAT:
                                                 <th className="px-6 py-3 text-center">Plan</th>
                                                 <th className="px-6 py-3 text-center">Credits Remaining</th>
                                                 <th className="px-6 py-3 text-center">Inferences Used</th>
+                                                <th className="px-6 py-3 text-center">Total Tokens</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {allUsersList.map(user => {
-                                                const requests = aiRequestLogs.filter(log => log.user_id === user.uid).length;
+                                                const requests = aiRequestLogs.filter(log => log.user_id === user.uid);
+                                                const requestsCount = requests.length;
+                                                const tokensTotal = requests.reduce((acc, log) => acc + (log.tokens_used || log.total_tokens || log.usage?.total_tokens || 0), 0);
                                                 return (
                                                     <tr key={user.uid} className="hover:bg-slate-50/80 border-b border-slate-100 last:border-0 transition-colors">
                                                         <td className="px-6 py-3">
@@ -3596,9 +3598,15 @@ FORMAT:
                                                         </td>
                                                         <td className="px-6 py-3 text-center">
                                                             <span className="font-black text-blue-600 text-sm">
-                                                                {requests}
+                                                                {requestsCount}
                                                             </span>
                                                             <span className="text-[10px] text-slate-400 ml-1 font-bold">reqs</span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="font-black text-purple-600 text-sm">
+                                                                {tokensTotal > 0 ? tokensTotal.toLocaleString() : '-'}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 ml-1 font-bold">toks</span>
                                                         </td>
                                                     </tr>
                                                 );
