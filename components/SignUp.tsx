@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { auth, db, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from '../firebase';
 import { signInWithCredential } from 'firebase/auth';
-import { ref as dbRef, set } from 'firebase/database';
+import { ref as dbRef, set, get } from 'firebase/database';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { useToast } from '../hooks/useToast';
 import { isNative } from '../utils/capacitorUtils';
@@ -22,6 +22,16 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await ipRes.json();
+      const ipRef = dbRef(db, `ip_logs/${ip.replace(/\\./g, '_').replace(/:/g, '_')}`);
+      const ipSnap = await get(ipRef);
+      if (ipSnap.exists()) {
+          addToast('An account has already been created from this device/IP.', 'error');
+          setIsGoogleSubmitting(false);
+          return;
+      }
+
       const provider = new GoogleAuthProvider();
       if (isNative()) {
         // Use @capacitor-firebase/authentication for native Google Sign-In (Capacitor 8 compatible)
@@ -35,23 +45,33 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         const credential = GoogleAuthProvider.credential(idToken, accessToken);
         const fbResult = await signInWithCredential(auth, credential);
         const user = fbResult.user;
-        await set(dbRef(db, `users/${user.uid}`), {
-          uid: user.uid,
-          display_name: user.displayName || 'Learner',
-          email: user.email || '',
-          photo_url: user.photoURL || '',
-          created_at: Date.now()
-        });
+        const userRef = dbRef(db, `users/${user.uid}`);
+        const userSnap = await get(userRef);
+        if (!userSnap.exists()) {
+          await set(userRef, {
+            uid: user.uid,
+            display_name: user.displayName || 'Learner',
+            email: user.email || '',
+            photo_url: user.photoURL || '',
+            created_at: Date.now()
+          });
+          await set(ipRef, { uid: user.uid, timestamp: Date.now() });
+        }
       } else {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        await set(dbRef(db, `users/${user.uid}`), {
-          uid: user.uid,
-          display_name: user.displayName || 'Learner',
-          email: user.email || '',
-          photo_url: user.photoURL || '',
-          created_at: Date.now()
-        });
+        const userRef = dbRef(db, `users/${user.uid}`);
+        const userSnap = await get(userRef);
+        if (!userSnap.exists()) {
+          await set(userRef, {
+            uid: user.uid,
+            display_name: user.displayName || 'Learner',
+            email: user.email || '',
+            photo_url: user.photoURL || '',
+            created_at: Date.now()
+          });
+          await set(ipRef, { uid: user.uid, timestamp: Date.now() });
+        }
       }
       // On successful sign-in, onAuthStateChanged in App.tsx will trigger.
     } catch (err: any) {
@@ -74,6 +94,16 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     setIsSubmitting(true);
 
     try {
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await ipRes.json();
+      const ipRef = dbRef(db, `ip_logs/${ip.replace(/\\./g, '_').replace(/:/g, '_')}`);
+      const ipSnap = await get(ipRef);
+      if (ipSnap.exists()) {
+          addToast('An account has already been created from this device/IP.', 'error');
+          setIsSubmitting(false);
+          return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -86,6 +116,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         email: user.email,
         created_at: Date.now()
       });
+      await set(ipRef, { uid: user.uid, timestamp: Date.now() });
 
       addToast("Account created successfully!", "success");
       // onAuthStateChanged in App.tsx will handle the state change.

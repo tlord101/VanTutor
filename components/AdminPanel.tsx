@@ -1514,35 +1514,61 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
-    const handleDeleteCourseFromDepartment = useCallback(async (course: Course) => {
+    const handleDeleteCourseFromDepartment = useCallback(async (course: Course, deleteForOtherDepartments: boolean = false) => {
         if (!isManagerCourseView) return;
 
         const { departmentId: currentDepartmentId, level: currentLevel } = courseAdminView;
 
         const courseLabel = course.course_code || course.course_name || course.course_id;
         const departmentLabel = allDepartments.find((dept) => dept.id === currentDepartmentId)?.department_name || currentDepartmentId;
-        const confirmed = window.confirm(`Delete ${courseLabel} from ${departmentLabel} (${currentLevel})? This will remove the course and its stored textbook outline for this department.`);
+        
+        const confirmMsg = deleteForOtherDepartments
+            ? `Delete ${courseLabel} from ALL departments in ${currentLevel}?`
+            : `Delete ${courseLabel} from ${departmentLabel} (${currentLevel})?`;
+            
+        const confirmed = window.confirm(confirmMsg + " This will remove the course and its stored textbook outline.");
         if (!confirmed) return;
 
         try {
-            const departmentRef = dbRef(db, `departments_data/${currentDepartmentId}`);
-            const departmentSnapshot = await get(departmentRef);
-            const existingCourses = normalizeCourseList(departmentSnapshot.val()?.course_list);
-            const targetCourseKey = getCourseMergeKey(course) || course.course_id;
-            const nextCourses = existingCourses.filter((item) => {
-                const itemKey = getCourseMergeKey(item) || item.course_id;
-                return itemKey !== targetCourseKey;
-            });
+            const updates: Record<string, any> = {};
 
-            await update(departmentRef, { course_list: nextCourses });
-            if (course.course_name && !(course as any).textbook_shared_key) {
-                await remove(dbRef(db, `textbook_contexts/${currentDepartmentId}/${currentLevel}/${course.course_name}`));
+            if (deleteForOtherDepartments) {
+                allDepartments.forEach(dept => {
+                    const existingCourses = normalizeCourseList(dept?.course_list);
+                    const targetCourseKey = getCourseMergeKey(course) || course.course_id;
+                    const nextCourses = existingCourses.filter((item) => {
+                        const itemKey = getCourseMergeKey(item) || item.course_id;
+                        return itemKey !== targetCourseKey;
+                    });
+                    
+                    if (existingCourses.length !== nextCourses.length) {
+                        updates[`departments_data/${dept.id}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
+                        if (course.course_name && !(course as any).textbook_shared_key) {
+                            updates[`textbook_contexts/${dept.id}/${currentLevel}/${course.course_name}`] = null;
+                        }
+                    }
+                });
+            } else {
+                const departmentRef = dbRef(db, `departments_data/${currentDepartmentId}`);
+                const departmentSnapshot = await get(departmentRef);
+                const existingCourses = normalizeCourseList(departmentSnapshot.val()?.course_list);
+                const targetCourseKey = getCourseMergeKey(course) || course.course_id;
+                const nextCourses = existingCourses.filter((item) => {
+                    const itemKey = getCourseMergeKey(item) || item.course_id;
+                    return itemKey !== targetCourseKey;
+                });
+                updates[`departments_data/${currentDepartmentId}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
+                if (course.course_name && !(course as any).textbook_shared_key) {
+                    updates[`textbook_contexts/${currentDepartmentId}/${currentLevel}/${course.course_name}`] = null;
+                }
             }
+
+            await update(dbRef(db), updates);
 
             await fetchDepartments();
             await loadDepartmentCourses(currentDepartmentId);
             handleCourseTabNavigate(buildCourseManagerPath(currentDepartmentId, currentLevel));
-            addToast(`Deleted ${course.course_name} from ${departmentLabel}.`, 'success');
+            addToast(`Deleted ${course.course_name} from ${deleteForOtherDepartments ? 'all applicable departments' : departmentLabel}.`, 'success');
         } catch (error: any) {
             console.error('Error deleting course:', error);
             addToast(error?.message || 'Failed to delete course', 'error');
@@ -4558,10 +4584,21 @@ FORMAT:
 
 
 
-                                                <div className="flex justify-end items-center pt-5 border-t border-slate-100">
+                                                <div className="flex flex-col sm:flex-row justify-end items-center gap-4 pt-5 border-t border-slate-100">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="delete-all-depts-checkbox"
+                                                            className="rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                                                        />
+                                                        <span className="text-xs font-bold text-gray-500">Delete from ALL departments in this level</span>
+                                                    </label>
                                                     <button
                                                         type="button"
-                                                        onClick={() => void handleDeleteCourseFromDepartment(selectedManagerCourse)}
+                                                        onClick={() => {
+                                                            const checkbox = document.getElementById('delete-all-depts-checkbox') as HTMLInputElement;
+                                                            void handleDeleteCourseFromDepartment(selectedManagerCourse, checkbox?.checked || false);
+                                                        }}
                                                         className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 transition hover:bg-red-100 hover:text-red-700"
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5" /> Delete Course

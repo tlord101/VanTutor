@@ -86,13 +86,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
 
     return (
         <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-10" data-tour-id="dashboard-content">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between font-sans">
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-emerald-600">User Dashboard</p>
-                    <h1 className="mt-2 text-3xl font-black tracking-tighter text-gray-900 md:text-5xl">
+                    <p className="text-sm font-medium text-emerald-600">User Dashboard</p>
+                    <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 md:text-5xl">
                         Welcome back, {userProfile.display_name.split(' ')[0] || 'Learner'}.
                     </h1>
-                    <p className="mt-2 text-sm font-bold uppercase tracking-[0.22em] text-gray-400">
+                    <p className="mt-2 text-base font-normal text-gray-500">
                         Track your progress.
                     </p>
                 </div>
@@ -104,7 +104,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <StatCard
                     title="Level"
-                    value={userProfile.level === 'all' ? 'MIXED' : `${userProfile.level}L`}
+                    value={userProfile.level === 'all' ? 'MIXED' : `${userProfile.level}`}
                     description="Active study difficulty"
                     icon={<LevelIcon className="h-6 w-6" />}
                     color="blue"

@@ -746,7 +746,7 @@ FORMAT:
       }
       
       // Refresh the catalog so the UI shows the green badge for the newly uploaded course
-      void loadCatalog();
+      void refreshCatalog();
     } catch (error: any) {
       console.error('Upload failed:', error);
       addToast(error?.message || 'Could not upload the course.', 'error');

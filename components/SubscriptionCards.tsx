@@ -105,7 +105,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{usageSettings.plans.free.monthly_ai_credits} Monthly Credits</span>
+                <span>{(usageSettings as any).tiers?.free?.credit_allocation || 0} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -166,7 +166,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{usageSettings.plans.basic.monthly_ai_credits} Monthly Credits</span>
+                <span>{(usageSettings as any).tiers?.basic?.credit_allocation || 0} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -224,7 +224,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{usageSettings.plans.pro.monthly_ai_credits} Monthly Credits</span>
+                <span>{(usageSettings as any).tiers?.premium?.credit_allocation || 0} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
