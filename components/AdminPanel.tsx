@@ -2716,9 +2716,9 @@ FORMAT:
                             </div>
 
                             {/* Charts Row */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 gap-6">
                                 {/* Line Chart */}
-                                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+                                <div className="w-full bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                                     <div className="flex justify-between items-center border-b border-gray-200 pb-3">
                                         <h4 className="font-bold text-xs uppercase tracking-widest text-slate-500">AI Request Traffic Value</h4>
                                         <span className="text-[10px] text-lime-700 font-bold bg-lime-100 px-2.5 py-0.5 rounded-full">Last 7 Hours</span>
@@ -2797,38 +2797,6 @@ FORMAT:
                                                 </svg>
                                             );
                                         })()}
-                                    </div>
-                                </div>
-
-                                {/* World Map representation */}
-                                <div className="bg-[#007bff] text-white rounded-xl p-5 shadow-lg border border-blue-600 flex flex-col justify-between h-full relative overflow-hidden group select-none min-h-[240px]">
-                                    <div className="flex justify-between items-center border-b border-white/20 pb-3">
-                                        <h4 className="font-black text-xs uppercase tracking-widest text-blue-100">User Distribution Map</h4>
-                                        <div className="flex items-center gap-1 bg-black/10 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse"></span>
-                                            <span>Live Load</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex-1 flex items-center justify-center p-4 relative opacity-90 hover:opacity-100 transition duration-300">
-                                        <svg className="w-full max-w-[280px] h-auto opacity-75" viewBox="0 0 100 50" fill="currentColor">
-                                            <path d="M5,10 h5 v2 h-5 z M20,8 h8 v4 h-8 z M15,22 h10 v6 h-10 z M45,15 h6 v6 h-6 z M60,10 h15 v8 h-15 z M75,25 h8 v4 h-8 z M40,30 h8 v3 h-8 z M25,35 h6 v2 h-6 z M70,5 h4 v2 h-4 z M50,40 h5 v2 h-5 z" fill="rgba(255,255,255,0.45)" />
-                                            <circle cx="24" cy="15" r="1.5" fill="#a3e635" className="animate-ping" />
-                                            <circle cx="24" cy="15" r="1" fill="#a3e635" />
-                                            <circle cx="68" cy="14" r="1.5" fill="#a3e635" className="animate-ping" />
-                                            <circle cx="68" cy="14" r="1" fill="#a3e635" />
-                                            <circle cx="48" cy="22" r="1.5" fill="#a3e635" className="animate-ping" />
-                                            <circle cx="48" cy="22" r="1" fill="#a3e635" />
-                                        </svg>
-
-                                        <div className="absolute left-2 bottom-2 bg-black/25 rounded border border-white/10 flex flex-col font-mono text-[9px] font-black">
-                                            <button className="px-1.5 py-0.5 border-b border-white/10 hover:bg-black/10">+</button>
-                                            <button className="px-1.5 py-0.5 hover:bg-black/10">-</button>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-[10px] font-black text-blue-100 uppercase tracking-widest text-center pt-2 select-none">
-                                        AVELUT Active Hubs (Global)
                                     </div>
                                 </div>
                             </div>
@@ -3574,6 +3542,60 @@ FORMAT:
                                             </div>
                                         );
                                     })()}
+                                </div>
+                            </div>
+
+                            {/* User Token Usage Table */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                                    <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider">User Token & Inference Usage</h3>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">{allUsersList.length} Users</span>
+                                </div>
+                                <div className="overflow-x-auto max-h-[500px]">
+                                    <table className="w-full text-left border-collapse text-xs relative">
+                                        <thead className="bg-slate-50 text-[10px] text-slate-400 uppercase tracking-widest font-black sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="px-6 py-3">User</th>
+                                                <th className="px-6 py-3 text-center">Plan</th>
+                                                <th className="px-6 py-3 text-center">Credits Remaining</th>
+                                                <th className="px-6 py-3 text-center">Inferences Used</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allUsersList.map(user => {
+                                                const requests = aiRequestLogs.filter(log => log.user_id === user.uid).length;
+                                                return (
+                                                    <tr key={user.uid} className="hover:bg-slate-50/80 border-b border-slate-100 last:border-0 transition-colors">
+                                                        <td className="px-6 py-3">
+                                                            <div className="font-bold text-slate-800">{user.display_name || 'Anonymous User'}</div>
+                                                            <div className="text-[10px] text-slate-500 font-semibold">{user.email || user.uid.slice(0,10)}</div>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="bg-slate-100 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                                                {user.subscription_status || 'free'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="font-black text-emerald-600 text-sm">
+                                                                {user.ai_credits_balance !== undefined ? user.ai_credits_balance : 'Def'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="font-black text-blue-600 text-sm">
+                                                                {requests}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 ml-1 font-bold">reqs</span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {allUsersList.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-450 font-semibold">No users found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>

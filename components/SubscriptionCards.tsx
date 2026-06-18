@@ -22,6 +22,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
   const [personalApiKey, setPersonalApiKey] = useState(userProfile.personal_api_key || '');
   const [showApiKey, setShowApiKey] = useState(false);
   const usageSettings = appSettings.usage_settings;
+  const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || {};
 
   if (!usageSettings) return null;
 
@@ -75,14 +76,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {(usageSettings as any).tiers?.free?.display_name || 'Forever Free'}
+              {tiers?.free?.display_name || 'Forever Free'}
             </h4>
             <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
-              <ReactMarkdown>{(usageSettings as any).tiers?.free?.description || "Perfect if you're just getting started with your study promotion."}</ReactMarkdown>
+              <ReactMarkdown>{tiers?.free?.description || "Perfect if you're just getting started with your study promotion."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{(usageSettings as any).tiers?.free?.price_ngn}
+                ₦{tiers?.free?.price_ngn ?? 0}
               </span>
               <span className="text-slate-500 font-bold text-sm">Free</span>
             </div>
@@ -105,7 +106,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{(usageSettings as any).tiers?.free?.credit_allocation || 0} Monthly Credits</span>
+                <span>{tiers?.free?.credit_allocation ?? 30} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -136,14 +137,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {(usageSettings as any).tiers?.basic?.display_name || 'Student Plan'}
+              {tiers?.basic?.display_name || 'Student Plan'}
             </h4>
             <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
-              <ReactMarkdown>{(usageSettings as any).tiers?.basic?.description || "Take your study promotion to the next level."}</ReactMarkdown>
+              <ReactMarkdown>{tiers?.basic?.description || "Take your study promotion to the next level."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{billingInterval === 'monthly' ? (usageSettings as any).tiers?.basic?.price_ngn || 1000 : Math.round(((usageSettings as any).tiers?.basic?.price_ngn || 1000) * 0.75)}
+                ₦{billingInterval === 'monthly' ? tiers?.basic?.price_ngn ?? 1000 : Math.round((tiers?.basic?.price_ngn ?? 1000) * 0.75)}
               </span>
               <span className="text-slate-500 font-bold text-sm">/month</span>
             </div>
@@ -166,7 +167,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{(usageSettings as any).tiers?.basic?.credit_allocation || 0} Monthly Credits</span>
+                <span>{tiers?.basic?.credit_allocation ?? 500} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -194,14 +195,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </svg>
             </div>
             <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
-              {(usageSettings as any).tiers?.premium?.display_name || 'Pro Plan'}
+              {tiers?.premium?.display_name || 'Pro Plan'}
             </h4>
             <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
-              <ReactMarkdown>{(usageSettings as any).tiers?.premium?.description || "Completely automate your learning progress with maximum options."}</ReactMarkdown>
+              <ReactMarkdown>{tiers?.premium?.description || "Completely automate your learning progress with maximum options."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                ₦{billingInterval === 'monthly' ? (usageSettings as any).tiers?.premium?.price_ngn : Math.round((usageSettings as any).tiers?.premium?.price_ngn * 0.75)}
+                ₦{billingInterval === 'monthly' ? tiers?.premium?.price_ngn ?? 3000 : Math.round((tiers?.premium?.price_ngn ?? 3000) * 0.75)}
               </span>
               <span className="text-slate-500 font-bold text-sm">/month</span>
             </div>
@@ -224,7 +225,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="8 12 11 15 16 9" />
                 </svg>
-                <span>{(usageSettings as any).tiers?.premium?.credit_allocation || 0} Monthly Credits</span>
+                <span>{tiers?.premium?.credit_allocation ?? 2000} Monthly Credits</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

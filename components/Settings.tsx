@@ -87,6 +87,7 @@ const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
 
 export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettings, onLogout, onProfileUpdate, onDeleteAccount }) => {
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
+  const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
   const [isEditingName, setIsEditingName] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState(userProfile.display_name);
   const [isSaving, setIsSaving] = useState(false);
@@ -295,7 +296,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettin
 
   const handleUpgradePlan = async (planKey: any) => {
     const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-    const activePlan = (usageSettings as any).tiers[effectivePlanKey];
+    const activePlan = tiers[effectivePlanKey];
     const amount = activePlan.price_ngn;
     const publicKey = appSettings.paystack_public_key?.trim();
     const email = user?.email || `${userProfile.uid}@avelut.com`;
@@ -465,9 +466,9 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettin
             <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Current Status</span>
             <div className="flex items-center gap-2 mt-1">
               <h4 className="font-extrabold text-slate-900 text-sm">
-                {(userProfile.subscription_status === 'pro' || userProfile.subscription_status === 'premium') && ((usageSettings as any).tiers?.premium?.display_name || 'Premium Plan')}
-                {userProfile.subscription_status === 'basic' && ((usageSettings as any).tiers?.basic?.display_name || 'Basic Plan')}
-                {(userProfile.subscription_status === 'free' || !userProfile.subscription_status) && ((usageSettings as any).tiers?.free?.display_name || 'Free Plan')}
+                {(userProfile.subscription_status === 'pro' || userProfile.subscription_status === 'premium') && (tiers?.premium?.display_name || 'Premium Plan')}
+                {userProfile.subscription_status === 'basic' && (tiers?.basic?.display_name || 'Basic Plan')}
+                {(userProfile.subscription_status === 'free' || !userProfile.subscription_status) && (tiers?.free?.display_name || 'Free Plan')}
                 {userProfile.subscription_status === 'personal_token' && 'Personal Google Token'}
               </h4>
               <VerificationBadge status={userProfile.subscription_status || 'free'} />
