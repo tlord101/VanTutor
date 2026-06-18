@@ -1,5 +1,8 @@
 import React from 'react';
 import type { UserProfile, UserProgress, ExamHistoryItem, DashboardData } from '../types';
+import { ExamIcon } from './icons/ExamIcon';
+import { LeaderboardIcon } from './icons/LeaderboardIcon';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Icons for Stat Cards
 const LevelIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -18,6 +21,8 @@ const StreakIcon: React.FC<{ className?: string }> = ({ className }) => (
 interface DashboardProps {
     userProfile: UserProfile;
     dashboardData: DashboardData | null;
+    onNavigateToExams?: () => void;
+    onNavigateToLeaderboard?: () => void;
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; description: string; icon: React.ReactNode; color: 'lime' | 'blue' | 'purple' | 'amber' | 'rose' }> = ({ title, value, description, icon, color }) => {
@@ -62,7 +67,7 @@ const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
     </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData, onNavigateToExams, onNavigateToLeaderboard }) => {
   
   const completedTopicsCount = dashboardData?.completedTopicsCount ?? 0;
   const totalTopics = dashboardData?.totalTopics || 0;
@@ -118,44 +123,88 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                 />
             </div>
 
-            <div className="rounded-[2rem] border border-gray-200 bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 p-8 text-white shadow-xl shadow-gray-900/10">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Course Progress</p>
-                        <h2 className="mt-2 text-3xl font-black tracking-tighter">Topic Mastery</h2>
+            {/* Quick Actions Row */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <button 
+                    onClick={onNavigateToExams}
+                    className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-8 text-white text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/30"
+                >
+                    <div className="flex flex-col gap-4">
+                        <div className="rounded-2xl bg-white/20 p-4 w-fit backdrop-blur-sm">
+                            <ExamIcon className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight mb-2">Exams & Flashcards</h2>
+                            <p className="text-emerald-100 text-sm font-medium">Generate custom exams and study materials instantly.</p>
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Completed</p>
-                        <p className="text-2xl font-black tracking-tight text-emerald-300">{completedTopicsCount} / {totalTopics}</p>
+                </button>
+
+                <button 
+                    onClick={onNavigateToLeaderboard}
+                    className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-500 to-purple-600 p-8 text-white text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/30"
+                >
+                    <div className="flex flex-col gap-4">
+                        <div className="rounded-2xl bg-white/20 p-4 w-fit backdrop-blur-sm">
+                            <LeaderboardIcon className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight mb-2">Leaderboard</h2>
+                            <p className="text-indigo-100 text-sm font-medium">See how you rank globally and locally.</p>
+                        </div>
                     </div>
-                </div>
-
-                <div className="mt-8 h-4 w-full overflow-hidden rounded-full bg-white/10 p-1">
-                    <div className="h-full rounded-full bg-emerald transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }} />
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-3 text-xs font-black uppercase tracking-[0.22em] text-white/70">
-                    <span className="rounded-full bg-white/10 px-3 py-2">{progressPercent}% complete</span>
-                    <span className="rounded-full bg-white/10 px-3 py-2">{completedCoursesCount} completed courses</span>
-                    <span className="rounded-full bg-white/10 px-3 py-2">{formatDuration(totalStudySeconds)} total time</span>
-                </div>
+                </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <StatCard
-                    title="Avg Topic Time"
-                    value={formatDuration(averageTopicStudySeconds)}
-                    description="Average time spent per topic"
-                    icon={<LevelIcon className="h-6 w-6 rotate-90" />}
-                    color="lime"
-                />
-                <StatCard
-                    title="Avg Course Time"
-                    value={formatDuration(averageCourseStudySeconds)}
-                    description="Average time spent per course"
-                    icon={<StreakIcon className="h-6 w-6" />}
-                    color="amber"
-                />
+            {/* Live Statistics Graph */}
+            <div className="rounded-3xl border border-gray-200 bg-white p-6 md:p-8">
+                <div className="mb-6">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 mb-1">Live Statistics</h3>
+                    <h2 className="text-2xl font-bold text-gray-900">Exam Performance</h2>
+                </div>
+                
+                <div className="h-[300px] w-full">
+                    {dashboardData?.examHistory && dashboardData.examHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={dashboardData.examHistory.slice().sort((a, b) => a.timestamp - b.timestamp)}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis 
+                                    dataKey="timestamp" 
+                                    tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                                    dy={10}
+                                />
+                                <YAxis 
+                                    domain={[0, 100]} 
+                                    tickFormatter={(val) => `${val}%`}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                                    dx={-10}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                                    labelFormatter={(label) => new Date(label as number).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                    formatter={(value: number, name: string, props: any) => [`${Math.round((value / props.payload.total_questions) * 100)}% (${value}/${props.payload.total_questions})`, 'Score']}
+                                />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey={(data) => Math.round((data.score / data.total_questions) * 100)} 
+                                    stroke="#3B82F6" 
+                                    strokeWidth={3}
+                                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                                    activeDot={{ r: 6, strokeWidth: 0 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center">
+                            <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Not enough data to graph</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="rounded-3xl border border-gray-200 bg-white p-8">

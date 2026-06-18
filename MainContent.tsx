@@ -61,7 +61,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             {(() => {
                 switch (activeItem) {
                     case 'dashboard':
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} />;
+                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'study_guide':
                         return <StudyGuide userProfile={userProfile} userProgress={userProgress} />;
                     case 'leaderboard':
@@ -97,9 +97,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                                         <AdminPanel userProfile={userProfile} />
                                     </ErrorBoundary>
                                 )
-                            : <Dashboard userProfile={userProfile} dashboardData={dashboardData} />;
+                            : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     default:
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} />;
+                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                 }
             })()}
         </Suspense>
