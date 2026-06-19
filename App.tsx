@@ -345,7 +345,10 @@ const App: React.FC = () => {
     });
 
     const syncItemFromPath = useCallback((pathname: string) => {
-        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat')) {
+        const isTermsRoute = pathname === '/t&c' || pathname === '/tc' || pathname === '/terms-and-conditions' || pathname === '/terms';
+        const isPolicyRoute = pathname === '/policy' || pathname === '/privacy-policy' || pathname === '/privacy';
+        
+        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute) {
             return;
         }
         const item = resolveActiveItemFromPath(pathname);

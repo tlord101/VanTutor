@@ -30,7 +30,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
   const [isActivating, setIsActivating] = useState(false);
 
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
-  const plans = usageSettings.plans;
+  const tiers = usageSettings.tiers;
 
   const handleActivate = async () => {
     if (selectedPlan === 'free') {
@@ -94,8 +94,9 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
     }
 
     // Basic or Pro Plans (Trigger Paystack Inline checkout)
-    const activePlan = plans[selectedPlan];
-    const amount = activePlan.price;
+    const effectivePlanKey = selectedPlan === 'pro' ? 'premium' : selectedPlan;
+    const activePlan = tiers[effectivePlanKey as keyof typeof tiers];
+    const amount = activePlan.price_ngn;
     const publicKey = appSettings.paystack_public_key?.trim();
     const email = user.email || `${user.uid}@avelut.com`;
 
@@ -117,7 +118,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
           paystack_reference: reference,
         });
         if (result.success) {
-          addToast(`AVELUT ${activePlan.name} activated successfully!`, 'success');
+          addToast(`AVELUT ${activePlan.display_name} activated successfully!`, 'success');
         } else {
           addToast('Payment received but activation failed. Contact support.', 'error');
         }
@@ -165,15 +166,15 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
             >
               <div>
                 <div className="flex justify-between items-start">
-                  <h3 className="font-extrabold text-sm text-slate-900">{plans.free.name}</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">{tiers.free.display_name}</h3>
                   <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full font-bold uppercase">Tier 1</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2 leading-relaxed font-semibold">
-                  {plans.free.description}
+                  {tiers.free.description}
                 </p>
                 <ul className="text-[11px] text-slate-700 mt-4 space-y-2 font-semibold">
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.free.limits.courses === -1 ? 'Unlimited' : plans.free.limits.courses} Courses roadmap</li>
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.free.monthly_ai_credits === -1 ? 'Unlimited' : plans.free.monthly_ai_credits} AI Credits / Month</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.free.max_saved_courses === -1 ? 'Unlimited' : tiers.free.max_saved_courses} Courses roadmap</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.free.credit_allocation === -1 ? 'Unlimited' : tiers.free.credit_allocation} AI Credits / Month</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ Practice exams</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ AI assistance chat</li>
                 </ul>
@@ -195,22 +196,22 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
             >
               <div>
                 <div className="flex justify-between items-start">
-                  <h3 className="font-extrabold text-sm text-slate-900">{plans.basic.name}</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">{tiers.basic.display_name}</h3>
                   <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold uppercase">Basic</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2 leading-relaxed font-semibold">
-                  {plans.basic.description}
+                  {tiers.basic.description}
                 </p>
                 <ul className="text-[11px] text-slate-700 mt-4 space-y-2 font-semibold">
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.basic.limits.courses === -1 ? 'Unlimited' : plans.basic.limits.courses} Courses roadmap</li>
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.basic.monthly_ai_credits === -1 ? 'Unlimited' : plans.basic.monthly_ai_credits} AI Credits / Month</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.basic.max_saved_courses === -1 ? 'Unlimited' : tiers.basic.max_saved_courses} Courses roadmap</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.basic.credit_allocation === -1 ? 'Unlimited' : tiers.basic.credit_allocation} AI Credits / Month</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ Practice exams</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ Solver messages</li>
                   <li className="flex items-center gap-1.5 text-blue-600">★ Twitter-style blue badge</li>
                 </ul>
               </div>
               <div className="mt-6 border-t border-slate-100 pt-4">
-                <span className="text-xl font-black text-slate-900">₦{(plans.basic.price).toLocaleString()}</span>
+                <span className="text-xl font-black text-slate-900">₦{(tiers.basic.price_ngn).toLocaleString()}</span>
                 <span className="text-[10px] text-slate-500 font-bold ml-1">/ semester</span>
               </div>
             </div>
@@ -226,22 +227,22 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
             >
               <div>
                 <div className="flex justify-between items-start">
-                  <h3 className="font-extrabold text-sm text-slate-900">{plans.pro.name}</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">{tiers.premium.display_name}</h3>
                   <span className="text-[10px] bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full font-bold uppercase">Pro</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2 leading-relaxed font-semibold">
-                  {plans.pro.description}
+                  {tiers.premium.description}
                 </p>
                 <ul className="text-[11px] text-slate-700 mt-4 space-y-2 font-semibold">
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.pro.limits.courses === -1 ? 'Unlimited' : plans.pro.limits.courses} Courses roadmap</li>
-                  <li className="flex items-center gap-1.5 text-slate-600">✓ {plans.pro.monthly_ai_credits === -1 ? 'Unlimited' : plans.pro.monthly_ai_credits} AI Credits / Month</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.premium.max_saved_courses === -1 ? 'Unlimited' : tiers.premium.max_saved_courses} Courses roadmap</li>
+                  <li className="flex items-center gap-1.5 text-slate-600">✓ {tiers.premium.credit_allocation === -1 ? 'Unlimited' : tiers.premium.credit_allocation} AI Credits / Month</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ Practice exams</li>
                   <li className="flex items-center gap-1.5 text-slate-600">✓ Solver messages</li>
                   <li className="flex items-center gap-1.5 text-purple-600">★ Purple checkmark badge</li>
                 </ul>
               </div>
               <div className="mt-6 border-t border-slate-100 pt-4">
-                <span className="text-xl font-black text-slate-900">₦{(plans.pro.price).toLocaleString()}</span>
+                <span className="text-xl font-black text-slate-900">₦{(tiers.premium.price_ngn).toLocaleString()}</span>
                 <span className="text-[10px] text-slate-500 font-bold ml-1">/ semester</span>
               </div>
             </div>

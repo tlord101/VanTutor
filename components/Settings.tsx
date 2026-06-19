@@ -488,6 +488,24 @@ export const Settings: React.FC<SettingsProps> = ({ user, userProfile, appSettin
       </div>
 
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Legal</h3>
+         <div className="divide-y divide-gray-200">
+           <a
+              href="/t&c"
+              className="block w-full text-left p-3 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200"
+            >
+              Terms & Conditions
+            </a>
+            <a
+              href="/policy"
+              className="block w-full text-left p-3 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200"
+            >
+              Privacy Policy
+            </a>
+         </div>
+      </div>
+
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Actions</h3>
          <div className="divide-y divide-gray-200">
            <button
