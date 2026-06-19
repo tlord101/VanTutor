@@ -38,7 +38,7 @@ const LoadingFallback = () => (
     </div>
 );
 
-export const MainContent: React.FC<MainContentProps> = ({
+export const MainContent: React.FC<MainContentProps> = React.memo(({
     activeItem,
     user,
     userProfile,
@@ -104,4 +104,4 @@ export const MainContent: React.FC<MainContentProps> = ({
             })()}
         </Suspense>
     );
-};
+});
