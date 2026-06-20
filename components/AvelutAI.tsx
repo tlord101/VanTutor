@@ -359,23 +359,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
     const loadCourseContext = async () => {
       try {
-        let departmentData = null;
-        if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
+        // Always fetch from departments_data — the canonical course store.
+        // schools_data only has dept metadata (name, levels), NOT courses.
+        const departmentSnapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+        let departmentData = departmentSnapshot.val();
+        if (!departmentData && userProfile.school_id && userProfile.college_id) {
+            // Fallback: try schools_data (legacy path, unlikely to have courses)
             const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
             departmentData = snapshot.val();
-        } else {
-            const departmentSnapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-            departmentData = departmentSnapshot.val();
         }
 
-        if (!departmentData) {
-          if (isMounted) setCourseContext('');
-          return;
-        }
-
-        const courses: Course[] = departmentData && departmentData.levels
-            ? Object.values(departmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
-            : (Array.isArray(departmentData.course_list) ? departmentData.course_list : []);
+        const courses: Course[] = departmentData?.course_list
+            ? (Array.isArray(departmentData.course_list) ? departmentData.course_list : Object.values(departmentData.course_list))
+            : (departmentData?.levels
+                ? Object.values(departmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
+                : []);
         const contextParts: string[] = [];
 
         contextParts.push(`STUDENT DEPARTMENT: ${userProfile.department_id}`);

@@ -745,15 +745,30 @@ const App: React.FC = () => {
             setDepartmentData(cached);
         }
 
-        const deptRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
-        get(deptRef).then((snapshot) => {
-            const val = snapshot.val();
-            if (val) {
-                writeCachedJson(deptCacheKey, val);
-                setDepartmentData(val);
-            }
+        // Always fetch courses from departments_data (the canonical course store)
+        // schools_data only contains dept metadata (name, levels), NOT courses.
+        const coursesRef = dbRef(db, `departments_data/${userProfile.department_id}`);
+        get(coursesRef).then((coursesSnap) => {
+            const coursesVal = coursesSnap.val() || {};
+            // Also fetch dept metadata (name etc.) from schools_data for display purposes
+            const metaRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
+            get(metaRef).then((metaSnap) => {
+                const metaVal = metaSnap.val() || {};
+                const merged = { ...metaVal, ...coursesVal };
+                if (Object.keys(merged).length > 0) {
+                    writeCachedJson(deptCacheKey, merged);
+                    setDepartmentData(merged);
+                }
+            }).catch(err => {
+                // Meta fetch failed — use courses data alone
+                if (coursesVal && Object.keys(coursesVal).length > 0) {
+                    writeCachedJson(deptCacheKey, coursesVal);
+                    setDepartmentData(coursesVal);
+                }
+                console.error("Error fetching department metadata:", err);
+            });
         }).catch(err => {
-            console.error("Error fetching department details:", err);
+            console.error("Error fetching department courses:", err);
         });
     }, [userProfile?.school_id, userProfile?.college_id, userProfile?.department_id]);
 
@@ -761,7 +776,11 @@ const App: React.FC = () => {
         if (!userProfile || !departmentData) return;
 
         const normalizedUserLevel = normalizeLevelValue(userProfile.level);
-        const coursesForLevel = (departmentData.course_list || []).filter((course: Course) => (
+        const rawCourseList = departmentData.course_list;
+        const allCourses: Course[] = Array.isArray(rawCourseList)
+            ? rawCourseList
+            : (rawCourseList && typeof rawCourseList === 'object' ? Object.values(rawCourseList) : []);
+        const coursesForLevel = allCourses.filter((course: Course) => (
             normalizeLevelValue(course.level) === normalizedUserLevel
         ));
         

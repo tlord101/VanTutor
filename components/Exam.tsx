@@ -233,22 +233,26 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
         }
 
         try {
-            let departmentData = null;
-            if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
-                const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
-                departmentData = snapshot.val();
-            } else {
-                const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-                departmentData = snapshot.val();
+            // Always fetch from departments_data — the canonical course store.
+            // schools_data only has dept metadata (name, levels), NOT courses.
+            const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+            let departmentData = snapshot.val();
+
+            if (!departmentData && userProfile.school_id && userProfile.college_id) {
+                // Legacy fallback
+                const legacySnap = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
+                departmentData = legacySnap.val();
             }
 
             if (departmentData) {
                 const courses = extractCoursesFromDepartmentData(departmentData);
-                // Filter by level if you want, but user profile level might be sufficient. 
-                // We'll show courses matching their level, or all if none matched?
-                // Let's filter by the user's level
-                let levelCourses = courses.filter(c => c.level.toLowerCase().includes(userProfile.level.toLowerCase().replace('lvl', '')));
-                if (levelCourses.length === 0) levelCourses = courses; // fallback
+                // Filter by level
+                const normalizedLevel = userProfile.level.toLowerCase().replace(/\s+/g, '').replace('lvl', '').replace('level', '');
+                let levelCourses = courses.filter(c => {
+                    const cLevel = (c.level || '').toLowerCase().replace(/\s+/g, '').replace('lvl', '').replace('level', '');
+                    return cLevel === normalizedLevel || cLevel.includes(normalizedLevel) || normalizedLevel.includes(cLevel);
+                });
+                if (levelCourses.length === 0) levelCourses = courses; // fallback to all
                 setAvailableCourses(levelCourses);
                 writeCachedJson(`avelut_exam_courses_${userProfile.uid}`, levelCourses);
             }
@@ -262,6 +266,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
 
     fetchCourses();
   }, [userProfile.department_id, userProfile.level, userProfile.uid, addToast]);
+
 
   const startPQExam = async (courseName: string) => {
     setExamState('generating');

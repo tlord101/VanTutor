@@ -160,19 +160,23 @@ const TextChat: React.FC<{
 
                 // Additionally, support canonical shared textbook contexts.
                 try {
-                    let deptSnap = null;
-                    if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
-                        const deptRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
-                        deptSnap = await get(deptRef);
-                    } else {
-                        const deptRef = dbRef(db, `departments_data/${userProfile.department_id}`);
-                        deptSnap = await get(deptRef);
+                    // Always use departments_data — the canonical course store.
+                    // schools_data only has dept metadata, NOT courses.
+                    const deptRef = dbRef(db, `departments_data/${userProfile.department_id}`);
+                    let deptSnap = await get(deptRef);
+                    if (!deptSnap.exists() && userProfile.school_id && userProfile.college_id) {
+                        // Legacy fallback
+                        const legacyRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
+                        deptSnap = await get(legacyRef);
                     }
                     if (deptSnap?.exists()) {
                         const deptVal = deptSnap.val();
-                        const deptCourses = deptVal && deptVal.levels
-                            ? Object.values(deptVal.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
-                            : (Array.isArray(deptVal?.course_list) ? deptVal.course_list : []);
+                        const deptCourses: any[] = deptVal?.course_list
+                            ? (Array.isArray(deptVal.course_list) ? deptVal.course_list : Object.values(deptVal.course_list))
+                            : (deptVal?.levels
+                                ? Object.values(deptVal.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
+                                : []);
+
                         const sharedKeys = Array.from(new Set(deptCourses
                             .map((c: any) => c?.textbook_shared_key)
                             .filter(Boolean)));

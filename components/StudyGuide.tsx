@@ -2251,16 +2251,17 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
         let resolvedDepartmentData: any = null;
 
-        if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
-            const directDepartmentSnapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
-            const directDepartmentData = directDepartmentSnapshot.val();
-            if (directDepartmentData) {
-                resolvedDepartmentData = directDepartmentData;
-            }
+        // Always fetch courses from departments_data — this is the canonical course store.
+        // schools_data only contains dept name/levels metadata, NOT the course_list.
+        const deptCoursesSnap = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+        if (deptCoursesSnap.exists()) {
+            resolvedDepartmentData = deptCoursesSnap.val();
         }
 
-        const allDepartmentCourses = resolvedDepartmentData && resolvedDepartmentData.levels 
-            ? Object.values(resolvedDepartmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses).map((c: any) => ({ ...c, level: lvl.name || c.level })) : [])
+        const allDepartmentCourses: any[] = resolvedDepartmentData?.course_list
+            ? (Array.isArray(resolvedDepartmentData.course_list)
+                ? resolvedDepartmentData.course_list
+                : Object.values(resolvedDepartmentData.course_list))
             : [];
         const coursesForLevel = allDepartmentCourses.filter((course) => (
             normalizeLevelValue(course.level) === normalizedUserLevel
