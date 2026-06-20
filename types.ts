@@ -35,6 +35,16 @@ export interface UserProfile {
   fcm_token?: string;
   default_semester_tab?: string;
   ai_credits_balance?: number;
+  blocked_users?: Record<string, boolean>;
+}
+
+export interface Report {
+  id: string;
+  reporter_uid: string;
+  reported_uid: string;
+  chat_id?: string;
+  reason: string;
+  timestamp: number;
 }
 
 export interface Message {
@@ -230,6 +240,7 @@ export interface AppSettings {
   google_api_key?: string;
   pinecone_api_key?: string;
   pinecone_index_name?: string;
+  revenuecat_api_key_android?: string;
 }
 
 // Type for the new Notification System

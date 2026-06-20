@@ -4,6 +4,8 @@ import type { UserProfile, AppSettings } from '../types';
 import { GoogleGenAI } from '@google/genai';
 import { triggerPaystackPurchase } from '../utils/usage';
 import { DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
+import { Capacitor } from '@capacitor/core';
+import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 
 interface ActivationScreenProps {
   user: FirebaseUser;
@@ -31,6 +33,26 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
 
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings.tiers;
+  const [offerings, setOfferings] = useState<any>(null);
+
+  React.useEffect(() => {
+    const initRevenueCat = async () => {
+      if (Capacitor.isNativePlatform() && appSettings.revenuecat_api_key_android) {
+        try {
+          await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+          await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
+          await Purchases.logIn({ appUserID: user.uid });
+          const currentOfferings = await Purchases.getOfferings();
+          if (currentOfferings.current !== null) {
+            setOfferings(currentOfferings.current);
+          }
+        } catch (e) {
+          console.error("Error initializing RevenueCat:", e);
+        }
+      }
+    };
+    initRevenueCat();
+  }, [user.uid, appSettings.revenuecat_api_key_android]);
 
   const handleActivate = async () => {
     if (selectedPlan === 'free') {
@@ -93,45 +115,93 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({
       return;
     }
 
-    // Basic or Pro Plans (Trigger Paystack Inline checkout)
+    // Basic or Pro Plans
     const effectivePlanKey = selectedPlan === 'pro' ? 'premium' : selectedPlan;
     const activePlan = tiers[effectivePlanKey as keyof typeof tiers];
     const amount = activePlan.price_ngn;
-    const publicKey = appSettings.paystack_public_key?.trim();
-    const email = user.email || `${user.uid}@avelut.com`;
-
+    
     setIsActivating(true);
 
-    await triggerPaystackPurchase({
-      publicKey,
-      email,
-      amount,
-      userId: user.uid,
-      purchaseType: 'subscription',
-      metadata: { plan_tier: selectedPlan },
-      addToast,
-      onSuccess: async (reference) => {
-        const result = await handleProfileUpdate({
-          is_activated: true,
-          subscription_status: selectedPlan,
-          use_personal_token: false,
-          paystack_reference: reference,
-        });
-        if (result.success) {
-          addToast(`AVELUT ${activePlan.display_name} activated successfully!`, 'success');
-        } else {
-          addToast('Payment received but activation failed. Contact support.', 'error');
+    if (Capacitor.isNativePlatform()) {
+      // Native App: Use RevenueCat / Google Play Billing
+      if (!appSettings.revenuecat_api_key_android) {
+        addToast("In-app purchases are not configured for Android yet. Please contact support.", "error");
+        setIsActivating(false);
+        return;
+      }
+      if (!offerings) {
+        addToast("Loading subscription packages. Please try again in a moment.", "error");
+        setIsActivating(false);
+        return;
+      }
+
+      try {
+        const pkgToBuy = offerings.availablePackages.find((p: any) => p.identifier.toLowerCase().includes(effectivePlanKey));
+        if (!pkgToBuy) {
+           addToast("This plan is currently not available on Android.", "error");
+           setIsActivating(false);
+           return;
         }
-        setIsActivating(false);
-      },
-      onCancel: () => {
-        setIsActivating(false);
-      },
-      onError: (err) => {
-        console.error(err);
+
+        const purchaseResult = await Purchases.purchasePackage({ aPackage: pkgToBuy });
+        
+        if (typeof purchaseResult.customerInfo.entitlements.active !== "undefined" && Object.keys(purchaseResult.customerInfo.entitlements.active).length > 0) {
+          const result = await handleProfileUpdate({
+            is_activated: true,
+            subscription_status: selectedPlan,
+            use_personal_token: false,
+            paystack_reference: 'google-play-' + purchaseResult.transaction.transactionIdentifier,
+          });
+          if (result.success) {
+            addToast(`AVELUT ${activePlan.display_name} activated successfully!`, 'success');
+          } else {
+            addToast('Purchase successful but activation failed. Contact support.', 'error');
+          }
+        }
+      } catch (e: any) {
+        console.error("RevenueCat Purchase Error:", e);
+        if (!e.userCancelled) {
+          addToast("Failed to complete purchase via Google Play.", "error");
+        }
+      } finally {
         setIsActivating(false);
       }
-    });
+    } else {
+      // Web App: Use Paystack Inline Checkout
+      const publicKey = appSettings.paystack_public_key?.trim();
+      const email = user.email || `${user.uid}@avelut.com`;
+
+      await triggerPaystackPurchase({
+        publicKey,
+        email,
+        amount,
+        userId: user.uid,
+        purchaseType: 'subscription',
+        metadata: { plan_tier: selectedPlan },
+        addToast,
+        onSuccess: async (reference) => {
+          const result = await handleProfileUpdate({
+            is_activated: true,
+            subscription_status: selectedPlan,
+            use_personal_token: false,
+            paystack_reference: reference,
+          });
+          if (result.success) {
+            addToast(`AVELUT ${activePlan.display_name} activated successfully!`, 'success');
+          } else {
+            addToast('Payment received but activation failed. Contact support.', 'error');
+          }
+          setIsActivating(false);
+        },
+        onCancel: () => {
+          setIsActivating(false);
+        },
+        onError: (err) => {
+          console.error(err);
+          setIsActivating(false);
+        }
+      });
+    }
   };
 
   return (

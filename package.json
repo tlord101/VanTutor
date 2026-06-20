@@ -31,6 +31,7 @@
     "@fontsource-variable/geist": "^5.2.9",
     "@google/genai": "^1.27.0",
     "@pinecone-database/pinecone": "^7.2.0",
+    "@revenuecat/purchases-capacitor": "^13.2.0",
     "ai": "^6.0.191",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

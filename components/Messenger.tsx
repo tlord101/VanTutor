@@ -242,6 +242,7 @@ interface AvelutInputProps {
   recordDuration: number;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }
 
 const AvelutMessageInput: React.FC<AvelutInputProps> = ({
@@ -254,7 +255,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   setIsLocked,
   recordDuration,
   onFileSelect,
-  onImageSelect
+  onImageSelect,
+  disabled = false
 }) => {
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
@@ -275,7 +277,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const handleVoicePress = (e: React.MouseEvent | React.TouchEvent) => {
-    if (isLocked) return;
+    if (isLocked || disabled) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     setStartX(clientX);
@@ -287,7 +289,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const handleVoiceMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isRecording || isLocked) return;
+    if (!isRecording || isLocked || disabled) return;
     handleMove(e);
 
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -308,7 +310,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const handleVoiceRelease = () => {
-    if (!isSwiping) return;
+    if (!isSwiping || disabled) return;
     setIsSwiping(false);
     if (!isLocked) {
       stopRecording(true);
@@ -316,7 +318,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const executeTextSend = () => {
-    if (message.trim()) {
+    if (message.trim() && !disabled) {
       onSend(message);
       setMessage("");
     }
@@ -334,7 +336,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className="w-full relative select-none z-40 bg-[#F8F9FA] pb-2 pt-2 md:w-full md:mx-auto">
+    <div className={`w-full relative select-none z-40 bg-[#F8F9FA] pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
@@ -460,6 +462,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [fetchedUserProfiles, setFetchedUserProfiles] = useState<Record<string, UserProfile>>(() =>
     readCachedJson<Record<string, UserProfile>>(`avelut_resolved_profiles_${userProfile.uid}`, {})
   );
+  const [showUserOptions, setShowUserOptions] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('spam');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -473,8 +478,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(getMessengerCacheKey(userProfile.uid, 'study_partners'), {}));
   const [partnerRequests, setPartnerRequests] = useState<Record<string, any>>(() => readCachedJson<Record<string, any>>(getMessengerCacheKey(userProfile.uid, 'partner_requests'), {}));
-  const [searchPartnerName, setSearchPartnerName] = useState('');
-  const [searchPartnerDept, setSearchPartnerDept] = useState('');
   const [partnerActiveSubTab, setPartnerActiveSubTab] = useState<'find' | 'requests'>('find');
 
   // Forwarding states
@@ -488,9 +491,47 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const lastNotificationTimestampRef = useRef<Record<string, number>>({});
   const { addToast } = useToast();
 
+  const isBlocked = activeChat && userProfile?.blocked_users?.[activeChat.otherUser.uid];
+  const isBlockingMe = activeChat && activeChat.otherUser.blocked_users?.[userProfile.uid];
+
   const closeMessageActions = () => {
     setMessageActionTarget(null);
     setMessageActionPosition(null);
+  };
+
+  const handleBlockUser = async () => {
+    if (!firebaseUser || !activeChat) return;
+    try {
+      const dbRefPath = `users/${firebaseUser.uid}/blocked_users/${activeChat.otherUser.uid}`;
+      await set(dbRef(db, dbRefPath), true);
+      addToast("User has been blocked.", "success");
+      setShowUserOptions(false);
+    } catch (err) {
+      console.error("Failed to block user:", err);
+      addToast("Failed to block user.", "error");
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!firebaseUser || !activeChat) return;
+    try {
+      const reportId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
+      const reportRef = dbRef(db, `reports/${reportId}`);
+      await set(reportRef, {
+        id: reportId,
+        reporter_uid: firebaseUser.uid,
+        reported_uid: activeChat.otherUser.uid,
+        chat_id: activeChat.chatId,
+        reason: reportReason,
+        timestamp: Date.now()
+      });
+      addToast("Report submitted successfully. Our team will review it.", "success");
+      setShowReportModal(false);
+      setShowUserOptions(false);
+    } catch (err) {
+      console.error("Failed to report user:", err);
+      addToast("Failed to submit report.", "error");
+    }
   };
 
   const showIncomingMessageNotification = async (chat: any, summaryText: string) => {
@@ -668,6 +709,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         last_streak_date: u.last_streak_date || '',
         last_activity_date: u.last_activity_date || 0,
         notifications_enabled: u.notifications_enabled || false,
+        blocked_users: u.blocked_users || {}
       })));
     });
     return () => off(usersRef, 'value', unsubscribe);
@@ -842,6 +884,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               last_activity_date: u.last_activity_date || Date.now(),
               notifications_enabled: !!u.notifications_enabled,
               subscription_status: u.subscription_status || 'free',
+              blocked_users: u.blocked_users || {}
             };
             setFetchedUserProfiles(prev => {
               const next = { ...prev, [otherUserId]: profile };
@@ -1426,7 +1469,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] mr-3" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'Learner'} />
           </>
         ),
-        rightActions: null,
+        rightActions: (
+          <div className="relative">
+             <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+                <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
+             </button>
+             {showUserOptions && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
+                 <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
+                 <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-bold">Report User</button>
+              </div>
+             )}
+          </div>
+        ),
         hideBottomNav: true
       });
     } else {
@@ -1451,7 +1506,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     return () => {
       setCustomHeaderConfig(null);
     };
-  }, [setCustomHeaderConfig, activeChat, tab, onNavigate]);
+  }, [setCustomHeaderConfig, activeChat, tab, onNavigate, showUserOptions]);
 
 
   return (
@@ -1575,9 +1630,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
-
-
-
             {/* 2. Messages List */}
             <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               {combinedMessageStream.length === 0 ? (
@@ -1721,8 +1773,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="fixed bottom-0 left-0 right-0 md:relative w-full shrink-0 z-[100] bg-white/95 backdrop-blur-md md:bg-transparent md:backdrop-blur-none pb-2 md:pb-4 mb-[env(safe-area-inset-bottom,0px)]">
-              {studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
+            <div className="p-3 border-t border-slate-200 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+               {isBlocked || isBlockingMe ? (
+                 <div className="p-3 text-center text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
+                   {isBlocked ? "You have blocked this user." : "This user is unavailable."}
+                 </div>
+               ) : studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                 <AvelutMessageInput
                   onSend={(text) => sendMsg(text, 'text')}
                   startRecording={startRecording}
@@ -1863,8 +1919,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               <button
                 onClick={() => {
                   setShowPartnerModal(false);
-                  setSearchPartnerName('');
-                  setSearchPartnerDept('');
                 }}
                 className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#6C757D] hover:text-[#212529] transition border border-[#E9ECEF] shadow-sm font-bold"
               >
@@ -1897,174 +1951,64 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <div className="flex-1 overflow-y-auto p-6 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {partnerActiveSubTab === 'find' ? (
                 <div className="space-y-4">
-                  {/* Filters */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search by name..."
-                        value={searchPartnerName}
-                        onChange={(e) => setSearchPartnerName(e.target.value)}
-                        className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm"
-                      />
-                      {searchPartnerName && (
-                        <button onClick={() => setSearchPartnerName("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6C757D]">✕</button>
-                      )}
-                    </div>
-                    <select
-                      value={searchPartnerDept}
-                      onChange={(e) => setSearchPartnerDept(e.target.value)}
-                      className="w-full bg-white text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-sm cursor-pointer"
-                    >
-                      <option value="">All Departments</option>
-                      {Array.from(new Set(allUsers.map(u => u.department_id).filter(Boolean))).map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* List */}
                   <div className="space-y-3">
-                    {(() => {
-                      const filtered = allUsers
-                        .filter(u => u.uid !== firebaseUser?.uid)
-                        .filter(u => {
-                          if (searchPartnerName.trim()) {
-                            const q = searchPartnerName.toLowerCase();
-                            if (!(u.display_name || '').toLowerCase().includes(q)) return false;
-                          }
-                          if (searchPartnerDept) {
-                            if (u.department_id !== searchPartnerDept) return false;
-                          }
-                          return true;
-                        });
-                      if (filtered.length === 0) {
-                        return (
-                          <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-dashed border-[#E9ECEF] p-6">
-                            <span className="text-3xl block mb-2">🔍</span>
-                            <p className="text-sm font-bold text-[#212529]">No students found</p>
-                            <p className="text-xs text-[#6C757D] mt-1">Try checking the spelling or selecting another department filter.</p>
+                    {allUsers.filter(u => u.uid !== firebaseUser?.uid).map(u => {
+                      const isPartner = studyPartners[u.uid] === true;
+                      const req = partnerRequests[u.uid];
+                      return (
+                        <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl transition">
+                          <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
                           </div>
-                        );
-                      }
-                      return filtered.map(u => {
-                        const isPartner = studyPartners[u.uid] === true;
-                        const req = partnerRequests[u.uid];
-
-                        return (
-                          <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 hover:bg-neutral-100/70 border border-[#E9ECEF] rounded-2xl transition">
-                            <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                            <div className="min-w-0 flex-1">
-                              <h4 className="font-semibold text-sm text-[#212529] truncate flex items-center gap-1.5">
-                                <span>{u.display_name}</span>
-                                <VerificationBadge status={u.subscription_status} />
-                              </h4>
-                              <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'} • {u.level ? `${u.level} Lvl` : 'Lvl N/A'}</p>
-                            </div>
-                            <div className="shrink-0">
-                              {isPartner ? (
-                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full flex items-center gap-1">✓ Connected</span>
-                              ) : (req as any)?.status === 'sent' ? (
-                                <button
-                                  onClick={() => cancelPartnerRequest(u)}
-                                  className="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                  title="Cancel Request"
-                                >
-                                  Pending
-                                </button>
-                              ) : (req as any)?.status === 'received' ? (
-                                <div className="flex gap-1.5">
-                                  <button
-                                    onClick={() => acceptPartnerRequest(u)}
-                                    className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                  >
-                                    Accept
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => sendPartnerRequest(u)}
-                                  className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                >
-                                  Connect
-                                </button>
-                              )}
-                            </div>
+                          <div className="shrink-0">
+                            {isPartner ? (
+                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">✓ Connected</span>
+                            ) : (
+                              <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition">Connect</button>
+                            )}
                           </div>
-                        );
-                      });
-                    })()}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Received */}
-                  <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Received Partner Requests</h3>
-                    <div className="space-y-3">
-                      {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length === 0 ? (
-                        <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No incoming requests</p>
-                      ) : (
-                        Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => {
-                          const sender = allUsers.find(x => x.uid === req.senderId) || { display_name: req.senderName, photo_url: '', department_id: '', level: '', uid: req.senderId } as any;
-                          return (
-                            <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                              <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={sender.display_name || 'Learner'} />
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-sm text-[#212529] truncate">{sender.display_name}</h4>
-                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{sender.department_id || 'No Department'}</p>
-                              </div>
-                              <div className="flex gap-1.5 shrink-0">
-                                <button
-                                  onClick={() => acceptPartnerRequest(sender)}
-                                  className="text-xs font-black uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={() => declinePartnerRequest(sender)}
-                                  className="text-xs font-black uppercase tracking-wider text-[#6C757D] hover:text-red-600 bg-white hover:bg-red-50 border border-[#E9ECEF] hover:border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none"
-                                >
-                                  Decline
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sent */}
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Pending Sent Requests</h3>
-                    <div className="space-y-3">
-                      {Object.values(partnerRequests).filter((req: any) => req.status === 'sent').length === 0 ? (
-                        <p className="text-xs font-medium text-[#6C757D] italic p-4 bg-neutral-50 rounded-2xl text-center border border-dashed border-neutral-200">No pending sent requests</p>
-                      ) : (
-                        Object.values(partnerRequests).filter((req: any) => req.status === 'sent').map((req: any) => {
-                          const receiver = allUsers.find(x => x.uid === req.receiverId) || { display_name: 'Learner', photo_url: '', department_id: '', level: '', uid: req.receiverId } as any;
-                          return (
-                            <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                              <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'Learner'} />
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-sm text-[#212529] truncate">{receiver.display_name}</h4>
-                                <p className="text-[11px] text-[#6C757D] font-medium truncate mt-0.5">{receiver.department_id || 'No Department'}</p>
-                              </div>
-                              <button
-                                onClick={() => cancelPartnerRequest(receiver)}
-                                className="text-xs font-black uppercase tracking-wider text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer select-none shrink-0"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
+                    {Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => (
+                       <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
+                          <div className="flex-1 text-sm font-semibold">{req.senderName}</div>
+                          <button onClick={() => acceptPartnerRequest({ uid: req.senderId } as UserProfile)} className="text-xs font-black text-white bg-emerald-600 px-3 py-1.5 rounded-xl">Accept</button>
+                       </div>
+                    ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report User Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-slide-up">
+            <h3 className="text-xl font-black text-slate-900 mb-2">Report User</h3>
+            <p className="text-sm text-slate-500 mb-4 font-semibold">Why are you reporting this user?</p>
+            <select 
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="w-full mb-4 p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 outline-none"
+            >
+              <option value="spam">Spam / Unsolicited Messages</option>
+              <option value="harassment">Harassment / Bullying</option>
+              <option value="inappropriate">Inappropriate Content</option>
+              <option value="scam">Scam / Fraud</option>
+              <option value="other">Other</option>
+            </select>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowReportModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+              <button onClick={handleReportSubmit} className="px-4 py-2 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors">Submit Report</button>
             </div>
           </div>
         </div>
@@ -2089,7 +2033,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           }}
         />
       )}
-
     </div>
   );
 };

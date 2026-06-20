@@ -75,6 +75,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   google_api_key: '',
   pinecone_api_key: '',
   pinecone_index_name: '',
+  revenuecat_api_key_android: '',
 };
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({
@@ -85,6 +86,7 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
   google_api_key: (raw?.google_api_key || DEFAULT_APP_SETTINGS.google_api_key || '').toString().trim(),
   pinecone_api_key: (raw?.pinecone_api_key || DEFAULT_APP_SETTINGS.pinecone_api_key || '').toString().trim(),
   pinecone_index_name: (raw?.pinecone_index_name || DEFAULT_APP_SETTINGS.pinecone_index_name || '').toString().trim(),
+  revenuecat_api_key_android: (raw?.revenuecat_api_key_android || DEFAULT_APP_SETTINGS.revenuecat_api_key_android || '').toString().trim(),
   upload_center_uploads_enabled: raw?.upload_center_uploads_enabled ?? DEFAULT_APP_SETTINGS.upload_center_uploads_enabled,
   coming_soon_enabled: raw?.coming_soon_enabled ?? DEFAULT_APP_SETTINGS.coming_soon_enabled,
   paystack_public_key: (raw?.paystack_public_key || DEFAULT_APP_SETTINGS.paystack_public_key).toString().trim(),

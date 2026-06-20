@@ -159,6 +159,12 @@ export type { FirebaseUser };
           ".write": "!data.exists() || (data.exists() && data.child('sender_id').val() === auth.uid)"
         }
       }
+    },
+    "reports": {
+      "$reportId": {
+        ".read": "root.child('users').child(auth.uid).child('is_admin').val() === true",
+        ".write": "auth != null && newData.child('reporter_uid').val() === auth.uid"
+      }
     }
   }
 }

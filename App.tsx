@@ -31,12 +31,6 @@ const useAutoPermissions = () => {
                         await Notification.requestPermission();
                     }
                 }
-                
-                // Camera
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                    stream.getTracks().forEach(track => track.stop());
-                }
             } catch (err) {
                 console.warn("Auto permissions skipped or failed:", err);
             }
@@ -555,6 +549,11 @@ const App: React.FC = () => {
         const unsubscribeProfile = onValue(userRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                if (data.status === 'suspended' || data.status === 'deleted') {
+                    firebaseSignOut();
+                    addToast(`Your account has been ${data.status}.`, "error");
+                    return;
+                }
                 writeCachedJson(cacheKey, data);
                 if (!data.department_id) {
                     setIsOnboarding(true);

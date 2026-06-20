@@ -46,6 +46,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
         setNavSize(prev => {
           const newWidth = entry.contentRect.width;
           const newHeight = containerRef.current?.clientHeight || 76;
+          if (newWidth === 0) return prev;
           if (prev.width === newWidth && prev.height === newHeight) return prev;
           return { width: newWidth, height: newHeight };
         });
@@ -125,8 +126,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   const xLeft = cx - halfNotch;
   const xRight = cx + halfNotch;
 
-  // Custom SVG path drawing the rounded corners and smooth center notch cutout
-  const safeNavWidth = Math.max(navWidth, 300);
+  const safeNavWidth = navWidth > 0 ? navWidth : (typeof window !== 'undefined' ? window.innerWidth : 375);
   const safeHeight = Math.max(height, 50);
 
   const pathD = [

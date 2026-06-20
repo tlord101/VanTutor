@@ -740,6 +740,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
+    const handleSuspendUser = async (uid: string, currentStatus: string | undefined) => {
+        const isSuspended = currentStatus === 'suspended';
+        const action = isSuspended ? 'unsuspend' : 'suspend';
+        if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+        try {
+            const userRef = dbRef(db, `users/${uid}`);
+            await update(userRef, { status: isSuspended ? 'active' : 'suspended' });
+            addToast(`User ${action}ed successfully!`, "success");
+            void fetchUsers();
+        } catch (error: any) {
+            console.error(`Error trying to ${action} user:`, error);
+            addToast(error.message || `Failed to ${action} user`, "error");
+        }
+    };
+
+    const handleDeleteUser = async (uid: string) => {
+        if (!window.confirm("Are you sure you want to permanently delete this user? Their data will be removed. This cannot be undone.")) return;
+        try {
+            const userRef = dbRef(db, `users/${uid}`);
+            // Note: client-side cannot delete Firebase Auth user. We mark as deleted/remove db node.
+            await update(userRef, { status: 'deleted', is_activated: false });
+            addToast("User data marked as deleted.", "success");
+            void fetchUsers();
+        } catch (error: any) {
+            console.error("Error trying to delete user:", error);
+            addToast(error.message || "Failed to delete user", "error");
+        }
+    };
+
     const fetchSentNotifications = async () => {
         if (sentNotifications.length === 0) {
             setIsSentNotificationsLoading(true);
@@ -1128,6 +1157,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             google_api_key: (appSettingsDraft.google_api_key || '').trim(),
             pinecone_api_key: (appSettingsDraft.pinecone_api_key || '').trim(),
             pinecone_index_name: (appSettingsDraft.pinecone_index_name || '').trim(),
+            revenuecat_api_key_android: (appSettingsDraft.revenuecat_api_key_android || '').trim(),
         };
 
         setIsSavingAppSettings(true);
@@ -2494,18 +2524,6 @@ FORMAT:
                                 <ChevronRight className={`w-3.5 h-3.5 ml-auto transition-transform ${activeTab === 'usage-settings' ? 'text-slate-200 rotate-90' : 'text-slate-400 group-hover:text-slate-600'}`} />
                             </button>
                             <button
-                                onClick={() => handleCourseTabNavigate('/admin/usage-analytics')}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all relative group ${
-                                    activeTab === 'usage-analytics'
-                                        ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-500/10'
-                                        : 'text-slate-650 hover:bg-white/40 hover:text-slate-905'
-                                }`}
-                            >
-                                <Activity className="w-4 h-4" />
-                                <span>Usage Analytics</span>
-                                <ChevronRight className={`w-3.5 h-3.5 ml-auto transition-transform ${activeTab === 'usage-analytics' ? 'text-slate-200 rotate-90' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                            </button>
-                            <button
                                 onClick={() => handleCourseTabNavigate('/admin/purchase-logs')}
                                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all relative group ${
                                     activeTab === 'purchase-logs'
@@ -3785,6 +3803,19 @@ FORMAT:
                                     <p className="mt-2 text-xs text-gray-500">The serverless Pinecone index name (usually "avelut-textbooks").</p>
                                 </label>
 
+                                <label className="block">
+                                    <span className="mb-2 block text-sm font-semibold text-gray-700">RevenueCat API Key (Android)</span>
+                                    <input
+                                        type="password"
+                                        value={appSettingsDraft.revenuecat_api_key_android || ''}
+                                        onChange={e => setAppSettingsDraft(prev => ({ ...prev, revenuecat_api_key_android: e.target.value }))}
+                                        placeholder="Enter goog_... public API key"
+                                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100"
+                                        autoComplete="off"
+                                    />
+                                    <p className="mt-2 text-xs text-gray-500">Used for native Google Play Billing subscriptions via RevenueCat.</p>
+                                </label>
+
                                 <button
                                     type="button"
                                     onClick={async () => {
@@ -4807,6 +4838,10 @@ FORMAT:
                                                                 <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-teal-50 text-teal-700 border border-teal-150 shadow-sm shadow-teal-500/5">
                                                                     Google Token
                                                                 </span>
+                                                            ) : user.status === 'suspended' ? (
+                                                                <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-red-50 text-red-700 border border-red-150 shadow-sm shadow-red-500/5">
+                                                                    Suspended
+                                                                </span>
                                                             ) : user.is_activated ? (
                                                                 <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-green-50 text-green-700 border border-green-150 shadow-sm shadow-green-500/5">
                                                                     Activated
@@ -4826,7 +4861,7 @@ FORMAT:
                                                             <select
                                                                 value={user.subscription_status || 'none'}
                                                                 onChange={(e) => handleUpdateUserSubscription(user.uid, e.target.value as 'none' | 'free' | 'basic' | 'pro' | 'personal_token' | 'premium')}
-                                                                className="bg-white border border-slate-200 text-[11px] rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-semibold text-slate-700 shadow-sm transition"
+                                                                className="bg-white border border-slate-200 text-[11px] rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-semibold text-slate-700 shadow-sm transition w-full"
                                                             >
                                                                 <option value="none">None</option>
                                                                 <option value="free">Free</option>
@@ -4837,10 +4872,24 @@ FORMAT:
                                                             </select>
                                                             <button
                                                                 onClick={() => handleAddUserCredits(user.uid)}
-                                                                className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition"
+                                                                className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition w-full text-center"
                                                             >
                                                                 + Add Credits
                                                             </button>
+                                                            <div className="flex gap-2 w-full">
+                                                                <button
+                                                                    onClick={() => handleSuspendUser(user.uid, user.status)}
+                                                                    className={`flex-1 text-[10px] font-bold px-2 py-1 rounded transition ${user.status === 'suspended' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`}
+                                                                >
+                                                                    {user.status === 'suspended' ? 'Unsuspend' : 'Suspend'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteUser(user.uid)}
+                                                                    className="flex-1 text-[10px] font-bold bg-red-50 text-red-700 px-2 py-1 rounded hover:bg-red-100 transition"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -5081,7 +5130,7 @@ FORMAT:
                                         onClick={handleSendEmail}
                                         className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-blue-700 transition shadow-md shadow-blue-600/10 font-black"
                                     >
-                                        Open Email Draft
+                                        Send Email Broadcast
                                     </button>
                                 </div>
                             </div>
