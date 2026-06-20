@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword } from '../firebase';
 import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { GoogleIcon } from './icons/GoogleIcon';
+import { EyeIcon } from './icons/EyeIcon';
+import { EyeOffIcon } from './icons/EyeOffIcon';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { useToast } from '../hooks/useToast';
 import { isNative } from '../utils/capacitorUtils';
@@ -14,6 +16,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
@@ -110,16 +113,31 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                         Forgot Password?
                     </button>
                   </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-lime-500 rounded focus:outline-none"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
               
