@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, Key, Shield, HardDrive, Database, ToggleLeft, ToggleRight, Server } from 'lucide-react';
+import { Settings, Mail, Key, Shield, HardDrive, Database, CreditCard, Layers } from 'lucide-react';
 import { db } from '../../../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
-import type { AppSettings, EmailConfig } from '../../../types';
+import type { AppSettings, EmailConfig, UsageSettings, TierConfig } from '../../../types';
 
 export const SystemSettingsView: React.FC = () => {
     const { addToast } = useToast();
-    const [activeTab, setActiveTab] = useState<'general' | 'keys' | 'email'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'keys' | 'email' | 'plans'>('general');
     
     // States
     const [appSettings, setAppSettings] = useState<Partial<AppSettings>>({});
@@ -22,7 +22,29 @@ export const SystemSettingsView: React.FC = () => {
                     get(dbRef(db, 'app_settings')),
                     get(dbRef(db, 'email_config'))
                 ]);
-                if (appSnap.exists()) setAppSettings(appSnap.val());
+                if (appSnap.exists()) {
+                    const data = appSnap.val();
+                    // Ensure usage_settings exists so UI doesn't crash
+                    if (!data.usage_settings) {
+                        data.usage_settings = {
+                            tiers: {
+                                free: { tier_id: 'free', display_name: 'Free', description: '', price_ngn: 0, credit_allocation: 0, max_saved_courses: 0, has_verification_badge: false, badge_color: 'none' },
+                                basic: { tier_id: 'basic', display_name: 'Basic', description: '', price_ngn: 0, credit_allocation: 0, max_saved_courses: 0, has_verification_badge: false, badge_color: 'none' },
+                                premium: { tier_id: 'premium', display_name: 'Premium', description: '', price_ngn: 0, credit_allocation: 0, max_saved_courses: 0, has_verification_badge: false, badge_color: 'none' }
+                            },
+                            feature_costs: { visual_solve: 0, chat_interaction: 0, flashcard_generation: 0, ai_quiz_generation: 0, study_guide_lesson: 0, study_guide_extraction: 0 },
+                            feature_models: {},
+                            additional_prices: { visual_messages_price: 0, visual_messages_count: 0, studyguide_course_price: 0, studyguide_request_price: 0 }
+                        };
+                    } else {
+                        // Ensure nested objects exist
+                        data.usage_settings.tiers = data.usage_settings.tiers || {};
+                        data.usage_settings.feature_costs = data.usage_settings.feature_costs || {};
+                        data.usage_settings.feature_models = data.usage_settings.feature_models || {};
+                        data.usage_settings.additional_prices = data.usage_settings.additional_prices || {};
+                    }
+                    setAppSettings(data);
+                }
                 if (emailSnap.exists()) setEmailConfig(emailSnap.val());
             } catch (error) {
                 console.error("Error fetching settings:", error);
@@ -59,22 +81,90 @@ export const SystemSettingsView: React.FC = () => {
 
     const handleTestEmail = async () => {
         addToast("Testing email configuration... (Simulated)", "info");
-        // Implementing actual test endpoint call here if it exists.
+    };
+
+    const updateUsageSetting = (category: keyof UsageSettings, key: string, value: any, subCategory?: string) => {
+        setAppSettings(prev => {
+            const newSettings = { ...prev };
+            newSettings.usage_settings = { ...(newSettings.usage_settings as UsageSettings) };
+            if (subCategory) {
+                newSettings.usage_settings[category] = { ...newSettings.usage_settings[category] };
+                (newSettings.usage_settings[category] as any)[subCategory] = { ...(newSettings.usage_settings[category] as any)[subCategory], [key]: value };
+            } else {
+                newSettings.usage_settings[category] = { ...newSettings.usage_settings[category], [key]: value };
+            }
+            return newSettings;
+        });
     };
 
     if (isLoading) {
         return <div className="p-8 text-center text-slate-500 font-bold animate-pulse">Loading system settings...</div>;
     }
 
+    const renderTierForm = (tierId: 'free' | 'basic' | 'premium', title: string) => {
+        const tier = appSettings.usage_settings?.tiers?.[tierId] || {} as TierConfig;
+        return (
+            <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 mb-6">
+                <h4 className="font-bold text-slate-800 capitalize flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-indigo-500" /> {title} Plan
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Display Name</label>
+                        <input type="text" value={tier.display_name || ''} onChange={e => updateUsageSetting('tiers', 'display_name', e.target.value, tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Price (NGN)</label>
+                        <input type="number" value={tier.price_ngn || 0} onChange={e => updateUsageSetting('tiers', 'price_ngn', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Description</label>
+                        <input type="text" value={tier.description || ''} onChange={e => updateUsageSetting('tiers', 'description', e.target.value, tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Credit Allocation</label>
+                        <input type="number" value={tier.credit_allocation || 0} onChange={e => updateUsageSetting('tiers', 'credit_allocation', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Max Saved Courses</label>
+                        <input type="number" value={tier.max_saved_courses || 0} onChange={e => updateUsageSetting('tiers', 'max_saved_courses', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Badge Color</label>
+                        <select value={tier.badge_color || 'none'} onChange={e => updateUsageSetting('tiers', 'badge_color', e.target.value, tierId)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white">
+                            <option value="none">None</option>
+                            <option value="blue">Blue</option>
+                            <option value="purple">Purple</option>
+                            <option value="gold">Gold</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1 flex items-center pt-5">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={tier.has_verification_badge || false} onChange={e => updateUsageSetting('tiers', 'has_verification_badge', e.target.checked, tierId)} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+                            <span className="text-sm font-bold text-slate-700">Has Verification Badge</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-8">
-            <div className="flex gap-4 border-b border-slate-200">
+            <div className="flex flex-wrap gap-4 border-b border-slate-200">
                 <button 
                     onClick={() => setActiveTab('general')}
                     className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'general' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Settings className="w-4 h-4" />
                     General Platform
+                </button>
+                <button 
+                    onClick={() => setActiveTab('plans')}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'plans' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    <CreditCard className="w-4 h-4" />
+                    Usage & Plans
                 </button>
                 <button 
                     onClick={() => setActiveTab('keys')}
@@ -162,6 +252,66 @@ export const SystemSettingsView: React.FC = () => {
                 </div>
             )}
 
+            {activeTab === 'plans' && (
+                <div className="max-w-4xl bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-8">
+                    <div>
+                        <h3 className="font-black text-xl text-slate-900 mb-1">Subscriptions & Usage Settings</h3>
+                        <p className="text-sm text-slate-500">Configure plans, pricing, and AI feature costs.</p>
+                    </div>
+
+                    <div className="space-y-8">
+                        <div>
+                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Subscription Tiers</h4>
+                            {renderTierForm('free', 'Free')}
+                            {renderTierForm('basic', 'Basic')}
+                            {renderTierForm('premium', 'Premium')}
+                        </div>
+
+                        <div>
+                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Feature Costs (Credits)</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {Object.keys(appSettings.usage_settings?.feature_costs || {}).map((key) => (
+                                    <div key={key} className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
+                                        <input type="number" value={(appSettings.usage_settings?.feature_costs as any)[key] || 0} onChange={e => updateUsageSetting('feature_costs', key, Number(e.target.value))} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Feature AI Models</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
+                                    <div key={key} className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
+                                        <input type="text" placeholder="e.g. gemini-1.5-pro" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Top-up & Additional Pricing</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {Object.keys(appSettings.usage_settings?.additional_prices || {}).map((key) => (
+                                    <div key={key} className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
+                                        <input type="number" value={(appSettings.usage_settings?.additional_prices as any)[key] || 0} onChange={e => updateUsageSetting('additional_prices', key, Number(e.target.value))} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-100 flex justify-end">
+                        <button onClick={handleSaveApp} disabled={isSaving} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition shadow-lg shadow-indigo-600/20 disabled:opacity-50">
+                            {isSaving ? 'Saving...' : 'Save Plans & Usage'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'keys' && (
                 <div className="max-w-4xl bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
@@ -176,8 +326,29 @@ export const SystemSettingsView: React.FC = () => {
                                 <Database className="w-4 h-4 text-blue-500" /> Gemini AI
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Primary Model (e.g. gemini-1.5-pro)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
-                                <input type="password" placeholder="Gemini API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
+                                <input type="text" placeholder="Primary Model (e.g. gemini-1.5-pro)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
+                                <input type="password" placeholder="Gemini API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
+                            </div>
+                        </div>
+
+                        {/* Google/Firebase Auth */}
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                <Database className="w-4 h-4 text-red-500" /> Google Auth & Identity
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <input type="text" placeholder="Google Client ID" value={appSettings.google_client_id || ''} onChange={e => setAppSettings({...appSettings, google_client_id: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-red-500 text-sm" />
+                                <input type="password" placeholder="Google API Key" value={appSettings.google_api_key || ''} onChange={e => setAppSettings({...appSettings, google_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-red-500 text-sm" />
+                            </div>
+                        </div>
+
+                        {/* YouTube */}
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                <Database className="w-4 h-4 text-red-600" /> YouTube
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <input type="password" placeholder="YouTube API Key" value={appSettings.youtube_api_key || ''} onChange={e => setAppSettings({...appSettings, youtube_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-red-600 text-sm" />
                             </div>
                         </div>
 
@@ -187,8 +358,18 @@ export const SystemSettingsView: React.FC = () => {
                                 <Database className="w-4 h-4 text-teal-500" /> Paystack
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Public Key" value={appSettings.paystack_public_key || ''} onChange={e => setAppSettings({...appSettings, paystack_public_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500" />
-                                <input type="password" placeholder="Secret Key" value={appSettings.paystack_secret_key || ''} onChange={e => setAppSettings({...appSettings, paystack_secret_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500" />
+                                <input type="text" placeholder="Public Key" value={appSettings.paystack_public_key || ''} onChange={e => setAppSettings({...appSettings, paystack_public_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500 text-sm" />
+                                <input type="password" placeholder="Secret Key" value={appSettings.paystack_secret_key || ''} onChange={e => setAppSettings({...appSettings, paystack_secret_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500 text-sm" />
+                            </div>
+                        </div>
+
+                        {/* RevenueCat */}
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                <Database className="w-4 h-4 text-rose-500" /> RevenueCat (Android IAP)
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <input type="text" placeholder="RevenueCat Android API Key" value={appSettings.revenuecat_api_key_android || ''} onChange={e => setAppSettings({...appSettings, revenuecat_api_key_android: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-rose-500 text-sm" />
                             </div>
                         </div>
 
@@ -198,8 +379,8 @@ export const SystemSettingsView: React.FC = () => {
                                 <Database className="w-4 h-4 text-purple-500" /> Pinecone Vector DB
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Index Name" value={appSettings.pinecone_index_name || ''} onChange={e => setAppSettings({...appSettings, pinecone_index_name: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-purple-500" />
-                                <input type="password" placeholder="Pinecone API Key" value={appSettings.pinecone_api_key || ''} onChange={e => setAppSettings({...appSettings, pinecone_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-purple-500" />
+                                <input type="text" placeholder="Index Name" value={appSettings.pinecone_index_name || ''} onChange={e => setAppSettings({...appSettings, pinecone_index_name: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-purple-500 text-sm" />
+                                <input type="password" placeholder="Pinecone API Key" value={appSettings.pinecone_api_key || ''} onChange={e => setAppSettings({...appSettings, pinecone_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-purple-500 text-sm" />
                             </div>
                         </div>
                     </div>
@@ -220,12 +401,12 @@ export const SystemSettingsView: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <input type="text" placeholder="SMTP Host (e.g. smtp.gmail.com)" value={emailConfig.host || ''} onChange={e => setEmailConfig({...emailConfig, host: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
-                        <input type="number" placeholder="SMTP Port (e.g. 465)" value={emailConfig.port || ''} onChange={e => setEmailConfig({...emailConfig, port: Number(e.target.value)})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
-                        <input type="text" placeholder="Username / Email" value={emailConfig.user || ''} onChange={e => setEmailConfig({...emailConfig, user: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
-                        <input type="password" placeholder="App Password" value={emailConfig.pass || ''} onChange={e => setEmailConfig({...emailConfig, pass: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
-                        <input type="text" placeholder="Sender Name (e.g. Avelut Support)" value={emailConfig.from_name || ''} onChange={e => setEmailConfig({...emailConfig, from_name: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
-                        <input type="email" placeholder="Sender Email" value={emailConfig.from_email || ''} onChange={e => setEmailConfig({...emailConfig, from_email: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all" />
+                        <input type="text" placeholder="SMTP Host (e.g. smtp.gmail.com)" value={emailConfig.host || ''} onChange={e => setEmailConfig({...emailConfig, host: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="number" placeholder="SMTP Port (e.g. 465)" value={emailConfig.port || ''} onChange={e => setEmailConfig({...emailConfig, port: Number(e.target.value)})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="text" placeholder="Username / Email" value={emailConfig.user || ''} onChange={e => setEmailConfig({...emailConfig, user: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="password" placeholder="App Password" value={emailConfig.pass || ''} onChange={e => setEmailConfig({...emailConfig, pass: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="text" placeholder="Sender Name (e.g. Avelut Support)" value={emailConfig.from_name || ''} onChange={e => setEmailConfig({...emailConfig, from_name: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="email" placeholder="Sender Email" value={emailConfig.from_email || ''} onChange={e => setEmailConfig({...emailConfig, from_email: e.target.value})} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
                     </div>
 
                     <label className="flex items-center gap-3">

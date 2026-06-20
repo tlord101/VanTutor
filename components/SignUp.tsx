@@ -27,7 +27,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      const ipRef = dbRef(db, `ip_logs/${ip.replace(/\\./g, '_').replace(/:/g, '_')}`);
+      const ipRef = dbRef(db, `ip_logs/${ip.replace(/[\.#$\[\]]/g, '_').replace(/:/g, '_')}`);
       const ipSnap = await get(ipRef);
       if (ipSnap.exists()) {
           addToast('An account has already been created from this device/IP.', 'error');
@@ -99,7 +99,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      const ipRef = dbRef(db, `ip_logs/${ip.replace(/\\./g, '_').replace(/:/g, '_')}`);
+      const ipRef = dbRef(db, `ip_logs/${ip.replace(/[\.#$\[\]]/g, '_').replace(/:/g, '_')}`);
       const ipSnap = await get(ipRef);
       if (ipSnap.exists()) {
           addToast('An account has already been created from this device/IP.', 'error');

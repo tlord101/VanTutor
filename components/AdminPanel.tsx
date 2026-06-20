@@ -100,6 +100,8 @@ type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' 
 
 type CourseAdminView =
     | { mode: 'global' }
+    | { mode: 'global-list'; level: string }
+    | { mode: 'global-detail'; level: string; courseId: string }
     | { mode: 'manager-root' }
     | { mode: 'add'; departmentId?: string; level?: string }
     | { mode: 'manager-list'; departmentId: string; level: string }
@@ -113,7 +115,7 @@ const getCourseAdminView = (pathname: string): CourseAdminView => {
         return { mode: 'global' };
     }
 
-    if (segments.length <= 2 || segments[2] === 'all') {
+    if (segments.length <= 2) {
         return { mode: 'manager-root' };
     }
 
@@ -121,6 +123,14 @@ const getCourseAdminView = (pathname: string): CourseAdminView => {
         const departmentId = segments[3] ? decodeURIComponent(segments[3]) : undefined;
         const level = segments[4] ? decodeURIComponent(segments[4]) : undefined;
         return { mode: 'add', departmentId, level };
+    }
+
+    if (segments[2] === 'global' || segments[2] === 'all') {
+        const level = segments[3] ? decodeURIComponent(segments[3]) : '';
+        const courseId = segments[4] ? decodeURIComponent(segments[4]) : '';
+        if (!level) return { mode: 'global' };
+        if (!courseId) return { mode: 'global-list', level };
+        return { mode: 'global-detail', level, courseId };
     }
 
     if (segments[2] !== 'manager') {
@@ -140,6 +150,13 @@ const getCourseAdminView = (pathname: string): CourseAdminView => {
     }
 
     return { mode: 'manager-detail', departmentId, level, courseId };
+};
+
+const buildCourseGlobalPath = (level?: string, courseId?: string) => {
+    if (!level) return '/admin/courses/global';
+    const encodedLevel = encodeURIComponent(level);
+    const encodedCourse = courseId ? `/${encodeURIComponent(courseId)}` : '';
+    return `/admin/courses/global/${encodedLevel}${encodedCourse}`;
 };
 
 const buildCourseManagerPath = (departmentId?: string, level?: string, courseId?: string) => {
@@ -2433,6 +2450,24 @@ FORMAT:
     );
 
 
+
+    const globalLevelCourses = useMemo(() => {
+        if (courseAdminView.mode === 'global-list' || courseAdminView.mode === 'global-detail') {
+            const level = courseAdminView.level;
+            return courseCatalog.filter(entry => entry.course.level === level);
+        }
+        return [];
+    }, [courseAdminView, courseCatalog]);
+
+    const selectedGlobalCourseEntry = useMemo(() => {
+        if (courseAdminView.mode === 'global-detail') {
+            return globalLevelCourses.find(entry => 
+                entry.course.course_id === courseAdminView.courseId || 
+                getCourseMergeKey(entry.course) === courseAdminView.courseId
+            ) || null;
+        }
+        return null;
+    }, [courseAdminView, globalLevelCourses]);
 
     const filteredGlobalCourses = useMemo(() => {
         const query = courseSearchQuery.trim().toLowerCase();

@@ -12,6 +12,9 @@ interface CourseCatalogViewProps {
     LEVELS: string[];
     filteredGlobalCourses: any[];
     buildCourseManagerPath: (deptId?: string, level?: string, courseId?: string) => string;
+    buildCourseGlobalPath: (level?: string, courseId?: string) => string;
+    globalLevelCourses: any[];
+    selectedGlobalCourseEntry: any;
     managerSelectionDepartmentId: string;
     setManagerSelectionDepartmentId: (val: string) => void;
     managerSelectionLevel: string;
@@ -50,7 +53,8 @@ interface CourseCatalogViewProps {
 
 export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     courseAdminView, handleCourseTabNavigate, globalSearchQuery, setGlobalSearchQuery,
-    allDepartments, LEVELS, filteredGlobalCourses, buildCourseManagerPath,
+    allDepartments, LEVELS, filteredGlobalCourses, buildCourseManagerPath, buildCourseGlobalPath,
+    globalLevelCourses, selectedGlobalCourseEntry,
     managerSelectionDepartmentId, setManagerSelectionDepartmentId,
     managerSelectionLevel, setManagerSelectionLevel, buildCourseAddPath,
     handleMergeDuplicateCoursesAcrossDepartments, courseImportTargetMode,
@@ -74,15 +78,15 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             {/* Navigation Header */}
             <div className="flex gap-4 border-b border-slate-200">
                 <button 
-                    onClick={() => handleCourseTabNavigate('/admin/courses/all')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode === 'global' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => handleCourseTabNavigate('/admin/courses/global')}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('global') ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Database className="w-4 h-4" />
                     Global Search
                 </button>
                 <button 
                     onClick={() => handleCourseTabNavigate('/admin/courses/manager')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode !== 'global' && courseAdminView.mode !== 'add' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('manager') ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Folder className="w-4 h-4" />
                     Department Manager
@@ -96,81 +100,285 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                 </button>
             </div>
 
-            {/* Global Search Mode */}
+            {/* Global Search Root Mode */}
             {courseAdminView.mode === 'global' && (
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <h3 className="font-black text-xl text-slate-900 mb-1">Global Course Directory</h3>
-                            <p className="text-sm text-slate-500">Search all courses across all departments globally.</p>
+                <div className="space-y-6">
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h3 className="font-black text-xl text-slate-900 mb-1">Global Course Directory</h3>
+                                <p className="text-sm text-slate-500">Search all courses across all departments globally.</p>
+                            </div>
+                            <input 
+                                type="text" 
+                                placeholder="Search courses..." 
+                                value={globalSearchQuery} 
+                                onChange={e => setGlobalSearchQuery(e.target.value)}
+                                className="p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition min-w-[250px]"
+                            />
                         </div>
-                        <input 
-                            type="text" 
-                            placeholder="Search courses..." 
-                            value={globalSearchQuery} 
-                            onChange={e => setGlobalSearchQuery(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition min-w-[250px]"
-                        />
+                        
+                        {/* Global Search Results List */}
+                        {isGlobalSearch && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-bold text-slate-500">
+                                        Found {filteredGlobalCourses.length} courses across all departments
+                                    </p>
+                                    {selectedCourses.size > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                const coursesToDelete = filteredGlobalCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
+                                                handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
+                                                setSelectedCourses(new Set());
+                                            }}
+                                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Global Batch Delete ({selectedCourses.size})
+                                        </button>
+                                    )}
+                                </div>
+                                {filteredGlobalCourses.map(({ course, deptId, deptName, level }) => {
+                                    const courseRouteIdentifier = getCourseRouteKey(course);
+                                    const courseKey = course.course_id || course.course_name || '';
+                                    return (
+                                        <div
+                                            key={`${deptId}-${level}-${courseRouteIdentifier}`}
+                                            onClick={() => handleCourseTabNavigate(buildCourseManagerPath(deptId, level, courseRouteIdentifier))}
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 bg-white hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                        >
+                                            <div 
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedCourses(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(courseKey)) next.delete(courseKey);
+                                                        else next.add(courseKey);
+                                                        return next;
+                                                    });
+                                                }}
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedCourses.has(courseKey)}
+                                                    readOnly
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0 pl-6">
+                                                <div className="font-bold text-slate-900">{course.course_name}</div>
+                                                <div className="text-xs text-slate-500">{deptName} • {level}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                     
-                    {/* Global Search Results List */}
-                    {isGlobalSearch && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-slate-500">
-                                    Found {filteredGlobalCourses.length} courses across all departments
-                                </p>
-                                {selectedCourses.size > 0 && (
-                                    <button
-                                        onClick={() => {
-                                            const coursesToDelete = filteredGlobalCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
-                                            handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
-                                            setSelectedCourses(new Set());
-                                        }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Global Batch Delete ({selectedCourses.size})
-                                    </button>
-                                )}
+                    {!isGlobalSearch && (
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
+                            <Database className="w-16 h-16 text-indigo-200 mx-auto" />
+                            <div>
+                                <h3 className="font-black text-2xl text-slate-900 mb-2">Global Level View</h3>
+                                <p className="text-slate-500">Select a level to view aggregated courses deduplicated across the entire college.</p>
                             </div>
-                            {filteredGlobalCourses.map(({ course, deptId, deptName, level }) => {
-                                const courseRouteIdentifier = getCourseRouteKey(course);
-                                const courseKey = course.course_id || course.course_name || '';
-                                return (
-                                    <div
-                                        key={`${deptId}-${level}-${courseRouteIdentifier}`}
-                                        onClick={() => handleCourseTabNavigate(buildCourseManagerPath(deptId, level, courseRouteIdentifier))}
-                                        className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 bg-white hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
-                                    >
-                                        <div 
-                                            className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedCourses(prev => {
-                                                    const next = new Set(prev);
-                                                    if (next.has(courseKey)) next.delete(courseKey);
-                                                    else next.add(courseKey);
-                                                    return next;
-                                                });
-                                            }}
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedCourses.has(courseKey)}
-                                                readOnly
-                                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                            />
-                                        </div>
-                                        <div className="flex-1 min-w-0 pl-6">
-                                            <div className="font-bold text-slate-900">{course.course_name}</div>
-                                            <div className="text-xs text-slate-500">{deptName} • {level}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            <div className="max-w-xs mx-auto text-left">
+                                <select
+                                    value={managerSelectionLevel}
+                                    onChange={e => {
+                                        setManagerSelectionLevel(e.target.value);
+                                        handleCourseTabNavigate(buildCourseGlobalPath(e.target.value));
+                                    }}
+                                    className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
+                                >
+                                    <option value="">Select Level</option>
+                                    {LEVELS.map(level => (
+                                        <option key={level} value={level}>{level}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Global List Mode */}
+            {courseAdminView.mode === 'global-list' && (
+                <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 pb-4 gap-4">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                                Global Aggregation
+                            </p>
+                            <h3 className="text-3xl font-black text-slate-900 mt-1">{courseAdminView.level} Courses</h3>
+                        </div>
+                        {selectedCourses.size > 0 && (
+                            <button
+                                onClick={() => {
+                                    const coursesToDelete = globalLevelCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
+                                    handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
+                                    setSelectedCourses(new Set());
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-xl hover:bg-red-100 transition-colors shrink-0"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Global Batch Delete ({selectedCourses.size})
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6">
+                        {globalLevelCourses.length ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {globalLevelCourses.map(({ course, departmentIds, key }) => {
+                                    const courseRouteIdentifier = getCourseRouteKey(course);
+                                    const courseKey = course.course_id || course.course_name || '';
+                                    return (
+                                        <div
+                                            key={key}
+                                            onClick={() => handleCourseTabNavigate(buildCourseGlobalPath(courseAdminView.level, courseRouteIdentifier))}
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                        >
+                                            <div 
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedCourses(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(courseKey)) next.delete(courseKey);
+                                                        else next.add(courseKey);
+                                                        return next;
+                                                    });
+                                                }}
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedCourses.has(courseKey)}
+                                                    readOnly
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0 pl-6">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold text-slate-900 truncate group-hover:text-indigo-700">{course.course_name}</h4>
+                                                    {normalizeTextbookUrls(course).length > 0 && (
+                                                        <BookOpen className="w-4 h-4 text-indigo-500 shrink-0" />
+                                                    )}
+                                                </div>
+                                                <p className="text-xs font-semibold text-slate-500">{course.course_code || course.course_id}</p>
+                                                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">
+                                                    Offered in {departmentIds.length} department(s)
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                    {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
+                                                </span>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteCourseFromDepartment(course, true); }}
+                                                    className="p-2 rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                                                    title="Global Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="py-16 text-center">
+                                <Database className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                                <h3 className="font-bold text-slate-700">No courses globally</h3>
+                                <p className="text-sm text-slate-500 mt-1">There are no courses mapped to this level.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Global Detail Mode */}
+            {courseAdminView.mode === 'global-detail' && selectedGlobalCourseEntry && (
+                <div className="space-y-6 max-w-4xl">
+                    <button
+                        onClick={() => handleCourseTabNavigate(buildCourseGlobalPath(courseAdminView.level))}
+                        className="text-xs uppercase tracking-widest font-black text-slate-400 hover:text-indigo-600 transition"
+                    >
+                        ← Back to Global Level
+                    </button>
+                    
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-8">
+                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-1">
+                                    Global Context • {courseAdminView.level}
+                                </p>
+                                <h2 className="text-3xl font-black text-slate-900 leading-tight">{selectedGlobalCourseEntry.course.course_name}</h2>
+                                <p className="font-semibold text-slate-500 mt-1">{selectedGlobalCourseEntry.course.course_code || selectedGlobalCourseEntry.course.course_id}</p>
+                                <p className="text-xs text-slate-400 mt-2">Shared across {selectedGlobalCourseEntry.departmentIds.length} department(s)</p>
+                            </div>
+                            <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase border ${selectedGlobalCourseEntry.course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                {selectedGlobalCourseEntry.course.semester === 'first' ? '1st Sem' : '2nd Sem'}
+                            </span>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                                <BookOpen className="w-5 h-5 text-indigo-500" /> Textbook Materials
+                            </h4>
+                            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        type="file" multiple accept="application/pdf"
+                                        onChange={e => setCourseDetailFiles(e.target.files ? Array.from(e.target.files) : [])}
+                                        className="flex-1 text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                    />
+                                </div>
+                                <label className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={autoSyncToOfferingDepartments}
+                                        onChange={e => setAutoSyncToOfferingDepartments(e.target.checked)}
+                                        className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm font-bold text-slate-700">Auto-sync materials to all {selectedGlobalCourseEntry.departmentIds.length} departments offering this course</span>
+                                </label>
+                                <button
+                                    disabled={!courseDetailFiles.length || isUploading}
+                                    onClick={() => handleTextbookUpload(selectedGlobalCourseEntry.course.course_id || selectedGlobalCourseEntry.course.course_name, courseDetailFiles)}
+                                    className="w-full py-3.5 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition disabled:opacity-50 shadow-md"
+                                >
+                                    {isUploading ? 'Uploading...' : 'Upload Materials Globally'}
+                                </button>
+                                {isUploading && <p className="text-sm font-bold text-indigo-600 text-center animate-pulse">{extractionProgress}</p>}
+                            </div>
+
+                            {normalizeTextbookUrls(selectedGlobalCourseEntry.course).length > 0 && (
+                                <div className="space-y-3 pt-4">
+                                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Available Materials</p>
+                                    <div className="space-y-2">
+                                        {normalizeTextbookUrls(selectedGlobalCourseEntry.course).map((url) => (
+                                            <a key={url} href={url} target="_blank" rel="noreferrer" className="block p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition truncate">
+                                                {url}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pt-8 border-t border-slate-100 flex justify-end">
+                            <button
+                                onClick={() => handleDeleteCourseFromDepartment(selectedGlobalCourseEntry.course, true)}
+                                className="px-6 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" /> Global Delete
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -186,7 +394,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         <select
                             value={managerSelectionDepartmentId}
                             onChange={e => setManagerSelectionDepartmentId(e.target.value)}
-                            className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
+                            className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Department</option>
                             {allDepartments.map(dept => (
@@ -196,7 +404,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         <select
                             value={managerSelectionLevel}
                             onChange={e => setManagerSelectionLevel(e.target.value)}
-                            className="p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
+                            className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Level</option>
                             {LEVELS.map(level => (

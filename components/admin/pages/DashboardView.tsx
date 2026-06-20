@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CreditCard, Sparkles, Users, Crown, ArrowUpRight, TrendingUp, Activity } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { UserProfile } from '../../../types';
 import type { AdminTab } from '../AdminLayout';
 
@@ -14,6 +15,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     paymentLogs, aiRequestLogs, allUsersList, onNavigate
 }) => {
     const premiumUsersCount = allUsersList.filter(u => u.subscription_status === 'premium').length;
+
+    // Process data for Revenue Chart
+    const revenueData = useMemo(() => {
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (29 - i));
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        const dataMap: Record<string, number> = {};
+        last30Days.forEach(date => dataMap[date] = 0);
+
+        paymentLogs.forEach(log => {
+            if (!log.timestamp) return;
+            const dateStr = new Date(log.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dataMap[dateStr] !== undefined) {
+                dataMap[dateStr] += Number(log.amount) || 0;
+            }
+        });
+
+        return last30Days.map(date => ({
+            date,
+            revenue: dataMap[date]
+        }));
+    }, [paymentLogs]);
+
+    // Process data for User Growth Chart
+    const userGrowthData = useMemo(() => {
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (29 - i));
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        const dataMap: Record<string, number> = {};
+        last30Days.forEach(date => dataMap[date] = 0);
+
+        allUsersList.forEach(user => {
+            // Use last_activity_date if created_at is not available, as a fallback approximation
+            const timestamp = (user as any).created_at || user.last_activity_date || 0;
+            if (!timestamp) return;
+            const dateStr = new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dataMap[dateStr] !== undefined) {
+                dataMap[dateStr] += 1;
+            }
+        });
+
+        return last30Days.map(date => ({
+            date,
+            users: dataMap[date]
+        }));
+    }, [allUsersList]);
 
     const cards = [
         {
@@ -88,18 +141,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 })}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* We can add recent activity or charts here later to make it more professional */}
-                <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[300px] flex flex-col items-center justify-center text-slate-400">
-                    <TrendingUp className="w-12 h-12 mb-4 text-slate-200" />
-                    <p className="font-bold">Analytics Chart Overview</p>
-                    <p className="text-sm">Revenue and user growth over time will be displayed here.</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-blue-500" /> Revenue (Last 30 Days)
+                    </h3>
+                    <div className="flex-grow w-full h-full min-h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={revenueData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} tickFormatter={(val) => `₦${val}`} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [`₦${value.toLocaleString()}`, 'Revenue']}
+                                />
+                                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
                 
-                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[300px] flex flex-col items-center justify-center text-slate-400">
-                    <Activity className="w-12 h-12 mb-4 text-slate-200" />
-                    <p className="font-bold">Recent System Activity</p>
-                    <p className="text-sm">Live stream of system events.</p>
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-amber-500" /> User Signups (Last 30 Days)
+                    </h3>
+                    <div className="flex-grow w-full h-full min-h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={userGrowthData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: number) => [value, 'New Users']}
+                                />
+                                <Bar dataKey="users" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
