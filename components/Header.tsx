@@ -19,7 +19,7 @@ interface HeaderProps {
   className?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = React.memo(({
     currentPageLabel, 
     onNotificationsClick, 
     unreadCount = 0, 
@@ -96,4 +96,4 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
         </header>
     );
-};
+});
