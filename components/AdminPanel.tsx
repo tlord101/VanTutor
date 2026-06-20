@@ -2397,18 +2397,19 @@ FORMAT:
         (courseImportTargetMode === 'selected' && !courseImportDepartmentIds.length)
     );
 
-    const handleCourseTabNavigate = useCallback((path: string) => {
+    const handleCourseTabNavigate = useCallback((pathOrTab: string) => {
         setIsMobileSidebarOpen(false);
+        const fullPath = pathOrTab.startsWith('/') ? pathOrTab : `/admin/${pathOrTab}`;
         if (onNavigate) {
             // Let parent know, but also keep internal pathname in sync
-            try { onNavigate(path); } catch (err) { /* ignore parent handler errors */ }
-            setInternalPathname(path);
+            try { onNavigate(fullPath); } catch (err) { /* ignore parent handler errors */ }
+            setInternalPathname(fullPath);
             return;
         }
         if (typeof window !== 'undefined') {
-            window.history.pushState(null, '', path);
+            window.history.pushState(null, '', fullPath);
         }
-        setInternalPathname(path);
+        setInternalPathname(fullPath);
     }, [onNavigate]);
 
     if (!userProfile.is_admin) {
