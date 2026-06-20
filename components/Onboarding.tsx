@@ -1,89 +1,206 @@
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db, type FirebaseUser } from '../firebase';
 import { ref as dbRef, get } from 'firebase/database';
-import type { UserProfile } from '../types';
-
-declare var __app_id: string;
-
-interface Department {
-  id: string;
-  name: string;
-  levels: string[];
-}
+import { Search, ChevronDown, Check } from 'lucide-react';
+import type { School, College, Department } from '../types';
 
 interface OnboardingProps {
   user: FirebaseUser;
-  onOnboardingComplete: (profileData: { departmentId: string; level: string }) => void;
+  onOnboardingComplete: (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => void;
 }
 
+// Custom Searchable Select Component
+interface SearchableSelectProps {
+  label: string;
+  options: { id: string; name: string }[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, value, onChange, placeholder, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    return options.filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [options, searchQuery]);
+
+  const selectedOption = options.find(opt => opt.id === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <div 
+        className={`w-full bg-gray-50 border border-gray-300 rounded-lg py-3 px-4 flex items-center justify-between text-gray-900 focus-within:ring-2 focus-within:ring-lime-500 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedOption ? selectedOption.name : placeholder}
+        </span>
+        <ChevronDown className="w-5 h-5 text-gray-400" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
+          <div className="p-2 border-b border-gray-100 flex items-center bg-gray-50 rounded-t-lg">
+            <Search className="w-4 h-4 text-gray-400 ml-2 mr-2 shrink-0" />
+            <input
+              type="text"
+              className="w-full bg-transparent border-none focus:outline-none text-sm py-1"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto p-1 flex-1">
+            {filteredOptions.length === 0 ? (
+              <div className="p-3 text-sm text-gray-500 text-center">No options found.</div>
+            ) : (
+              filteredOptions.map((opt) => (
+                <div
+                  key={opt.id}
+                  className={`p-3 text-sm rounded-md cursor-pointer flex items-center justify-between ${value === opt.id ? 'bg-lime-50 text-lime-700 font-medium' : 'hover:bg-gray-50'}`}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  {opt.name}
+                  {value === opt.id && <Check className="w-4 h-4 text-lime-600" />}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComplete }) => {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [levels, setLevels] = useState<string[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
+  
+  const [selectedSchool, setSelectedSchool] = useState<string>('');
+  const [selectedCollege, setSelectedCollege] = useState<string>('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedLevel, setSelectedLevel] = useState<string>('');
+  
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchSchools = async () => {
       try {
-        const snapshot = await get(dbRef(db, 'departments_data'));
+        const snapshot = await get(dbRef(db, 'schools_data'));
         const data = snapshot.val();
         
         if (data) {
-            const fetchedDepartments: Department[] = Object.keys(data).map(id => ({ 
+            const fetchedSchools: School[] = Object.keys(data).map(id => ({ 
               id, 
-              name: data[id].department_name, 
-              levels: data[id].levels || [] 
+              name: data[id].name || id, 
+              colleges: data[id].colleges || {} 
             }));
 
-            setDepartments(fetchedDepartments);
-            setSelectedDepartment(fetchedDepartments[0].id);
-            const initialLevels = fetchedDepartments[0].levels || [];
-            setLevels(initialLevels);
-            setSelectedLevel(initialLevels[0] || '');
+            setSchools(fetchedSchools);
         } else {
-          setError("Could not find configuration data. Please contact support.");
+          // No data found. Might be empty if not seeded yet. We don't error out immediately, maybe just empty lists.
+          setSchools([]);
         }
       } catch (err) {
-        console.error("Error fetching departments data:", (err as any).message || err);
+        console.error("Error fetching schools data:", (err as any).message || err);
         setError("An error occurred during setup. Please try again later.");
       } finally {
         setIsLoadingData(false);
       }
     };
 
-    fetchDepartments();
+    fetchSchools();
   }, []);
 
-  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newDeptId = e.target.value;
-    setSelectedDepartment(newDeptId);
+  const schoolOptions = useMemo(() => schools.map(s => ({ id: s.id, name: s.name })), [schools]);
+  
+  const collegesOptions = useMemo(() => {
+    const school = schools.find(s => s.id === selectedSchool);
+    if (!school || !school.colleges) return [];
+    return Object.keys(school.colleges).map(cId => ({
+      id: cId,
+      name: school.colleges[cId].name || cId
+    }));
+  }, [schools, selectedSchool]);
+
+  const departmentOptions = useMemo(() => {
+    const school = schools.find(s => s.id === selectedSchool);
+    if (!school || !school.colleges) return [];
+    const college = school.colleges[selectedCollege];
+    if (!college || !college.departments) return [];
+    return Object.keys(college.departments).map(dId => ({
+      id: dId,
+      name: college.departments[dId].name || dId
+    }));
+  }, [schools, selectedSchool, selectedCollege]);
+
+  const levelOptions = useMemo(() => {
+    const school = schools.find(s => s.id === selectedSchool);
+    if (!school || !school.colleges) return [];
+    const college = school.colleges[selectedCollege];
+    if (!college || !college.departments) return [];
+    const department = college.departments[selectedDepartment];
+    if (!department || !department.levels) return [];
     
-    const selectedDeptData = departments.find(d => d.id === newDeptId);
-    if (selectedDeptData) {
-        const deptLevels = selectedDeptData.levels || [];
-        setLevels(deptLevels);
-        setSelectedLevel(deptLevels[0] || '');
+    // Assuming levels is either an array of strings or an object in the new format
+    if (Array.isArray(department.levels)) {
+        return department.levels.map((lvl: string) => ({ id: lvl, name: lvl }));
     } else {
-        setLevels([]);
-        setSelectedLevel('');
+        return Object.keys(department.levels).map(lvl => ({ id: lvl, name: lvl }));
     }
-  };
+  }, [schools, selectedSchool, selectedCollege, selectedDepartment]);
+
+  // Reset downstream selections when a parent changes
+  useEffect(() => {
+    setSelectedCollege('');
+    setSelectedDepartment('');
+    setSelectedLevel('');
+  }, [selectedSchool]);
+
+  useEffect(() => {
+    setSelectedDepartment('');
+    setSelectedLevel('');
+  }, [selectedCollege]);
+
+  useEffect(() => {
+    setSelectedLevel('');
+  }, [selectedDepartment]);
+
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedDepartment || !selectedLevel) {
-      setError("Please select both a department and a level.");
+    if (!selectedSchool || !selectedCollege || !selectedDepartment || !selectedLevel) {
+      setError("Please complete all selections to continue.");
       return;
     }
     setIsSubmitting(true);
     
     setTimeout(() => {
       onOnboardingComplete({
+        schoolId: selectedSchool,
+        collegeId: selectedCollege,
         departmentId: selectedDepartment,
         level: selectedLevel,
       });
@@ -105,53 +222,48 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
 
     return (
       <form onSubmit={handleSubmit}>
-        <div className="space-y-6">
-          <div>
-            <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-              Choose your department
-            </label>
-            <select
-              id="department"
-              name="department"
-              value={selectedDepartment}
-              onChange={handleDepartmentChange}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
-            >
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id} className="bg-white">
-                  {dept.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="space-y-5 text-left">
+          <SearchableSelect 
+            label="1. Choose your School"
+            options={schoolOptions}
+            value={selectedSchool}
+            onChange={setSelectedSchool}
+            placeholder="Select a school..."
+          />
 
-          <div>
-            <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
-              Select your current level
-            </label>
-            <select
-              id="level"
-              name="level"
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value)}
-              disabled={levels.length === 0}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {levels.length === 0 && <option disabled value="" className="bg-white">Select a department</option>}
-              {levels.map((level) => (
-                <option key={level} value={level} className="bg-white">
-                  {level}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SearchableSelect 
+            label="2. Choose your College"
+            options={collegesOptions}
+            value={selectedCollege}
+            onChange={setSelectedCollege}
+            placeholder="Select a college..."
+            disabled={!selectedSchool}
+          />
+
+          <SearchableSelect 
+            label="3. Choose your Department"
+            options={departmentOptions}
+            value={selectedDepartment}
+            onChange={setSelectedDepartment}
+            placeholder="Select a department..."
+            disabled={!selectedCollege}
+          />
+
+          <SearchableSelect 
+            label="4. Select your current Level"
+            options={levelOptions}
+            value={selectedLevel}
+            onChange={setSelectedLevel}
+            placeholder="Select your level..."
+            disabled={!selectedDepartment}
+          />
         </div>
 
         <div className="mt-8">
           <button
             type="submit"
-            disabled={isSubmitting || isLoadingData || !!error || !selectedDepartment || !selectedLevel}
-            className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            disabled={isSubmitting || isLoadingData || !!error || !selectedSchool || !selectedCollege || !selectedDepartment || !selectedLevel}
+            className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-lg"
           >
             {isSubmitting ? (
               <>
@@ -170,15 +282,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
   };
   
   return (
-    <div className="flex items-center justify-center h-full bg-gray-100 p-4 overflow-y-auto">
-      <div className="w-full max-w-md my-auto">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4 font-sans relative z-50">
+      <div className="w-full max-w-md">
+        <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="flex justify-center mb-6">
-              <img src="/logo_full.png" alt="AVELUT" className="h-16 object-contain" />
+              <img src="/logo_full.png" alt="AVELUT" className="h-14 sm:h-16 object-contain" />
           </div>
           <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">Welcome!</h2>
-            <p className="text-gray-600 mt-2">Let's set up your learning path.</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Welcome!</h2>
+            <p className="text-gray-500 mt-2 font-medium">Let's set up your personalized learning path.</p>
           </div>
           {renderFormContent()}
         </div>

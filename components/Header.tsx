@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
 import { MenuIcon } from './icons/MenuIcon';
 import { MessengerIcon } from './icons/MessengerIcon';
-
+import { Avatar } from './Avatar';
 import type { UserProfile } from '../types';
 
 interface HeaderProps {
@@ -17,6 +17,8 @@ interface HeaderProps {
   leftActions?: React.ReactNode;
   userProfile?: UserProfile;
   className?: string;
+  onNavigate?: (route: string) => void;
+  onLogoutClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -30,8 +32,29 @@ export const Header: React.FC<HeaderProps> = ({
     rightActions,
     leftActions,
     userProfile,
-    className
+    className,
+    onNavigate,
+    onLogoutClick
 }) => {
+    const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsAvatarMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleNavigation = (route: string) => {
+        setIsAvatarMenuOpen(false);
+        if (onNavigate) {
+            onNavigate(route);
+        }
+    };
 
     return (
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6 ${className || 'bg-transparent'}`}>
@@ -91,6 +114,62 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                             )}
                         </button>
+                        
+                        <div className="relative ml-2" ref={menuRef}>
+                            <button
+                                onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+                                className="focus:outline-none transition-transform active:scale-95"
+                            >
+                                <Avatar 
+                                    display_name={userProfile?.display_name || null} 
+                                    photo_url={userProfile?.photo_url} 
+                                    className="w-10 h-10 border-2 border-white shadow-sm ring-1 ring-slate-200" 
+                                />
+                            </button>
+
+                            {isAvatarMenuOpen && (
+                                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                                    <div className="px-4 py-3 border-b border-slate-50 mb-2">
+                                        <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.display_name || 'User'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userProfile?.level || 'New'} Level</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleNavigation('user_profile')}
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                    >
+                                        User Profile
+                                    </button>
+                                    <button
+                                        onClick={() => handleNavigation('billing')}
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                    >
+                                        Billing & Subscriptions
+                                    </button>
+                                    <button
+                                        onClick={() => handleNavigation('settings')}
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                    >
+                                        Account Settings
+                                    </button>
+                                    <button
+                                        onClick={() => handleNavigation('help')}
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                    >
+                                        Help & Support
+                                    </button>
+                                    <div className="border-t border-slate-50 my-2"></div>
+                                    <button
+                                        onClick={() => {
+                                            setIsAvatarMenuOpen(false);
+                                            if (onLogoutClick) onLogoutClick();
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                                    >
+                                        Log Out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
             </div>

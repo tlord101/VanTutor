@@ -9,7 +9,9 @@ const StudyGuide = lazy(() => import('./components/StudyGuide').then(module => (
 const VisualSolver = lazy(() => import('./components/VisualSolver').then(module => ({ default: module.VisualSolver })));
 const Exam = lazy(() => import('./components/Exam').then(module => ({ default: module.Exam })));
 const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
-const Settings = lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
+const Settings = lazy(() => import('./components/Settings').then(module => ({ default: module.SettingsScreen })));
+const UserProfilePage = lazy(() => import('./components/UserProfile').then(module => ({ default: module.UserProfileScreen })));
+const BillingSettingsPage = lazy(() => import('./components/BillingSettings').then(module => ({ default: module.BillingSettingsScreen })));
 const Help = lazy(() => import('./components/Help'));
 const Messenger = lazy(() => import('./components/Messenger').then(module => ({ default: module.Messenger })));
 const AvelutAI = lazy(() => import('./components/AvelutAI'));
@@ -74,8 +76,12 @@ export const MainContent: React.FC<MainContentProps> = ({
                         );
                     case 'exam':
                         return <Exam userProfile={userProfile} userProgress={userProgress} />;
+                    case 'user_profile':
+                        return <UserProfilePage user={user} userProfile={userProfile} onProfileUpdate={handleProfileUpdate} />;
+                    case 'billing':
+                        return <BillingSettingsPage userProfile={userProfile} appSettings={appSettings} onProfileUpdate={handleProfileUpdate} />;
                     case 'settings':
-                        return <Settings user={user} userProfile={userProfile} appSettings={appSettings} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleDeleteAccount} />;
+                        return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleDeleteAccount} />;
                     case 'help':
                         return <Help onStartTour={startTour} />;
                     case 'messenger':

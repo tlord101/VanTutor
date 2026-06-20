@@ -1913,7 +1913,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             {/* Header */}
             <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
               <div>
-                <h2 className="text-lg font-bold text-[#212529]">Study Partners ({Math.max(0, allUsers.length - 1)} registered)</h2>
+                <h2 className="text-lg font-bold text-[#212529]">Study Partners</h2>
                 <p className="text-xs text-[#6C757D] font-medium mt-0.5">Build your academic network to collaborate and share lessons.</p>
               </div>
               <button

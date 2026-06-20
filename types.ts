@@ -12,8 +12,11 @@ export interface UserProfile {
   email?: string;
   photo_url?: string;
   xp?: number;
-  department_id: string;
-  level: string;
+  school_id?: string;
+  college_id?: string;
+  department_id?: string;
+  level?: string;
+  status?: 'active' | 'suspended' | 'deleted';
   current_streak: number;
   last_streak_date?: string; // ISO date string 'YYYY-MM-DD' of the last day a streak was awarded
   last_activity_date: number; // Store as timestamp
@@ -136,6 +139,18 @@ export interface Department {
       };
     };
   };
+}
+
+export interface College {
+  id: string;
+  name: string;
+  departments: Record<string, Department>;
+}
+
+export interface School {
+  id: string;
+  name: string;
+  colleges: Record<string, College>;
 }
 
 export interface UserProgress {

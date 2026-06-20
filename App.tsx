@@ -225,6 +225,8 @@ const ALLOWED_ROUTE_ITEMS = new Set([
     ...navigationItems.map(item => item.id),
     'messenger',
     'settings',
+    'user_profile',
+    'billing',
     'help',
     'admin'
 ].map(normalizeRouteSegment));
@@ -830,7 +832,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handleOnboardingComplete = async (profileData: { departmentId: string; level: string }) => {
+    const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
         const displayName = user.displayName || 'Learner';
@@ -839,6 +841,8 @@ const App: React.FC = () => {
             uid: user.uid,
             display_name: displayName,
             photo_url: photoURL,
+            school_id: profileData.schoolId,
+            college_id: profileData.collegeId,
             department_id: profileData.departmentId,
             level: profileData.level,
             current_streak: 0,
@@ -1112,6 +1116,8 @@ const App: React.FC = () => {
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
+                    onNavigate={(route) => setActiveItem(route)}
+                    onLogoutClick={handleLogout}
                 />
                 <div 
                     id="main-scroll-container"

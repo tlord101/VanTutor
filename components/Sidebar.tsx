@@ -7,14 +7,6 @@ import { VerificationBadge } from './VerificationBadge';
 
 
 
-// SVG icons defined directly in the component to avoid creating new files
-const LogoutIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-  </svg>
-);
-
-
 
 interface SidebarProps {
   activeItem: string;
@@ -99,20 +91,7 @@ const SidebarContent: React.FC<{
       
       {/* Bottom Section: Profile & Logout */}
       <div className="flex-shrink-0">
-         <ul className="space-y-1 pt-4 border-t border-white/40">
-              {secondaryItems.map((item) => (
-                  <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={isExpanded} onClick={() => onItemClick(item.id)} unreadCount={unreadCount} unreadMessagesCount={unreadMessagesCount} />
-              ))}
-               <li>
-                  <button
-                      onClick={onLogout}
-                      className={`w-full flex items-center p-3 rounded-xl text-left transition-colors duration-300 ease-in-out text-slate-655 opacity-85 hover:bg-red-50 hover:text-red-600 hover:opacity-100 group ${isExpanded ? 'justify-start' : 'justify-center'}`}
-                  >
-                      <span className="flex-shrink-0 text-slate-500 group-hover:text-red-600"><LogoutIcon /></span>
-                      <span className={`font-semibold ml-4 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Logout</span>
-                  </button>
-              </li>
-          </ul>
+
         <div className="mt-6 p-3 bg-white/45 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm relative">
           {unreadCount > 0 && (
              <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse ring-2 ring-white" title={`${unreadCount} unread notifications`} />

@@ -57,10 +57,10 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
       </div>
 
       {/* Plan Upgrade Grid Cards */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-6 mb-6 pb-4 md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-x-visible md:pb-0 scroll-smooth">
+      <div className="flex overflow-x-auto snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-6 mb-6 pb-4 px-2 scroll-smooth">
 
         {/* Card 1: Forever Free */}
-        <div className={`w-[85vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-blue-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-blue-300 ${
           showCurrentPlan && (userProfile.subscription_status === 'free' || !userProfile.subscription_status)
             ? 'border-blue-500 shadow-lg'
             : ''
@@ -120,7 +120,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         </div>
 
         {/* Card 2: Student Plan */}
-        <div className={`w-[85vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink rounded-[24px] border-2 flex flex-col justify-between transition-all relative overflow-hidden p-6 pt-12 hover:-translate-y-1 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border-2 flex flex-col justify-between transition-all relative overflow-hidden p-6 pt-12 hover:-translate-y-1 ${
           showCurrentPlan && userProfile.subscription_status === 'basic'
             ? 'border-blue-650 bg-white shadow-xl'
             : 'border-blue-600 bg-white hover:shadow-2xl'
@@ -181,7 +181,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         </div>
 
         {/* Card 3: Pro Plan */}
-        <div className={`w-[85vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-purple-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-purple-300 ${
           showCurrentPlan && userProfile.subscription_status === 'premium'
             ? 'border-blue-500 shadow-lg'
             : ''
@@ -239,7 +239,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         </div>
 
         {/* Card 4: Connect to Gemini */}
-        <div className={`w-[85vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-emerald-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-emerald-300 ${
           showCurrentPlan && userProfile.subscription_status === 'personal_token'
             ? 'border-emerald-600 shadow-lg'
             : ''

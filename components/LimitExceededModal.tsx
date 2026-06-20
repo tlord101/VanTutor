@@ -3,6 +3,8 @@ import type { UserProfile, AppSettings } from '../types';
 import { triggerPaystackPurchase } from '../utils/usage';
 import { db } from '../firebase';
 import { ref as dbRef, runTransaction } from 'firebase/database';
+import { isNative } from '../utils/capacitorUtils';
+import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 
 interface LimitExceededModalProps {
   isOpen: boolean;
@@ -34,6 +36,56 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
 
   const handlePurchase = async () => {
     setIsProcessing(true);
+
+    if (isNative()) {
+      if (!appSettings.revenuecat_api_key_android) {
+        addToast("In-app purchases are not configured for Android yet.", "error");
+        setIsProcessing(false);
+        return;
+      }
+      try {
+        await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+        await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
+        await Purchases.logIn({ appUserID: userProfile.uid });
+        const currentOfferings = await Purchases.getOfferings();
+        if (!currentOfferings.current) {
+          addToast("Could not load packages.", "error");
+          setIsProcessing(false);
+          return;
+        }
+
+        const pkgToBuy = currentOfferings.current.availablePackages.find((p: any) => p.identifier.toLowerCase().includes('refill'));
+        if (!pkgToBuy) {
+          addToast("Refill package is not available on Android.", "error");
+          setIsProcessing(false);
+          return;
+        }
+
+        await Purchases.purchasePackage({ aPackage: pkgToBuy });
+        
+        const userRef = dbRef(db, `users/${userProfile.uid}`);
+        await runTransaction(userRef, (profile) => {
+          if (profile) {
+            const currentBalance = profile.ai_credits_balance ?? 0;
+            profile.ai_credits_balance = currentBalance + refillAmount;
+          }
+          return profile;
+        });
+
+        addToast(`Refill successful! +${refillAmount} AI Credits added.`, 'success');
+        onSuccessPurchase();
+        onClose();
+      } catch (e: any) {
+        console.error("RevenueCat Purchase Error:", e);
+        if (!e.userCancelled) {
+          addToast("Failed to complete purchase via Google Play.", "error");
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
     const publicKey = appSettings.paystack_public_key?.trim();
     const email = userProfile.email || `${userProfile.uid}@avelut.com`;
 

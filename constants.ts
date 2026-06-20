@@ -51,7 +51,4 @@ export const adminNavigationItems: NavItem[] = [
     { id: 'admin', label: 'Admin Panel', icon: React.createElement(GraduationCapIcon) },
 ];
 
-export const secondaryNavigationItems: NavItem[] = [
-    { id: 'settings', label: 'Settings', icon: React.createElement(SettingsIcon) },
-    { id: 'help', label: 'Help', icon: React.createElement(HelpIcon) },
-];
+export const secondaryNavigationItems: NavItem[] = [];
