@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Sparkles, Users, Crown, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { CreditCard, Sparkles, Users, Crown, ArrowUpRight, TrendingUp, Activity } from 'lucide-react';
 import type { UserProfile } from '../../../types';
 import type { AdminTab } from '../AdminLayout';
 
