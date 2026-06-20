@@ -2251,28 +2251,17 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
         let resolvedDepartmentData: any = null;
 
-        const directDepartmentSnapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-        const directDepartmentData = directDepartmentSnapshot.val();
-        if (directDepartmentData) {
-            resolvedDepartmentData = directDepartmentData;
-        }
-
-        if (!resolvedDepartmentData) {
-            const snapshot = await get(dbRef(db, 'departments_data'));
-            const departmentsData = snapshot.val();
-            if (!departmentsData) {
-                setCourses([]);
-                setIsLoading(false);
-                return;
+        if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
+            const directDepartmentSnapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
+            const directDepartmentData = directDepartmentSnapshot.val();
+            if (directDepartmentData) {
+                resolvedDepartmentData = directDepartmentData;
             }
-
-            resolvedDepartmentData = Object.entries(departmentsData).find(([departmentId, departmentData]: [string, any]) => (
-                normalizeDepartmentValue(departmentId) === normalizedUserDepartment ||
-                normalizeDepartmentValue(departmentData?.department_name) === normalizedUserDepartment
-            ))?.[1];
         }
 
-        const allDepartmentCourses = extractCoursesFromDepartmentData(resolvedDepartmentData);
+        const allDepartmentCourses = resolvedDepartmentData && resolvedDepartmentData.levels 
+            ? Object.values(resolvedDepartmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses).map((c: any) => ({ ...c, level: lvl.name || c.level })) : [])
+            : [];
         const coursesForLevel = allDepartmentCourses.filter((course) => (
             normalizeLevelValue(course.level) === normalizedUserLevel
         ));

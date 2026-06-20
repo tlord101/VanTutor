@@ -734,7 +734,7 @@ const App: React.FC = () => {
     }, [userProfile?.uid]);
 
     useEffect(() => {
-        if (!userProfile?.department_id) {
+        if (!userProfile?.school_id || !userProfile?.college_id || !userProfile?.department_id) {
             setDepartmentData(null);
             return;
         }
@@ -745,7 +745,7 @@ const App: React.FC = () => {
             setDepartmentData(cached);
         }
 
-        const deptRef = dbRef(db, `departments_data/${userProfile.department_id}`);
+        const deptRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
         get(deptRef).then((snapshot) => {
             const val = snapshot.val();
             if (val) {
@@ -755,7 +755,7 @@ const App: React.FC = () => {
         }).catch(err => {
             console.error("Error fetching department details:", err);
         });
-    }, [userProfile?.department_id]);
+    }, [userProfile?.school_id, userProfile?.college_id, userProfile?.department_id]);
 
     useEffect(() => {
         if (!userProfile || !departmentData) return;

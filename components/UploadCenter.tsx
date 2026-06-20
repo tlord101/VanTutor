@@ -319,32 +319,50 @@ export const UploadCenter: React.FC = () => {
     const loadCatalog = async () => {
       setIsCatalogLoading(true);
       try {
-        const snapshot = await get(dbRef(db, 'departments_data'));
-        const departments = snapshot.exists() ? snapshot.val() : {};
+        const snapshot = await get(dbRef(db, 'schools_data'));
+        const schools = snapshot.exists() ? snapshot.val() : {};
         const courseMap = new Map<string, CatalogEntry>();
 
-        Object.entries(departments).forEach(([departmentId, departmentValue]: [string, any]) => {
-          const departmentCourses = normalizeCourseList(departmentValue?.course_list);
-          departmentCourses.forEach((course) => {
-            const courseKey = getCourseMergeKey(course);
-            if (!courseKey) return;
+        Object.entries(schools).forEach(([schoolId, school]: [string, any]) => {
+          if (!school.colleges) return;
+          Object.entries(school.colleges).forEach(([collegeId, college]: [string, any]) => {
+            if (!college.departments) return;
+            Object.entries(college.departments).forEach(([departmentId, department]: [string, any]) => {
+              const levels = department.levels;
+              if (!levels) return;
 
-            const existing = courseMap.get(courseKey);
-            if (existing) {
-              existing.departmentIds = Array.from(new Set([...existing.departmentIds, departmentId]));
-              existing.course = mergeCourseRecord(existing.course, course);
-              existing.hasTextbook = existing.hasTextbook || isTextbookUploaded(course);
-              return;
-            }
-
-            courseMap.set(courseKey, {
-              key: courseKey,
-              course: {
-                ...course,
-                course_id: course.course_id || courseKey,
-              },
-              departmentIds: [departmentId],
-              hasTextbook: isTextbookUploaded(course),
+              const deptPath = `${schoolId}/colleges/${collegeId}/departments/${departmentId}`;
+              const levelEntries = Array.isArray(levels) ? levels.map(l => [l, { courses: {} }]) : Object.entries(levels);
+              
+              levelEntries.forEach(([levelId, levelData]: [string, any]) => {
+                const coursesObj = levelData?.courses || {};
+                const departmentCourses = Object.values(coursesObj).map((course: any) => ({
+                    ...course,
+                    level: levelId
+                }));
+                const normalizedCourses = normalizeCourseList(departmentCourses);
+                
+                normalizedCourses.forEach((course) => {
+                  const courseKey = getCourseMergeKey(course);
+                  if (!courseKey) return;
+                  const existing = courseMap.get(courseKey);
+                  if (existing) {
+                    existing.departmentIds = Array.from(new Set([...existing.departmentIds, deptPath]));
+                    existing.course = mergeCourseRecord(existing.course, course);
+                    existing.hasTextbook = existing.hasTextbook || isTextbookUploaded(course);
+                    return;
+                  }
+                  courseMap.set(courseKey, {
+                    key: courseKey,
+                    course: {
+                      ...course,
+                      course_id: course.course_id || courseKey,
+                    },
+                    departmentIds: [deptPath],
+                    hasTextbook: isTextbookUploaded(course),
+                  });
+                });
+              });
             });
           });
         });
@@ -476,30 +494,50 @@ export const UploadCenter: React.FC = () => {
   };
 
   const refreshCatalog = async () => {
-    const snapshot = await get(dbRef(db, 'departments_data'));
-    const departments = snapshot.exists() ? snapshot.val() : {};
+    const snapshot = await get(dbRef(db, 'schools_data'));
+    const schools = snapshot.exists() ? snapshot.val() : {};
     const courseMap = new Map<string, CatalogEntry>();
 
-    Object.entries(departments).forEach(([departmentId, departmentValue]: [string, any]) => {
-      const departmentCourses = normalizeCourseList(departmentValue?.course_list);
-      departmentCourses.forEach((course) => {
-        const courseKey = getCourseMergeKey(course);
-        if (!courseKey) return;
-        const existing = courseMap.get(courseKey);
-        if (existing) {
-          existing.departmentIds = Array.from(new Set([...existing.departmentIds, departmentId]));
-          existing.course = mergeCourseRecord(existing.course, course);
-          existing.hasTextbook = existing.hasTextbook || isTextbookUploaded(course);
-          return;
-        }
-        courseMap.set(courseKey, {
-          key: courseKey,
-          course: {
-            ...course,
-            course_id: course.course_id || courseKey,
-          },
-          departmentIds: [departmentId],
-          hasTextbook: isTextbookUploaded(course),
+    Object.entries(schools).forEach(([schoolId, school]: [string, any]) => {
+      if (!school.colleges) return;
+      Object.entries(school.colleges).forEach(([collegeId, college]: [string, any]) => {
+        if (!college.departments) return;
+        Object.entries(college.departments).forEach(([departmentId, department]: [string, any]) => {
+          const levels = department.levels;
+          if (!levels) return;
+
+          const deptPath = `${schoolId}/colleges/${collegeId}/departments/${departmentId}`;
+          const levelEntries = Array.isArray(levels) ? levels.map(l => [l, { courses: {} }]) : Object.entries(levels);
+          
+          levelEntries.forEach(([levelId, levelData]: [string, any]) => {
+            const coursesObj = levelData?.courses || {};
+            const departmentCourses = Object.values(coursesObj).map((course: any) => ({
+                ...course,
+                level: levelId
+            }));
+            const normalizedCourses = normalizeCourseList(departmentCourses);
+            
+            normalizedCourses.forEach((course) => {
+              const courseKey = getCourseMergeKey(course);
+              if (!courseKey) return;
+              const existing = courseMap.get(courseKey);
+              if (existing) {
+                existing.departmentIds = Array.from(new Set([...existing.departmentIds, deptPath]));
+                existing.course = mergeCourseRecord(existing.course, course);
+                existing.hasTextbook = existing.hasTextbook || isTextbookUploaded(course);
+                return;
+              }
+              courseMap.set(courseKey, {
+                key: courseKey,
+                course: {
+                  ...course,
+                  course_id: course.course_id || courseKey,
+                },
+                departmentIds: [deptPath],
+                hasTextbook: isTextbookUploaded(course),
+              });
+            });
+          });
         });
       });
     });
@@ -669,20 +707,27 @@ FORMAT:
         uploader_uid: currentUser.uid,
       });
 
-      for (const departmentId of courseEntry.departmentIds) {
-        const departmentRef = dbRef(db, `departments_data/${departmentId}`);
-        const departmentSnapshot = await get(departmentRef);
-        const existingCourses = normalizeCourseList(departmentSnapshot.val()?.course_list);
-        const updatedCourses = upsertCourseInList(existingCourses, {
+      for (const deptPath of courseEntry.departmentIds) {
+        const courseLevel = courseEntry.course.level || selectedLevel;
+        const coursesRef = dbRef(db, `schools_data/${deptPath}/levels/${courseLevel}/courses`);
+        const coursesSnapshot = await get(coursesRef);
+        const existingCoursesObj = coursesSnapshot.val() || {};
+        
+        const courseId = courseEntry.course.course_id || courseEntry.key;
+        const existingCourse = existingCoursesObj[courseId] || {};
+        
+        const mergedCourse = mergeCourseRecord({
+            ...existingCourse,
+            course_id: courseId
+        }, {
           ...courseEntry.course,
-          course_id: courseEntry.course.course_id || courseEntry.key,
+          course_id: courseId,
           textbook_url: primaryPdfUrl,
           textbook_urls: mergedSharedPdfUrls,
           textbook_shared_key: courseEntry.key,
         }, mergedSharedSyllabus, mergedSharedPdfUrls);
-        await update(departmentRef, {
-          course_list: updatedCourses,
-        });
+        
+        await update(dbRef(db, `schools_data/${deptPath}/levels/${courseLevel}/courses/${courseId}`), mergedCourse);
       }
 
       const uploadRecordId = push(dbRef(db, `uploaders/${currentUser.uid}/uploads`)).key;

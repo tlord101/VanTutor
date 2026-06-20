@@ -359,14 +359,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
     const loadCourseContext = async () => {
       try {
-        const departmentSnapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-        const departmentData = departmentSnapshot.val();
+        let departmentData = null;
+        if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
+            const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
+            departmentData = snapshot.val();
+        } else {
+            const departmentSnapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+            departmentData = departmentSnapshot.val();
+        }
+
         if (!departmentData) {
           if (isMounted) setCourseContext('');
           return;
         }
 
-        const courses: Course[] = Array.isArray(departmentData.course_list) ? departmentData.course_list : [];
+        const courses: Course[] = departmentData && departmentData.levels
+            ? Object.values(departmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
+            : (Array.isArray(departmentData.course_list) ? departmentData.course_list : []);
         const contextParts: string[] = [];
 
         contextParts.push(`STUDENT DEPARTMENT: ${userProfile.department_id}`);

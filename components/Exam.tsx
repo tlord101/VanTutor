@@ -233,8 +233,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
         }
 
         try {
-            const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-            const departmentData = snapshot.val();
+            let departmentData = null;
+            if (userProfile.school_id && userProfile.college_id && userProfile.department_id) {
+                const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
+                departmentData = snapshot.val();
+            } else {
+                const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+                departmentData = snapshot.val();
+            }
+
             if (departmentData) {
                 const courses = extractCoursesFromDepartmentData(departmentData);
                 // Filter by level if you want, but user profile level might be sufficient. 

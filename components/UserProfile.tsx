@@ -28,7 +28,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
-      if (!userProfile.department_id) {
+      if (!userProfile.school_id || !userProfile.college_id || !userProfile.department_id) {
         setDepartmentName('Not Set');
         setIsDepartmentLoading(false);
         setIsLevelsLoading(false);
@@ -37,12 +37,19 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
       setIsDepartmentLoading(true);
       setIsLevelsLoading(true);
       try {
-        const snapshot = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+        const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
         const departmentData = snapshot.val();
 
         if (departmentData) {
-          setDepartmentName(departmentData.department_name || userProfile.department_id.replace(/_/g, ' '));
-          setLevels(departmentData.levels || []);
+          setDepartmentName(departmentData.name || departmentData.department_name || userProfile.department_id.replace(/_/g, ' '));
+          
+          let fetchedLevels: string[] = [];
+          if (Array.isArray(departmentData.levels)) {
+              fetchedLevels = departmentData.levels;
+          } else if (departmentData.levels && typeof departmentData.levels === 'object') {
+              fetchedLevels = Object.keys(departmentData.levels);
+          }
+          setLevels(fetchedLevels);
         } else {
           setDepartmentName(userProfile.department_id.replace(/_/g, ' '));
           setLevels([]);
@@ -59,7 +66,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
     };
 
     fetchDepartmentData();
-  }, [userProfile.department_id, addToast]);
+  }, [userProfile.school_id, userProfile.college_id, userProfile.department_id, addToast]);
 
   const handleSaveName = async () => {
     if (newDisplayName.trim() === '' || newDisplayName.trim() === userProfile.display_name) {
