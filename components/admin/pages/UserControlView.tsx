@@ -8,9 +8,10 @@ import type { UserProfile } from '../../../types';
 interface UserControlViewProps {
     allUsersList: UserProfile[];
     refreshUsers: () => void;
+    isUsersLoading?: boolean;
 }
 
-export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, refreshUsers }) => {
+export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, refreshUsers, isUsersLoading }) => {
     const { addToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'premium' | 'suspended'>('all');
@@ -140,7 +141,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                 <div>
                                                     <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                                                         {user.display_name || 'Anonymous User'}
-                                                        {user.is_admin && <Shield className="w-3.5 h-3.5 text-indigo-500" title="Admin" />}
+                                                        {user.is_admin && <span title="Admin"><Shield className="w-3.5 h-3.5 text-indigo-500" /></span>}
                                                     </p>
                                                     <p className="text-xs font-semibold text-slate-500">{user.email || 'No email provided'}</p>
                                                 </div>

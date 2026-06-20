@@ -683,6 +683,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [migrateNewCollegeName, setMigrateNewCollegeName] = useState<string>('');
 
     const [courseSearchQuery, setCourseSearchQuery] = useState('');
+    const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [bulkDeleteLevel, setBulkDeleteLevel] = useState<string>('100lvl');
     const [managerSelectionDepartmentId, setManagerSelectionDepartmentId] = useState('');
     const [managerSelectionLevel, setManagerSelectionLevel] = useState('');
@@ -2448,7 +2449,7 @@ FORMAT:
         { id: 'purchase-logs', label: 'Purchase Logs', icon: CreditCard, path: '/admin/purchase-logs' },
     ];
 
-    const activeNavItems = navigationItems.filter(item => visibleTabs.includes(item.id as AdminTab));
+    const activeNavItems = navigationItems.filter(item => visibleTabs.includes(item.id as any));
 
     if (isAppSettingsLoading || isInitialDataLoading) {
         return <div className="flex h-screen items-center justify-center font-bold text-slate-500">Loading Admin Panel...</div>;
@@ -2467,36 +2468,12 @@ FORMAT:
                     paymentLogs={paymentLogs} 
                     aiRequestLogs={aiRequestLogs} 
                     allUsersList={allUsersList} 
+                    onNavigate={handleCourseTabNavigate}
                 />
             )}
             
             {activeTab === 'departments' && (
-                <AcademicUnitsView 
-                    schoolsData={schoolsData} 
-                    allDepartments={allDepartments}
-                    setNewSchoolName={setNewSchoolName}
-                    newSchoolName={newSchoolName}
-                    handleAddSchool={handleAddSchool}
-                    selectedSchoolId={selectedSchoolId}
-                    setSelectedSchoolId={setSelectedSchoolId}
-                    newCollegeName={newCollegeName}
-                    setNewCollegeName={setNewCollegeName}
-                    handleAddCollege={handleAddCollege}
-                    selectedCollegeId={selectedCollegeId}
-                    setSelectedCollegeId={setSelectedCollegeId}
-                    newDeptName={newDeptName}
-                    setNewDeptName={setNewDeptName}
-                    handleAddDepartment={handleAddDepartment}
-                    migrateDestSchoolId={migrateDestSchoolId}
-                    setMigrateDestSchoolId={setMigrateDestSchoolId}
-                    migrateNewSchoolName={migrateNewSchoolName}
-                    setMigrateNewSchoolName={setMigrateNewSchoolName}
-                    migrateDestCollegeId={migrateDestCollegeId}
-                    setMigrateDestCollegeId={setMigrateDestCollegeId}
-                    migrateNewCollegeName={migrateNewCollegeName}
-                    setMigrateNewCollegeName={setMigrateNewCollegeName}
-                    handleMigrateOldDepartments={handleMigrateOldDepartments}
-                />
+                <AcademicUnitsView />
             )}
 
             {activeTab === 'courses' && (

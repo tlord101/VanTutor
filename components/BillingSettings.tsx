@@ -7,6 +7,7 @@ import { VerificationBadge } from './VerificationBadge';
 import { isNative } from '../utils/capacitorUtils';
 import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 import { triggerPaystackPurchase } from '../utils/usage';
+import { DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
 
 interface BillingSettingsProps {
   userProfile: UserProfile;

@@ -81,9 +81,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
                 <div className="p-4 border-t border-slate-100">
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center gap-3">
-                        <img src={userProfile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name || 'Admin')}&background=0D8ABC&color=fff`} alt="Admin" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
+                        <img src={userProfile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.full_name || 'Admin')}&background=0D8ABC&color=fff`} alt="Admin" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 truncate">{userProfile.name}</p>
+                            <p className="text-sm font-bold text-slate-900 truncate">{userProfile.full_name}</p>
                             <p className="text-xs font-semibold text-slate-500 truncate">{userProfile.email}</p>
                         </div>
                     </div>

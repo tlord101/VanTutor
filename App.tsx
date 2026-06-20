@@ -552,7 +552,7 @@ const App: React.FC = () => {
             const data = snapshot.val();
             if (data) {
                 if (data.status === 'suspended' || data.status === 'deleted') {
-                    firebaseSignOut();
+                    firebaseSignOut(firebaseAuth);
                     addToast(`Your account has been ${data.status}.`, "error");
                     return;
                 }
@@ -1105,7 +1105,7 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
-                    currentPageLabel={customHeaderConfig?.title || currentPageLabel}
+                    currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
                     onNotificationsClick={() => setIsNotificationsPanelOpen(true)}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
