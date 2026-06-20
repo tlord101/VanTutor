@@ -36,7 +36,7 @@ const NavButton: React.FC<{
     onClick: () => void;
     unreadCount?: number;
     unreadMessagesCount?: number;
-}> = ({ item, isActive, isExpanded, onClick, unreadCount = 0, unreadMessagesCount = 0 }) => (
+}> = React.memo(({ item, isActive, isExpanded, onClick, unreadCount = 0, unreadMessagesCount = 0 }) => (
     <li className="relative">
         <button
             onClick={onClick}
@@ -64,7 +64,7 @@ const NavButton: React.FC<{
             )}
         </button>
     </li>
-);
+));
 
 const SidebarContent: React.FC<{
     isExpanded: boolean;
@@ -76,7 +76,7 @@ const SidebarContent: React.FC<{
     secondaryItems?: NavItem[];
     unreadCount?: number;
     unreadMessagesCount?: number;
-}> = ({ isExpanded, activeItem, onItemClick, userProfile, onLogout, items = navigationItems, secondaryItems = secondaryNavigationItems, unreadCount = 0, unreadMessagesCount = 0 }) => (
+}> = React.memo(({ isExpanded, activeItem, onItemClick, userProfile, onLogout, items = navigationItems, secondaryItems = secondaryNavigationItems, unreadCount = 0, unreadMessagesCount = 0 }) => (
     <div className="h-full p-4 flex flex-col bg-transparent">
       {/* Top Section: Logo */}
       <div className="flex items-center mb-10 flex-shrink-0 px-2 pt-2">
@@ -130,10 +130,10 @@ const SidebarContent: React.FC<{
         </div>
       </div>
     </div>
-);
+));
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar, items, secondaryItems, unreadCount = 0, unreadMessagesCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = React.memo(({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar, items, secondaryItems, unreadCount = 0, unreadMessagesCount = 0 }) => {
   const handleMobileItemClick = (id: string) => {
     onItemClick(id);
     onCloseMobileSidebar();
@@ -191,4 +191,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
       </aside>
     </>
   );
-};
+});
