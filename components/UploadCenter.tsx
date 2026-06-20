@@ -176,8 +176,17 @@ const upsertCourseInList = (courseList: Course[], sourceCourse: Partial<Course>,
 };
 
 const normalizeCourseList = (rawCourseList: any): Course[] => {
-  if (!Array.isArray(rawCourseList)) return [];
-  return rawCourseList
+  if (!rawCourseList) return [];
+  let listAsArray = rawCourseList;
+  if (!Array.isArray(rawCourseList)) {
+      if (typeof rawCourseList === 'object') {
+          listAsArray = Object.values(rawCourseList);
+      } else {
+          return [];
+      }
+  }
+  return listAsArray
+    .filter(Boolean)
     .map((course: Course) => ({
       ...course,
       course_name: (course?.course_name || '').toString().trim(),

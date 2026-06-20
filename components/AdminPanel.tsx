@@ -296,8 +296,17 @@ const upsertCourseInList = (
 };
 
 const normalizeCourseList = (rawCourseList: any): Course[] => {
-    if (!Array.isArray(rawCourseList)) return [];
-    return rawCourseList
+    if (!rawCourseList) return [];
+    let listAsArray = rawCourseList;
+    if (!Array.isArray(rawCourseList)) {
+        if (typeof rawCourseList === 'object') {
+            listAsArray = Object.values(rawCourseList);
+        } else {
+            return [];
+        }
+    }
+    return listAsArray
+        .filter(Boolean)
         .map((course: Course) => ({
             ...course,
             course_name: (course?.course_name || '').toString().trim(),
@@ -716,6 +725,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         });
                     }
                 });
+                
+                // Merge course_list from departments_data into flatDepts so courseCatalog works
+                const oldSnap = await get(dbRef(db, 'departments_data'));
+                if (oldSnap.exists()) {
+                    const oldData = oldSnap.val();
+                    flatDepts.forEach(dept => {
+                        if (oldData[dept.id] && oldData[dept.id].course_list) {
+                            dept.course_list = oldData[dept.id].course_list;
+                        }
+                    });
+                }
+                
                 setAllDepartments(flatDepts);
             } else {
                 setSchoolsData({});
@@ -2460,8 +2481,6 @@ FORMAT:
             userProfile={userProfile}
             activeTab={activeTab}
             onNavigate={handleCourseTabNavigate}
-            isProfileMenuOpen={isProfileMenuOpen}
-            setIsProfileMenuOpen={setIsProfileMenuOpen}
         >
             {activeTab === 'dashboard' && (
                 <DashboardView 
@@ -2550,13 +2569,7 @@ FORMAT:
                 <UserControlView 
                     allUsersList={allUsersList}
                     isUsersLoading={isUsersLoading}
-                    userRequestCounts={userRequestCounts}
-                    handleUpdateUserSubscription={handleUpdateUserSubscription}
-                    handleAddUserCredits={handleAddUserCredits}
-                    handleSuspendUser={handleSuspendUser}
-                    handleDeleteUser={handleDeleteUser}
-                    fetchUsers={fetchUsers}
-                    fetchUsageLogs={fetchUsageLogs}
+                    refreshUsers={fetchUsers}
                 />
             )}
 

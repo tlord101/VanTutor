@@ -6,14 +6,13 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'payments' | 'usage-analytics' | 'app' | 'email-configs';
+export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'payments' | 'usage-analytics' | 'app' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
     activeTab: AdminTab;
     onNavigate: (tab: AdminTab) => void;
     userProfile: UserProfile;
-    onLogout: () => void;
 }
 
 const SIDEBAR_ITEMS = [
@@ -28,7 +27,7 @@ const SIDEBAR_ITEMS = [
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ 
-    children, activeTab, onNavigate, userProfile, onLogout 
+    children, activeTab, onNavigate, userProfile 
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -81,16 +80,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
                 <div className="p-4 border-t border-slate-100">
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center gap-3">
-                        <img src={userProfile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.full_name || 'Admin')}&background=0D8ABC&color=fff`} alt="Admin" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
+                        <img src={userProfile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.display_name || 'Admin')}&background=0D8ABC&color=fff`} alt="Admin" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 truncate">{userProfile.full_name}</p>
+                            <p className="text-sm font-bold text-slate-900 truncate">{userProfile.display_name}</p>
                             <p className="text-xs font-semibold text-slate-500 truncate">{userProfile.email}</p>
                         </div>
                     </div>
-                    <button onClick={onLogout} className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 transition">
-                        <LogOut className="w-4 h-4" />
-                        <span>Sign Out</span>
-                    </button>
                 </div>
             </aside>
 
