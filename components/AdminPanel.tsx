@@ -1732,9 +1732,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     
                     if (existingCourses.length !== nextCourses.length) {
                         updates[`departments_data/${dept.id}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
-                        if (course.course_name && !(course as any).textbook_shared_key) {
-                            updates[`textbook_contexts/${dept.id}/${currentLevel}/${course.course_name}`] = null;
-                        }
+                        // Textbook context preservation: do NOT delete textbook_contexts when course is deleted.
                     }
                 });
             } else {
@@ -1747,9 +1745,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     return itemKey !== targetCourseKey;
                 });
                 updates[`departments_data/${currentDepartmentId}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
-                if (course.course_name && !(course as any).textbook_shared_key) {
-                    updates[`textbook_contexts/${currentDepartmentId}/${currentLevel}/${course.course_name}`] = null;
-                }
+                // Textbook context preservation: do NOT delete textbook_contexts when course is deleted.
             }
 
             await update(dbRef(db), updates);
@@ -1763,6 +1759,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             addToast(error?.message || 'Failed to delete course', 'error');
         }
     }, [addToast, allDepartments, courseAdminView, isManagerCourseView, loadDepartmentCourses]);
+
+    const handleBatchDeleteCourses = useCallback(async (courses: Course[], deleteForOtherDepartments: boolean = false) => {
+        if (!isManagerCourseView || courses.length === 0) return;
+
+        const { departmentId: currentDepartmentId } = courseAdminView;
+        
+        const confirmMsg = deleteForOtherDepartments
+            ? `Delete ${courses.length} selected courses from ALL departments globally?`
+            : `Delete ${courses.length} selected courses from ${currentDepartmentId}?`;
+            
+        const confirmed = window.confirm(confirmMsg + " This will remove the courses but preserve their textbook outlines.");
+        if (!confirmed) return;
+
+        try {
+            const updates: Record<string, any> = {};
+
+            if (deleteForOtherDepartments) {
+                allDepartments.forEach(dept => {
+                    const existingCourses = normalizeCourseList(dept?.course_list);
+                    const targetCourseKeys = new Set(courses.map(c => getCourseMergeKey(c) || c.course_id));
+                    const nextCourses = existingCourses.filter(item => {
+                        const itemKey = getCourseMergeKey(item) || item.course_id;
+                        return !targetCourseKeys.has(itemKey);
+                    });
+                    
+                    if (existingCourses.length !== nextCourses.length) {
+                        updates[`departments_data/${dept.id}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
+                    }
+                });
+            } else {
+                const departmentRef = dbRef(db, `departments_data/${currentDepartmentId}`);
+                const departmentSnapshot = await get(departmentRef);
+                const existingCourses = normalizeCourseList(departmentSnapshot.val()?.course_list);
+                const targetCourseKeys = new Set(courses.map(c => getCourseMergeKey(c) || c.course_id));
+                const nextCourses = existingCourses.filter(item => {
+                    const itemKey = getCourseMergeKey(item) || item.course_id;
+                    return !targetCourseKeys.has(itemKey);
+                });
+                updates[`departments_data/${currentDepartmentId}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
+            }
+
+            await update(dbRef(db), updates);
+            
+            // Clean up selections
+            if (deleteForOtherDepartments) {
+                // If on global search, refresh data
+            } else {
+                handleCourseTabNavigate(buildCourseManagerPath(currentDepartmentId, courseAdminView.level));
+            }
+            
+            addToast(`Successfully deleted ${courses.length} courses.`, 'success');
+            await fetchDepartments();
+            if (!deleteForOtherDepartments) await loadDepartmentCourses(currentDepartmentId);
+        } catch (error: any) {
+            addToast('Failed to batch delete courses: ' + error.message, 'error');
+        }
+    }, [courseAdminView, allDepartments, isManagerCourseView, getCourseMergeKey, addToast, fetchDepartments, loadDepartmentCourses]);
 
     const handleGoogleDrivePick = (onFilesSelected: (files: File[]) => void) => {
         openPicker({
@@ -2529,6 +2582,7 @@ FORMAT:
                     getCourseRouteKey={getCourseRouteKey}
                     normalizeTextbookUrls={normalizeTextbookUrls}
                     handleDeleteCourseFromDepartment={handleDeleteCourseFromDepartment as any}
+                    handleBatchDeleteCourses={handleBatchDeleteCourses as any}
                     selectedManagerDepartment={selectedManagerDepartment}
                     selectedManagerCourse={selectedManagerCourse}
                     setCourseDetailFiles={setCourseDetailFiles as any}

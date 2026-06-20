@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Users, Search, Edit3, Trash2, CheckCircle, Shield, AlertCircle, RefreshCw } from 'lucide-react';
 import { db } from '../../../firebase';
-import { ref as dbRef, update } from 'firebase/database';
+import { ref as dbRef, update, remove } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -16,6 +16,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'premium' | 'suspended'>('all');
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
     // Edit State
     const [editXp, setEditXp] = useState<number>(0);
@@ -62,11 +63,53 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         try {
             // Note: In Firebase Auth, a server function is needed to actually delete the auth account. 
             // We just mark as deleted or remove from Realtime DB.
-            await update(dbRef(db, `users/${uid}`), { status: 'deleted' });
-            addToast("User marked as deleted.", "success");
+            await remove(dbRef(db, `users/${uid}`));
+            addToast("User completely deleted.", "success");
+            setSelectedUsers(prev => {
+                const next = new Set(prev);
+                next.delete(uid);
+                return next;
+            });
             refreshUsers();
         } catch (error: any) {
             addToast("Failed to delete user: " + error.message, "error");
+        }
+    };
+
+    const handleBatchDeleteUsers = async () => {
+        if (selectedUsers.size === 0) return;
+        if (!window.confirm(`Are you absolutely sure you want to completely delete ${selectedUsers.size} selected users? This action cannot be undone.`)) return;
+        try {
+            const updates: any = {};
+            selectedUsers.forEach(uid => {
+                updates[`users/${uid}`] = null;
+            });
+            await update(dbRef(db), updates);
+            addToast(`${selectedUsers.size} users completely deleted.`, "success");
+            setSelectedUsers(new Set());
+            refreshUsers();
+        } catch (error: any) {
+            addToast("Failed to delete users: " + error.message, "error");
+        }
+    };
+
+    const toggleUserSelection = (uid: string) => {
+        setSelectedUsers(prev => {
+            const next = new Set(prev);
+            if (next.has(uid)) {
+                next.delete(uid);
+            } else {
+                next.add(uid);
+            }
+            return next;
+        });
+    };
+
+    const toggleAllUsersSelection = () => {
+        if (selectedUsers.size === filteredUsers.length && filteredUsers.length > 0) {
+            setSelectedUsers(new Set());
+        } else {
+            setSelectedUsers(new Set(filteredUsers.map(u => u.uid)));
         }
     };
 
@@ -104,6 +147,15 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                         <option value="premium">Premium</option>
                         <option value="suspended">Suspended</option>
                     </select>
+                    {selectedUsers.size > 0 && (
+                        <button
+                            onClick={handleBatchDeleteUsers}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-xl hover:bg-red-100 transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete ({selectedUsers.size})
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -113,6 +165,14 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <th className="px-6 py-4 w-12">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        checked={filteredUsers.length > 0 && selectedUsers.size === filteredUsers.length}
+                                        onChange={toggleAllUsersSelection}
+                                    />
+                                </th>
                                 <th className="px-6 py-4">User</th>
                                 <th className="px-6 py-4">Subscription</th>
                                 <th className="px-6 py-4">XP Points</th>
@@ -123,7 +183,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                         <tbody className="divide-y divide-slate-100">
                             {filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                                         <p className="text-slate-500 font-bold">No users found matching your criteria.</p>
                                     </td>
@@ -131,6 +191,14 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                             ) : (
                                 filteredUsers.map(user => (
                                     <tr key={user.uid} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                checked={selectedUsers.has(user.uid)}
+                                                onChange={() => toggleUserSelection(user.uid)}
+                                            />
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <img 

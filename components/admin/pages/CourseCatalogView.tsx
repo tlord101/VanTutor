@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BookOpen, Folder, Trash2, Plus, Sparkles, Database } from 'lucide-react';
 import type { Course, Topic } from '../../../types';
+import { useToast } from '../../../hooks/useToast';
 
 interface CourseCatalogViewProps {
     courseAdminView: any;
@@ -35,6 +36,7 @@ interface CourseCatalogViewProps {
     getCourseRouteKey: (course: Partial<Course>) => string;
     normalizeTextbookUrls: (course: Partial<Course>) => string[];
     handleDeleteCourseFromDepartment: (course: Course, deleteAll?: boolean) => void;
+    handleBatchDeleteCourses: (courses: Course[], deleteAll?: boolean) => void;
     selectedManagerDepartment: any;
     selectedManagerCourse: Course | undefined;
     setCourseDetailFiles: (files: File[]) => void;
@@ -57,11 +59,16 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     setCourseImportSessionOverride, setCourseRegistrationFiles, handleGoogleDrivePick,
     handleCourseRegistrationImport, isCourseImportDisabled, isCourseImporting,
     courseImportProgress, managerCoursesForLevel, getCourseRouteKey,
-    normalizeTextbookUrls, handleDeleteCourseFromDepartment, selectedManagerDepartment,
+    normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, selectedManagerDepartment,
     selectedManagerCourse, setCourseDetailFiles, courseDetailFiles,
     autoSyncToOfferingDepartments, setAutoSyncToOfferingDepartments,
     isUploading, extractionProgress, handleTextbookUpload
 }) => {
+    const { addToast } = useToast();
+    const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
+
+    const isGlobalSearch = globalSearchQuery.length > 0;
+
     return (
         <div className="space-y-6">
             {/* Navigation Header */}
@@ -106,54 +113,64 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         />
                     </div>
                     
-                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                        {filteredGlobalCourses.length > 0 ? (
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 text-[10px] uppercase tracking-widest font-black text-slate-400">
-                                    <tr>
-                                        <th className="px-6 py-4">Course</th>
-                                        <th className="px-6 py-4">Departments</th>
-                                        <th className="px-6 py-4">Level</th>
-                                        <th className="px-6 py-4">Semester</th>
-                                        <th className="px-6 py-4 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
-                                    {filteredGlobalCourses.map(({ course, departmentIds }) => {
-                                        const departmentNames = departmentIds.map((id: string) => allDepartments.find(dept => dept.id === id)?.department_name || id).join(', ');
-                                        const firstDepartmentId = departmentIds[0] || '';
-                                        const hasMultipleDepartments = departmentIds.length > 1;
-                                        const courseRouteIdentifier = getCourseRouteKey(course);
-                                        return (
-                                            <tr key={courseRouteIdentifier} className="hover:bg-slate-50 transition">
-                                                <td className="px-6 py-4">
-                                                    <div className="font-bold text-slate-900">{course.course_name}</div>
-                                                    <div className="text-xs text-slate-500">{course.course_code || course.course_id}</div>
-                                                </td>
-                                                <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={departmentNames}>{departmentNames}</td>
-                                                <td className="px-6 py-4 text-slate-600">{course.level}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-emerald-50 text-emerald-700 border border-emerald-150'}`}>
-                                                        {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleCourseTabNavigate(buildCourseManagerPath(firstDepartmentId, course.level, courseRouteIdentifier))}
-                                                        className="text-xs font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-700"
-                                                    >
-                                                        {hasMultipleDepartments ? 'Open Primary' : 'Open'}
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <div className="p-12 text-center text-slate-400 font-bold">No courses found matching your criteria.</div>
-                        )}
-                    </div>
+                    {/* Global Search Results List */}
+                    {isGlobalSearch && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-bold text-slate-500">
+                                    Found {filteredGlobalCourses.length} courses across all departments
+                                </p>
+                                {selectedCourses.size > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            const coursesToDelete = filteredGlobalCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
+                                            handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
+                                            setSelectedCourses(new Set());
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Global Batch Delete ({selectedCourses.size})
+                                    </button>
+                                )}
+                            </div>
+                            {filteredGlobalCourses.map(({ course, deptId, deptName, level }) => {
+                                const courseRouteIdentifier = getCourseRouteKey(course);
+                                const courseKey = course.course_id || course.course_name || '';
+                                return (
+                                    <div
+                                        key={`${deptId}-${level}-${courseRouteIdentifier}`}
+                                        onClick={() => handleCourseTabNavigate(buildCourseManagerPath(deptId, level, courseRouteIdentifier))}
+                                        className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 bg-white hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                    >
+                                        <div 
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCourses(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(courseKey)) next.delete(courseKey);
+                                                    else next.add(courseKey);
+                                                    return next;
+                                                });
+                                            }}
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedCourses.has(courseKey)}
+                                                readOnly
+                                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0 pl-6">
+                                            <div className="font-bold text-slate-900">{course.course_name}</div>
+                                            <div className="text-xs text-slate-500">{deptName} • {level}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -299,13 +316,26 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             {/* Manager List Mode */}
             {courseAdminView.mode === 'manager-list' && (
                 <div className="space-y-6">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 pb-4 gap-4">
                         <div>
                             <p className="text-xs font-black uppercase tracking-widest text-slate-400">
                                 {selectedManagerDepartment?.department_name || courseAdminView.departmentId}
                             </p>
                             <h3 className="text-3xl font-black text-slate-900 mt-1">{courseAdminView.level} Courses</h3>
                         </div>
+                        {selectedCourses.size > 0 && (
+                            <button
+                                onClick={() => {
+                                    const coursesToDelete = managerCoursesForLevel.filter(c => selectedCourses.has(c.course_id || c.course_name || ''));
+                                    handleBatchDeleteCourses(coursesToDelete, false);
+                                    setSelectedCourses(new Set());
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-xl hover:bg-red-100 transition-colors shrink-0"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Batch Delete ({selectedCourses.size})
+                            </button>
+                        )}
                     </div>
                     
                     <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6">
@@ -313,13 +343,33 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {managerCoursesForLevel.map((course) => {
                                     const courseRouteIdentifier = getCourseRouteKey(course);
+                                    const courseKey = course.course_id || course.course_name || '';
                                     return (
                                         <div
                                             key={courseRouteIdentifier}
                                             onClick={() => handleCourseTabNavigate(buildCourseManagerPath(courseAdminView.departmentId, courseAdminView.level, courseRouteIdentifier))}
-                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm"
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
                                         >
-                                            <div className="flex-1 min-w-0">
+                                            <div 
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedCourses(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(courseKey)) next.delete(courseKey);
+                                                        else next.add(courseKey);
+                                                        return next;
+                                                    });
+                                                }}
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedCourses.has(courseKey)}
+                                                    readOnly
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0 pl-6">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <h4 className="font-bold text-slate-900 truncate group-hover:text-indigo-700">{course.course_name}</h4>
                                                     {normalizeTextbookUrls(course).length > 0 && (
