@@ -418,8 +418,11 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
                 }
             } else {
                 setDiagnosticResults(null);
-                // Trigger the modal if they haven't taken it yet
-                setShowDiagnosticModal(true);
+                // Trigger the modal if they haven't taken it yet AND haven't dismissed it
+                const dismissed = localStorage.getItem(`diagnostic_dismissed_${course.course_id}`) === 'true';
+                if (!dismissed) {
+                    setShowDiagnosticModal(true);
+                }
             }
         });
         return () => off(diagnosticsRef, 'value', unsubscribe);
@@ -2065,7 +2068,12 @@ Student: "${tempInput}"
                                 <p className="text-sm opacity-90 mt-1">Let's find out what you already know.</p>
                             </div>
                             <button
-                                onClick={() => setShowDiagnosticModal(false)}
+                                onClick={() => {
+                                    if (course?.course_id) {
+                                        localStorage.setItem(`diagnostic_dismissed_${course.course_id}`, 'true');
+                                    }
+                                    setShowDiagnosticModal(false);
+                                }}
                                 className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white text-sm font-bold transition"
                             >✕</button>
                         </div>
