@@ -4,7 +4,9 @@ import { ref as dbRef, update } from 'firebase/database';
 import { db } from '../firebase';
 import type { FirebaseUser } from '../firebase';
 
-type AddToastFn = (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+import type { ToastType } from '../types';
+
+type AddToastFn = (message: string, type: ToastType) => void;
 type SetActiveItemFn = (item: string) => void;
 type SetPendingChatIdFn = (chatId: string | null) => void;
 
