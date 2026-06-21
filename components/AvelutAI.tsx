@@ -851,7 +851,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   };
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-[#060814]">
+    <div className="h-full min-h-0 overflow-hidden bg-[#060814] pt-[75px]">
       <div className="mx-auto flex h-full min-h-0 max-w-7xl overflow-hidden bg-[#0a0d1a]/90 backdrop-blur md:rounded-[2rem] md:border md:border-neutral-800/50 md:shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
         
         {/* Sidebar */}
