@@ -10,6 +10,7 @@ import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage
 import type { UserProfile, Message, Course, Topic, UserProgress, AppSettings } from '../types';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
+import { XIcon } from './icons/XIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -1400,13 +1401,20 @@ Student: "${tempInput}"
         <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <button
+                    onClick={onClose}
+                    className="text-gray-500 hover:text-gray-900 transition-all active:scale-95 duration-200 p-1 rounded-full focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
+                    aria-label="Go back"
+                    title="Go back"
+                >
+                    <ArrowLeftIcon />
+                </button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     {!diagnosticResults && (
                         <button 
                             onClick={() => setShowDiagnosticModal(true)}
-                            className="flex items-center px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                            className="flex items-center px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95 duration-200 cursor-pointer select-none shadow-sm focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
                         >
                             Pre-Test
                         </button>
@@ -1416,7 +1424,7 @@ Student: "${tempInput}"
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95 duration-200 cursor-pointer select-none shadow-sm focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
                     >
                         Video Tutorial
                     </button>
@@ -1424,7 +1432,7 @@ Student: "${tempInput}"
                     {diagnosticResults && (
                         <button 
                             onClick={() => setIsLearningPathOpen(!isLearningPathOpen)}
-                            className="flex items-center px-4 py-2 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                            className="flex items-center px-4 py-2 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-700 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95 duration-200 cursor-pointer select-none shadow-sm focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
                         >
                             Learning Path
                         </button>
@@ -1433,8 +1441,9 @@ Student: "${tempInput}"
                     <div className="relative">
                         <button 
                             onClick={() => setShowShareDropdown(!showShareDropdown)}
-                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
+                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all active:scale-95 duration-200 cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
                             title="Share Options"
+                            aria-label="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="1.5"/>
@@ -1685,6 +1694,8 @@ Student: "${tempInput}"
             <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white/80 backdrop-blur-lg">
                 <div className="relative flex items-center">
                     <textarea 
+                        id="study-guide-chat-input"
+                        aria-label="Ask a question"
                         value={input} 
                         onChange={handleTextChange}
                         onKeyDown={(e) => { 
@@ -1701,7 +1712,14 @@ Student: "${tempInput}"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
+                    <label
+                        className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-all active:scale-95 duration-200 focus-visible:ring-2 focus-visible:ring-lime-500 rounded"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Attach image"
+                        title="Attach image"
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement)?.click(); } }}
+                    >
                         <PaperclipIcon className="w-5 h-5" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
@@ -1711,12 +1729,27 @@ Student: "${tempInput}"
                             handleSend();
                         }} 
                         disabled={isThinking || isIllustrating || (!input.trim() && !file)}
-                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
+                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all active:scale-95 duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md focus-visible:ring-2 focus-visible:ring-lime-500 focus:outline-none"
+                        aria-label="Send message"
+                        title="Send message"
                     >
                         <SendIcon className="w-5 h-5" />
                     </button>
                 </div>
-                {file && <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-500 hover:text-red-400">&times;</button></div>}
+                {file && (
+                    <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit">
+                        <FileIcon />
+                        <span>{file.name}</span>
+                        <button
+                            onClick={() => { setFile(null); setFileData(null); }}
+                            className="text-red-500 hover:text-red-600 transition-all active:scale-95 duration-200 focus-visible:ring-2 focus-visible:ring-red-500 rounded p-0.5"
+                            aria-label="Remove attachment"
+                            title="Remove attachment"
+                        >
+                            <XIcon className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
                 
             </footer>
 
