@@ -946,6 +946,30 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
         {/* Main Content Area */}
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#060814]">
+          {/* Avelut AI Local Header */}
+          <div className="flex items-center justify-between border-b border-neutral-800/50 bg-[#060814]/80 px-4 py-3 sm:px-6 backdrop-blur z-10">
+            <div className="flex items-center">
+              <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="mr-2 rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 text-slate-300 transition hover:bg-[#1a2133] sm:mr-4 sm:p-2" aria-label="Go back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 sm:h-5 sm:w-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+                className="mr-3 rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 text-slate-300 md:hidden sm:mr-4 sm:p-2"
+                aria-label="Open assistant history"
+                title="Open assistant history"
+              >
+                <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              <div className="flex flex-col justify-center">
+                <p className="hidden text-[10px] font-semibold uppercase tracking-[0.35em] text-emerald-500 sm:block sm:text-xs">AVELUT AI</p>
+                <h1 className="max-w-[150px] truncate text-base font-bold text-slate-100 sm:max-w-xs sm:text-lg">{conversationSummary}</h1>
+              </div>
+            </div>
+            <div className="max-w-[100px] truncate rounded-full border border-emerald-800/30 bg-emerald-950/50 px-2 py-1 text-[10px] font-semibold text-emerald-400 sm:max-w-[200px] sm:px-3 sm:text-xs">
+              {statusText}
+            </div>
+          </div>
 
           {/* Messages List Container */}
           <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
