@@ -11,7 +11,7 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
 import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
-import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive } from 'lucide-react';
+import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers } from 'lucide-react';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
 const SEMESTERS = ['first', 'second'] as const;
@@ -396,7 +396,7 @@ export const UploadCenter: React.FC = () => {
         const base64PDF = await fileToBase64(file);
         
         setUploadProgress({ status: `AI extracting syllabus topics (${index + 1}/${pdfFiles.length})...`, percent: 35 + (index * 5) });
-        let extractedQuestions: any[] = [];
+
         
         const textbookPrompt = `Analyze this PDF textbook for "${course.course_name}" at "${course.level}" level.
 Extract a comprehensive syllabus/course outline into a structured JSON array of topics with concise grounding context.
@@ -598,7 +598,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
         course_code: newCourseCode.trim().toUpperCase(),
         level: selectedLevel,
         semester: selectedSemester,
-        is_active: true,
+        course_status: 'active',
       };
       
       await set(newCourseRef, courseData);
@@ -830,8 +830,6 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                         <div className="mt-6 flex gap-2">
                           <button onClick={() => setUploadModal({course, courseKey, deptPath})} disabled={isUploadingCourseKey === courseKey} className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 ${isUploaded ? 'bg-slate-800 hover:bg-slate-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
                             {isUploadingCourseKey === courseKey ? 'Uploading...' : <><HardDrive className="w-4 h-4"/> Upload Material</>}
-                          </button>
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Drive" className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
