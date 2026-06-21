@@ -17,7 +17,7 @@ const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
 const SEMESTERS = ['first', 'second'] as const;
 
 type AuthMode = 'login' | 'signup';
-type UploadCenterView = 'dashboard' | 'upload' | 'requests';
+type UploadCenterView = 'dashboard' | 'upload' | 'requests' | 'courses';
 
 type UploaderProfile = {
   uid: string;
@@ -206,6 +206,7 @@ export const UploadCenter: React.FC = () => {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const activeView: UploadCenterView = useMemo(() => {
+    if (pathname.startsWith('/upload-center/courses')) return 'courses';
     if (pathname.startsWith('/upload-center/requests')) return 'requests';
     if (pathname.startsWith('/upload-center/upload')) return 'upload';
     return 'dashboard';
@@ -738,7 +739,34 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
     return Object.values(levelData.courses).map((c: any) => ({ ...c, level: selectedLevel }));
   };
 
+  const getCollegeCourses = () => {
+    if (!selectedSchoolId || !selectedCollegeId) return [];
+    const college = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId];
+    if (!college || !college.departments) return [];
+    
+    const allCourses: any[] = [];
+    const seenIds = new Set<string>();
+
+    Object.values(college.departments).forEach((dept: any) => {
+      const levelData = dept.levels?.[selectedLevel];
+      if (levelData?.courses) {
+        Object.values(levelData.courses).forEach((c: any) => {
+          if (normalizeSemester(c.semester) === selectedSemester) {
+            const courseId = c.course_id || c.course_name;
+            if (!seenIds.has(courseId)) {
+              seenIds.add(courseId);
+              allCourses.push({ ...c, level: selectedLevel });
+            }
+          }
+        });
+      }
+    });
+    
+    return allCourses;
+  };
+
   const departmentCourses = getDepartmentCourses();
+  const collegeCourses = getCollegeCourses();
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900">
@@ -750,6 +778,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
         </div>
         <nav className="flex-1 px-4 space-y-2">
           <button onClick={() => navigate('/upload-center')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'dashboard' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><LayoutDashboard className="w-5 h-5" /> Dashboard</button>
+          <button onClick={() => navigate('/upload-center/courses')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'courses' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><BookOpen className="w-5 h-5" /> All Courses</button>
           <button onClick={() => navigate('/upload-center/upload')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'upload' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FolderOpen className="w-5 h-5" /> Manage Courses</button>
           <button onClick={() => navigate('/upload-center/requests')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'requests' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><List className="w-5 h-5" /> All Requests</button>
         </nav>
@@ -790,6 +819,72 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                 </div>
               ) : <p className="text-slate-500 text-sm">No recent uploads.</p>}
             </div>
+          </div>
+        )}
+
+        {activeView === 'courses' && (
+          <div className="max-w-6xl space-y-6 animate-fade-in">
+            <h2 className="text-3xl font-black tracking-tight">Global Course Directory</h2>
+            
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4"/> Filter Courses</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  <option value="">Select School</option>
+                  {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
+                </select>
+                
+                <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
+                  <option value="">Select College</option>
+                  {selectedSchoolId && schoolsData[selectedSchoolId]?.colleges && Object.keys(schoolsData[selectedSchoolId].colleges).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[k].name || k}</option>)}
+                </select>
+                
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+
+                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {selectedCollegeId && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black">All College Courses ({collegeCourses.length})</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {collegeCourses.map((course: any) => {
+                    const isUploaded = isTextbookUploaded(course);
+                    return (
+                      <div key={course.course_id} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                            {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
+                          </span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Ready' : 'Pending'}</span>
+                        </div>
+                        <h4 className="font-black text-lg text-slate-900 leading-tight mt-3">{course.course_name}</h4>
+                        <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
+
+                        <div className="mt-6 flex gap-2">
+                          <button onClick={() => navigate('/upload-center/upload')} className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition">
+                            Manage in Department
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!collegeCourses.length && (
+                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[24px]">
+                      No courses found in this college for {selectedLevel} - {selectedSemester}.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
