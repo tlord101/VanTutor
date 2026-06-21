@@ -418,6 +418,7 @@ export const UploadCenter: React.FC = () => {
     try {
       const uploadedUrls: string[] = [];
       const extractedTopicGroups: Topic[][] = [];
+      let extractedQuestions: any[] = [];
 
       for (let index = 0; index < pdfFiles.length; index += 1) {
         const file = pdfFiles[index];
