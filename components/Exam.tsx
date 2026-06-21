@@ -1051,7 +1051,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
                               <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
                                   <option value="" disabled>Choose your subject...</option>
-                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
+                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                               </select>
                           </div>
                           <div>
@@ -1082,7 +1082,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
                               <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
                                   <option value="" disabled>Choose your subject...</option>
-                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
+                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                               </select>
                           </div>
                           <button onClick={generateFlashcards} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-gradient-to-b from-sky-500 to-sky-600 text-white font-black py-4 rounded-2xl hover:from-sky-400 shadow-lg shadow-sky-500/20 transition-all disabled:opacity-50 text-sm uppercase tracking-widest">
@@ -1109,7 +1109,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                           <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-left">Or Select Course</label>
                           <select className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
                               <option value="" disabled>Choose course to view past questions...</option>
-                              {filteredCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name} ({c.course_id})</option>)}
+                              {filteredCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                           </select>
                       </div>
 

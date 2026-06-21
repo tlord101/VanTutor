@@ -2641,6 +2641,7 @@ FORMAT:
                     setUploadDepartmentId={setUploadDepartmentId}
                     uploadLevel={uploadLevel}
                     setUploadLevel={setUploadLevel}
+                    filteredGlobalCourses={filteredGlobalCourses}
                     uploadCourseName={uploadCourseName}
                     setUploadCourseName={setUploadCourseName}
                     year={year}

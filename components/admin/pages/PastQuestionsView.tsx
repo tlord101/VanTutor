@@ -21,13 +21,16 @@ interface PastQuestionsViewProps {
     newQuestion: any;
     setNewQuestion: (val: any) => void;
     handleAddQuestion: () => void;
+    filteredGlobalCourses?: any[];
 }
 
 export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
     allDepartments, LEVELS, uploadDepartmentId, setUploadDepartmentId, uploadLevel, setUploadLevel,
     uploadCourseName, setUploadCourseName, year, setYear, pqFile, setPqFile, isPQProcessing,
-    extractionProgress, handleGoogleDrivePick, handlePQUpload, newQuestion, setNewQuestion, handleAddQuestion
+    extractionProgress, handleGoogleDrivePick, handlePQUpload, newQuestion, setNewQuestion, handleAddQuestion, filteredGlobalCourses
 }) => {
+    const availableCourses = (filteredGlobalCourses || []).filter(c => (!uploadDepartmentId || c.deptId === uploadDepartmentId) && (!uploadLevel || c.level === uploadLevel));
+    
     return (
         <div className="space-y-8 max-w-4xl">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/60 shadow-sm space-y-8">
@@ -63,11 +66,18 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                 <option key={lvl} value={lvl}>{lvl}</option>
                             ))}
                         </select>
-                        <input 
-                            type="text" placeholder="Course Name (e.g. Mathematics)" 
-                            value={uploadCourseName} onChange={e => setUploadCourseName(e.target.value)}
+                        <select 
+                            value={uploadCourseName} 
+                            onChange={e => setUploadCourseName(e.target.value)}
                             className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
-                        />
+                        >
+                            <option value="">Select Course</option>
+                            {availableCourses.map(({ course }) => (
+                                <option key={course.course_id || course.course_name} value={course.course_name}>
+                                    {course.course_code || course.course_id} ({course.course_name})
+                                </option>
+                            ))}
+                        </select>
                         <input 
                             type="text" placeholder="Year (e.g. 2023)" 
                             value={year} onChange={e => setYear(e.target.value)}

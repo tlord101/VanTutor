@@ -39,9 +39,12 @@ export const awardDailyStreak = async (uid: string): Promise<boolean> => {
     let wasAwarded = false;
 
     await runTransaction(userRef, (currentData) => {
-      if (!currentData) return currentData;
-
-      // Guard: only award once per day
+      // Because the first run might receive null if data isn't cached,
+      // we must return a valid object so the server can reject the hash and provide real data,
+      // or if it really is empty, it will initialize it.
+      if (!currentData) {
+        currentData = {};
+      }
       if (currentData.last_streak_date === today) {
         return undefined; // Abort transaction, no changes needed
       }
