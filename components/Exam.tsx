@@ -6,6 +6,7 @@ import { FlashcardsUI } from './FlashcardsUI';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, get, serverTimestamp } from 'firebase/database';
 import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Course, AppSettings } from '../types';
+import { awardDailyStreak } from '../utils/streaks';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useToast } from '../hooks/useToast';
@@ -77,7 +78,12 @@ const extractCoursesFromDepartmentData = (departmentData: any): Course[] => {
 
 const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHistoryItem) => void }> = ({ userProfile, onReview }) => {
     const [history, setHistory] = useState<ExamHistoryItem[]>(() => {
-        return readCachedJson<ExamHistoryItem[]>(`avelut_exam_history_${userProfile.uid}`, []);
+        const firebaseCached = readCachedJson<ExamHistoryItem[]>(`avelut_exam_history_${userProfile.uid}`, []);
+        const offlineCached = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
+        const merged = [...firebaseCached, ...offlineCached];
+        const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+        unique.sort((a, b) => b.timestamp - a.timestamp);
+        return unique;
     });
     const [isLoading, setIsLoading] = useState(() => {
         const cached = readCachedJson<ExamHistoryItem[]>(`avelut_exam_history_${userProfile.uid}`, []);
@@ -95,14 +101,13 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
             const data = snapshot.val();
             if (data) {
                 // RTDB returns an object, we want an array sorted by timestamp descending
-                const historyList: ExamHistoryItem[] = Object.values(data);
-                historyList.sort((a, b) => {
-                    const timeA = typeof a.timestamp === 'number' ? a.timestamp : (a.timestamp as any)?.seconds * 1000 || 0;
-                    const timeB = typeof b.timestamp === 'number' ? b.timestamp : (b.timestamp as any)?.seconds * 1000 || 0;
-                    return timeB - timeA;
-                });
-                setHistory(historyList);
-                writeCachedJson(cacheKey, historyList);
+                const firebaseList: ExamHistoryItem[] = Object.values(data);
+                writeCachedJson(cacheKey, firebaseList);
+                const offlineList = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
+                const merged = [...firebaseList, ...offlineList];
+                const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+                unique.sort((a, b) => b.timestamp - a.timestamp);
+                setHistory(unique);
             } else {
                 setHistory([]);
                 writeCachedJson(cacheKey, []);
@@ -167,6 +172,7 @@ interface ExamProps {
   onOpenSidebar?: () => void;
 }
 
+
 export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSidebar }) => {
   const [activeTab, setActiveTab] = useState<'ai_exam' | 'flashcards' | 'past_qa'>('ai_exam');
   const [pqSearchTerm, setPqSearchTerm] = useState('');
@@ -184,6 +190,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; explanation: string } | null>(null);
   const [score, setScore] = useState(0);
   const [reviewExam, setReviewExam] = useState<ExamHistoryItem | null>(null);
+  const [currentExamId, setCurrentExamId] = useState<string>('');
+  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
@@ -591,6 +599,21 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         // Deduct credits
         deductAICredits(userProfile.uid, cost, 'Mock Exam Generation', appSettings).catch(console.error);
 
+        const offlineId = `offline_${Date.now()}`;
+        setCurrentExamId(offlineId);
+        const offlineExam: ExamHistoryItem = {
+            id: offlineId,
+            user_id: userProfile.uid,
+            department_id: userProfile.department_id,
+            examType: examFormat,
+            score: 0,
+            total_questions: newQuestions.length,
+            timestamp: Date.now(),
+            questions: newQuestions.map(q => ({ ...q, userAnswer: '', isCorrect: false })),
+        };
+        const offlineExams = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
+        writeCachedJson(`avelut_offline_exams_${userProfile.uid}`, [offlineExam, ...offlineExams]);
+
         setQuestions(newQuestions);
         setTimeLeft(newQuestions.length * TIME_PER_QUESTION_SECONDS);
         setExamState('in_progress');
@@ -993,30 +1016,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         
         return (
           <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 relative pb-12">
-            {/* Top Bar */}
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-4">
-                    {onOpenSidebar && (
-                        <button onClick={onOpenSidebar} className="p-2 -ml-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors md:hidden">
-                            <MenuIcon className="w-6 h-6" />
-                        </button>
-                    )}
-                    <div>
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Examination Center</h2>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Test your knowledge</p>
-                    </div>
-                </div>
-                <button 
-                  onClick={() => setExamState('history')} 
-                  className="inline-flex items-center text-gray-600 font-bold hover:text-lime-600 transition-colors bg-gray-50 px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-sm"
-                >
-                  <ListIcon className="w-5 h-5 mr-2" />
-                  History
+            {/* Tabs & Sidebar Toggle */}
+            <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start mb-8">
+                <button onClick={() => setShowHistorySidebar(true)} className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm">
+                    <MenuIcon className="w-6 h-6" />
                 </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
+                <div className="flex flex-wrap gap-2 md:gap-4 flex-1">
+                    <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
                 <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
                     AI Exam
                 </button>
@@ -1026,6 +1032,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
                     Past Q&A
                 </button>
+            </div>
+            </div>
             </div>
             
             {/* Tab Contents */}
@@ -1147,6 +1155,41 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   return (
     <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
       {renderContent()}
+
+      
+      {/* History Sidebar */}
+      {showHistorySidebar && (
+          <div className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto border-r border-gray-100">
+               <div className="p-6 flex justify-between items-center border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
+                   <h3 className="text-xl font-black text-gray-900 tracking-tighter">Exam History</h3>
+                   <button onClick={() => setShowHistorySidebar(false)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
+                       <XIcon className="w-5 h-5 text-gray-500" />
+                   </button>
+               </div>
+               <div className="p-4">
+                   <ExamHistory userProfile={userProfile} onReview={(exam) => { 
+                       if (exam.id.startsWith('offline_')) {
+                           const answeredCount = exam.questions.filter(q => q.userAnswer && q.userAnswer !== '' && q.userAnswer !== 'Unanswered').length;
+                           if (answeredCount < exam.questions.length) {
+                               setQuestions(exam.questions);
+                               setUserAnswers(exam.questions.map(q => q.userAnswer || '').filter(a => a !== ''));
+                               setCurrentQuestionIndex(answeredCount);
+                               setScore(exam.score);
+                               setCurrentExamId(exam.id);
+                               setExamFormat(exam.examType === 'theory' ? 'theory' : 'objective');
+                               setExamState('in_progress');
+                               setShowHistorySidebar(false);
+                               return;
+                           }
+                       }
+                       setReviewExam(exam); 
+                       setExamState('review'); 
+                       setShowHistorySidebar(false);
+                   }} />
+               </div>
+          </div>
+      )}
+      {showHistorySidebar && <div className="fixed inset-0 bg-black/20 z-40 backdrop-blur-sm transition-opacity" onClick={() => setShowHistorySidebar(false)} />}
 
       <LimitExceededModal
         isOpen={showLimitModal}

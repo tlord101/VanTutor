@@ -2593,6 +2593,9 @@ FORMAT:
                     LEVELS={LEVELS as any}
                     filteredGlobalCourses={filteredGlobalCourses}
                     buildCourseManagerPath={buildCourseManagerPath}
+                    buildCourseGlobalPath={buildCourseGlobalPath}
+                    globalLevelCourses={globalLevelCourses}
+                    selectedGlobalCourseEntry={selectedGlobalCourseEntry}
                     managerSelectionDepartmentId={managerSelectionDepartmentId}
                     setManagerSelectionDepartmentId={setManagerSelectionDepartmentId}
                     managerSelectionLevel={managerSelectionLevel}

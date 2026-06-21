@@ -15,6 +15,7 @@ interface CourseCatalogViewProps {
     buildCourseGlobalPath: (level?: string, courseId?: string) => string;
     globalLevelCourses: any[];
     selectedGlobalCourseEntry: any;
+
     managerSelectionDepartmentId: string;
     setManagerSelectionDepartmentId: (val: string) => void;
     managerSelectionLevel: string;

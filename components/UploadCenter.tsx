@@ -730,6 +730,32 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
 
   if (!user || !profile) return renderAuth();
 
+  
+  const handleDeleteCollegeCourse = async (course: any) => {
+    if (!window.confirm(`Are you sure you want to delete ${course.course_name} from ALL departments in this college?`)) return;
+    try {
+        const college = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId];
+        if (!college || !college.departments) return;
+        
+        const updates: any = {};
+        Object.keys(college.departments).forEach((deptId: string) => {
+            const levelData = college.departments[deptId].levels?.[selectedLevel];
+            if (levelData?.courses) {
+                 const courseKey = Object.keys(levelData.courses).find(k => (levelData.courses[k].course_id || levelData.courses[k].course_name) === (course.course_id || course.course_name));
+                 if (courseKey) {
+                     updates[`schools_data/${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${deptId}/levels/${selectedLevel}/courses/${courseKey}`] = null;
+                 }
+            }
+        });
+        if (Object.keys(updates).length > 0) {
+            await update(dbRef(db), updates);
+            addToast(`Deleted ${course.course_name} from ${Object.keys(updates).length} departments.`, 'success');
+        }
+    } catch (e) {
+        addToast("Failed to delete course.", "error");
+    }
+  };
+
   const getDepartmentCourses = () => {
     if (!selectedSchoolId || !selectedCollegeId || !selectedDepartmentId) return [];
     const dept = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId]?.departments?.[selectedDepartmentId];
@@ -747,6 +773,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
     
     const allCourses: any[] = [];
     const seenIds = new Set<string>();
+    const deptCountMap = new Map<string, number>();
 
     Object.values(college.departments).forEach((dept: any) => {
       const levelData = dept.levels?.[selectedLevel];
@@ -754,6 +781,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
         Object.values(levelData.courses).forEach((c: any) => {
           if (normalizeSemester(c.semester) === selectedSemester) {
             const courseId = c.course_id || c.course_name;
+            deptCountMap.set(courseId, (deptCountMap.get(courseId) || 0) + 1);
             if (!seenIds.has(courseId)) {
               seenIds.add(courseId);
               allCourses.push({ ...c, level: selectedLevel });
@@ -763,7 +791,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
       }
     });
     
-    return allCourses;
+    return allCourses.map(c => ({ ...c, department_count: deptCountMap.get(c.course_id || c.course_name) }));
   };
 
   const departmentCourses = getDepartmentCourses();
@@ -862,17 +890,27 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                     return (
                       <div key={course.course_id} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <span className={`text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                            {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                             <span className={`text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
+                             </span>
+                             {course.department_count > 1 && (
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-sky-50 text-sky-600 border border-sky-200">
+                                   {course.department_count} Depts
+                                </span>
+                             )}
+                          </div>
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Ready' : 'Pending'}</span>
                         </div>
                         <h4 className="font-black text-lg text-slate-900 leading-tight mt-3">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
-                          <button onClick={() => navigate('/upload-center/upload')} className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition">
-                            Manage in Department
+                          <button onClick={() => setIsUploadingCourseKey(getCourseMergeKey(course))} className="flex-1 py-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold text-sm transition">
+                            Upload Textbook
+                          </button>
+                          <button onClick={() => handleDeleteCollegeCourse(course)} className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition flex items-center justify-center" title="Delete Course">
+                             <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </div>

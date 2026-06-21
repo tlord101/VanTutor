@@ -88,10 +88,10 @@ export const SystemSettingsView: React.FC = () => {
             const newSettings = { ...prev };
             newSettings.usage_settings = { ...(newSettings.usage_settings as UsageSettings) };
             if (subCategory) {
-                newSettings.usage_settings[category] = { ...newSettings.usage_settings[category] };
+                (newSettings.usage_settings[category] as any) = { ...(newSettings.usage_settings[category] as any) };
                 (newSettings.usage_settings[category] as any)[subCategory] = { ...(newSettings.usage_settings[category] as any)[subCategory], [key]: value };
             } else {
-                newSettings.usage_settings[category] = { ...newSettings.usage_settings[category], [key]: value };
+                (newSettings.usage_settings[category] as any) = { ...(newSettings.usage_settings[category] as any), [key]: value };
             }
             return newSettings;
         });
