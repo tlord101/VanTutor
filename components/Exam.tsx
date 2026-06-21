@@ -219,17 +219,39 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   useEffect(() => {
     const cacheKey = `avelut_pq_subjects_${userProfile.department_id}_${userProfile.level}`;
     const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}`);
+    setIsPQLoading(true);
     get(pqRef).then(snap => {
         if(snap.exists()) {
-            const subjects = Object.keys(snap.val());
+            const data = snap.val();
+            const subjects = Object.keys(data);
             setAvailablePQSubjects(subjects);
             writeCachedJson(cacheKey, subjects);
+            
+            // Build all available PQs
+            const allPQs: {year: string, course_id: string, course_name: string}[] = [];
+            Object.keys(data).forEach(courseId => {
+                const yearsData = data[courseId];
+                if (yearsData) {
+                    Object.keys(yearsData).forEach(year => {
+                        // find course name from availableCourses or just use ID
+                        allPQs.push({
+                            year,
+                            course_id: courseId,
+                            course_name: courseId // we will update this when courses load or just map it in render
+                        });
+                    });
+                }
+            });
+            setAvailablePQYears(allPQs.sort((a,b) => parseInt(b.year) - parseInt(a.year)));
         } else {
             setAvailablePQSubjects([]);
+            setAvailablePQYears([]);
             writeCachedJson(cacheKey, []);
         }
     }).catch(err => {
         console.error("Failed to fetch PQ subjects:", err);
+    }).finally(() => {
+        setIsPQLoading(false);
     });
   }, [userProfile.department_id, userProfile.level]);
 
@@ -261,7 +283,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             if (departmentData) {
                 const courses = extractCoursesFromDepartmentData(departmentData);
                 // Filter by level
-                const normalizedLevel = userProfile.level.toLowerCase().replace(/\s+/g, '').replace('lvl', '').replace('level', '');
+                const normalizedLevel = (userProfile.level || '').toLowerCase().replace(/\s+/g, '').replace('lvl', '').replace('level', '');
                 let levelCourses = courses.filter(c => {
                     const cLevel = (c.level || '').toLowerCase().replace(/\s+/g, '').replace('lvl', '').replace('level', '');
                     return cLevel === normalizedLevel || cLevel.includes(normalizedLevel) || normalizedLevel.includes(cLevel);
@@ -313,30 +335,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   };
 
 
-  useEffect(() => {
-      if (activeTab === 'past_qa' && selectedCourseId) {
-          setIsPQLoading(true);
-          const course = availableCourses.find(c => c.course_id === selectedCourseId);
-          const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${selectedCourseId}`);
-          get(pqRef).then(snap => {
-              if (snap.exists()) {
-                  const yearsData = snap.val();
-                  const years = Object.keys(yearsData).map(y => ({
-                      year: y,
-                      course_id: selectedCourseId,
-                      course_name: course ? course.course_name : selectedCourseId
-                  }));
-                  setAvailablePQYears(years.sort((a,b) => parseInt(b.year) - parseInt(a.year)));
-              } else {
-                  setAvailablePQYears([]);
-              }
-          }).catch(err => {
-              console.error("Failed to load PQs:", err);
-          }).finally(() => {
-              setIsPQLoading(false);
-          });
-      }
-  }, [activeTab, selectedCourseId, userProfile.department_id, userProfile.level, availableCourses]);
+  // The specific course PQ fetch has been merged into the global PQ fetch on mount.
 
   const finishExam = useCallback(async () => {
       setExamState(currentState => {
@@ -355,7 +354,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           const examResult: ExamHistoryItem = {
               id: '', // Will be set by Firebase key or ignored by us
               user_id: userProfile.uid,
-              department_id: userProfile.department_id,
+              department_id: userProfile.department_id || '',
               examType: examFormat,
               score: currentScore,
               total_questions: questions.length,
@@ -436,9 +435,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
     try {
       if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
       const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
-      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
-      const safeDepartment = sanitizePromptInput(getCourseNameById(userProfile.department_id));
-      const safeLevel = sanitizePromptInput(userProfile.level);
+      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id || '');
+      const safeDepartment = sanitizePromptInput(getCourseNameById(userProfile.department_id || ''));
+      const safeLevel = sanitizePromptInput(userProfile.level || '');
 
       const result = await attemptApiCall(async () => {
         let retrievedContext = "";
@@ -518,8 +517,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
       }
       
       const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
-      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
-      const safeLevel = sanitizePromptInput(userProfile.level);
+      const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id || '');
+      const safeLevel = sanitizePromptInput(userProfile.level || '');
 
       const result = await attemptApiCall(async () => {
         let retrievedContext = "";
@@ -604,12 +603,12 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         const offlineExam: ExamHistoryItem = {
             id: offlineId,
             user_id: userProfile.uid,
-            department_id: userProfile.department_id,
+            department_id: userProfile.department_id || '',
             examType: examFormat,
             score: 0,
             total_questions: newQuestions.length,
             timestamp: Date.now(),
-            questions: newQuestions.map(q => ({ ...q, userAnswer: '', isCorrect: false })),
+            questions: newQuestions.map((q: any) => ({ ...q, userAnswer: '', isCorrect: false })),
         };
         const offlineExams = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
         writeCachedJson(`avelut_offline_exams_${userProfile.uid}`, [offlineExam, ...offlineExams]);
@@ -650,7 +649,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
            if (!ai) throw new Error("AI not configured.");
            const currentQuestion = questions[currentQuestionIndex];
            const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
-           const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id);
+           const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id || '');
            
            const promptText = `Given the theory question: "${currentQuestion.question}" for a university student taking "${safeCourseName}". The model answer/reference is: "${currentQuestion.explanation}". The student answered: "${selectedOption}". Evaluate if the student's answer is correct or sufficiently accurate. Provide a boolean isCorrect and a short, encouraging explanation of why.`;
            
@@ -1114,7 +1113,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                           </select>
                       </div>
 
-                      {selectedCourseId && (
+                      {true && (
                           <div className="max-w-4xl mx-auto pt-6 border-t border-gray-100">
                               <h3 className="text-xl font-black text-left mb-6 flex items-center gap-3">
                                   <GraduationCapIcon className="w-6 h-6 text-purple-500"/> Available Past Questions
@@ -1123,19 +1122,28 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                   <div className="py-12"><LoadingSpinner text="Loading past questions..." /></div>
                               ) : availablePQYears.length > 0 ? (
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-                                      {availablePQYears.map(pq => (
-                                          <button key={pq.year} onClick={() => startPQExam(pq.course_id, pq.year)} className="group bg-white border border-gray-200 rounded-3xl overflow-hidden hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 text-left flex flex-col active:scale-95">
+                                      {availablePQYears
+                                          .filter(pq => {
+                                              if (selectedCourseId && pq.course_id !== selectedCourseId) return false;
+                                              if (pqSearchTerm && !pq.course_id.toLowerCase().includes(pqSearchTerm.toLowerCase()) && !(availableCourses.find(c => c.course_id === pq.course_id)?.course_name || '').toLowerCase().includes(pqSearchTerm.toLowerCase())) return false;
+                                              return true;
+                                          })
+                                          .map((pq, idx) => {
+                                          const cName = availableCourses.find(c => c.course_id === pq.course_id)?.course_name || pq.course_id;
+                                          return (
+                                          <button key={pq.course_id + pq.year + idx} onClick={() => startPQExam(pq.course_id, pq.year)} className="group bg-white border border-gray-200 rounded-3xl overflow-hidden hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 text-left flex flex-col active:scale-95">
                                               <div className="h-32 bg-purple-50 w-full relative overflow-hidden flex items-center justify-center border-b border-gray-100">
                                                   <GraduationCapIcon className="w-12 h-12 text-purple-200 absolute -bottom-2 -right-2 transform group-hover:scale-110 transition-transform" />
                                                   <span className="text-3xl font-black text-purple-300 tracking-tighter">{pq.year}</span>
                                               </div>
                                               <div className="p-5">
                                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{pq.course_id}</p>
-                                                  <h4 className="text-lg font-black text-gray-900 leading-tight">{pq.course_name}</h4>
+                                                  <h4 className="text-lg font-black text-gray-900 leading-tight">{cName}</h4>
                                                   <p className="text-sm font-bold text-purple-600 mt-4 flex items-center gap-2 group-hover:text-purple-700">Start Mock Exam &rarr;</p>
                                               </div>
                                           </button>
-                                      ))}
+                                          );
+                                      })}
                                   </div>
                               ) : (
                                   <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">

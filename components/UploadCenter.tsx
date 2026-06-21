@@ -146,6 +146,10 @@ const mergeCourseRecord = (
 };
 
 const isTextbookUploaded = (course: Course) => normalizeTextbookUrls(course).length > 0 || Boolean((course as Course & { textbook_shared_key?: string }).textbook_shared_key);
+const isPQUploaded = (course: Course, deptId: string, pqIdx: Record<string, any>) => {
+    if (!deptId || !course.level || !course.course_id || !pqIdx) return false;
+    return Boolean(pqIdx[deptId]?.[course.level]?.[course.course_id]);
+};
 
 const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -198,6 +202,7 @@ export const UploadCenter: React.FC = () => {
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [isUploadingCourseKey, setIsUploadingCourseKey] = useState('');
   const [uploadProgress, setUploadProgress] = useState<{ status: string; percent: number } | null>(null);
+  const [pqIndex, setPqIndex] = useState<Record<string, Record<string, any>>>({});
   const [uploadModal, setUploadModal] = useState<{course: any, courseKey: string, deptPath: string} | null>(null);
   const [uploadType, setUploadType] = useState<'textbook'|'past_question'>('textbook');
   const [pqYear, setPqYear] = useState(new Date().getFullYear().toString());
@@ -276,10 +281,17 @@ export const UploadCenter: React.FC = () => {
   const loadCatalog = async () => {
     setIsCatalogLoading(true);
     try {
-      const [schoolsSnap, deptsSnap] = await Promise.all([
+      const [schoolsSnap, deptsSnap, pqSnap] = await Promise.all([
         get(dbRef(db, 'schools_data')),
-        get(dbRef(db, 'departments_data'))
+        get(dbRef(db, 'departments_data')),
+        get(dbRef(db, 'past_questions'))
       ]);
+      
+      if (pqSnap.exists()) {
+          setPqIndex(pqSnap.val());
+      } else {
+          setPqIndex({});
+      }
       
       const newSchoolsData = schoolsSnap.exists() ? schoolsSnap.val() : {};
       const oldDeptsData = deptsSnap.exists() ? deptsSnap.val() : {};
@@ -524,6 +536,9 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
           const pqPath = `past_questions/${resolvedDeptId}/${course.level}/${course.course_id}/${year}`;
           await set(dbRef(db, pqPath), extractedQuestions);
           addToast(`Past Questions for ${year} uploaded successfully.`, 'success');
+          await loadCatalog();
+          setIsUploadingCourseKey('');
+          setUploadProgress(null);
       } else {
           // Save Textbook Logic
           const sharedSnapshot = await get(dbRef(db, `textbook_contexts/shared/${courseKey}`));
@@ -1068,9 +1083,15 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                     return (
                       <div key={course.course_id} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
                         <div className="flex justify-between items-start mb-2">
-                           <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                              Past Q&A
-                           </span>
+                           {isPQUploaded(course, selectedDepartmentId, pqIndex) ? (
+                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-green-100 text-green-700 border border-green-200">
+                                  PQ Ready
+                               </span>
+                           ) : (
+                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                  No Past Q&A
+                               </span>
+                           )}
                         </div>
                         <h4 className="font-black text-lg text-slate-900 leading-tight mt-2">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
