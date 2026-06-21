@@ -11,13 +11,13 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
 import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
-import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers } from 'lucide-react';
+import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion } from 'lucide-react';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
 const SEMESTERS = ['first', 'second'] as const;
 
 type AuthMode = 'login' | 'signup';
-type UploadCenterView = 'dashboard' | 'upload' | 'requests' | 'courses';
+type UploadCenterView = 'dashboard' | 'upload' | 'requests' | 'courses' | 'past_questions';
 
 type UploaderProfile = {
   uid: string;
@@ -207,6 +207,7 @@ export const UploadCenter: React.FC = () => {
 
   const activeView: UploadCenterView = useMemo(() => {
     if (pathname.startsWith('/upload-center/courses')) return 'courses';
+    if (pathname.startsWith('/upload-center/past-questions')) return 'past_questions';
     if (pathname.startsWith('/upload-center/requests')) return 'requests';
     if (pathname.startsWith('/upload-center/upload')) return 'upload';
     return 'dashboard';
@@ -519,7 +520,8 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
 
       if (type === 'past_question' && year) {
           // Save Past Questions
-          const pqPath = `past_questions/${selectedDepartmentId}/${course.level}/${course.course_id}/${year}`;
+          const resolvedDeptId = deptPath.split('/').pop() || selectedDepartmentId;
+          const pqPath = `past_questions/${resolvedDeptId}/${course.level}/${course.course_id}/${year}`;
           await set(dbRef(db, pqPath), extractedQuestions);
           addToast(`Past Questions for ${year} uploaded successfully.`, 'success');
       } else {
@@ -763,7 +765,9 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
     const levelData = dept.levels?.[selectedLevel];
     if (!levelData?.courses) return [];
     
-    return Object.values(levelData.courses).map((c: any) => ({ ...c, level: selectedLevel }));
+    return Object.values(levelData.courses)
+      .filter((c: any) => normalizeSemester(c.semester) === selectedSemester)
+      .map((c: any) => ({ ...c, level: selectedLevel }));
   };
 
   const getCollegeCourses = () => {
@@ -775,7 +779,8 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
     const seenIds = new Set<string>();
     const deptCountMap = new Map<string, number>();
 
-    Object.values(college.departments).forEach((dept: any) => {
+    Object.keys(college.departments).forEach((deptId: string) => {
+      const dept = college.departments[deptId];
       const levelData = dept.levels?.[selectedLevel];
       if (levelData?.courses) {
         Object.values(levelData.courses).forEach((c: any) => {
@@ -784,7 +789,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
             deptCountMap.set(courseId, (deptCountMap.get(courseId) || 0) + 1);
             if (!seenIds.has(courseId)) {
               seenIds.add(courseId);
-              allCourses.push({ ...c, level: selectedLevel });
+              allCourses.push({ ...c, level: selectedLevel, firstDepartmentId: deptId });
             }
           }
         });
@@ -809,6 +814,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
           <button onClick={() => navigate('/upload-center')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'dashboard' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><LayoutDashboard className="w-5 h-5" /> Dashboard</button>
           <button onClick={() => navigate('/upload-center/courses')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'courses' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><BookOpen className="w-5 h-5" /> All Courses</button>
           <button onClick={() => navigate('/upload-center/upload')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'upload' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FolderOpen className="w-5 h-5" /> Manage Courses</button>
+          <button onClick={() => navigate('/upload-center/past-questions')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'past_questions' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FileQuestion className="w-5 h-5" /> Past Questions</button>
           <button onClick={() => navigate('/upload-center/requests')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'requests' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><List className="w-5 h-5" /> All Requests</button>
         </nav>
         <div className="p-4 border-t border-slate-100">
@@ -906,8 +912,8 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
-                          <button onClick={() => setIsUploadingCourseKey(getCourseMergeKey(course))} className="flex-1 py-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold text-sm transition">
-                            Upload Textbook
+                          <button onClick={() => setUploadModal({course, courseKey: getCourseMergeKey(course), deptPath: `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${course.firstDepartmentId}`})} disabled={isUploadingCourseKey === getCourseMergeKey(course)} className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 ${isUploaded ? 'bg-slate-800 hover:bg-slate-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
+                            {isUploadingCourseKey === getCourseMergeKey(course) ? 'Uploading...' : <><HardDrive className="w-4 h-4"/> Upload Material</>}
                           </button>
                           <button onClick={() => handleDeleteCollegeCourse(course)} className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition flex items-center justify-center" title="Delete Course">
                              <Trash2 className="w-5 h-5" />
@@ -999,6 +1005,82 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                         <div className="mt-6 flex gap-2">
                           <button onClick={() => setUploadModal({course, courseKey, deptPath})} disabled={isUploadingCourseKey === courseKey} className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 ${isUploaded ? 'bg-slate-800 hover:bg-slate-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
                             {isUploadingCourseKey === courseKey ? 'Uploading...' : <><HardDrive className="w-4 h-4"/> Upload Material</>}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!departmentCourses.length && (
+                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[24px]">
+                      No courses found in this department for {selectedLevel} - {selectedSemester}.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeView === 'past_questions' && (
+          <div className="max-w-6xl space-y-6">
+            <h2 className="text-3xl font-black tracking-tight">Upload Past Questions</h2>
+            
+            {/* Context Selector */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select Context</h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  <option value="">Select School</option>
+                  {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
+                </select>
+                
+                <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
+                  <option value="">Select College</option>
+                  {selectedSchoolId && schoolsData[selectedSchoolId]?.colleges && Object.keys(schoolsData[selectedSchoolId].colleges).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[k].name || k}</option>)}
+                </select>
+                
+                <select value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} disabled={!selectedCollegeId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
+                  <option value="">Select Department</option>
+                  {selectedCollegeId && schoolsData[selectedSchoolId]?.colleges[selectedCollegeId]?.departments && Object.keys(schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments[k].name || k}</option>)}
+                </select>
+                
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+
+                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {selectedDepartmentId && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Course List */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black">Courses ({departmentCourses.length})</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {departmentCourses.map((course: any) => {
+                    const courseKey = getCourseMergeKey(course);
+                    const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
+                    return (
+                      <div key={course.course_id} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
+                        <div className="flex justify-between items-start mb-2">
+                           <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                              Past Q&A
+                           </span>
+                        </div>
+                        <h4 className="font-black text-lg text-slate-900 leading-tight mt-2">{course.course_name}</h4>
+                        <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
+
+                        <div className="mt-6 flex gap-2">
+                          <button onClick={() => {
+                              setUploadType('past_question');
+                              setUploadModal({course, courseKey, deptPath});
+                          }} disabled={isUploadingCourseKey === courseKey} className="flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 transition disabled:opacity-50">
+                            {isUploadingCourseKey === courseKey ? 'Uploading...' : <><FileQuestion className="w-4 h-4"/> Upload Past Q&A</>}
                           </button>
                         </div>
                       </div>
