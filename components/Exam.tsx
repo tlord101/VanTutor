@@ -16,6 +16,7 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { XIcon } from './icons/XIcon';
 import { ListIcon } from './icons/ListIcon';
+import { MenuIcon, Search } from 'lucide-react';
 declare var __app_id: string;
 
 const TIME_PER_QUESTION_SECONDS = 30;
@@ -163,9 +164,14 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
 interface ExamProps {
   userProfile: UserProfile;
   userProgress: UserProgress;
+  onOpenSidebar?: () => void;
 }
 
-export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
+export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSidebar }) => {
+  const [activeTab, setActiveTab] = useState<'ai_exam' | 'flashcards' | 'past_qa'>('ai_exam');
+  const [pqSearchTerm, setPqSearchTerm] = useState('');
+  const [availablePQYears, setAvailablePQYears] = useState<{year: string, course_id: string, course_name: string}[]>([]);
+  const [isPQLoading, setIsPQLoading] = useState(false);
   const [examState, setExamState] = useState<'start' | 'generating' | 'in_progress' | 'completed' | 'history' | 'review' | 'flashcards'>('start');
   const [examMode, setExamMode] = useState<'ai' | 'pq'>('ai');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -268,19 +274,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
   }, [userProfile.department_id, userProfile.level, userProfile.uid, addToast]);
 
 
-  const startPQExam = async (courseName: string) => {
+  const startPQExam = async (courseId: string, year: string) => {
     setExamState('generating');
     try {
-        const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${courseName}`);
+        const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${courseId}/${year}`);
         const snapshot = await get(pqRef);
         if(!snapshot.exists()) throw new Error("No questions found for this course.");
         
-        const yearsData = snapshot.val();
-        let allQuestions: Question[] = [];
-        Object.keys(yearsData).forEach(year => {
-            const yearQuestions = Object.values(yearsData[year]) as Question[];
-            allQuestions = [...allQuestions, ...yearQuestions];
-        });
+        const questionsData = snapshot.val();
+        let allQuestions: Question[] = Object.values(questionsData);
 
         if(allQuestions.length === 0) throw new Error("Question bank is empty.");
 
@@ -301,6 +303,32 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
         setExamState('start');
     }
   };
+
+
+  useEffect(() => {
+      if (activeTab === 'past_qa' && selectedCourseId) {
+          setIsPQLoading(true);
+          const course = availableCourses.find(c => c.course_id === selectedCourseId);
+          const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${selectedCourseId}`);
+          get(pqRef).then(snap => {
+              if (snap.exists()) {
+                  const yearsData = snap.val();
+                  const years = Object.keys(yearsData).map(y => ({
+                      year: y,
+                      course_id: selectedCourseId,
+                      course_name: course ? course.course_name : selectedCourseId
+                  }));
+                  setAvailablePQYears(years.sort((a,b) => parseInt(b.year) - parseInt(a.year)));
+              } else {
+                  setAvailablePQYears([]);
+              }
+          }).catch(err => {
+              console.error("Failed to load PQs:", err);
+          }).finally(() => {
+              setIsPQLoading(false);
+          });
+      }
+  }, [activeTab, selectedCourseId, userProfile.department_id, userProfile.level, availableCourses]);
 
   const finishExam = useCallback(async () => {
       setExamState(currentState => {
@@ -950,6 +978,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
               </div>
           );
       
+      
       default: // 'start'
         if (isTopicDataLoading) {
             return (
@@ -960,149 +989,155 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress }) => {
             );
         }
         
+        const filteredCourses = availableCourses.filter(c => c.course_name.toLowerCase().includes(pqSearchTerm.toLowerCase()) || c.course_id.toLowerCase().includes(pqSearchTerm.toLowerCase()));
+        
         return (
-          <div className="max-w-4xl mx-auto w-full text-center space-y-12 py-12 animate-in fade-in zoom-in-95 duration-700 relative">
-            <button 
-              onClick={() => setExamState('history')} 
-              className="absolute -top-6 sm:top-0 left-0 inline-flex items-center text-gray-600 font-semibold hover:text-lime-600 transition-colors bg-gray-50 px-4 py-2 rounded-xl shadow-sm border border-gray-100"
-            >
-              <ListIcon className="w-5 h-5 mr-2" />
-              View Exam History
-            </button>
-            <h3 className="text-2xl font-bold text-gray-900 pt-12 sm:pt-0">Ready for your exam?</h3>
+          <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 relative pb-12">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-4">
+                    {onOpenSidebar && (
+                        <button onClick={onOpenSidebar} className="p-2 -ml-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors md:hidden">
+                            <MenuIcon className="w-6 h-6" />
+                        </button>
+                    )}
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Examination Center</h2>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Test your knowledge</p>
+                    </div>
+                </div>
+                <button 
+                  onClick={() => setExamState('history')} 
+                  className="inline-flex items-center text-gray-600 font-bold hover:text-lime-600 transition-colors bg-gray-50 px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-sm"
+                >
+                  <ListIcon className="w-5 h-5 mr-2" />
+                  History
+                </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
+                <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                    AI Exam
+                </button>
+                <button onClick={() => setActiveTab('flashcards')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'flashcards' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                    Flash Cards
+                </button>
+                <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                    Past Q&A
+                </button>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* AI Generated Exam */}
-              <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(132,204,22,0.12)] hover:border-lime-200/60 transition-all duration-500 text-left flex flex-col overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
-                <div className="relative z-10">
-                    <div className="w-14 h-14 bg-gradient-to-br from-lime-100 to-lime-50 border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 mb-6 font-black text-2xl shadow-sm">
-                        AI
-                    </div>
-                    <h4 className="text-xl font-black text-gray-900 tracking-tight">Custom Exam Generator</h4>
-                    <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">
-                        Generate a full 20-question exam for a specific course. Choose between multiple-choice and theory formats.
-                    </p>
-                </div>
+            {/* Tab Contents */}
+            <div className="mt-8">
+              {activeTab === 'ai_exam' && (
+                  <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(132,204,22,0.12)] hover:border-lime-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+                      <div className="relative z-10 text-center">
+                          <div className="w-16 h-16 bg-gradient-to-br from-lime-100 to-lime-50 border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 mb-6 font-black text-2xl shadow-sm mx-auto">AI</div>
+                          <h4 className="text-2xl font-black text-gray-900 tracking-tight">Custom Exam Generator</h4>
+                          <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">Generate a full 20-question exam for a specific course.</p>
+                      </div>
 
-                <div className="mt-8 space-y-5 relative z-10 flex-grow">
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
-                        <div className="relative">
-                            <select
-                                className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-400 transition-all appearance-none shadow-sm"
-                                value={selectedCourseId}
-                                onChange={(e) => setSelectedCourseId(e.target.value)}
-                            >
-                                <option value="" disabled>Choose your subject...</option>
-                                {availableCourses.map(c => (
-                                    <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <ChevronDownIcon className="w-5 h-5" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Exam Format</label>
-                        <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
-                            <button
-                                onClick={() => setExamFormat('objective')}
-                                className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all duration-300 ${examFormat === 'objective' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'}`}
-                            >
-                                Objective
-                            </button>
-                            <button
-                                onClick={() => setExamFormat('theory')}
-                                className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all duration-300 ${examFormat === 'theory' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'}`}
-                            >
-                                Theory
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex gap-3 mt-8 relative z-10">
-                    <button
-                        onClick={generateQuestions}
-                        disabled={!isGeminiConfigured || !selectedCourseId}
-                        className="flex-1 bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-4 px-4 rounded-2xl hover:from-lime-400 hover:to-lime-500 shadow-lg shadow-lime-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-xs uppercase tracking-widest"
-                    >
-                        {isGeminiConfigured ? 'Start Exam' : 'Unavailable'}
-                    </button>
-                    <button
-                        onClick={generateFlashcards}
-                        disabled={!isGeminiConfigured || !selectedCourseId}
-                        className="flex-1 bg-white border border-gray-200 text-gray-700 font-black py-4 px-4 rounded-2xl hover:bg-gray-50 hover:border-gray-300 shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-widest"
-                    >
-                        {isGeminiConfigured ? 'Flashcards' : 'Unavailable'}
-                    </button>
-                </div>
-              </div>
-
-              {/* Past Questions Exam */}
-              <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(168,85,247,0.12)] hover:border-purple-200/60 transition-all duration-500 text-left flex flex-col overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
-                <div className="relative z-10">
-                    <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50 rounded-2xl flex items-center justify-center text-purple-600 mb-6 font-black shadow-sm">
-                      <GraduationCapIcon className="w-7 h-7" />
-                    </div>
-                    <h4 className="text-xl font-black text-gray-900 tracking-tight">Past Question Mock</h4>
-                    <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">
-                      Test yourself with real past questions uploaded by administrators for your course.
-                    </p>
-                </div>
-                
-                 {availablePQSubjects.filter(s => {
-                  if (userProfile?.subscription_status === 'premium' || userProfile?.is_admin) return true;
-                  if (!userProfile?.selected_free_course_id) return false;
-                  const subjectNormalized = s.toLowerCase().replace(/[\s_]/g, '');
-                  const selectedNormalized = userProfile.selected_free_course_id.toLowerCase().replace(/[\s_]/g, '');
-                  return subjectNormalized === selectedNormalized;
-                }).length > 0 ? (
-                  <div className="mt-8 space-y-5 relative z-10">
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Subject</label>
-                        <div className="relative">
-                            <select 
-                              className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all appearance-none shadow-sm"
-                              onChange={(e) => setSelectedPQSubject(e.target.value)}
-                              value={selectedPQSubject}
-                            >
-                              <option value="" disabled>Choose your subject...</option>
-                              {availablePQSubjects.filter(s => {
-                                if (userProfile?.subscription_status === 'premium' || userProfile?.is_admin) return true;
-                                if (!userProfile?.selected_free_course_id) return false;
-                                const subjectNormalized = s.toLowerCase().replace(/[\s_]/g, '');
-                                const selectedNormalized = userProfile.selected_free_course_id.toLowerCase().replace(/[\s_]/g, '');
-                                return subjectNormalized === selectedNormalized;
-                              }).map(s => (
-                                <option key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</option>
-                              ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <ChevronDownIcon className="w-5 h-5" />
-                            </div>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => selectedPQSubject && startPQExam(selectedPQSubject)}
-                        disabled={!selectedPQSubject}
-                        className="w-full bg-gradient-to-b from-purple-500 to-purple-600 text-white font-black py-4 px-4 rounded-2xl hover:from-purple-400 hover:to-purple-500 shadow-lg shadow-purple-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-xs uppercase tracking-widest mt-3"
-                    >
-                        Start Mock Exam
-                    </button>
+                      <div className="mt-8 space-y-6 relative z-10 text-left">
+                          <div>
+                              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
+                              <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                                  <option value="" disabled>Choose your subject...</option>
+                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Exam Format</label>
+                              <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
+                                  <button onClick={() => setExamFormat('objective')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'objective' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Objective</button>
+                                  <button onClick={() => setExamFormat('theory')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'theory' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Theory</button>
+                              </div>
+                          </div>
+                          <button onClick={generateQuestions} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-4 rounded-2xl hover:from-lime-400 shadow-lg shadow-lime-500/20 transition-all disabled:opacity-50 text-sm uppercase tracking-widest">
+                              {isGeminiConfigured ? 'Start Exam' : 'Unavailable'}
+                          </button>
+                      </div>
                   </div>
-                ) : (
-                  <div className="mt-6 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100 italic">
-                    {!userProfile?.selected_free_course_id && userProfile?.subscription_status !== 'premium'
-                      ? 'Please unlock a free course in the Study Guide first to access past question mock exams.'
-                      : 'No past questions available yet for your unlocked course.'}
+              )}
+
+              {activeTab === 'flashcards' && (
+                  <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(56,189,248,0.12)] hover:border-sky-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+                      <div className="relative z-10 text-center">
+                          <div className="w-16 h-16 bg-gradient-to-br from-sky-100 to-sky-50 border border-sky-200/50 rounded-2xl flex items-center justify-center text-sky-600 mb-6 font-black shadow-sm mx-auto"><ListIcon className="w-8 h-8"/></div>
+                          <h4 className="text-2xl font-black text-gray-900 tracking-tight">AI Flash Cards</h4>
+                          <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">Generate 10 rapid-fire flashcards to test your definitions.</p>
+                      </div>
+
+                      <div className="mt-8 space-y-6 relative z-10 text-left">
+                          <div>
+                              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
+                              <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                                  <option value="" disabled>Choose your subject...</option>
+                                  {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name}</option>)}
+                              </select>
+                          </div>
+                          <button onClick={generateFlashcards} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-gradient-to-b from-sky-500 to-sky-600 text-white font-black py-4 rounded-2xl hover:from-sky-400 shadow-lg shadow-sky-500/20 transition-all disabled:opacity-50 text-sm uppercase tracking-widest">
+                              {isGeminiConfigured ? 'Generate Flashcards' : 'Unavailable'}
+                          </button>
+                      </div>
                   </div>
-                )}
-              </div>
+              )}
+
+              {activeTab === 'past_qa' && (
+                  <div className="space-y-8">
+                      <div className="max-w-2xl mx-auto relative">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input 
+                              type="text" 
+                              placeholder="Search for a course..." 
+                              value={pqSearchTerm} 
+                              onChange={(e) => setPqSearchTerm(e.target.value)}
+                              className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all"
+                          />
+                      </div>
+
+                      <div className="max-w-2xl mx-auto">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-left">Or Select Course</label>
+                          <select className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                              <option value="" disabled>Choose course to view past questions...</option>
+                              {filteredCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_name} ({c.course_id})</option>)}
+                          </select>
+                      </div>
+
+                      {selectedCourseId && (
+                          <div className="max-w-4xl mx-auto pt-6 border-t border-gray-100">
+                              <h3 className="text-xl font-black text-left mb-6 flex items-center gap-3">
+                                  <GraduationCapIcon className="w-6 h-6 text-purple-500"/> Available Past Questions
+                              </h3>
+                              {isPQLoading ? (
+                                  <div className="py-12"><LoadingSpinner text="Loading past questions..." /></div>
+                              ) : availablePQYears.length > 0 ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                                      {availablePQYears.map(pq => (
+                                          <button key={pq.year} onClick={() => startPQExam(pq.course_id, pq.year)} className="group bg-white border border-gray-200 rounded-3xl overflow-hidden hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 text-left flex flex-col active:scale-95">
+                                              <div className="h-32 bg-purple-50 w-full relative overflow-hidden flex items-center justify-center border-b border-gray-100">
+                                                  <GraduationCapIcon className="w-12 h-12 text-purple-200 absolute -bottom-2 -right-2 transform group-hover:scale-110 transition-transform" />
+                                                  <span className="text-3xl font-black text-purple-300 tracking-tighter">{pq.year}</span>
+                                              </div>
+                                              <div className="p-5">
+                                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{pq.course_id}</p>
+                                                  <h4 className="text-lg font-black text-gray-900 leading-tight">{pq.course_name}</h4>
+                                                  <p className="text-sm font-bold text-purple-600 mt-4 flex items-center gap-2 group-hover:text-purple-700">Start Mock Exam &rarr;</p>
+                                              </div>
+                                          </button>
+                                      ))}
+                                  </div>
+                              ) : (
+                                  <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">
+                                      <p className="text-gray-500 font-medium">No past questions have been uploaded for this course yet.</p>
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              )}
             </div>
           </div>
         );

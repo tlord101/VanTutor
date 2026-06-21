@@ -182,3 +182,31 @@ export async function ingestTextToPinecone(
     return { success: false, message: error.message || "An unknown error occurred during vector ingestion." };
   }
 }
+
+/**
+ * Delete course chunks from Pinecone.
+ */
+export async function deleteCourseFromPinecone(
+  courseKey: string,
+  appSettings: any
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const pineconeApiKey = appSettings?.pinecone_api_key;
+    const pineconeIndexName = appSettings?.pinecone_index_name || 'avelut-textbooks';
+
+    if (!pineconeApiKey) {
+      return { success: false, message: "Pinecone API key is missing." };
+    }
+
+    const pc = createPineconeClient(pineconeApiKey);
+    const index = pc.index(pineconeIndexName);
+
+    // Pinecone sdk typically accepts the filter object directly, but to be safe we can use deleteMany
+    await (index as any).deleteMany({ course_key: courseKey });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Vector deletion crash event:", error);
+    return { success: false, message: error.message || "An unknown error occurred during vector deletion." };
+  }
+}
