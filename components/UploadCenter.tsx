@@ -274,12 +274,47 @@ export const UploadCenter: React.FC = () => {
   const loadCatalog = async () => {
     setIsCatalogLoading(true);
     try {
-      const snapshot = await get(dbRef(db, 'schools_data'));
-      if (snapshot.exists()) {
-        setSchoolsData(snapshot.val());
-      } else {
-        setSchoolsData({});
+      const [schoolsSnap, deptsSnap] = await Promise.all([
+        get(dbRef(db, 'schools_data')),
+        get(dbRef(db, 'departments_data'))
+      ]);
+      
+      const newSchoolsData = schoolsSnap.exists() ? schoolsSnap.val() : {};
+      const oldDeptsData = deptsSnap.exists() ? deptsSnap.val() : {};
+
+      // Merge old courses into schoolsData
+      if (Object.keys(oldDeptsData).length > 0) {
+          Object.keys(newSchoolsData).forEach(sId => {
+              const school = newSchoolsData[sId];
+              if (school.colleges) {
+                  Object.keys(school.colleges).forEach(cId => {
+                      const college = school.colleges[cId];
+                      if (college.departments) {
+                          Object.keys(college.departments).forEach(dId => {
+                              const dept = college.departments[dId];
+                              if (oldDeptsData[dId] && oldDeptsData[dId].course_list) {
+                                  // old courses were a flat object. We need to group them by level.
+                                  const oldCourses = Object.values(oldDeptsData[dId].course_list);
+                                  oldCourses.forEach((oldC: any) => {
+                                      const lvl = normalizeLevel(oldC.level);
+                                      if (!dept.levels) dept.levels = {};
+                                      if (!dept.levels[lvl]) dept.levels[lvl] = { courses: {} };
+                                      if (!dept.levels[lvl].courses) dept.levels[lvl].courses = {};
+                                      
+                                      const cId = oldC.course_id || oldC.course_name;
+                                      if (cId && !dept.levels[lvl].courses[cId]) {
+                                          dept.levels[lvl].courses[cId] = oldC;
+                                      }
+                                  });
+                              }
+                          });
+                      }
+                  });
+              }
+          });
       }
+
+      setSchoolsData(newSchoolsData);
     } catch (error) {
       console.error('Failed to load schools data:', error);
       addToast('Could not load the course list.', 'error');
@@ -700,7 +735,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
     const levelData = dept.levels?.[selectedLevel];
     if (!levelData?.courses) return [];
     
-    return Object.values(levelData.courses).map((c: any) => ({ ...c, level: selectedLevel })).filter((c: any) => normalizeSemester(c.semester) === selectedSemester);
+    return Object.values(levelData.courses).map((c: any) => ({ ...c, level: selectedLevel }));
   };
 
   const departmentCourses = getDepartmentCourses();
