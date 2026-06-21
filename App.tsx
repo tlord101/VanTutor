@@ -16,30 +16,7 @@ import { createAvelutAI } from './utils/inference';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 
-const useAutoPermissions = () => {
-    useEffect(() => {
-        const requestPermissions = async () => {
-            try {
-                // Notifications
-                if (Capacitor.isNativePlatform()) {
-                    let permStatus = await PushNotifications.checkPermissions();
-                    if (permStatus.receive === 'prompt') {
-                        await PushNotifications.requestPermissions();
-                    }
-                } else {
-                    if ('Notification' in window && Notification.permission === 'default') {
-                        await Notification.requestPermission();
-                    }
-                }
-            } catch (err) {
-                console.warn("Auto permissions skipped or failed:", err);
-            }
-        };
 
-        const timer = setTimeout(requestPermissions, 2500);
-        return () => clearTimeout(timer);
-    }, []);
-};
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -299,7 +276,7 @@ const playAlarmSound = () => {
 // CORE APP CONTEXT ENGINE INITIALIZATION
 // ==========================================
 const App: React.FC = () => {
-    useAutoPermissions();
+    // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -319,6 +296,11 @@ const App: React.FC = () => {
         const isRecent = Date.now() - latest.timestamp < 15000;
         if (isRecent && !lastNotifiedRef.current[latest.id]) {
             lastNotifiedRef.current[latest.id] = true;
+            if (!Capacitor.isNativePlatform() && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification(latest.title || 'AVELUT', { body: latest.message });
+                } catch (e) { console.warn('Failed to display web notification'); }
+            }
             if (latest.type === 'study_reminder') {
                 playAlarmSound();
             }
@@ -527,6 +509,39 @@ const App: React.FC = () => {
     };
 
     useEffect(() => {
+        if (!userProfile) return;
+        const requestPermissions = async () => {
+            try {
+                if (Capacitor.isNativePlatform()) {
+                    let permStatus = await PushNotifications.checkPermissions();
+                    if (permStatus.receive === 'prompt') {
+                        permStatus = await PushNotifications.requestPermissions();
+                    }
+                    if (permStatus.receive === 'granted' && !userProfile.notifications_enabled) {
+                        handleProfileUpdate({ notifications_enabled: true });
+                    }
+                } else {
+                    if ('Notification' in window) {
+                        const currentPerm = Notification.permission;
+                        if (currentPerm === 'default') {
+                            const newPerm = await Notification.requestPermission();
+                            if (newPerm === 'granted' && !userProfile.notifications_enabled) {
+                                handleProfileUpdate({ notifications_enabled: true });
+                            }
+                        } else if (currentPerm === 'granted' && !userProfile.notifications_enabled) {
+                            handleProfileUpdate({ notifications_enabled: true });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Auto permissions skipped or failed:", err);
+            }
+        };
+        const timer = setTimeout(requestPermissions, 2500);
+        return () => clearTimeout(timer);
+    }, [userProfile?.uid, handleProfileUpdate, userProfile?.notifications_enabled]);
+
+    useEffect(() => {
         if (!user) {
             setUserProfile(null);
             setIsProfileLoading(false);
@@ -591,7 +606,7 @@ const App: React.FC = () => {
     // =====================================================
     useEffect(() => {
         if (!userProfile) return;
-        const SESSION_STREAK_THRESHOLD_MS = 10_000; // 10 seconds
+        const SESSION_STREAK_THRESHOLD_MS = 1000; // Reduced to 1 sec to immediately register streak
         const timer = window.setTimeout(async () => {
             await awardDailyStreak(userProfile.uid);
         }, SESSION_STREAK_THRESHOLD_MS);

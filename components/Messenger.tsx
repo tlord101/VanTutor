@@ -1475,7 +1475,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
              </button>
              {showUserOptions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
+              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
                  <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
                  <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-bold">Report User</button>
               </div>
@@ -1485,22 +1485,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         hideBottomNav: true
       });
     } else {
-      setCustomHeaderConfig({
-        title: (
-          <h1 className="text-xl font-bold text-[#212529]">Messages</h1>
-        ),
-        leftActions: (
-          <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="text-[#6C757D] hover:text-[#212529] transition active:scale-95 flex items-center justify-center p-2 rounded-full bg-neutral-200/50 hover:bg-neutral-200 mr-2" aria-label="Go back">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-        ),
-        rightActions: (
-          <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-full text-sm shrink-0">
-            <button onClick={() => setTab('chats')} className={`px-4 py-1.5 rounded-full font-medium transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
-            <button onClick={() => setTab('people')} className={`px-4 py-1.5 rounded-full font-medium transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
-          </div>
-        )
-      });
+      setCustomHeaderConfig(null);
     }
 
     return () => {
@@ -1514,6 +1499,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       {/* Sidebar Pane */}
       <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
         <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
+          <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-xl text-sm shrink-0 mb-4">
+            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
+            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
+          </div>
 
           {/* Search Bar */}
           {tab === 'people' && (

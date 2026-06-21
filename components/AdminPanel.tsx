@@ -59,6 +59,8 @@ import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
 import { CourseCatalogView } from './admin/pages/CourseCatalogView';
+import { NotificationsView } from './admin/pages/NotificationsView';
+import { EmailsView } from './admin/pages/EmailsView';
 
 interface AdminPanelProps {
     userProfile: UserProfile;
@@ -2678,10 +2680,20 @@ FORMAT:
                 <SystemSettingsView />
             )}
 
-            {(activeTab === 'notifications' || activeTab === 'emails') && (
-                <div className="p-12 text-center text-slate-500 font-bold bg-white rounded-3xl border border-slate-200">
-                    Notifications and Emails modules have been moved to standard App Settings.
-                </div>
+            {activeTab === 'notifications' && (
+                <NotificationsView
+                    allUsersList={allUsersList}
+                    geminiApiKey={geminiApiKey}
+                    geminiModel={geminiModel}
+                    refreshSentNotifications={fetchSentNotifications}
+                />
+            )}
+
+            {activeTab === 'emails' && (
+                <EmailsView
+                    allUsersList={allUsersList}
+                    refreshSentEmails={fetchSentEmails}
+                />
             )}
         </AdminLayout>
     );

@@ -271,7 +271,8 @@ exports.processEmailQueue = functions.database.ref('/email_queue/{queueId}')
                 to: fromEmail, // Send to self as main recipient
                 bcc: job.recipients, // Recipients in BCC to protect privacy
                 subject: job.subject,
-                text: job.body
+                text: job.body,
+                html: job.html || undefined
             };
 
             await transporter.sendMail(mailOptions);

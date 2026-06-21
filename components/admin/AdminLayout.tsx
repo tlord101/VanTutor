@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
     Home, Building, BookOpen, HelpCircle, Users, Settings, 
     CreditCard, Activity, LogOut, Menu, X, Bell, Shield, 
-    ChevronRight, CreditCard as PaymentsIcon 
+    ChevronRight, CreditCard as PaymentsIcon, Mail 
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
@@ -23,6 +23,8 @@ const SIDEBAR_ITEMS = [
     { id: 'users', label: 'User Control', icon: Users },
     { id: 'payments', label: 'Payments', icon: PaymentsIcon },
     { id: 'usage-analytics', label: 'Analytics', icon: Activity },
+    { id: 'notifications', label: 'Push Notifications', icon: Bell },
+    { id: 'emails', label: 'SMTP Emails', icon: Mail },
     { id: 'app', label: 'System Settings', icon: Settings },
 ];
 

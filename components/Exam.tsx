@@ -642,6 +642,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   };
 
   const handleAnswerSubmit = async () => {
+    if (feedback) return;
     if (examFormat === 'theory') {
        if (!selectedOption || selectedOption.trim() === '') return;
        setIsEvaluatingTheory(true);
@@ -846,8 +847,11 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                     </button>
                 ) : (
                     <button 
-                        onClick={handleAnswerSubmit} 
-                        disabled={!selectedOption || isEvaluatingTheory} 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (!feedback) handleAnswerSubmit();
+                        }} 
+                        disabled={!selectedOption || isEvaluatingTheory || !!feedback} 
                         className="w-full bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-5 rounded-2xl hover:from-lime-400 hover:to-lime-500 transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 shadow-xl shadow-lime-600/30 text-sm uppercase tracking-widest flex justify-center items-center gap-3"
                     >
                         {isEvaluatingTheory ? <LoadingSpinner text="Analyzing Response..." /> : 'Submit Answer'}
@@ -1105,14 +1109,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                           />
                       </div>
 
-                      <div className="max-w-2xl mx-auto">
-                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-left">Or Select Course</label>
-                          <select className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
-                              <option value="" disabled>Choose course to view past questions...</option>
-                              {filteredCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
-                          </select>
-                      </div>
-
                       {true && (
                           <div className="max-w-4xl mx-auto pt-6 border-t border-gray-100">
                               <h3 className="text-xl font-black text-left mb-6 flex items-center gap-3">
@@ -1121,10 +1117,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                               {isPQLoading ? (
                                   <div className="py-12"><LoadingSpinner text="Loading past questions..." /></div>
                               ) : availablePQYears.length > 0 ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left mt-8">
                                       {availablePQYears
                                           .filter(pq => {
-                                              if (selectedCourseId && pq.course_id !== selectedCourseId) return false;
                                               if (pqSearchTerm && !pq.course_id.toLowerCase().includes(pqSearchTerm.toLowerCase()) && !(availableCourses.find(c => c.course_id === pq.course_id)?.course_name || '').toLowerCase().includes(pqSearchTerm.toLowerCase())) return false;
                                               return true;
                                           })
