@@ -41,8 +41,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <a href="#testimonials" className="hover:text-brand-600 transition">Wall of Love</a>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={onLogin} className="text-sm font-bold text-slate-600 hover:text-brand-600 transition">Log In</button>
-            <button onClick={onSignUp} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-black hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">Get Started</button>
+            <button onClick={() => {
+              onLogin();
+              window.dispatchEvent(new Event('popstate'));
+            }} className="text-sm font-bold text-slate-600 hover:text-brand-600 transition">Log In</button>
+            <button onClick={() => {
+              onSignUp();
+              window.dispatchEvent(new Event('popstate'));
+            }} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-black hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">Get Started</button>
           </div>
         </div>
       </nav>
@@ -62,10 +68,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               Upload your textbooks, snap a photo of any problem, and let Avelut's advanced AI engine guide you to complete mastery in minutes, not hours.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
-              <button onClick={onSignUp} className="w-full sm:w-auto px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-lg transition flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30">
+              <button onClick={() => {
+                onSignUp();
+                window.dispatchEvent(new Event('popstate'));
+              }} className="w-full sm:w-auto px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-lg transition flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30">
                 Start Learning for Free <ArrowRight className="w-5 h-5" />
               </button>
-              <button onClick={onLogin} className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-2xl font-bold text-lg transition border border-slate-200 shadow-sm">
+              <button onClick={() => {
+                onLogin();
+                window.dispatchEvent(new Event('popstate'));
+              }} className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-2xl font-bold text-lg transition border border-slate-200 shadow-sm">
                 Sign In to Dashboard
               </button>
             </div>
@@ -187,7 +199,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                     </li>
                   ))}
                 </ul>
-                <button onClick={onSignUp} className="mt-4 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-md shadow-slate-900/20">
+                <button onClick={() => {
+                  onSignUp();
+                  window.dispatchEvent(new Event('popstate'));
+                }} className="mt-4 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-md shadow-slate-900/20">
                   Create Account <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -213,7 +228,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <div className="relative z-10 space-y-8">
               <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white">Ready to elevate your grades?</h2>
               <p className="text-xl text-brand-50 font-medium max-w-2xl mx-auto">Join the revolution in personalized AI tutoring. Start for free and cancel anytime.</p>
-              <button onClick={onSignUp} className="px-10 py-5 bg-white text-brand-700 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl">
+              <button onClick={() => {
+                onSignUp();
+                window.dispatchEvent(new Event('popstate'));
+              }} className="px-10 py-5 bg-white text-brand-700 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl">
                 Get Started Now
               </button>
             </div>

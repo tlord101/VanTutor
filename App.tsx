@@ -280,8 +280,15 @@ const playAlarmSound = () => {
 const App: React.FC = () => {
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
+    const [currentPath, setCurrentPath] = useState(getWindowPathname());
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+    useEffect(() => {
+        const handlePopState = () => setCurrentPath(getWindowPathname());
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [notifications, setNotifications] = useState<NotificationType[]>([]);
@@ -992,7 +999,6 @@ const App: React.FC = () => {
         return <div key="app-loader-state"><AppLoader /></div>;
     }
 
-    const currentPath = getWindowPathname();
     const isSharedChatRoute = currentPath.startsWith('/shared-chat/');
     const shareId = isSharedChatRoute ? currentPath.substring('/shared-chat/'.length).split('/')[0] : '';
 
