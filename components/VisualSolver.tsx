@@ -387,6 +387,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         try {
             const result = await attemptApiCall(async () => {
                 const base64Data = scannedImage.split(',')[1];
+                const mimeType = scannedImage.split(';')[0].split(':')[1] || 'image/jpeg';
                 if (!base64Data) throw new Error("Could not extract image data.");
 
                 let retrievedContext = "";
@@ -418,7 +419,7 @@ ${retrievedContext}
                 const aiResult = await aiClient.models.generateContent({
                     model: geminiModel || 'gemini-3.1-flash-lite',
                     contents: [{ role: 'user', parts: [
-                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }
                     ]}],
                 });
@@ -468,6 +469,7 @@ ${retrievedContext}
         try {
             const result = await attemptApiCall(async () => {
                 const base64Data = scannedImage.split(',')[1];
+                const mimeType = scannedImage.split(';')[0].split(':')[1] || 'image/jpeg';
                 if (!base64Data) throw new Error("Could not extract image data.");
 
                 const basePrompt = `Analyze the problem in the image and provide only the final answer, without any explanation or steps. Be direct and concise.`;
@@ -478,7 +480,7 @@ ${retrievedContext}
                 const aiResult = await aiClient.models.generateContent({
                     model: geminiModel || 'gemini-3.1-flash-lite',
                     contents: [{ role: 'user', parts: [
-                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }
                     ]}],
                 });
@@ -524,6 +526,7 @@ ${retrievedContext}
         try {
             const result = await attemptApiCall(async () => {
                 const base64Data = scannedImage.split(',')[1];
+                const mimeType = scannedImage.split(';')[0].split(':')[1] || 'image/jpeg';
                 if (!base64Data) throw new Error("Could not extract image data.");
 
                 const basePrompt = `Answer the question or solve the problem shown in the image. Provide a clear, concise solution without unnecessary details or lengthy explanations. Give the answer directly as it was asked.`;
@@ -534,7 +537,7 @@ ${retrievedContext}
                 const aiResult = await aiClient.models.generateContent({
                     model: geminiModel || 'gemini-3.1-flash-lite',
                     contents: [{ role: 'user', parts: [
-                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }
                     ]}],
                 });
