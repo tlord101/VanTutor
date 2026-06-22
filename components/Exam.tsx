@@ -351,6 +351,35 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
               filledUserAnswers.push("Unanswered");
           }
 
+          // Define a robust correct check for mapping
+          const checkIsCorrectMapping = (opt: string, corr: string) => {
+              if (!opt || !corr) return false;
+              const cleanOpt = opt.toLowerCase().trim();
+              const cleanCorr = corr.toLowerCase().trim();
+              if (cleanOpt === cleanCorr) return true;
+              let optLetter = '';
+              let optText = cleanOpt;
+              const match = cleanOpt.match(/^\(([a-z])\)\s*(.*)/);
+              if (match) { optLetter = match[1]; optText = match[2].trim(); }
+              if (optText && cleanCorr === optText) return true;
+              if (optText && cleanCorr.replace(/^[a-z]\s*=\s*/, '') === optText) return true;
+              if (optLetter) {
+                  const corrLetterOnly = cleanCorr.replace(/[^a-z]/g, '');
+                  if (corrLetterOnly === optLetter) return true;
+                  if (cleanCorr === `(${optLetter})`) return true;
+                  if (cleanCorr.includes(`option ${optLetter}`)) return true;
+                  if (cleanCorr.startsWith(`(${optLetter})`)) return true;
+              }
+              if (cleanOpt.includes(cleanCorr) && cleanCorr.length > 0) {
+                   if (cleanOpt.endsWith(cleanCorr)) return true;
+              }
+              if (optText && cleanCorr.includes(optText)) {
+                   const regex = new RegExp(`\\b${optText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                   if (regex.test(cleanCorr)) return true;
+              }
+              return false;
+          };
+
           const examResult: ExamHistoryItem = {
               id: '', // Will be set by Firebase key or ignored by us
               user_id: userProfile.uid,
@@ -363,10 +392,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                   ...q,
                   userAnswer: filledUserAnswers[i],
                   isCorrect: examFormat === 'theory' 
-                                ? (filledUserAnswers[i] !== 'Unanswered' && filledUserAnswers[i] !== '' && filledUserAnswers[i] !== undefined ? true : false) // For theory, we handle isCorrect during eval, but just fallback true if answered. Wait, actually we track isCorrect differently for theory.
-                                : (filledUserAnswers[i] === q.correctAnswer || 
-                                  (filledUserAnswers[i] && q.correctAnswer && 
-                                   filledUserAnswers[i].replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase() === q.correctAnswer.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase())),
+                                ? (filledUserAnswers[i] !== 'Unanswered' && filledUserAnswers[i] !== '' && filledUserAnswers[i] !== undefined ? true : false)
+                                : checkIsCorrectMapping(filledUserAnswers[i], q.correctAnswer),
               })),
           };
 
@@ -691,13 +718,40 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         
         const checkIsCorrect = (opt: string, corr: string) => {
             if (!opt || !corr) return false;
-            if (opt === corr) return true;
-            const normOpt = opt.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
-            const normCorr = corr.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
-            if (normOpt === normCorr) return true;
             
-            const letterMatch = opt.match(/^\(([a-zA-Z])\)/);
-            if (letterMatch && letterMatch[1].toLowerCase() === corr.trim().toLowerCase()) return true;
+            const cleanOpt = opt.toLowerCase().trim();
+            const cleanCorr = corr.toLowerCase().trim();
+            if (cleanOpt === cleanCorr) return true;
+            
+            let optLetter = '';
+            let optText = cleanOpt;
+            const match = cleanOpt.match(/^\(([a-z])\)\s*(.*)/);
+            if (match) {
+                optLetter = match[1];
+                optText = match[2].trim();
+            }
+            
+            if (optText && cleanCorr === optText) return true;
+            // Handle cases where AI returns "n=9" or "x=9"
+            if (optText && cleanCorr.replace(/^[a-z]\s*=\s*/, '') === optText) return true;
+            
+            if (optLetter) {
+                const corrLetterOnly = cleanCorr.replace(/[^a-z]/g, '');
+                if (corrLetterOnly === optLetter) return true;
+                if (cleanCorr === `(${optLetter})`) return true;
+                if (cleanCorr.includes(`option ${optLetter}`)) return true;
+                if (cleanCorr.startsWith(`(${optLetter})`)) return true;
+            }
+            
+            // if cleanCorr is embedded in cleanOpt (e.g. opt is "(b) 9" and corr is "9")
+            if (cleanOpt.includes(cleanCorr) && cleanCorr.length > 0) {
+                 if (cleanOpt.endsWith(cleanCorr)) return true;
+            }
+            // if optText is embedded in cleanCorr (e.g. corr is "the answer is 9" and optText is "9")
+            if (optText && cleanCorr.includes(optText)) {
+                 const regex = new RegExp(`\\b${optText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                 if (regex.test(cleanCorr)) return true;
+            }
             
             return false;
         };
@@ -800,12 +854,38 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                         const isSelected = selectedOption === option;
                         const checkIsCorrectDisplay = (opt: string, corr: string) => {
                             if (!opt || !corr) return false;
-                            if (opt === corr) return true;
-                            const normOpt = opt.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
-                            const normCorr = corr.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
-                            if (normOpt === normCorr) return true;
-                            const letterMatch = opt.match(/^\(([a-zA-Z])\)/);
-                            if (letterMatch && letterMatch[1].toLowerCase() === corr.trim().toLowerCase()) return true;
+                            
+                            const cleanOpt = opt.toLowerCase().trim();
+                            const cleanCorr = corr.toLowerCase().trim();
+                            if (cleanOpt === cleanCorr) return true;
+                            
+                            let optLetter = '';
+                            let optText = cleanOpt;
+                            const match = cleanOpt.match(/^\(([a-z])\)\s*(.*)/);
+                            if (match) {
+                                optLetter = match[1];
+                                optText = match[2].trim();
+                            }
+                            
+                            if (optText && cleanCorr === optText) return true;
+                            if (optText && cleanCorr.replace(/^[a-z]\s*=\s*/, '') === optText) return true;
+                            
+                            if (optLetter) {
+                                const corrLetterOnly = cleanCorr.replace(/[^a-z]/g, '');
+                                if (corrLetterOnly === optLetter) return true;
+                                if (cleanCorr === `(${optLetter})`) return true;
+                                if (cleanCorr.includes(`option ${optLetter}`)) return true;
+                                if (cleanCorr.startsWith(`(${optLetter})`)) return true;
+                            }
+                            
+                            if (cleanOpt.includes(cleanCorr) && cleanCorr.length > 0) {
+                                 if (cleanOpt.endsWith(cleanCorr)) return true;
+                            }
+                            if (optText && cleanCorr.includes(optText)) {
+                                 const regex = new RegExp(`\\b${optText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                                 if (regex.test(cleanCorr)) return true;
+                            }
+                            
                             return false;
                         };
                         const isCorrect = checkIsCorrectDisplay(option, currentQuestion.correctAnswer);
