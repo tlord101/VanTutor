@@ -22,7 +22,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         default_title: 'Avelut - AI Tutoring Platform',
         default_description: 'Upload your textbooks, snap a photo of any problem, and let Avelut\'s advanced AI engine guide you to complete mastery in minutes.',
         default_keywords: 'education, AI, study guide, past questions, learning',
-        og_image_url: 'https://avelut.xyz/og-image.jpg',
+        og_image_url: 'https://avelut.xyz/logo_full.png',
         twitter_handle: '@avelut'
     });
 
