@@ -114,9 +114,12 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                             )}
                         </button>
-                        
-                        <div className="relative ml-2" ref={menuRef}>
-                            <button
+                    </>
+                )}
+                
+                {/* Profile Avatar always shows */}
+                <div className="relative ml-2" ref={menuRef}>
+                    <button
                                 onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
                                 className="focus:outline-none transition-transform active:scale-95"
                             >
@@ -170,8 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                             )}
                         </div>
-                    </>
-                )}
+                {/* End of Avatar */}
             </div>
         </header>
     );
