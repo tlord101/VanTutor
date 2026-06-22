@@ -1132,13 +1132,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 </button>
                 <div className="flex flex-wrap gap-2 md:gap-4 flex-1">
                     <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
-                <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
                     AI Exam
                 </button>
-                <button onClick={() => setActiveTab('flashcards')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'flashcards' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('flashcards')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'flashcards' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
                     Flash Cards
                 </button>
-                <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
                     Past Q&A
                 </button>
             </div>

@@ -216,16 +216,16 @@ const ALLOWED_ROUTE_ITEMS = new Set([
 const resolveActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
     const rawSegment = pathname.substring(1).split('/')[0];
-    if (!rawSegment) return 'visual_solver';
+    if (!rawSegment) return 'dashboard';
     let decodedSegment = rawSegment;
     try {
         decodedSegment = decodeURIComponent(rawSegment);
     } catch (error) {
         console.warn('Invalid route segment encoding:', rawSegment, error);
-        return 'visual_solver';
+        return 'dashboard';
     }
     const normalizedSegment = normalizeRouteSegment(decodedSegment);
-    return ALLOWED_ROUTE_ITEMS.has(normalizedSegment) ? normalizedSegment : 'visual_solver';
+    return ALLOWED_ROUTE_ITEMS.has(normalizedSegment) ? normalizedSegment : 'dashboard';
 };
 
 const normalizeLevelValue = (value?: string): string => {
@@ -324,6 +324,28 @@ const App: React.FC = () => {
     const [isProfileLoading, setIsProfileLoading] = useState(true);
     const [isOnboarding, setIsOnboarding] = useState(false);
     const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [showOnlineRestored, setShowOnlineRestored] = useState(false);
+
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOffline(false);
+            setShowOnlineRestored(true);
+            setTimeout(() => setShowOnlineRestored(false), 3000);
+        };
+        const handleOffline = () => {
+            setIsOffline(true);
+            setShowOnlineRestored(false);
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     const [activeItem, setActiveItemState] = useState<string>(() => {
         const item = resolveActiveItemFromPath(getWindowPathname());
@@ -607,7 +629,11 @@ const App: React.FC = () => {
                     }
                 }
             } else {
-                setIsOnboarding(true);
+                if (!navigator.onLine) {
+                    // Do not force onboarding if offline, rely on cachedProfile
+                } else {
+                    setIsOnboarding(true);
+                }
             }
             setIsProfileLoading(false);
         }, (error) => {
@@ -1290,6 +1316,15 @@ const App: React.FC = () => {
                 onClose={handleTourClose}
             />
             <InAppUpdate />
+            
+            {/* Global Offline/Online Banner */}
+            {(isOffline || showOnlineRestored) && (
+                <div 
+                    className={`fixed bottom-0 left-0 right-0 z-[100] h-[20px] flex items-center justify-center text-[11px] font-bold text-white transition-colors duration-300 ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}
+                >
+                    {isOffline ? 'No internet connection' : 'Internet restored'}
+                </div>
+            )}
         </div>
     );
 };
