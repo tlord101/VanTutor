@@ -458,11 +458,39 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   }, [activeHistoryId, history, messages.length]);
 
   useEffect(() => {
-    // The user explicitly requested to show the global app header here instead of the custom one
     if (setCustomHeaderConfig) {
-        setCustomHeaderConfig(null);
+      setCustomHeaderConfig({
+        leftActions: (
+          <div className="flex items-center">
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-xl border border-slate-200 bg-white p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-50 mr-2" aria-label="Go back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 sm:w-5 sm:h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="rounded-xl border border-slate-200 bg-white p-1.5 sm:p-2 text-slate-600 md:hidden mr-2"
+              aria-label="Open assistant history"
+              title="Open assistant history"
+            >
+              <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            <div className="flex flex-col justify-center ml-1">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600 hidden sm:block">AVELUT AI</p>
+              <h1 className="text-base sm:text-lg font-bold text-slate-800 truncate max-w-[150px] sm:max-w-[200px]">{conversationSummary}</h1>
+            </div>
+          </div>
+        ),
+        rightActions: <></>,
+        className: 'bg-transparent'
+      });
     }
-  }, [setCustomHeaderConfig]);
+    
+    return () => {
+        if (setCustomHeaderConfig) {
+            setCustomHeaderConfig(null);
+        }
+    };
+  }, [setCustomHeaderConfig, conversationSummary, onNavigate]);
 
   const clearAttachment = () => {
     setAttachments([]);
@@ -851,20 +879,20 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   };
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-[#060814] pt-[75px]">
-      <div className="mx-auto flex h-full min-h-0 max-w-7xl overflow-hidden bg-[#0a0d1a]/90 backdrop-blur md:rounded-[2rem] md:border md:border-neutral-800/50 md:shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
+    <div className="h-full min-h-0 overflow-hidden bg-slate-50 pt-0">
+      <div className="mx-auto flex h-full min-h-0 max-w-7xl overflow-hidden bg-white/90 backdrop-blur md:rounded-[2rem] md:border md:border-slate-200 md:shadow-[0_20px_80px_rgba(0,0,0,0.08)]">
         
         {/* Sidebar */}
-        <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-[88vw] max-w-sm border-r border-neutral-800/40 bg-[#0d1122] p-5 shadow-2xl transition-transform duration-300 md:static md:z-auto md:w-80 md:translate-x-0 md:shadow-none`}>
+        <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-[88vw] max-w-sm border-r border-slate-200 bg-white p-5 shadow-2xl transition-transform duration-300 md:static md:z-auto md:w-80 md:translate-x-0 md:shadow-none`}>
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-500">AVELUT</p>
-              <h2 className="mt-1 text-xl font-bold text-slate-100">Assistant history</h2>
+              <h2 className="mt-1 text-xl font-bold text-slate-900">Assistant history</h2>
             </div>
             <button
               type="button"
               onClick={() => setIsSidebarOpen(false)}
-              className="rounded-full border border-neutral-800 p-2 text-slate-400 md:hidden"
+              className="rounded-full border border-slate-200 p-2 text-slate-500 md:hidden"
               aria-label="Close assistant history"
               title="Close assistant history"
             >
@@ -883,11 +911,11 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-220px)]">
             {isHistoryLoading ? (
-              <div className="rounded-2xl border border-neutral-800 bg-[#12182e] px-4 py-3 text-sm text-slate-400">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                 Loading chat history...
               </div>
             ) : history.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-neutral-800 bg-[#12182e] px-4 py-6 text-sm text-slate-400 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500 text-center">
                 Your saved chats will appear here.
               </div>
             ) : (
@@ -900,10 +928,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       setIsSidebarOpen(false);
                       setStatusText(`Opened ${item.title}.`);
                     }}
-                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-[#16223f]' : 'border-neutral-800 bg-[#12182e] hover:border-neutral-700 hover:bg-[#18203c]'}`}
+                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Recent chat</p>
-                    <p className="mt-1 text-sm font-medium text-slate-200 truncate">{item.title}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800 truncate">{item.title}</p>
                   </button>
                   <button
                     type="button"
@@ -945,31 +973,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         )}
 
         {/* Main Content Area */}
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#060814]">
-          {/* Avelut AI Local Header */}
-          <div className="flex items-center justify-between border-b border-neutral-800/50 bg-[#060814]/80 px-4 py-3 sm:px-6 backdrop-blur z-10">
-            <div className="flex items-center">
-              <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="mr-2 rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 text-slate-300 transition hover:bg-[#1a2133] sm:mr-4 sm:p-2" aria-label="Go back">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 sm:h-5 sm:w-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="mr-3 rounded-xl border border-neutral-800 bg-[#0d1122] p-1.5 text-slate-300 md:hidden sm:mr-4 sm:p-2"
-                aria-label="Open assistant history"
-                title="Open assistant history"
-              >
-                <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
-              <div className="flex flex-col justify-center">
-                <p className="hidden text-[10px] font-semibold uppercase tracking-[0.35em] text-emerald-500 sm:block sm:text-xs">AVELUT AI</p>
-                <h1 className="max-w-[150px] truncate text-base font-bold text-slate-100 sm:max-w-xs sm:text-lg">{conversationSummary}</h1>
-              </div>
-            </div>
-            <div className="max-w-[100px] truncate rounded-full border border-emerald-800/30 bg-emerald-950/50 px-2 py-1 text-[10px] font-semibold text-emerald-400 sm:max-w-[200px] sm:px-3 sm:text-xs">
-              {statusText}
-            </div>
-          </div>
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50">
 
           {/* Messages List Container */}
           <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
@@ -979,8 +983,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <ChatIcon className="h-10 w-10" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-100">Ask AVELUT anything</h2>
-                  <p className="mt-2 max-w-xl text-slate-400">
+                  <h2 className="text-2xl font-bold text-slate-900">Ask AVELUT anything</h2>
+                  <p className="mt-2 max-w-xl text-slate-500">
                     Get step-by-step answers with clean LaTeX for equations, formulas, and proofs.
                   </p>
                 </div>
@@ -1005,7 +1009,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       className={`px-4 py-3 shadow-sm ${
                         message.sender === 'user'
                           ? 'max-w-[76%] rounded-3xl bg-emerald-600 text-white'
-                          : 'w-[90%] max-w-[90%] rounded-3xl border border-neutral-800/60 bg-[#0e1227] text-slate-200'
+                          : 'w-[90%] max-w-[90%] rounded-3xl border border-slate-200 bg-white text-slate-800'
                       }`}
                     >
                       {message.attachments && message.attachments.length > 0 && (
@@ -1016,13 +1020,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                               href={attachmentItem.url}
                               target="_blank"
                               rel="noreferrer"
-                              className={`overflow-hidden rounded-2xl border ${message.sender === 'user' ? 'border-white/20 bg-white/10 text-white' : 'border-neutral-800 bg-[#131935] text-slate-300'}`}
+                              className={`overflow-hidden rounded-2xl border ${message.sender === 'user' ? 'border-white/20 bg-white/10 text-slate-900' : 'border-slate-200 bg-slate-100 text-slate-600'}`}
                             >
                               {attachmentItem.isImage ? (
                                 <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
                               ) : (
                                 <div className="flex items-center gap-3 px-4 py-3">
-                                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${message.sender === 'user' ? 'bg-white/15' : 'bg-[#060814]'} text-[10px] font-black uppercase`}>
+                                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${message.sender === 'user' ? 'bg-white/15' : 'bg-slate-50'} text-[10px] font-black uppercase`}>
                                     DOC
                                   </div>
                                   <div className="min-w-0">
@@ -1041,17 +1045,17 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
                             components={{
-                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200" {...props} />,
-                              ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-200" {...props} />,
-                              ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-200" {...props} />,
+                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800" {...props} />,
                               li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
                               strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                              pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-100 border border-neutral-800/40" {...props} />,
+                              pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 border border-slate-200" {...props} />,
                             }}
                           >
                             {message.text}
                           </ReactMarkdown>
-                          <div className="mt-4 flex justify-end border-t border-neutral-800/40 pt-2">
+                          <div className="mt-4 flex justify-end border-t border-slate-200 pt-2">
                             <button
                               type="button"
                               onClick={async () => {
@@ -1062,7 +1066,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   addToast('Failed to copy', 'error');
                                 }
                               }}
-                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:bg-neutral-800 hover:text-emerald-400 active:scale-95"
+                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
                               aria-label="Copy message"
                               title="Copy message"
                             >
@@ -1080,17 +1084,17 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
                 {streamingBotText !== null && (
                   <div className="flex justify-start">
-                    <div className="w-[90%] max-w-[90%] rounded-3xl border border-neutral-800/60 bg-[#0e1227] text-slate-200 px-4 py-3 shadow-sm">
+                    <div className="w-[90%] max-w-[90%] rounded-3xl border border-slate-200 bg-white text-slate-800 px-4 py-3 shadow-sm">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
-                          p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-200" {...props} />,
-                          ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-200" {...props} />,
-                          ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-200" {...props} />,
+                          p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800" {...props} />,
                           li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
                           strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                          pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-100 border border-neutral-800/40" {...props} />,
+                          pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 border border-slate-200" {...props} />,
                         }}
                       >
                         {streamingBotText}
@@ -1101,7 +1105,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
                 {isSending && streamingBotText === null && (
                   <div className="flex justify-start">
-                    <div className="rounded-3xl border border-neutral-800 bg-[#0e1227] px-4 py-3 text-sm text-slate-400 shadow-sm">
+                    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
                       {uploadProgress ? (
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
@@ -1119,12 +1123,19 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           </section>
 
           {/* Integrated AVELUT Input Layout Panel */}
-          <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-[#060814] pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
+          <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-slate-50 pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
             <div className="w-full max-w-6xl transition-all duration-300 mb-5 md:mb-[30px]">
+              
+              {/* Status Indicator */}
+              <div className="mb-2 mx-auto flex items-center justify-center pointer-events-none">
+                <span className="inline-block rounded-full bg-emerald-50 border border-emerald-200/60 px-3 py-1 text-[10px] font-semibold text-emerald-600 sm:text-xs shadow-sm">
+                  {statusText}
+                </span>
+              </div>
               
               {/* Attachment Preview */}
               {attachments.length > 0 && (
-                <div className="mb-2 mx-auto max-w-md flex items-center justify-between rounded-xl bg-[#1e1f20] border border-neutral-800/80 px-3 py-2 text-xs text-slate-300">
+                <div className="mb-2 mx-auto max-w-md flex items-center justify-between rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs text-slate-600">
                   <span className="truncate flex-1 pr-2">{attachments[0].name}</span>
                   <button type="button" onClick={clearAttachment} className="text-red-400 hover:text-red-300 transition" aria-label="Remove attachment">
                     <XIcon className="h-4 w-4" />
@@ -1134,14 +1145,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
               {/* STATES 1, 2, 3: Stadium Input Box Bar */}
               {inputState !== 4 && (
-                <div className="relative w-full min-h-[64px] bg-[#1e1f20] rounded-[24px] flex items-center justify-between pl-4 pr-2 border border-neutral-800/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="relative w-full min-h-[64px] bg-white rounded-[24px] flex items-center justify-between pl-4 pr-2 border border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
                   
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
                       disabled={isSending}
-                      className={`text-white hover:opacity-80 transition active:scale-95 shrink-0 flex items-center justify-center w-8 h-8 disabled:opacity-40 ${showAttachmentMenu ? 'bg-neutral-800 rounded-full' : ''}`}
+                      className={`text-slate-600 hover:opacity-80 transition active:scale-95 shrink-0 flex items-center justify-center w-8 h-8 disabled:opacity-40 ${showAttachmentMenu ? 'bg-neutral-800 rounded-full' : ''}`}
                       aria-label="Upload attachment"
                       title="Upload attachment"
                     >
@@ -1149,7 +1160,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     </button>
 
                     {showAttachmentMenu && (
-                      <div className="absolute bottom-12 left-0 w-48 bg-[#1e1f20] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+                      <div className="absolute bottom-12 left-0 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
                         <button
                           type="button"
                           onClick={() => {
@@ -1159,7 +1170,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             }
                             setShowAttachmentMenu(false);
                           }}
-                          className="w-full text-left px-4 py-3 text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3"
+                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-3"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-400">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -1177,7 +1188,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             }
                             setShowAttachmentMenu(false);
                           }}
-                          className="w-full text-left px-4 py-3 text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3"
+                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-3"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-400">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1206,7 +1217,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           }
                         }}
                         placeholder="Ask AVELUT anything..."
-                        className="w-full bg-transparent text-slate-100 placeholder-slate-500 text-sm focus:outline-none resize-none py-2.5 max-h-[180px] overflow-y-auto"
+                        className="w-full bg-transparent text-slate-900 placeholder-slate-500 text-sm focus:outline-none resize-none py-2.5 max-h-[180px] overflow-y-auto"
                         style={{ height: 'auto' }}
                       />
                     ) : (
@@ -1230,7 +1241,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       <button 
                         type="button"
                         onClick={() => setInputState(3)}
-                        className="text-white hover:opacity-85 transition active:scale-90 flex items-center justify-center w-9 h-9"
+                        className="text-slate-900 hover:opacity-85 transition active:scale-90 flex items-center justify-center w-9 h-9"
                         aria-label="Start voice input"
                         title="Start voice input"
                       >
@@ -1242,7 +1253,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       <button 
                         type="button"
                         onClick={() => setInputState(1)}
-                        className="w-[42px] h-[42px] bg-[#27282b]/80 hover:bg-[#2e3034] rounded-full flex items-center justify-center text-white transition active:scale-90"
+                        className="w-[42px] h-[42px] bg-[#27282b]/80 hover:bg-[#2e3034] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90"
                         aria-label="Stop voice input"
                         title="Stop voice input"
                       >
@@ -1260,7 +1271,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         }
                       }}
                       disabled={isSending || (inputState !== 1 && inputState !== 2 && inputState !== 3) || (inputState === 2 && !inputValue.trim())}
-                      className="w-11 h-11 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-11 h-11 bg-emerald-600 hover:bg-emerald-500 text-slate-900 rounded-full flex items-center justify-center shadow-md transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={inputState === 1 && !inputValue.trim() ? "Enter live mode" : "Send message"}
                       title={inputState === 1 && !inputValue.trim() ? "Enter live mode" : "Send message"}
                     >
@@ -1278,10 +1289,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
               {/* STATE 4: Fullscreen Live mode controls selection panel */}
               {inputState === 4 && (
-                <div className="w-full flex items-center justify-between px-2 py-4 animate-fade-in select-none bg-[#101114] rounded-3xl border border-neutral-800/40 p-4 shadow-xl">
+                <div className="w-full flex items-center justify-between px-2 py-4 animate-fade-in select-none bg-[#101114] rounded-3xl border border-slate-200 p-4 shadow-xl">
                   <button
                     type="button"
-                    className="w-[52px] h-[52px] bg-[#1e1f20] hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-white transition active:scale-90 shadow-md"
+                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
                     aria-label="Vision search"
                     title="Vision search"
                   >
@@ -1290,21 +1301,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
                   <button
                     type="button"
-                    className="w-[52px] h-[52px] bg-[#1e1f20] hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-white transition active:scale-90 shadow-md"
+                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
                     aria-label="Share screen or upload"
                     title="Share screen or upload"
                   >
                     <ShareUploadIcon />
                   </button>
 
-                  <div className="relative w-[114px] h-[64px] bg-gradient-to-b from-[#08080a] to-[#0d0f14] rounded-full overflow-hidden border border-neutral-800/70 flex items-center justify-center shadow-lg">
+                  <div className="relative w-[114px] h-[64px] bg-gradient-to-b from-[#08080a] to-[#0d0f14] rounded-full overflow-hidden border border-slate-200/70 flex items-center justify-center shadow-lg">
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[86px] h-[18px] bg-[#38bdf8] rounded-full blur-[8px] opacity-80 animate-ambient-pulse" />
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[82px] h-[4px] bg-[#60a5fa] rounded-full opacity-90" />
                   </div>
 
                   <button
                     type="button"
-                    className="w-[52px] h-[52px] bg-[#1e1f20] hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-white transition active:scale-90 shadow-md"
+                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
                     aria-label="Toggle live microphone"
                     title="Toggle live microphone"
                   >
@@ -1314,7 +1325,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <button 
                     type="button"
                     onClick={() => setInputState(1)}
-                    className="w-[52px] h-[52px] bg-[#1e1f20] hover:bg-red-950/20 rounded-full flex items-center justify-center text-white transition active:scale-90 shadow-md"
+                    className="w-[52px] h-[52px] bg-white hover:bg-red-950/20 rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
                     aria-label="Exit live mode"
                     title="Exit live mode"
                   >
