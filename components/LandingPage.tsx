@@ -33,7 +33,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center">
-            <img src="/logo.png" alt="Avelut Logo" className="h-8 object-contain" />
+            <img src="/logo_full.png" alt="Avelut Logo" className="h-8 object-contain" />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
             <a href="#features" className="hover:text-brand-600 transition">Features</a>
