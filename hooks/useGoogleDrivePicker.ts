@@ -32,15 +32,22 @@ export const useGoogleDrivePicker = () => {
     setIsPickerLoading(true);
 
     const buildAndShowPicker = (token: string) => {
-      const view = new (window as any).google.picker.DocsView((window as any).google.picker.ViewId.DOCS)
-        .setMimeTypes('application/pdf');
+      const defaultView = new (window as any).google.picker.DocsView((window as any).google.picker.ViewId.DOCS)
+        .setMimeTypes('application/pdf')
+        .setIncludeFolders(true);
+
+      const starredView = new (window as any).google.picker.DocsView((window as any).google.picker.ViewId.DOCS)
+        .setMimeTypes('application/pdf')
+        .setIncludeFolders(true)
+        .setStarred(true)
+        .setLabel('Starred PDFs');
 
       const picker = new (window as any).google.picker.PickerBuilder()
-        .enableFeature((window as any).google.picker.Feature.NAV_HIDDEN)
         .enableFeature((window as any).google.picker.Feature.MULTISELECT_ENABLED)
         .setAppId(clientId)
         .setOAuthToken(token)
-        .addView(view)
+        .addView(defaultView)
+        .addView(starredView)
         .setDeveloperKey(apiKey)
         .setCallback(async (data: any) => {
           if (data.action === (window as any).google.picker.Action.PICKED) {
