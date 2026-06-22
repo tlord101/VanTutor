@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, Chev
 import { FeatureCarousel } from './marketing/FeatureCarousel';
 import { Testimonials } from './marketing/Testimonials';
 import { FAQs } from './marketing/FAQs';
+import { AppDownloadCTA } from './marketing/AppDownloadCTA';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -179,6 +180,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
         {/* FAQs */}
         <FAQs />
+
+        {/* Native App Download */}
+        <AppDownloadCTA />
 
         {/* Final CTA */}
         <section className="py-32 px-6">
