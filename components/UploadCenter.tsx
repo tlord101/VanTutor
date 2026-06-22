@@ -1372,6 +1372,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                 <button onClick={() => setUploadModal(null)} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition mt-2">
                     Cancel
                 </button>
+                </div>
             </div>
           </div>
         </div>

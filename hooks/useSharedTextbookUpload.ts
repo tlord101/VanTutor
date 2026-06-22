@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Type } from '@google/genai';
-import { db, storage, firebaseAuth } from '../firebase';
+import { db, storage, auth as firebaseAuth } from '../firebase';
 import { ref as dbRef, get, set, update, push } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
@@ -9,7 +9,28 @@ import { useApiLimiter } from './useApiLimiter';
 import { useAppSettings } from './useAppSettings';
 import { useToast } from './useToast';
 import type { Course, Topic, AppSettings } from '../types';
-import { normalizeLevel, normalizeSemester } from '../types';
+
+const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
+const SEMESTERS = ['first', 'second'] as const;
+
+export const normalizeLevel = (value?: string) => {
+  if (!value) return LEVELS[0];
+  const normalized = value.toLowerCase().replace(/\s+/g, '');
+  if (LEVELS.includes(normalized as (typeof LEVELS)[number])) {
+    return normalized as (typeof LEVELS)[number];
+  }
+  const digitsMatch = normalized.match(/\d+/);
+  if (digitsMatch?.[0]) {
+    const candidate = `${digitsMatch[0]}lvl` as (typeof LEVELS)[number];
+    if (LEVELS.includes(candidate)) return candidate;
+  }
+  return LEVELS[0];
+};
+
+export const normalizeSemester = (value?: string) => {
+  const normalized = (value || '').toString().trim().toLowerCase();
+  return SEMESTERS.includes(normalized as (typeof SEMESTERS)[number]) ? (normalized as (typeof SEMESTERS)[number]) : SEMESTERS[0];
+};
 
 export const getCourseMergeKey = (course: Partial<Course>) => {
     const primaryLabel = (course.course_code || course.course_name || course.course_id || '').toString().trim();
