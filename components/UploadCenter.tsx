@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { Type } from '@google/genai';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, auth as firebaseAuth, firebaseSignOut, onAuthStateChanged, db, storage, functions } from '../firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, auth as firebaseAuth, firebaseSignOut, onAuthStateChanged, db, storage } from '../firebase';
 import { ref as dbRef, get, onValue, push, set, update, remove } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
 import { useToast } from '../hooks/useToast';
 import { getFeatureModel } from '../utils/usage';
 import { useApiLimiter } from '../hooks/useApiLimiter';
@@ -13,6 +12,17 @@ import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
 import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
 import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion, Menu, X } from 'lucide-react';
+import { PDFDocument } from 'pdf-lib';
+
+function uint8ToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.slice(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    return window.btoa(binary);
+}
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
 const SEMESTERS = ['first', 'second'] as const;
@@ -198,6 +208,8 @@ export const UploadCenter: React.FC = () => {
   const [newCourseName, setNewCourseName] = useState('');
   const [newCourseCode, setNewCourseCode] = useState('');
   const [isAddingCourse, setIsAddingCourse] = useState(false);
+  const [newCourseType, setNewCourseType] = useState<'private' | 'general'>('private');
+
   const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
@@ -423,9 +435,10 @@ export const UploadCenter: React.FC = () => {
     });
   };
 
-  const handleFileUpload = async (course: Course, courseKey: string, deptPaths: string[], files: FileList | File[], type: 'textbook'|'past_question', year?: string) => {
+  const handleFileUpload = async (course: Course, courseKey: string, deptPath: string, files: FileList | File[], type: 'textbook'|'past_question', year?: string) => {
     const currentUser = firebaseAuth.currentUser;
     if (!currentUser || !profile) return addToast('Please sign in again.', 'error');
+    if (!ai) return addToast('AI features unavailable.', 'error');
     if (!appSettings.upload_center_uploads_enabled) return addToast('Uploads are disabled.', 'error');
 
     const pdfFiles = Array.from(files).filter((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
@@ -436,37 +449,242 @@ export const UploadCenter: React.FC = () => {
     
     try {
       const uploadedUrls: string[] = [];
+      const extractedTopicGroups: Topic[][] = [];
+      let extractedQuestions: any[] = [];
 
       for (let index = 0; index < pdfFiles.length; index += 1) {
         const file = pdfFiles[index];
-        setUploadProgress({ status: `Uploading PDF to storage (${index + 1}/${pdfFiles.length})...`, percent: 10 + Math.round((index / pdfFiles.length) * 30) });
+        setUploadProgress({ status: `Uploading PDF to storage (${index + 1}/${pdfFiles.length})...`, percent: 10 + (index * 5) });
         const uploadToken = `${Date.now()}_${index}_${file.lastModified}_${file.size}`;
         const fileRef = storageRef(storage, `textbooks/uploader/${currentUser.uid}/${courseKey}/${uploadToken}_${file.name}`);
         const result = await uploadBytes(fileRef, file);
         const downloadURL = await getDownloadURL(result.ref);
         uploadedUrls.push(downloadURL);
+
+        setUploadProgress({ status: `Extracting textbook contents (${index + 1}/${pdfFiles.length})...`, percent: 20 + (index * 5) });
+        
+        let base64Chunks: string[] = [];
+        if (file.size > 15 * 1024 * 1024) {
+          setUploadProgress({ status: `Splitting large PDF into chunks (${index + 1}/${pdfFiles.length})...`, percent: 25 + (index * 5) });
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const totalPages = pdfDoc.getPageCount();
+            const chunkCount = 3;
+            const pagesPerChunk = Math.ceil(totalPages / chunkCount);
+            
+            for (let i = 0; i < chunkCount; i++) {
+              const startPage = i * pagesPerChunk;
+              if (startPage >= totalPages) break;
+              const endPage = Math.min(startPage + pagesPerChunk, totalPages);
+              
+              const newPdfDoc = await PDFDocument.create();
+              const pageIndices = Array.from({ length: endPage - startPage }, (_, k) => startPage + k);
+              const copiedPages = await newPdfDoc.copyPages(pdfDoc, pageIndices);
+              copiedPages.forEach((page) => newPdfDoc.addPage(page));
+              
+              const pdfBytes = await newPdfDoc.save();
+              base64Chunks.push(uint8ToBase64(pdfBytes));
+            }
+          } catch (e) {
+            console.warn("PDF splitting failed, using whole file", e);
+            base64Chunks = [await fileToBase64(file)];
+          }
+        } else {
+          base64Chunks = [await fileToBase64(file)];
+        }
+        
+        setUploadProgress({ status: `AI extracting syllabus topics (${index + 1}/${pdfFiles.length})...`, percent: 35 + (index * 5) });
+
+        
+        const textbookPrompt = `Analyze this PDF textbook for "${course.course_name}" at "${course.level}" level.
+Extract a comprehensive syllabus/course outline into a structured JSON array of topics with concise grounding context.
+RULES:
+1. Output ONLY the JSON object.
+2. The root object must have a "syllabus" key which is an array of objects.
+3. Each topic object must have: topic_name, topic_id, topic_context, start_point, end_point.
+FORMAT: { "syllabus": [ { "topic_name": "...", "topic_id": "...", "topic_context": "...", "start_point": "...", "end_point": "..." } ] }`;
+
+        const pqPrompt = `Analyze this PDF past question paper for "${course.course_name}".
+Extract all the questions and their options.
+RULES:
+1. Output ONLY the JSON object.
+2. The root object must have a "questions" key which is an array of objects.
+3. Each question object must have: "question" (string), "options" (array of strings), "correctAnswer" (string), "explanation" (string). If the correct answer is not explicitly stated, infer the most likely correct option and provide a brief explanation.
+FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer": "...", "explanation": "..." } ] }`;
+
+        const chunkPromises = base64Chunks.map(async (chunkBase64) => {
+          return attemptApiCall(async () => {
+            const aiResponse = await ai.models.generateContent({
+              model: geminiModel,
+              contents: [{ role: 'user', parts: [{ text: type === 'textbook' ? textbookPrompt : pqPrompt }, { inlineData: { mimeType: 'application/pdf', data: chunkBase64 } }] }],
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: type === 'textbook' ? {
+                  type: Type.OBJECT,
+                  properties: {
+                    syllabus: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          topic_name: { type: Type.STRING },
+                          topic_id: { type: Type.STRING },
+                          topic_context: { type: Type.STRING },
+                          start_point: { type: Type.STRING },
+                          end_point: { type: Type.STRING }
+                        },
+                        required: ['topic_name', 'topic_id', 'topic_context', 'start_point', 'end_point']
+                      }
+                    }
+                  },
+                  required: ['syllabus']
+                } : {
+                  type: Type.OBJECT,
+                  properties: {
+                    questions: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          question: { type: Type.STRING },
+                          options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                          correctAnswer: { type: Type.STRING },
+                          explanation: { type: Type.STRING }
+                        },
+                        required: ['question', 'options', 'correctAnswer', 'explanation']
+                      }
+                    }
+                  },
+                  required: ['questions']
+                }
+              },
+            });
+  
+            const text = getResponseText(aiResponse);
+            if (!text) throw new Error(`AI returned an empty response.`);
+            return JSON.parse(text);
+          });
+        });
+
+        const chunkResults = await Promise.all(chunkPromises);
+
+        for (const aiResult of chunkResults) {
+          if (!aiResult.success) {
+            addToast(aiResult.message, 'error');
+            setIsUploadingCourseKey('');
+            return;
+          }
+          const responseData = aiResult.data as any;
+          if (type === 'textbook') {
+              extractedTopicGroups.push(Array.isArray(responseData?.syllabus) ? responseData.syllabus.map((t: any, i: number) => sanitizeTopicMetadata(t, i)) : []);
+          } else {
+              if (Array.isArray(responseData?.questions)) {
+                  extractedQuestions = [...extractedQuestions, ...responseData.questions];
+              }
+          }
+        }
       }
 
-      setUploadProgress({ status: `Processing document via Cloud AI...`, percent: 50 });
-      
-      const processTextbookUpload = httpsCallable(functions, 'processTextbookUpload');
-      await processTextbookUpload({
-        courseKey,
-        courseName: course.course_name,
-        courseId: course.course_id,
-        level: course.level,
-        semester: course.semester || selectedSemester,
-        deptPaths,
-        pdfUrls: uploadedUrls,
-        primaryPdfUrl: uploadedUrls[uploadedUrls.length - 1],
-        type,
-        year
-      });
+      if (type === 'past_question' && year) {
+          // Save Past Questions
+          const resolvedDeptId = deptPath.split('/').pop() || selectedDepartmentId;
+          const pqPath = `past_questions/${resolvedDeptId}/${course.level}/${course.course_id}/${year}`;
+          await set(dbRef(db, pqPath), extractedQuestions);
+          addToast(`Past Questions for ${year} uploaded successfully.`, 'success');
+          await loadCatalog();
+          setIsUploadingCourseKey('');
+          setUploadProgress(null);
+      } else {
+          // Save Textbook Logic
+          const sharedSnapshot = await get(dbRef(db, `textbook_contexts/shared/${courseKey}`));
+          const existingShared = sharedSnapshot.exists() ? sharedSnapshot.val() : {};
+          const existingSharedPdfUrls: string[] = Array.isArray(existingShared?.pdf_urls) ? existingShared.pdf_urls.filter(Boolean) : [];
+          if (existingShared?.pdf_url && !existingSharedPdfUrls.includes(existingShared.pdf_url)) existingSharedPdfUrls.push(existingShared.pdf_url);
+          
+          const mergedSharedPdfUrls = Array.from(new Set([...existingSharedPdfUrls, ...uploadedUrls]));
+          const mergedSharedSyllabus = mergeTopics(Array.isArray(existingShared?.syllabus) ? existingShared.syllabus : [], extractedTopicGroups.flat());
+          const primaryPdfUrl = selectPrimaryPdfUrl(uploadedUrls, existingShared?.pdf_url, mergedSharedPdfUrls);
 
-      addToast(`${course.course_name} material uploaded successfully!`, 'success');
-      await loadCatalog();
+          await set(dbRef(db, `textbook_contexts/shared/${courseKey}`), {
+            course_key: courseKey,
+            course_name: course.course_name,
+            level: course.level,
+            semester: course.semester || selectedSemester,
+            pdf_url: primaryPdfUrl,
+            pdf_urls: mergedSharedPdfUrls,
+            syllabus: mergedSharedSyllabus,
+            uploaded_at: Date.now(),
+            uploader_uid: currentUser.uid,
+          });
+
+          const coursesRef = dbRef(db, `schools_data/${deptPath}/levels/${course.level}/courses`);
+          const coursesSnapshot = await get(coursesRef);
+          const existingCourse = (coursesSnapshot.val() || {})[course.course_id] || {};
+          
+          const mergedCourse = mergeCourseRecord({ ...existingCourse, course_id: course.course_id }, {
+            ...course,
+            textbook_url: primaryPdfUrl,
+            textbook_urls: mergedSharedPdfUrls,
+            textbook_shared_key: courseKey,
+          }, mergedSharedSyllabus, mergedSharedPdfUrls);
+          
+          await update(dbRef(db, `schools_data/${deptPath}/levels/${course.level}/courses/${course.course_id}`), mergedCourse);
+
+          const uploadRecordId = push(dbRef(db, `uploaders/${currentUser.uid}/uploads`)).key;
+          if (uploadRecordId) {
+            await set(dbRef(db, `uploaders/${currentUser.uid}/uploads/${uploadRecordId}`), {
+              course_key: courseKey,
+              course_name: course.course_name,
+              level: course.level,
+              semester: course.semester || selectedSemester,
+              department_ids: [deptPath],
+              uploaded_urls: mergedSharedPdfUrls,
+              uploaded_at: Date.now(),
+            } satisfies UploadRecord);
+          }
+
+          addToast(`${course.course_name} textbook uploaded successfully.`, 'success');
+          await loadCatalog();
+
+          try {
+            setUploadProgress({ status: 'Preparing PDF text for vector indexing...', percent: 60 });
+            const { extractTextFromPDF } = await import('../utils/pdfExtraction');
+            const { ingestTextToPinecone } = await import('../utils/pinecone');
+
+            addToast('Extracting textbook content...', 'info');
+            setUploadProgress({ status: 'Parsing raw text from PDF for database...', percent: 65 });
+            const rawText = await extractTextFromPDF(pdfFiles[0]);
+            
+            addToast('Syncing to Pinecone database...', 'info');
+            setUploadProgress({ status: 'Connecting to Pinecone...', percent: 70 });
+            const ingestResult = await ingestTextToPinecone(
+              rawText, courseKey, course.course_name, course.level, course.semester || selectedSemester, appSettings,
+              (progress) => {
+                let percent = 80;
+                if (progress.includes('Split text')) percent = 75;
+                if (progress.includes('Upserting chunks')) {
+                  const match = progress.match(/Upserting chunks batch to Pinecone \((\d+)\/(\d+)\)/);
+                  if (match) {
+                     const current = parseInt(match[1]);
+                     const total = parseInt(match[2]);
+                     percent = 75 + Math.round((current / total) * 25);
+                  }
+                }
+                setUploadProgress({ status: progress, percent });
+              }
+            );
+
+            if (!ingestResult.success) throw new Error(ingestResult.message || "Vector ingestion failed.");
+            addToast('Pinecone vector indexing complete!', 'success');
+          } catch (vectorErr: any) {
+            console.error("Vector index error:", vectorErr);
+            addToast('Warning: Textbook uploaded but vector search sync failed.', 'info');
+          }
+      }
+      
     } catch (error: any) {
-      addToast(error?.message || 'Could not upload the course material.', 'error');
+      addToast(error?.message || 'Could not upload the course.', 'error');
     } finally {
       setIsUploadingCourseKey('');
       setUploadProgress(null);
@@ -481,9 +699,6 @@ export const UploadCenter: React.FC = () => {
     setIsAddingCourse(true);
     try {
       const courseId = newCourseCode.trim().toLowerCase().replace(/\s+/g, '');
-      const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
-      const newCourseRef = dbRef(db, `schools_data/${deptPath}/levels/${selectedLevel}/courses/${courseId}`);
-      
       const courseData: Partial<Course> = {
         course_id: courseId,
         course_name: newCourseName.trim(),
@@ -493,8 +708,23 @@ export const UploadCenter: React.FC = () => {
         course_status: 'active',
       };
       
-      await set(newCourseRef, courseData);
-      addToast('Course added successfully!', 'success');
+      if (newCourseType === 'general') {
+         const college = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId];
+         if (!college || !college.departments) throw new Error("College data missing");
+         
+         const updates: any = {};
+         Object.keys(college.departments).forEach(deptId => {
+             updates[`schools_data/${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${deptId}/levels/${selectedLevel}/courses/${courseId}`] = courseData;
+         });
+         await update(dbRef(db), updates);
+         addToast(`General course added to ${Object.keys(college.departments).length} departments!`, 'success');
+      } else {
+         const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
+         const newCourseRef = dbRef(db, `schools_data/${deptPath}/levels/${selectedLevel}/courses/${courseId}`);
+         await set(newCourseRef, courseData);
+         addToast('Private course added successfully!', 'success');
+      }
+      
       setNewCourseName('');
       setNewCourseCode('');
       await loadCatalog();
@@ -623,59 +853,68 @@ export const UploadCenter: React.FC = () => {
       .map((c: any) => ({ ...c, level: selectedLevel }));
   };
 
-  const getAllSchoolCourses = () => {
-    if (!selectedSchoolId || !schoolsData[selectedSchoolId]) return [];
+  const getSchoolCourses = () => {
+    if (!selectedSchoolId) return [];
     const school = schoolsData[selectedSchoolId];
-    if (!school.colleges) return [];
+    if (!school || !school.colleges) return [];
     
     const allCourses: any[] = [];
     const seenIds = new Set<string>();
-    const deptPathsMap = new Map<string, string[]>();
+    const deptCountMap = new Map<string, number>();
 
-    Object.keys(school.colleges).forEach(cId => {
-      const college = school.colleges[cId];
+    Object.keys(school.colleges).forEach((collegeId: string) => {
+      const college = school.colleges[collegeId];
       if (college.departments) {
-        Object.keys(college.departments).forEach(dId => {
-          const dept = college.departments[dId];
-          const fullDeptPath = `${selectedSchoolId}/colleges/${cId}/departments/${dId}`;
-          if (dept.levels) {
-            Object.keys(dept.levels).forEach(lvl => {
-              if (dept.levels[lvl].courses) {
-                Object.values(dept.levels[lvl].courses).forEach((c: any) => {
-                  const mergeKey = getCourseMergeKey({ ...c, level: lvl });
-                  
-                  if (!deptPathsMap.has(mergeKey)) {
-                      deptPathsMap.set(mergeKey, []);
+        Object.keys(college.departments).forEach((deptId: string) => {
+          const dept = college.departments[deptId];
+          Object.keys(dept.levels || {}).forEach((levelId: string) => {
+            const levelData = dept.levels[levelId];
+            if (levelData?.courses) {
+              Object.values(levelData.courses).forEach((c: any) => {
+                if (normalizeSemester(c.semester) === selectedSemester && levelId === selectedLevel) {
+                  const courseId = c.course_id || c.course_name;
+                  deptCountMap.set(courseId, (deptCountMap.get(courseId) || 0) + 1);
+                  if (!seenIds.has(courseId)) {
+                    seenIds.add(courseId);
+                    allCourses.push({ ...c, level: levelId, firstDepartmentPath: `${selectedSchoolId}/colleges/${collegeId}/departments/${deptId}` });
                   }
-                  if (!deptPathsMap.get(mergeKey)!.includes(fullDeptPath)) {
-                      deptPathsMap.get(mergeKey)!.push(fullDeptPath);
-                  }
-
-                  if (!seenIds.has(mergeKey)) {
-                    seenIds.add(mergeKey);
-                    allCourses.push({ ...c, level: lvl, firstDepartmentId: dId, firstCollegeId: cId });
-                  }
-                });
-              }
-            });
-          }
+                }
+              });
+            }
+          });
         });
       }
     });
     
-    return allCourses.map(c => ({ 
-        ...c, 
-        department_count: deptPathsMap.get(getCourseMergeKey(c))?.length || 1,
-        dept_paths: deptPathsMap.get(getCourseMergeKey(c)) || []
-    })).filter(c => {
-        if (!courseSearchQuery) return true;
-        const q = courseSearchQuery.toLowerCase();
-        return (c.course_name || '').toLowerCase().includes(q) || (c.course_code || c.course_id || '').toLowerCase().includes(q);
+    return allCourses.map(c => ({ ...c, department_count: deptCountMap.get(c.course_id || c.course_name) }))
+      .filter(c => !courseSearchQuery || c.course_name.toLowerCase().includes(courseSearchQuery.toLowerCase()) || (c.course_code || '').toLowerCase().includes(courseSearchQuery.toLowerCase()));
+  };
+
+  const getSchoolDepartments = () => {
+    if (!selectedSchoolId) return [];
+    const school = schoolsData[selectedSchoolId];
+    if (!school || !school.colleges) return [];
+
+    const allDepts: any[] = [];
+    Object.keys(school.colleges).forEach((collegeId: string) => {
+      const college = school.colleges[collegeId];
+      if (college.departments) {
+        Object.keys(college.departments).forEach((deptId: string) => {
+           allDepts.push({
+               ...college.departments[deptId],
+               id: deptId,
+               collegeId,
+               collegeName: college.name || collegeId
+           });
+        });
+      }
     });
+    return allDepts;
   };
 
   const departmentCourses = getDepartmentCourses();
-  const schoolCourses = getAllSchoolCourses();
+  const schoolCourses = getSchoolCourses();
+  const schoolDepartments = getSchoolDepartments();
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900 overflow-hidden relative">
@@ -700,8 +939,8 @@ export const UploadCenter: React.FC = () => {
         </div>
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           <button onClick={() => navigate('/upload-center')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'dashboard' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><LayoutDashboard className="w-5 h-5" /> Dashboard</button>
-          <button onClick={() => navigate('/upload-center/courses')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'courses' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><BookOpen className="w-5 h-5" /> All Courses</button>
-          <button onClick={() => navigate('/upload-center/departments')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'departments' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FolderOpen className="w-5 h-5" /> Manage Departments</button>
+          <button onClick={() => navigate('/upload-center/courses')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'courses' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><BookOpen className="w-5 h-5" /> Course Directory</button>
+          <button onClick={() => navigate('/upload-center/departments')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'departments' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FolderOpen className="w-5 h-5" /> Departments</button>
           <button onClick={() => navigate('/upload-center/past-questions')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'past_questions' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FileQuestion className="w-5 h-5" /> Past Questions</button>
           <button onClick={() => navigate('/upload-center/requests')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'requests' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><List className="w-5 h-5" /> All Requests</button>
         </nav>
@@ -763,61 +1002,59 @@ export const UploadCenter: React.FC = () => {
 
         {activeView === 'courses' && (
           <div className="max-w-6xl space-y-6 animate-fade-in">
-            <h2 className="text-3xl font-black tracking-tight">Global Course Directory</h2>
+            <h2 className="text-3xl font-black tracking-tight">Unified Course Directory</h2>
             
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-bold md:w-1/3">
-                  <option value="">Select School...</option>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4"/> Global Search & Filter</h3>
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <input type="text" placeholder="Search for MTH101 or Computer Science..." value={courseSearchQuery} onChange={e => setCourseSearchQuery(e.target.value)} className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  <option value="">Select School</option>
                   {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
                 </select>
                 
-                <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                        <BookOpen className="w-5 h-5 text-slate-400" />
-                    </div>
-                    <input 
-                        type="text" 
-                        placeholder="Search for MTH101 or Computer Science..." 
-                        value={courseSearchQuery}
-                        onChange={e => setCourseSearchQuery(e.target.value)}
-                        className="w-full p-4 pl-12 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 ring-sky-100 font-medium"
-                    />
-                </div>
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+
+                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
 
             {selectedSchoolId && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black">All Available Courses ({schoolCourses.length})</h3>
+                  <h3 className="text-xl font-black">Available Courses ({schoolCourses.length})</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {schoolCourses.map((course: any) => {
                     const isUploaded = isTextbookUploaded(course);
                     return (
-                      <div key={course.course_id + course.level + course.semester} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
+                      <div key={course.course_id + course.level} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-                                {course.level}
-                             </span>
+                          <div className="flex flex-col items-start gap-2">
                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                 {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
                              </span>
-                             {course.department_count > 1 && (
+                             {course.department_count > 0 && (
                                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-sky-50 text-sky-600 border border-sky-200">
-                                   {course.department_count} Depts
+                                   {course.department_count} Dept{course.department_count > 1 ? 's' : ''} Offering
                                 </span>
                              )}
                           </div>
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Ready' : 'Pending'}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                         </div>
                         <h4 className="font-black text-lg text-slate-900 leading-tight mt-3">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
-                          <button onClick={() => setUploadModal({course, courseKey: getCourseMergeKey({ ...course }), deptPath: course.dept_paths})} disabled={isUploadingCourseKey === getCourseMergeKey({ ...course })} className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 ${isUploaded ? 'bg-slate-800 hover:bg-slate-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
-                            {isUploadingCourseKey === getCourseMergeKey({ ...course }) ? 'Uploading...' : <><HardDrive className="w-4 h-4"/> Upload Material</>}
+                          <button onClick={() => setUploadModal({course, courseKey: getCourseMergeKey(course), deptPath: course.firstDepartmentPath})} disabled={isUploadingCourseKey === getCourseMergeKey(course)} className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 ${isUploaded ? 'bg-slate-800 hover:bg-slate-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
+                            {isUploadingCourseKey === getCourseMergeKey(course) ? 'Uploading...' : <><HardDrive className="w-4 h-4"/> Upload Material</>}
                           </button>
                         </div>
                       </div>
@@ -825,7 +1062,7 @@ export const UploadCenter: React.FC = () => {
                   })}
                   {!schoolCourses.length && (
                     <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[24px]">
-                      No courses found matching your search.
+                      No courses found matching your criteria.
                     </div>
                   )}
                 </div>
@@ -833,92 +1070,94 @@ export const UploadCenter: React.FC = () => {
             )}
           </div>
         )}
+
         {activeView === 'departments' && (
           <div className="max-w-6xl space-y-6">
-            <h2 className="text-3xl font-black tracking-tight">Manage Courses & Uploads</h2>
+            <h2 className="text-3xl font-black tracking-tight">Department Directories</h2>
             
-            {/* Context Selector */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex gap-4">
-                <select value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setSelectedDepartmentId(''); }} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-bold w-1/3">
-                  <option value="">Select School...</option>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select School</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setSelectedDepartmentId(''); }} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                  <option value="">Select School</option>
                   {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
                 </select>
-                
-                {selectedSchoolId && (
-                  <div className="flex-1 flex gap-2">
-                     <button onClick={() => addToast('Google Drive integration coming soon.', 'info')} className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-2 transition">
-                        <HardDrive className="w-4 h-4"/> Import from Google Drive
-                     </button>
-                     <button onClick={() => addToast('Bulk actions coming soon.', 'info')} className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-2 transition">
-                        <Layers className="w-4 h-4"/> Bulk Actions
-                     </button>
-                  </div>
-                )}
+              </div>
             </div>
 
             {selectedSchoolId && !selectedDepartmentId && (
-              <div className="space-y-4">
-                 <h3 className="text-xl font-black">Departments in {schoolsData[selectedSchoolId].name || selectedSchoolId}</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.keys(schoolsData[selectedSchoolId].colleges || {}).map(collegeId => {
-                       const college = schoolsData[selectedSchoolId].colleges[collegeId];
-                       return Object.keys(college.departments || {}).map(deptId => {
-                           const dept = college.departments[deptId];
-                           return (
-                               <div key={deptId} onClick={() => { setSelectedCollegeId(collegeId); setSelectedDepartmentId(deptId); }} className="bg-white p-6 border border-slate-200 rounded-[24px] cursor-pointer hover:border-sky-300 hover:shadow-md transition">
-                                   <div className="flex flex-col items-start gap-3">
-                                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">{college.name || collegeId}</span>
-                                      <h4 className="font-bold text-lg">{dept.name || deptId}</h4>
-                                   </div>
-                               </div>
-                           );
-                       });
-                    }).flat()}
+              <div className="space-y-6 animate-fade-in">
+                 <h3 className="text-xl font-black">All Departments</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {schoolDepartments.map(dept => (
+                      <div key={dept.id} onClick={() => { setSelectedCollegeId(dept.collegeId); setSelectedDepartmentId(dept.id); }} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm hover:shadow-md hover:border-sky-200 cursor-pointer transition-all">
+                          <div className="flex justify-between items-start mb-2">
+                             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                {dept.collegeName}
+                             </span>
+                          </div>
+                          <h4 className="font-black text-xl text-slate-900 mt-2">{dept.name || dept.id}</h4>
+                          <div className="mt-4 flex items-center text-sky-600 font-bold text-sm gap-1">
+                              View Courses <ChevronRight className="w-4 h-4" />
+                          </div>
+                      </div>
+                    ))}
+                    {!schoolDepartments.length && (
+                        <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[24px]">
+                           No departments found.
+                        </div>
+                    )}
                  </div>
               </div>
             )}
 
-            {selectedSchoolId && selectedDepartmentId && (
+            {selectedDepartmentId && (
               <div className="space-y-6 animate-fade-in">
                 <div className="flex items-center gap-4">
-                   <button onClick={() => setSelectedDepartmentId('')} className="p-2 hover:bg-slate-200 bg-slate-100 rounded-full transition text-slate-600"><Trash2 className="w-5 h-5 hidden" /> <span className="text-sm font-bold px-2">← Back</span></button>
-                   <div>
-                     <h3 className="text-xl font-black">{schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId]?.departments?.[selectedDepartmentId]?.name || selectedDepartmentId}</h3>
-                     <p className="text-xs font-bold text-slate-500 uppercase">{schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId]?.name || selectedCollegeId}</p>
-                   </div>
+                    <button onClick={() => setSelectedDepartmentId('')} className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-50 transition">
+                        <ChevronRight className="w-5 h-5 rotate-180 text-slate-600" />
+                    </button>
+                    <h3 className="text-2xl font-black">
+                        {schoolDepartments.find(d => d.id === selectedDepartmentId)?.name || selectedDepartmentId}
+                    </h3>
                 </div>
-
-                {/* Level and Semester Filters for Department View */}
-                <div className="flex gap-4 p-4 bg-white border border-slate-200 rounded-[20px]">
-                    <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium w-1/3">
-                      {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                    <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium w-1/3">
-                      {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-700">Courses ({departmentCourses.length})</h3>
-                  <button onClick={() => setIsAddingCourse(!isAddingCourse)} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-sky-600 transition"><Plus className="w-4 h-4"/> Add Course</button>
+                
+                <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Level</label>
+                        <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                        {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Semester</label>
+                        <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                        {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={() => setIsAddingCourse(!isAddingCourse)} className="flex items-center justify-center h-12 gap-2 bg-slate-900 text-white px-6 rounded-xl text-sm font-bold hover:bg-sky-600 transition">
+                        <Plus className="w-4 h-4"/> Add Course
+                    </button>
                 </div>
 
                 {isAddingCourse && (
-                  <div className="bg-sky-50 border border-sky-100 p-6 rounded-[24px] flex flex-col gap-4 animate-fade-in">
-                    <div className="flex gap-4">
-                        <div className="flex-1 space-y-1">
-                          <label className="text-xs font-bold uppercase text-slate-500">Course Code</label>
-                          <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
-                        </div>
-                        <div className="flex-[2] space-y-1">
-                          <label className="text-xs font-bold uppercase text-slate-500">Course Name</label>
-                          <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
-                        </div>
+                  <div className="bg-sky-50 border border-sky-100 p-6 rounded-[24px] flex flex-col md:flex-row gap-4 items-end animate-fade-in">
+                    <div className="flex-[2] space-y-1 w-full">
+                      <label className="text-xs font-bold uppercase text-slate-500">Course Name</label>
+                      <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
                     </div>
-                    <div className="flex gap-4 mt-2">
-                        <button onClick={() => { handleAddCourse(); addToast('General Course added.', 'success'); }} disabled={isAddingCourse && (!newCourseCode || !newCourseName)} className="flex-1 bg-sky-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-sky-700 transition disabled:opacity-50">Save as General Course</button>
-                        <button onClick={() => { handleAddCourse(); addToast('Private Course added.', 'success'); }} disabled={isAddingCourse && (!newCourseCode || !newCourseName)} className="flex-1 bg-slate-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-700 transition disabled:opacity-50">Save as Private Course</button>
+                    <div className="flex-1 space-y-1 w-full">
+                      <label className="text-xs font-bold uppercase text-slate-500">Course Code</label>
+                      <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
                     </div>
+                    <div className="flex-1 space-y-1 w-full">
+                      <label className="text-xs font-bold uppercase text-slate-500">Course Type</label>
+                      <select value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} className="w-full p-3 bg-white rounded-xl border border-white outline-none focus:ring-2 ring-sky-200 text-sm">
+                          <option value="private">Private (This Dept Only)</option>
+                          <option value="general">General (Shared across Depts)</option>
+                      </select>
+                    </div>
+                    <button onClick={handleAddCourse} disabled={isAddingCourse && (!newCourseCode || !newCourseName)} className="bg-sky-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-sky-700 transition disabled:opacity-50 w-full md:w-auto">Save Course</button>
                   </div>
                 )}
 
@@ -930,7 +1169,7 @@ export const UploadCenter: React.FC = () => {
                     return (
                       <div key={course.course_id} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'Pending'}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                           <button onClick={() => handleDeleteCourse(course)} className="text-slate-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button>
                         </div>
                         <h4 className="font-black text-lg text-slate-900 leading-tight">{course.course_name}</h4>
@@ -1084,17 +1323,39 @@ export const UploadCenter: React.FC = () => {
                 )}
             </div>
 
-            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={e => {
+            <input ref={fileInputRef} type="file" multiple accept="application/pdf" className="hidden" onChange={e => {
                 if (e.target.files?.length) {
                     handleFileUpload(uploadModal.course, uploadModal.courseKey, uploadModal.deptPath, e.target.files, uploadType, uploadType === 'past_question' ? pqYear : undefined);
                     setUploadModal(null);
                 }
             }} />
 
-            <div className="flex flex-col gap-3 mt-6">
-                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition flex items-center justify-center gap-2">
-                    <UploadCloud className="w-5 h-5" /> Select Local File
-                </button>
+            <div 
+                className="mt-6 border-2 border-dashed border-sky-200 rounded-[24px] p-6 text-center transition-colors hover:bg-sky-50"
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('bg-sky-50', 'border-sky-400');
+                }}
+                onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('bg-sky-50', 'border-sky-400');
+                }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('bg-sky-50', 'border-sky-400');
+                    if (e.dataTransfer.files?.length) {
+                        handleFileUpload(uploadModal.course, uploadModal.courseKey, uploadModal.deptPath, e.dataTransfer.files, uploadType, uploadType === 'past_question' ? pqYear : undefined);
+                        setUploadModal(null);
+                    }
+                }}
+            >
+                <div className="flex flex-col gap-3">
+                    <div className="text-sm font-bold text-slate-500 mb-2 pointer-events-none">
+                        Drag and drop your PDFs here, or
+                    </div>
+                    <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition flex items-center justify-center gap-2">
+                        <UploadCloud className="w-5 h-5" /> Select Local Files
+                    </button>
                 <button 
                   onClick={() => {
                     setUploadModal(null); // Close modal first

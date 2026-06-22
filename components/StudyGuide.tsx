@@ -19,9 +19,10 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { useToast } from '../hooks/useToast';
 import { SparklesIcon } from './icons/SparklesIcon';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, UploadCloud } from 'lucide-react';
 import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
+import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 
 declare var __app_id: string;
 
@@ -364,6 +365,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const [shouldAutoTeach, setShouldAutoTeach] = useState(false);
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const geminiModel = getFeatureModel('study_guide_lesson', appSettings);
+    const { uploadTextbook, uploadProgress } = useSharedTextbookUpload();
     const ai = useMemo(
         () => createAvelutAI(appSettings, userProfile),
         [appSettings, userProfile]
@@ -534,8 +536,6 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
             addToast('Forwarding failed: ' + err.message, 'error');
         }
     };
-
-
 
     const fetchTutorials = async () => {
         if (tutorials.length > 0 || isTutorialsLoading) return;
@@ -1276,6 +1276,30 @@ Student: "${tempInput}"
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
+                    {!course.topics?.length && (
+                        <div className="relative">
+                            <input 
+                                type="file" 
+                                id={`upload-textbook-${course.course_id}`} 
+                                className="hidden" 
+                                accept="application/pdf"
+                                onChange={async (e) => {
+                                    if (!e.target.files?.length) return;
+                                    const courseKey = getCourseMergeKey(course);
+                                    await uploadTextbook(course, courseKey, e.target.files, false, userProfile.department_id);
+                                    e.target.value = '';
+                                }}
+                            />
+                            <label 
+                                htmlFor={`upload-textbook-${course.course_id}`}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-emerald/10 hover:bg-emerald/20 text-emerald rounded-full text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                title="Contribute a textbook for this course"
+                            >
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Upload Textbook</span>
+                            </label>
+                        </div>
+                    )}
                     <button 
                         onClick={() => {
                             setIsTutorialsOpen(true);
@@ -1314,6 +1338,20 @@ Student: "${tempInput}"
                     </div>
                 </div>
             </header>
+
+            {uploadProgress && (
+                <div className="absolute top-16 left-0 right-0 z-40 p-4 bg-white/90 backdrop-blur border-b border-gray-200 shadow-sm animate-fade-in">
+                    <div className="max-w-2xl mx-auto">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-bold text-gray-700">{uploadProgress.status}</span>
+                            <span className="text-xs font-bold text-emerald">{uploadProgress.percent}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div className="bg-emerald h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.percent}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Scrollable Message Area */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

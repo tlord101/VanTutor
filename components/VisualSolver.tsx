@@ -574,45 +574,22 @@ ${retrievedContext}
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            addToast('Please select an image file.', 'error');
+        const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        if (!supportedTypes.includes(file.type.toLowerCase())) {
+            addToast('Please upload a valid image (JPEG, PNG, WEBP, HEIC).', 'error');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            addToast('Image must be under 5MB.', 'error');
             return;
         }
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const imageDataUrl = event.target?.result as string;
-            
-            // Resize and compress the image
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const maxDim = 1200; // Max dimension for Gemini API efficiency
-
-                if (width > height && width > maxDim) {
-                    height *= maxDim / width;
-                    width = maxDim;
-                } else if (height > maxDim) {
-                    width *= maxDim / height;
-                    height = maxDim;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    setScannedImage(compressedDataUrl);
-                    setCameraState('preview');
-                } else {
-                    setScannedImage(imageDataUrl);
-                    setCameraState('preview');
-                }
-            };
-            img.src = imageDataUrl;
+            setScannedImage(imageDataUrl);
+            setCameraState('preview');
         };
         reader.onerror = () => {
             addToast('Could not read the image file.', 'error');
