@@ -200,7 +200,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
 // ==========================================
 // UTILITY ROUTING PROTOCOLS
 // ==========================================
-const normalizeRouteSegment = (segment: string): string => segment.toLowerCase().replace(/-/g, '_');
+const normalizeRouteSegment = (segment: string): string => (segment || '').toLowerCase().replace(/-/g, '_');
 
 const ALLOWED_ROUTE_ITEMS = new Set([
     'dashboard',

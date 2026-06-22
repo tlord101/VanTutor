@@ -109,7 +109,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                             <Menu className="w-6 h-6" />
                         </button>
                         <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight capitalize hidden sm:block">
-                            {activeTab.replace('-', ' ')}
+                            {(activeTab || '').replace('-', ' ')}
                         </h2>
                     </div>
 
