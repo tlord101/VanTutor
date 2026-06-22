@@ -414,7 +414,10 @@ export const UploadCenter: React.FC = () => {
     openPicker({
       clientId: appSettings.google_client_id || '',
       apiKey: appSettings.google_api_key || '',
-      onFilesSelected
+      onFilesSelected,
+      onProgress: (status, percent) => {
+        setUploadProgress({ status, percent });
+      }
     });
   };
 
@@ -1203,9 +1206,26 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                 }
             }} />
 
-            <div className="flex gap-3 mt-6">
-                <button onClick={() => setUploadModal(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition">Cancel</button>
-                <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-3 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition">Select File</button>
+            <div className="flex flex-col gap-3 mt-6">
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition flex items-center justify-center gap-2">
+                    <UploadCloud className="w-5 h-5" /> Select Local File
+                </button>
+                <button 
+                  onClick={() => {
+                    setUploadModal(null); // Close modal first
+                    handleGoogleDrivePick((files) => {
+                      if (files.length > 0) {
+                        handleFileUpload(uploadModal.course, uploadModal.courseKey, uploadModal.deptPath, files, uploadType, uploadType === 'past_question' ? pqYear : undefined);
+                      }
+                    });
+                  }} 
+                  className="w-full py-3 bg-[#4285F4] text-white rounded-xl font-bold hover:bg-[#3367D6] transition flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path fill="#FFC107" d="M16 14.5L12 21.5H5.333L9.333 14.5H16Z"/><path fill="#1976D2" d="M9.333 14.5L5.333 21.5L1.333 14.5L5.333 7.5L9.333 14.5Z"/><path fill="#4CAF50" d="M16 14.5H9.333L5.333 7.5H12L16 14.5Z"/><path fill="#000000" fillOpacity="0.2" d="M16 14.5L12 21.5H5.333L9.333 14.5H16Z"/><path fill="#000000" fillOpacity="0.2" d="M9.333 14.5L5.333 21.5L1.333 14.5L5.333 7.5L9.333 14.5Z"/><path fill="#000000" fillOpacity="0.2" d="M16 14.5H9.333L5.333 7.5H12L16 14.5Z"/></svg>
+                    Import from Google Drive
+                </button>
+                <button onClick={() => setUploadModal(null)} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition mt-2">
+                    Cancel
+                </button>
             </div>
           </div>
         </div>

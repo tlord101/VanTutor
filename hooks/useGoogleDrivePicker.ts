@@ -5,6 +5,7 @@ interface GoogleDrivePickerOptions {
   clientId: string;
   apiKey: string;
   onFilesSelected: (files: File[]) => void;
+  onProgress?: (status: string, percent: number) => void;
 }
 
 const GOOGLE_ACCESS_TOKEN_KEY = 'avelut_google_drive_token';
@@ -21,7 +22,7 @@ export const useGoogleDrivePicker = () => {
   const { addToast } = useToast();
 
   const openPicker = useCallback(async (options: GoogleDrivePickerOptions) => {
-    const { clientId, apiKey, onFilesSelected } = options;
+    const { clientId, apiKey, onFilesSelected, onProgress } = options;
 
     if (!clientId || !apiKey) {
       addToast("Google Drive credentials not configured in App Settings", "error");
@@ -48,19 +49,58 @@ export const useGoogleDrivePicker = () => {
 
             addToast(`Importing ${docs.length} file(s) from Drive...`, "info");
 
-            for (const doc of docs) {
+            for (let i = 0; i < docs.length; i++) {
+              const doc = docs[i];
               try {
                 const fileId = doc.id;
                 const fileName = doc.name;
+                
+                if (onProgress) {
+                  onProgress(`Preparing to download ${fileName}...`, 0);
+                }
+
                 const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                   headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!response.ok) throw new Error(`Failed to fetch ${fileName}`);
-                const blob = await response.blob();
+
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+                let loadedBytes = 0;
+
+                const reader = response.body?.getReader();
+                if (!reader) throw new Error('Failed to get stream reader');
+
+                const chunks: Uint8Array[] = [];
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  
+                  if (value) {
+                    chunks.push(value);
+                    loadedBytes += value.length;
+                    
+                    if (onProgress && totalBytes > 0) {
+                      // Calculate percentage, capping at 99% until complete
+                      const percent = Math.min(Math.round((loadedBytes / totalBytes) * 100), 99);
+                      onProgress(`Downloading ${fileName}...`, percent);
+                    } else if (onProgress) {
+                      // Fallback if no content-length
+                      onProgress(`Downloading ${fileName} (${Math.round(loadedBytes / 1024 / 1024)}MB)...`, 50);
+                    }
+                  }
+                }
+
+                if (onProgress) {
+                  onProgress(`Finalizing ${fileName}...`, 100);
+                }
+
+                const blob = new Blob(chunks, { type: 'application/pdf' });
                 files.push(new File([blob], fileName, { type: 'application/pdf' }));
               } catch (err) {
                 console.error(`Error downloading file from Drive:`, err);
                 addToast(`Failed to download ${doc.name}`, "error");
+                if (onProgress) onProgress(`Failed to download ${doc.name}`, 0);
               }
             }
             onFilesSelected(files);

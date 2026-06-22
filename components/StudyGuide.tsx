@@ -506,7 +506,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
                 timestamp: Date.now()
             });
 
-            const shareUrl = `${window.location.origin}/shared-chat/${shareId}`;
+            const shareUrl = `https://avelut.xyz/shared-chat/${shareId}`;
             setShareModalUrl(shareUrl);
             try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {

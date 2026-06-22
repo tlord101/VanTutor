@@ -59,7 +59,7 @@ export const InAppUpdate: React.FC = () => {
             const downloadResult = await Filesystem.downloadFile({
                 url: updateInfo.downloadUrl,
                 path: fileName,
-                directory: Directory.ExternalStorage, // Need accessible storage for Android Package Installer
+                directory: Directory.External, // App specific external directory, FileProvider friendly
                 progress: true,
             });
 

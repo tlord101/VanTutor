@@ -572,18 +572,26 @@ const App: React.FC = () => {
                     addToast(`Your account has been ${data.status}.`, "error");
                     return;
                 }
-                writeCachedJson(cacheKey, data);
-                if (!data.department_id) {
-                    setIsOnboarding(true);
-                } else {
-                    setUserProfile(data as UserProfile);
-                    setIsOnboarding(false);
-                    if (tourStatusRef.current === 'unknown') {
-                        if (data.privacy_consent?.granted && !data.has_completed_tour) {
-                            startTour();
-                            tourStatusRef.current = 'shown';
-                        } else {
-                            tourStatusRef.current = 'checked';
+                
+                // Avoid overwriting a valid cached profile with an incomplete local optimistic update
+                // Firebase RTDB fires local events immediately on update(), which might lack department_id
+                // if the full server object hasn't been fetched yet.
+                const isPartialUpdate = Object.keys(data).length < 5 && !data.department_id;
+                
+                if (!isPartialUpdate) {
+                    writeCachedJson(cacheKey, data);
+                    if (!data.department_id) {
+                        setIsOnboarding(true);
+                    } else {
+                        setUserProfile(data as UserProfile);
+                        setIsOnboarding(false);
+                        if (tourStatusRef.current === 'unknown') {
+                            if (data.privacy_consent?.granted && !data.has_completed_tour) {
+                                startTour();
+                                tourStatusRef.current = 'shown';
+                            } else {
+                                tourStatusRef.current = 'checked';
+                            }
                         }
                     }
                 }
