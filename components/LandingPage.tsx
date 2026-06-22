@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, ChevronRight } from 'lucide-react';
+import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, ChevronRight, Users, MessageSquare } from 'lucide-react';
+import { FeatureCarousel } from './marketing/FeatureCarousel';
+import { Testimonials } from './marketing/Testimonials';
+import { FAQs } from './marketing/FAQs';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -111,119 +114,57 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
           </div>
         </section>
 
-        {/* Bento Grid Features */}
-        <section id="features" className="py-24 px-6 max-w-7xl mx-auto relative">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900">An Ecosystem of Intelligence</h2>
-            <p className="text-lg text-slate-600 font-medium max-w-2xl mx-auto">Everything you need to demolish your coursework, built into one seamless, blazingly fast platform.</p>
-          </div>
+        {/* Feature Carousel */}
+        <FeatureCarousel />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[400px]">
-            
-            {/* Feature 1 - Large Span */}
-            <div className="md:col-span-2 bg-white/70 backdrop-blur-xl border border-slate-200 shadow-sm rounded-[32px] p-10 relative overflow-hidden group hover:shadow-md hover:bg-white transition duration-500">
-              <div className="absolute top-0 right-0 w-[80%] h-full bg-gradient-to-l from-brand-50 to-transparent pointer-events-none" />
-              <div className="relative z-10 w-full md:w-1/2 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-600 mb-6">
-                  <BrainCircuit className="w-6 h-6" />
+        {/* Testimonials */}
+        <Testimonials />
+
+        {/* About & Contact Briefs */}
+        <section className="py-24 px-6 max-w-7xl mx-auto relative grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-[32px] p-10 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-between group overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-100 rounded-bl-full flex items-center justify-center opacity-50 group-hover:scale-110 transition duration-500">
+                    <Users className="w-10 h-10 text-brand-600 absolute top-6 right-6" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900">Context-Aware AI Tutor</h3>
-                <p className="text-slate-600 font-medium leading-relaxed">Chat with an AI that has literally read your textbook. It knows your syllabus, your department, and exactly what you need to know for the exam.</p>
-              </div>
-              {/* STUDY GUIDE MOCKUP PLACEHOLDER */}
-              <div className="absolute -bottom-8 -right-8 w-[60%] h-[110%] rounded-[32px] border-8 border-slate-100 bg-white overflow-hidden transform group-hover:-translate-y-4 transition duration-500 shadow-2xl shadow-slate-200/50">
-                {/* Study Guide Video */}
-                <video 
-                  autoPlay loop muted playsInline 
-                  className="w-full h-full object-cover"
-                >
-                  <source src="/iPhone-13-PRO-www.avelut.xyz-zclw-hoy-qiyjc.webm" type="video/webm" />
-                </video>
-              </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white/70 backdrop-blur-xl border border-slate-200 shadow-sm rounded-[32px] p-8 relative overflow-hidden group hover:shadow-md hover:bg-white transition duration-500 flex flex-col justify-between">
-              <div className="space-y-4 z-10">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center text-sky-600 mb-6">
-                  <BookOpen className="w-6 h-6" />
+                <div className="relative z-10">
+                    <h3 className="text-3xl font-black text-slate-900 mb-4">Meet the Visionaries</h3>
+                    <p className="text-lg text-slate-600 mb-8 max-w-md">
+                        Avelut was built by students, for students. Learn more about the minds dedicated to democratizing elite education through artificial intelligence.
+                    </p>
+                    <button onClick={() => {
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState(null, '', '/about');
+                            window.dispatchEvent(new Event('popstate'));
+                        }
+                    }} className="inline-flex items-center gap-2 font-bold text-brand-600 hover:text-brand-700 transition">
+                        Read Our Story <ArrowRight className="w-5 h-5" />
+                    </button>
                 </div>
-                <h3 className="text-2xl font-black text-slate-900">Visual Solver</h3>
-                <p className="text-slate-600 font-medium">Stuck on a problem? Snap a photo. The AI extracts the text, math, and context instantly.</p>
-              </div>
-              {/* VISUAL SOLVER MOCKUP PLACEHOLDER */}
-              <div className="w-[80%] mx-auto h-[180px] rounded-t-[24px] border-4 border-b-0 border-slate-100 bg-white mt-8 overflow-hidden transform group-hover:-translate-y-2 transition duration-500 shadow-xl shadow-slate-200/50">
-                 {/* Visual Solver Video */}
-                 <video 
-                  autoPlay loop muted playsInline 
-                  className="w-full h-full object-cover object-top"
-                >
-                  <source src="/iPhone-13-PRO-www.avelut.xyz-kjfr-gop_rjqvc.webm" type="video/webm" />
-                </video>
-              </div>
             </div>
 
-            {/* Feature 3 */}
-            <div className="bg-white/70 backdrop-blur-xl border border-slate-200 shadow-sm rounded-[32px] p-8 relative overflow-hidden group hover:shadow-md hover:bg-white transition duration-500 flex flex-col justify-between">
-               <div className="space-y-4 z-10">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-6">
-                  <Layers className="w-6 h-6" />
+            <div className="bg-slate-900 rounded-[32px] p-10 md:p-12 shadow-xl shadow-slate-900/20 border border-slate-800 flex flex-col justify-between group overflow-hidden relative text-white">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-800 rounded-bl-full flex items-center justify-center opacity-50 group-hover:scale-110 transition duration-500">
+                    <MessageSquare className="w-10 h-10 text-brand-400 absolute top-6 right-6" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900">Cloud Import</h3>
-                <p className="text-slate-600 font-medium">Import textbooks directly from Google Drive. We parse it, chunk it, and index it in seconds.</p>
-              </div>
-               {/* UPLOAD MOCKUP PLACEHOLDER */}
-               <div className="w-[80%] mx-auto h-[180px] rounded-t-[24px] border-4 border-b-0 border-slate-100 bg-white mt-8 overflow-hidden transform group-hover:-translate-y-2 transition duration-500 shadow-xl shadow-slate-200/50">
-                 {/* Upload Center Placeholder Video */}
-                 <video 
-                  autoPlay loop muted playsInline 
-                  className="w-full h-full object-cover object-top"
-                >
-                  <source src="/iPhone-13-PRO-www.avelut.xyz-hsejqaztogs47d.webm" type="video/webm" />
-                </video>
-              </div>
+                <div className="relative z-10">
+                    <h3 className="text-3xl font-black mb-4">We're Here to Help</h3>
+                    <p className="text-lg text-slate-400 mb-8 max-w-md">
+                        Encountered a bug? Need help setting up your syllabus? Or just want to request a feature? Our support team is available 24/7.
+                    </p>
+                    <button onClick={() => {
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState(null, '', '/contact');
+                            window.dispatchEvent(new Event('popstate'));
+                        }
+                    }} className="inline-flex items-center gap-2 font-bold text-brand-400 hover:text-brand-300 transition">
+                        Contact Support <ArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-
-            {/* Feature 4 - Large Span */}
-            <div className="md:col-span-2 bg-gradient-to-br from-white to-brand-50 border border-slate-200 shadow-sm rounded-[32px] p-10 relative overflow-hidden flex flex-col md:flex-row items-center justify-between group">
-              <div className="relative z-10 w-full md:w-1/2 space-y-6">
-                <h3 className="text-3xl font-black leading-tight text-slate-900">Mastery is guaranteed.</h3>
-                <ul className="space-y-4">
-                  {[
-                    "Daily Streaks & Gamification",
-                    "Institution-Specific Syllabi",
-                    "Past Questions Integrations",
-                    "Real-Time Peer Messenger"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 font-bold text-slate-700">
-                      <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-brand-600">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => {
-                  onSignUp();
-                  window.dispatchEvent(new Event('popstate'));
-                }} className="mt-4 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-md shadow-slate-900/20">
-                  Create Account <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="relative z-10 w-full md:w-1/2 h-[250px] mt-8 md:mt-0 flex items-center justify-center">
-                 {/* ABSTRACT GRAPHIC MOCKUP PLACEHOLDER */}
-                 <div className="w-full max-w-[300px] aspect-square rounded-full bg-white border-4 border-slate-100 shadow-lg shadow-slate-200/50 flex items-center justify-center relative animate-[spin_60s_linear_infinite]">
-                    <div className="absolute w-[80%] aspect-square border border-slate-200 rounded-full" />
-                    <div className="absolute w-[60%] aspect-square border border-slate-300 rounded-full" />
-                    <div className="w-16 h-16 rounded-2xl bg-brand-600 shadow-xl shadow-brand-600/30 flex items-center justify-center animate-[spin_60s_linear_infinite_reverse]">
-                       <img src="/logo_icon.png" alt="Avelut" className="w-8 h-8 filter brightness-0 invert" />
-                    </div>
-                 </div>
-              </div>
-            </div>
-
-          </div>
         </section>
+
+        {/* FAQs */}
+        <FAQs />
 
         {/* Final CTA */}
         <section className="py-32 px-6">

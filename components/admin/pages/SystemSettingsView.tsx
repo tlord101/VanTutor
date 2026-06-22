@@ -244,6 +244,45 @@ export const SystemSettingsView: React.FC = () => {
                         </label>
                     </div>
 
+                    <div className="pt-6 border-t border-slate-100 space-y-6">
+                        <div>
+                            <h3 className="font-black text-xl text-slate-900 mb-1">Support Contact Credentials</h3>
+                            <p className="text-sm text-slate-500">Displayed on the Contact Us page.</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Support Email</label>
+                                <input 
+                                    type="email" 
+                                    value={appSettings.support_email || ''} 
+                                    onChange={e => setAppSettings({...appSettings, support_email: e.target.value})}
+                                    className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    placeholder="support@avelut.xyz"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Support Phone</label>
+                                <input 
+                                    type="text" 
+                                    value={appSettings.support_phone || ''} 
+                                    onChange={e => setAppSettings({...appSettings, support_phone: e.target.value})}
+                                    className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    placeholder="+1 (555) 123-4567"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Support Office</label>
+                                <input 
+                                    type="text" 
+                                    value={appSettings.support_address || ''} 
+                                    onChange={e => setAppSettings({...appSettings, support_address: e.target.value})}
+                                    className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    placeholder="San Francisco, CA"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="pt-6 border-t border-slate-100 flex justify-end">
                         <button onClick={handleSaveApp} disabled={isSaving} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition shadow-lg shadow-indigo-600/20 disabled:opacity-50">
                             {isSaving ? 'Saving...' : 'Save General Settings'}

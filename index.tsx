@@ -48,14 +48,18 @@ const isConfigured =
   (import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_API_KEY !== 'YOUR_FIREBASE_API_KEY') ||
   (typeof __firebase_config !== 'undefined' && __firebase_config.apiKey && __firebase_config.apiKey !== 'YOUR_FIREBASE_API_KEY');
 
+import { HelmetProvider } from 'react-helmet-async';
+
 if (isConfigured) {
   root.render(
     <React.StrictMode>
-      <ToastProvider>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
-      </ToastProvider>
+      <HelmetProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </ToastProvider>
+      </HelmetProvider>
     </React.StrictMode>
   );
 } else {

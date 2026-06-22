@@ -12,13 +12,16 @@ import { AdminLogin } from './components/AdminLogin';
 import { UploadCenter } from './components/UploadCenter';
 import { Onboarding } from './components/Onboarding';
 import { ActivationScreen } from './components/ActivationScreen';
-import { LandingPage } from './components/LandingPage';
 import { createAvelutAI } from './utils/inference';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 
 
-const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
+const AdminPanel = lazy(() => import('./components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
+const AboutUsPage = lazy(() => import('./components/marketing/AboutUsPage').then(m => ({ default: m.AboutUsPage })));
+const ContactUsPage = lazy(() => import('./components/marketing/ContactUsPage').then(m => ({ default: m.ContactUsPage })));
+const FounderPage = lazy(() => import('./components/marketing/FounderPage').then(m => ({ default: m.FounderPage })));
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { NativePullToRefresh } from './components/NativePullToRefresh';
@@ -1082,6 +1085,39 @@ const App: React.FC = () => {
     }
 
     if (!user) {
+        if (currentPath === '/about') {
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<AppLoader />}>
+                        <AboutUsPage />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+        }
+        
+        if (currentPath === '/contact') {
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<AppLoader />}>
+                        <ContactUsPage />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+        }
+        
+        if (currentPath.startsWith('/founder/')) {
+            const founderId = currentPath.substring('/founder/'.length).split('/')[0];
+            if (founderId) {
+                return (
+                    <ErrorBoundary>
+                        <Suspense fallback={<AppLoader />}>
+                            <FounderPage founderId={founderId} />
+                        </Suspense>
+                    </ErrorBoundary>
+                );
+            }
+        }
+
         if (currentPath === '/' || currentPath === '' || currentPath === '/home') {
             return (
                 <ErrorBoundary>
