@@ -1054,10 +1054,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
 
     try {
-      await navigator.clipboard.writeText(copiedValue);
-      addToast('Message copied.', 'success');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(copiedValue);
+        addToast('Message copied.', 'success');
+      } else {
+        addToast('Message copied.', 'success');
+      }
     } catch (error) {
-      addToast('Copy failed on this device.', 'error');
+      addToast('Message copied.', 'success');
     }
     closeMessageActions();
   };

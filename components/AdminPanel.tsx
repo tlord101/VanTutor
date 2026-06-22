@@ -58,6 +58,7 @@ import { UserControlView } from './admin/pages/UserControlView';
 import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
+import { AdminUpdates } from './admin/AdminUpdates';
 import { CourseCatalogView } from './admin/pages/CourseCatalogView';
 import { NotificationsView } from './admin/pages/NotificationsView';
 import { EmailsView } from './admin/pages/EmailsView';
@@ -98,7 +99,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' | 'app' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs';
+type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -109,7 +110,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'notifications', 'emails', 'app', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'notifications', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -2678,6 +2679,10 @@ FORMAT:
 
             {(activeTab === 'app' || activeTab === 'email-configs' || activeTab === 'usage-settings') && (
                 <SystemSettingsView />
+            )}
+
+            {activeTab === 'app-updates' && (
+                <AdminUpdates />
             )}
 
             {activeTab === 'notifications' && (

@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { 
     Home, Building, BookOpen, HelpCircle, Users, Settings, 
     CreditCard, Activity, LogOut, Menu, X, Bell, Shield, 
-    ChevronRight, CreditCard as PaymentsIcon, Mail 
+    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'payments' | 'usage-analytics' | 'app' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs';
+export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -26,6 +26,7 @@ const SIDEBAR_ITEMS = [
     { id: 'notifications', label: 'Push Notifications', icon: Bell },
     { id: 'emails', label: 'SMTP Emails', icon: Mail },
     { id: 'app', label: 'System Settings', icon: Settings },
+    { id: 'app-updates', label: 'App Updates', icon: Smartphone },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ 

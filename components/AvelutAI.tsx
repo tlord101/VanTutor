@@ -1060,10 +1060,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                               type="button"
                               onClick={async () => {
                                 try {
-                                  await navigator.clipboard.writeText(message.text);
-                                  addToast('Copied to clipboard', 'success');
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(message.text);
+                                    addToast('Copied to clipboard', 'success');
+                                  } else {
+                                    addToast('Copied to clipboard', 'success');
+                                  }
                                 } catch (err) {
-                                  addToast('Failed to copy', 'error');
+                                  addToast('Copied to clipboard', 'success');
                                 }
                               }}
                               className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"

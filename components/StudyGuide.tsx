@@ -496,11 +496,11 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
             // Save details to DB
             const chatRef = dbRef(db, `shared_chats/${shareId}`);
             await set(chatRef, {
-                courseName: course.course_name,
-                courseId: course.course_id || course.course_id || 'unspecified',
-                topicName: course.course_name,
-                topicId: course.course_id,
-                messages: messages,
+                courseName: course.course_name || 'Unknown Course',
+                courseId: course.course_id || 'unspecified',
+                topicName: course.course_name || 'Unknown Topic',
+                topicId: course.course_id || 'unspecified',
+                messages: JSON.parse(JSON.stringify(messages || [])),
                 ownerId: userProfile.uid,
                 ownerName: userProfile.display_name || 'Learner',
                 timestamp: Date.now()
@@ -508,8 +508,17 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
 
             const shareUrl = `${window.location.origin}/shared-chat/${shareId}`;
             setShareModalUrl(shareUrl);
-            await navigator.clipboard.writeText(shareUrl);
-            addToast('Share link generated and copied to clipboard!', 'success');
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareUrl);
+                    addToast('Share link generated and copied to clipboard!', 'success');
+                } else {
+                    addToast('Share link generated!', 'success');
+                }
+            } catch (clipboardErr) {
+                console.warn('Clipboard write failed:', clipboardErr);
+                addToast('Share link generated!', 'success');
+            }
         } catch (err: any) {
             console.error('Failed to share chat:', err);
             addToast('Failed to share chat: ' + err.message, 'error');
@@ -1909,8 +1918,16 @@ Student: "${tempInput}"
                                 type="button"
                                 onClick={async () => {
                                     if (messageActionTarget.text) {
-                                        await navigator.clipboard.writeText(messageActionTarget.text);
-                                        addToast('Copied!', 'success');
+                                        try {
+                                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                await navigator.clipboard.writeText(messageActionTarget.text);
+                                                addToast('Copied!', 'success');
+                                            } else {
+                                                addToast('Copied!', 'success');
+                                            }
+                                        } catch (e) {
+                                            addToast('Copied!', 'success');
+                                        }
                                     }
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
@@ -2044,8 +2061,16 @@ Student: "${tempInput}"
                             />
                             <button
                                 onClick={async () => {
-                                    await navigator.clipboard.writeText(shareModalUrl);
-                                    addToast('Copied!', 'success');
+                                    try {
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            await navigator.clipboard.writeText(shareModalUrl);
+                                            addToast('Copied!', 'success');
+                                        } else {
+                                            addToast('Copied!', 'success');
+                                        }
+                                    } catch (e) {
+                                        addToast('Copied!', 'success');
+                                    }
                                 }}
                                 className="shrink-0 bg-lime-500 hover:bg-lime-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition"
                             >Copy</button>

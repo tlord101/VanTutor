@@ -40,6 +40,7 @@ import { SharedChatView } from './components/SharedChatView';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import { initNativeNotifications, cleanupNativeNotifications } from './utils/nativeNotifications';
+import { InAppUpdate } from './components/InAppUpdate';
 
 declare var __app_id: string;
 
@@ -1221,6 +1222,7 @@ const App: React.FC = () => {
                 isOpen={isTourOpen}
                 onClose={handleTourClose}
             />
+            <InAppUpdate />
         </div>
     );
 };
