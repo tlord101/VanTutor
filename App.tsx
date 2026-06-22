@@ -12,6 +12,7 @@ import { AdminLogin } from './components/AdminLogin';
 import { UploadCenter } from './components/UploadCenter';
 import { Onboarding } from './components/Onboarding';
 import { ActivationScreen } from './components/ActivationScreen';
+import { LandingPage } from './components/LandingPage';
 import { createAvelutAI } from './utils/inference';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -1075,6 +1076,22 @@ const App: React.FC = () => {
     }
 
     if (!user) {
+        if (currentPath === '/' || currentPath === '' || currentPath === '/home') {
+            return (
+                <ErrorBoundary>
+                    <LandingPage 
+                        onLogin={() => {
+                            setAuthView('login');
+                            if (typeof window !== 'undefined') window.history.pushState(null, '', '/login');
+                        }}
+                        onSignUp={() => {
+                            setAuthView('signup');
+                            if (typeof window !== 'undefined') window.history.pushState(null, '', '/signup');
+                        }}
+                    />
+                </ErrorBoundary>
+            );
+        }
         return (
             <div key="auth-state" className="min-h-screen">
                 {authView === 'login' 
