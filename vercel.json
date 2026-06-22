@@ -5,7 +5,11 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
+      "source": "/((?!api/|sitemap\\.xml).*)",
       "destination": "/index.html"
     }
   ]

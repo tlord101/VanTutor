@@ -1734,20 +1734,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         const courseLabel = course.course_code || course.course_name || course.course_id;
         const departmentLabel = allDepartments.find((dept) => dept.id === currentDepartmentId)?.department_name || currentDepartmentId;
         
-        const confirmMsg = deleteForOtherDepartments
-            ? `Delete ${courseLabel} from ALL departments in ${currentLevel}?`
-            : `Delete ${courseLabel} from ${departmentLabel} (${currentLevel})?`;
+        let shouldDeleteGlobally = deleteForOtherDepartments;
+        if (!deleteForOtherDepartments) {
+             shouldDeleteGlobally = window.confirm(`Do you also want to delete ${courseLabel} globally from ALL departments? (Click OK for Global Delete, or Cancel to only delete from ${departmentLabel})`);
+        }
+
+        const confirmMsg = shouldDeleteGlobally
+            ? `Final confirmation: Delete ${courseLabel} from ALL departments?`
+            : `Final confirmation: Delete ${courseLabel} from ${departmentLabel} ONLY?`;
             
-        const confirmed = window.confirm(confirmMsg + " This will remove the course and its stored textbook outline.");
+        const confirmed = window.confirm(confirmMsg + (shouldDeleteGlobally ? " This will ALSO permanently delete all associated textbook contents and outlines." : " Textbooks will be preserved."));
         if (!confirmed) return;
 
         try {
             const updates: Record<string, any> = {};
+            const targetCourseKey = getCourseMergeKey(course) || course.course_id;
 
-            if (deleteForOtherDepartments) {
+            if (shouldDeleteGlobally) {
                 allDepartments.forEach(dept => {
                     const existingCourses = normalizeCourseList(dept?.course_list);
-                    const targetCourseKey = getCourseMergeKey(course) || course.course_id;
                     const nextCourses = existingCourses.filter((item) => {
                         const itemKey = getCourseMergeKey(item) || item.course_id;
                         return itemKey !== targetCourseKey;
@@ -1755,20 +1760,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     
                     if (existingCourses.length !== nextCourses.length) {
                         updates[`departments_data/${dept.id}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
-                        // Textbook context preservation: do NOT delete textbook_contexts when course is deleted.
                     }
+                    updates[`textbook_contexts/${dept.id}_${course.level}_${targetCourseKey}`] = null;
                 });
+                updates[`textbook_contexts/shared/${targetCourseKey}`] = null;
             } else {
                 const departmentRef = dbRef(db, `departments_data/${currentDepartmentId}`);
                 const departmentSnapshot = await get(departmentRef);
                 const existingCourses = normalizeCourseList(departmentSnapshot.val()?.course_list);
-                const targetCourseKey = getCourseMergeKey(course) || course.course_id;
                 const nextCourses = existingCourses.filter((item) => {
                     const itemKey = getCourseMergeKey(item) || item.course_id;
                     return itemKey !== targetCourseKey;
                 });
                 updates[`departments_data/${currentDepartmentId}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
-                // Textbook context preservation: do NOT delete textbook_contexts when course is deleted.
             }
 
             await update(dbRef(db), updates);
@@ -1788,17 +1792,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         const { departmentId: currentDepartmentId } = courseAdminView;
         
-        const confirmMsg = deleteForOtherDepartments
-            ? `Delete ${courses.length} selected courses from ALL departments globally?`
-            : `Delete ${courses.length} selected courses from ${currentDepartmentId}?`;
+        let shouldDeleteGlobally = deleteForOtherDepartments;
+        if (!deleteForOtherDepartments) {
+             shouldDeleteGlobally = window.confirm(`Do you also want to delete these ${courses.length} courses globally from ALL departments? (Click OK for Global Delete, or Cancel to only delete from the current department)`);
+        }
+
+        const confirmMsg = shouldDeleteGlobally
+            ? `Final confirmation: Delete ${courses.length} selected courses from ALL departments globally?`
+            : `Final confirmation: Delete ${courses.length} selected courses from ${currentDepartmentId}?`;
             
-        const confirmed = window.confirm(confirmMsg + " This will remove the courses but preserve their textbook outlines.");
+        const confirmed = window.confirm(confirmMsg + (shouldDeleteGlobally ? " This will ALSO permanently delete all associated textbook contents and outlines." : " Textbooks will be preserved."));
         if (!confirmed) return;
 
         try {
             const updates: Record<string, any> = {};
 
-            if (deleteForOtherDepartments) {
+            if (shouldDeleteGlobally) {
                 allDepartments.forEach(dept => {
                     const existingCourses = normalizeCourseList(dept?.course_list);
                     const targetCourseKeys = new Set(courses.map(c => getCourseMergeKey(c) || c.course_id));
@@ -1810,6 +1819,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     if (existingCourses.length !== nextCourses.length) {
                         updates[`departments_data/${dept.id}/course_list`] = nextCourses.length > 0 ? nextCourses : null;
                     }
+                    courses.forEach(c => {
+                        const targetKey = getCourseMergeKey(c) || c.course_id;
+                        updates[`textbook_contexts/${dept.id}_${c.level}_${targetKey}`] = null;
+                        updates[`textbook_contexts/shared/${targetKey}`] = null;
+                    });
                 });
             } else {
                 const departmentRef = dbRef(db, `departments_data/${currentDepartmentId}`);
