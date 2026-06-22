@@ -66,13 +66,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <div className="flex-1 space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-600 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-3 h-3" />
-              <span>Next-Gen AI Tutoring</span>
+              <span>Hyper-Personalized AI Tutoring</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900">
-              Master Any Subject with <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">Instant Intelligence</span>
+              The AI Tutor That Won't Rest Until Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">GPA Rises</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Upload your textbooks, snap a photo of any problem, and let Avelut's advanced AI engine guide you to complete mastery in minutes, not hours.
+              Meet your new context-aware personal tutor. Custom-trained on your exact syllabus, Avelut breaks down the hardest concepts step-by-step so you can master them instantly.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
               <button onClick={() => {
