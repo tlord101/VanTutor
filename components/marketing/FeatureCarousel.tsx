@@ -104,10 +104,9 @@ export const FeatureCarousel: React.FC = () => {
                                 style={{ transformStyle: "preserve-3d" }}
                             >
                                 {/* Background Image */}
-                                <div className="absolute inset-0 z-0">
-                                    <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
-                                    <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40" />
+                                <div className="absolute inset-0 z-0 bg-slate-900">
+                                    <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover opacity-15 group-hover:scale-110 transition duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
                                 </div>
 
                                 {/* Content */}

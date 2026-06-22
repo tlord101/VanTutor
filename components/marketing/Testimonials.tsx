@@ -9,7 +9,7 @@ const testimonials = [
         university: "Stanford University",
         text: "Avelut completely changed how I study for Organic Chemistry. The Visual Solver broke down complex reaction mechanisms that I had been struggling with for weeks.",
         rating: 5,
-        avatar: "SJ"
+        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
     },
     {
         id: 2,
@@ -17,7 +17,7 @@ const testimonials = [
         university: "MIT",
         text: "The context-aware AI tutor is mind-blowing. I uploaded my 800-page physics textbook, and it instantly knew how to explain concepts using the exact terminology my professor uses.",
         rating: 5,
-        avatar: "DC"
+        avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80"
     },
     {
         id: 3,
@@ -25,7 +25,7 @@ const testimonials = [
         university: "NYU",
         text: "I used to spend hours searching through PDFs for specific answers. Now, Avelut's study guide finds it in seconds and tests my knowledge before the exam.",
         rating: 5,
-        avatar: "ER"
+        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80"
     },
     {
         id: 4,
@@ -33,7 +33,7 @@ const testimonials = [
         university: "University of Michigan",
         text: "The peer messenger integration with the AI is genius. My study group can chat about a problem, and pull the AI into the conversation to settle debates.",
         rating: 5,
-        avatar: "MT"
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
     }
 ];
 
@@ -85,9 +85,11 @@ export const Testimonials: React.FC = () => {
                                         </p>
 
                                         <div className="flex items-center justify-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center font-bold text-lg">
-                                                {t.avatar}
-                                            </div>
+                                            <img 
+                                                src={t.avatar} 
+                                                alt={t.name}
+                                                className="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm"
+                                            />
                                             <div className="text-left">
                                                 <div className="font-bold text-white">{t.name}</div>
                                                 <div className="text-brand-400 text-sm">{t.university}</div>
