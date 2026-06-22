@@ -9,32 +9,28 @@ const features = [
         title: 'Context-Aware AI Tutor',
         description: 'Chat with an AI that has literally read your textbook. It knows your syllabus, your department, and exactly what you need to know for the exam.',
         icon: <BrainCircuit className="w-8 h-8" />,
-        color: 'from-brand-500 to-brand-700',
-        videoUrl: '/iPhone-13-PRO-www.avelut.xyz-zclw-hoy-qiyjc.webm'
+        bgImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'scanner',
         title: 'Visual Problem Scanner',
         description: 'Stuck on a problem? Snap a photo. The AI extracts the text, math, and context instantly and provides step-by-step guidance.',
         icon: <BookOpen className="w-8 h-8" />,
-        color: 'from-sky-500 to-sky-700',
-        videoUrl: '/iPhone-13-PRO-www.avelut.xyz-kjfr-gop_rjqvc.webm'
+        bgImage: 'https://images.unsplash.com/photo-1516383740770-fbcc5ccbece0?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'import',
         title: 'Cloud Document Import',
         description: 'Import textbooks directly from Google Drive. We parse it, chunk it, and index it into your personal study environment in seconds.',
         icon: <Layers className="w-8 h-8" />,
-        color: 'from-emerald-500 to-emerald-700',
-        videoUrl: '/iPhone-13-PRO-www.avelut.xyz-hsejqaztogs47d.webm'
+        bgImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'messenger',
         title: 'Real-Time Peer Messenger',
         description: 'Collaborate with your classmates, share notes, and discuss complex topics in dedicated course channels instantly.',
         icon: <MessageSquare className="w-8 h-8" />,
-        color: 'from-purple-500 to-purple-700',
-        videoUrl: '' // No mockup for this yet, will just use a colored placeholder
+        bgImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80'
     }
 ];
 
@@ -85,7 +81,7 @@ export const FeatureCarousel: React.FC = () => {
                         return (
                             <motion.div
                                 key={feature.id}
-                                className="absolute w-full max-w-[340px] md:max-w-[400px] aspect-[9/16] bg-white rounded-[32px] shadow-2xl border border-slate-100 cursor-pointer overflow-hidden flex flex-col"
+                                className="absolute w-full max-w-[340px] md:max-w-[400px] aspect-[9/16] bg-slate-900 rounded-[32px] shadow-2xl border border-slate-100 cursor-pointer overflow-hidden flex flex-col group"
                                 initial={false}
                                 animate={{
                                     rotateY,
@@ -107,37 +103,22 @@ export const FeatureCarousel: React.FC = () => {
                                 }}
                                 style={{ transformStyle: "preserve-3d" }}
                             >
-                                {/* Card Header / Icon */}
-                                <div className={`h-1/3 bg-gradient-to-br ${feature.color} p-6 flex flex-col justify-end relative overflow-hidden`}>
-                                    <div className="absolute top-[-20%] right-[-10%] w-[150px] h-[150px] bg-white/20 rounded-full blur-[30px]" />
-                                    <div className="text-white z-10 mb-2">
+                                {/* Background Image */}
+                                <div className="absolute inset-0 z-0">
+                                    <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
+                                    <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40" />
+                                </div>
+
+                                {/* Content */}
+                                <div className="relative z-10 flex-1 p-8 flex flex-col justify-end">
+                                    <div className="text-white mb-6 bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30 shadow-lg">
                                         {feature.icon}
                                     </div>
-                                    <h3 className="text-2xl font-black text-white z-10">{feature.title}</h3>
-                                </div>
-                                
-                                {/* Card Body */}
-                                <div className="p-6 flex-1 bg-white relative flex flex-col justify-between">
-                                    <p className="text-slate-600 font-medium leading-relaxed">
+                                    <h3 className="text-3xl font-black text-white mb-4 leading-tight">{feature.title}</h3>
+                                    <p className="text-lg text-white/80 font-medium leading-relaxed">
                                         {feature.description}
                                     </p>
-                                    
-                                    <div className="mt-4 w-full h-[180px] rounded-2xl bg-slate-100 overflow-hidden relative shadow-inner">
-                                        {feature.videoUrl ? (
-                                            <video 
-                                                autoPlay loop muted playsInline 
-                                                className="w-full h-full object-cover object-top"
-                                            >
-                                                <source src={feature.videoUrl} type="video/webm" />
-                                            </video>
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-400 font-bold">
-                                                Coming Soon
-                                            </div>
-                                        )}
-                                        {/* Overlay to prevent interactions with the video inside the card */}
-                                        <div className="absolute inset-0 z-10" />
-                                    </div>
                                 </div>
                             </motion.div>
                         );

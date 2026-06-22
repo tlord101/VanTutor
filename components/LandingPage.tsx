@@ -58,8 +58,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="pt-40 pb-20 px-6 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
-          <div className="flex-1 space-y-8 text-center lg:text-left">
+        <section className="relative pt-40 pb-20 px-6 flex flex-col lg:flex-row items-center gap-16 overflow-hidden">
+          {/* Hero Background */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <img 
+              src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
+              alt="Students collaborating" 
+              className="w-full h-full object-cover opacity-30" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/80 to-[#F8FAFC]" />
+          </div>
+
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10 w-full">
+            <div className="flex-1 space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-600 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-3 h-3" />
               <span>Next-Gen AI Tutoring</span>
@@ -109,8 +120,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               </div>
             </div>
             {/* Background Decorative Rings */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square border border-slate-200 rounded-full z-0" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] aspect-square border border-slate-200 rounded-full z-0" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square border border-brand-200/50 rounded-full z-0 pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] aspect-square border border-sky-200/50 rounded-full z-0 pointer-events-none" />
+          </div>
           </div>
         </section>
 
@@ -122,13 +134,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
         {/* About & Contact Briefs */}
         <section className="py-24 px-6 max-w-7xl mx-auto relative grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-[32px] p-10 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-between group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-100 rounded-bl-full flex items-center justify-center opacity-50 group-hover:scale-110 transition duration-500">
-                    <Users className="w-10 h-10 text-brand-600 absolute top-6 right-6" />
+            <div className="rounded-[32px] p-10 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-between group overflow-hidden relative">
+                {/* Background Image for Visionaries Card */}
+                <div className="absolute inset-0 z-0">
+                    <img 
+                        src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80" 
+                        alt="Visionaries Team" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/70 mix-blend-multiply" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
                 </div>
-                <div className="relative z-10">
-                    <h3 className="text-3xl font-black text-slate-900 mb-4">Meet the Visionaries</h3>
-                    <p className="text-lg text-slate-600 mb-8 max-w-md">
+                
+                <div className="relative z-10 h-full flex flex-col justify-end">
+                    <h3 className="text-3xl font-black text-white mb-4">Meet the Visionaries</h3>
+                    <p className="text-lg text-white/80 mb-8 max-w-md">
                         Avelut was built by students, for students. Learn more about the minds dedicated to democratizing elite education through artificial intelligence.
                     </p>
                     <button onClick={() => {
@@ -136,7 +156,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                             window.history.pushState(null, '', '/about');
                             window.dispatchEvent(new Event('popstate'));
                         }
-                    }} className="inline-flex items-center gap-2 font-bold text-brand-600 hover:text-brand-700 transition">
+                    }} className="inline-flex items-center gap-2 font-bold text-white hover:text-brand-300 transition">
                         Read Our Story <ArrowRight className="w-5 h-5" />
                     </button>
                 </div>
