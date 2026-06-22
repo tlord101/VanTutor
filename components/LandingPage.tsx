@@ -32,26 +32,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
       {/* Navigation */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30">
-              <img src="/logo_icon.png" alt="Avelut Logo" className="w-6 h-6 object-contain filter brightness-0 invert" />
-            </div>
-            <span className="text-xl font-black tracking-tight text-slate-900">AVELUT</span>
+          <div className="flex items-center">
+            <img src="/logo.png" alt="Avelut Logo" className="h-8 object-contain" />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
             <a href="#features" className="hover:text-brand-600 transition">Features</a>
             <a href="#how-it-works" className="hover:text-brand-600 transition">How it Works</a>
             <a href="#testimonials" className="hover:text-brand-600 transition">Wall of Love</a>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center">
             <button onClick={() => {
               onLogin();
               window.dispatchEvent(new Event('popstate'));
-            }} className="text-sm font-bold text-slate-600 hover:text-brand-600 transition">Log In</button>
-            <button onClick={() => {
-              onSignUp();
-              window.dispatchEvent(new Event('popstate'));
-            }} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-black hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">Get Started</button>
+            }} className="bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">Log In</button>
           </div>
         </div>
       </nav>
@@ -64,10 +57,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <img 
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
               alt="Students collaborating" 
-              className="w-full h-full object-cover opacity-70" 
+              className="w-full h-full object-cover opacity-40" 
             />
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px]" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-[#F8FAFC]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/60 to-[#F8FAFC]" />
           </div>
 
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10 w-full">
@@ -86,13 +78,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <button onClick={() => {
                 onSignUp();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="w-full sm:w-auto px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-lg transition flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30">
-                Start Learning for Free <ArrowRight className="w-5 h-5" />
+              }} className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold text-base transition flex items-center justify-center gap-2">
+                Start Learning for Free <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => {
                 onLogin();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-2xl font-bold text-lg transition border border-slate-200 shadow-sm">
+              }} className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-base transition border border-slate-300">
                 Sign In to Dashboard
               </button>
             </div>
