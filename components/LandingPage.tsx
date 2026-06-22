@@ -101,7 +101,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                   autoPlay loop muted playsInline 
                   className="w-full h-full object-cover"
                 >
-                  <source src="/iPhone-13-PRO-www.avelut.xyz-hsejqaztogs47d.webm" type="video/webm" />
+                  <source src="/iPhone-13-PRO-www.avelut.xyz-zclw-hoy-qiyjc.webm" type="video/webm" />
                 </video>
               </div>
             </div>
