@@ -96,12 +96,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <div className="relative w-full aspect-[9/19] max-w-[320px] mx-auto z-10 rounded-[48px] p-2 bg-white shadow-2xl shadow-slate-300/50 transform rotate-[-2deg] hover:rotate-0 transition duration-500 border border-slate-100">
               <div className="absolute inset-0 rounded-[48px] shadow-[inset_0_0_10px_rgba(0,0,0,0.05)] pointer-events-none" />
               <div className="w-full h-full bg-slate-50 rounded-[40px] overflow-hidden relative border border-slate-100">
-                {/* INSTRUCTION FOR USER: Replace this <img> src with your main Dashboard iPhone Mockup URL */}
-                <img 
-                  src="https://placehold.co/800x1600/F8FAFC/0F172A.png?text=Dashboard+Mockup" 
-                  alt="Avelut Dashboard App" 
+                {/* Hero Dashboard Video */}
+                <video 
+                  autoPlay loop muted playsInline 
                   className="w-full h-full object-cover"
-                />
+                >
+                  <source src="/iPhone-13-PRO-www.avelut.xyz-hsejqaztogs47d.webm" type="video/webm" />
+                </video>
               </div>
             </div>
             {/* Background Decorative Rings */}
@@ -131,12 +132,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               </div>
               {/* STUDY GUIDE MOCKUP PLACEHOLDER */}
               <div className="absolute -bottom-8 -right-8 w-[60%] h-[110%] rounded-[32px] border-8 border-slate-100 bg-white overflow-hidden transform group-hover:-translate-y-4 transition duration-500 shadow-2xl shadow-slate-200/50">
-                {/* INSTRUCTION FOR USER: Replace this <img> src with your Study Guide iPhone Mockup URL */}
-                <img 
-                  src="https://placehold.co/800x1600/F8FAFC/0F172A.png?text=Study+Guide+Mockup" 
-                  alt="Study Guide App" 
+                {/* Study Guide Video */}
+                <video 
+                  autoPlay loop muted playsInline 
                   className="w-full h-full object-cover"
-                />
+                >
+                  <source src="/iPhone-13-PRO-www.avelut.xyz-zclw-hoy-qiyjc.webm" type="video/webm" />
+                </video>
               </div>
             </div>
 
@@ -151,12 +153,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               </div>
               {/* VISUAL SOLVER MOCKUP PLACEHOLDER */}
               <div className="w-[80%] mx-auto h-[180px] rounded-t-[24px] border-4 border-b-0 border-slate-100 bg-white mt-8 overflow-hidden transform group-hover:-translate-y-2 transition duration-500 shadow-xl shadow-slate-200/50">
-                 {/* INSTRUCTION FOR USER: Replace this <img> src with your Visual Solver Mockup URL */}
-                 <img 
-                  src="https://placehold.co/800x1600/F8FAFC/0F172A.png?text=Visual+Solver" 
-                  alt="Visual Solver App" 
+                 {/* Visual Solver Video */}
+                 <video 
+                  autoPlay loop muted playsInline 
                   className="w-full h-full object-cover object-top"
-                />
+                >
+                  <source src="/iPhone-13-PRO-www.avelut.xyz-kjfr-gop_rjqvc.webm" type="video/webm" />
+                </video>
               </div>
             </div>
 
@@ -171,12 +174,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               </div>
                {/* UPLOAD MOCKUP PLACEHOLDER */}
                <div className="w-[80%] mx-auto h-[180px] rounded-t-[24px] border-4 border-b-0 border-slate-100 bg-white mt-8 overflow-hidden transform group-hover:-translate-y-2 transition duration-500 shadow-xl shadow-slate-200/50">
-                 {/* INSTRUCTION FOR USER: Replace this <img> src with your Upload Center Mockup URL */}
-                 <img 
-                  src="https://placehold.co/800x1600/F8FAFC/0F172A.png?text=Upload+Center" 
-                  alt="Upload Center" 
+                 {/* Upload Center Placeholder Video */}
+                 <video 
+                  autoPlay loop muted playsInline 
                   className="w-full h-full object-cover object-top"
-                />
+                >
+                  <source src="/iPhone-13-PRO-www.avelut.xyz-hsejqaztogs47d.webm" type="video/webm" />
+                </video>
               </div>
             </div>
 
