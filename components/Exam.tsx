@@ -364,7 +364,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                   userAnswer: filledUserAnswers[i],
                   isCorrect: examFormat === 'theory' 
                                 ? (filledUserAnswers[i] !== 'Unanswered' && filledUserAnswers[i] !== '' && filledUserAnswers[i] !== undefined ? true : false) // For theory, we handle isCorrect during eval, but just fallback true if answered. Wait, actually we track isCorrect differently for theory.
-                                : filledUserAnswers[i] === q.correctAnswer,
+                                : (filledUserAnswers[i] === q.correctAnswer || 
+                                  (filledUserAnswers[i] && q.correctAnswer && 
+                                   filledUserAnswers[i].replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase() === q.correctAnswer.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase())),
               })),
           };
 
@@ -686,7 +688,21 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         if (!selectedOption) return;
 
         const currentQuestion = questions[currentQuestionIndex];
-        const isCorrect = selectedOption === currentQuestion.correctAnswer;
+        
+        const checkIsCorrect = (opt: string, corr: string) => {
+            if (!opt || !corr) return false;
+            if (opt === corr) return true;
+            const normOpt = opt.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
+            const normCorr = corr.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
+            if (normOpt === normCorr) return true;
+            
+            const letterMatch = opt.match(/^\(([a-zA-Z])\)/);
+            if (letterMatch && letterMatch[1].toLowerCase() === corr.trim().toLowerCase()) return true;
+            
+            return false;
+        };
+
+        const isCorrect = checkIsCorrect(selectedOption, currentQuestion.correctAnswer);
         
         setUserAnswers(prev => [...prev, selectedOption]);
 
@@ -782,7 +798,17 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                     <div className="grid grid-cols-1 gap-4">
                     {(currentQuestion.options || []).map((option, index) => {
                         const isSelected = selectedOption === option;
-                        const isCorrect = option === currentQuestion.correctAnswer;
+                        const checkIsCorrectDisplay = (opt: string, corr: string) => {
+                            if (!opt || !corr) return false;
+                            if (opt === corr) return true;
+                            const normOpt = opt.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
+                            const normCorr = corr.replace(/^\([a-zA-Z]\)\s*/, '').trim().toLowerCase();
+                            if (normOpt === normCorr) return true;
+                            const letterMatch = opt.match(/^\(([a-zA-Z])\)/);
+                            if (letterMatch && letterMatch[1].toLowerCase() === corr.trim().toLowerCase()) return true;
+                            return false;
+                        };
+                        const isCorrect = checkIsCorrectDisplay(option, currentQuestion.correctAnswer);
                         
                         let variantClasses = "bg-white/80 backdrop-blur-sm border-gray-200/60 hover:border-lime-300 hover:bg-lime-50/50 hover:shadow-md";
                         let indicatorClasses = "bg-gray-100 text-gray-400 group-hover:bg-lime-200 group-hover:text-lime-700";
