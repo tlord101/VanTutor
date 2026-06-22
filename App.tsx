@@ -17,7 +17,7 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 
 
-const AdminPanel = lazy(() => import('./components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const AboutUsPage = lazy(() => import('./components/marketing/AboutUsPage').then(m => ({ default: m.AboutUsPage })));
 const ContactUsPage = lazy(() => import('./components/marketing/ContactUsPage').then(m => ({ default: m.ContactUsPage })));
