@@ -64,9 +64,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <img 
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
               alt="Students collaborating" 
-              className="w-full h-full object-cover opacity-30" 
+              className="w-full h-full object-cover opacity-70" 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/80 to-[#F8FAFC]" />
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-[#F8FAFC]" />
           </div>
 
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10 w-full">
@@ -97,9 +98,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             </div>
             <div className="flex items-center justify-center lg:justify-start gap-4 pt-6 text-sm font-bold text-slate-500">
               <div className="flex -space-x-3">
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200" />
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-300" />
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-400" />
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-300 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-400 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-500 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
               </div>
               <p>Join 10,000+ students mastering their courses.</p>
             </div>
