@@ -1,57 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>AVELUT</title>
-    <meta name="theme-color" content="#002D62" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="AVELUT" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/logo_icon.png" />
-    <script>
-      // Monkeypatch Node.prototype.removeChild and insertBefore to prevent browser extensions 
-      // (like Google Translate, password managers, MetaMask) from crashing React.
-      (function() {
-        if (typeof Node !== 'undefined' && Node.prototype) {
-          const originalRemoveChild = Node.prototype.removeChild;
-          Node.prototype.removeChild = function(child) {
-            if (child.parentNode !== this) {
-              console.warn('removeChild: node is not a child of this parent.', child, this);
-              return child;
-            }
-            return originalRemoveChild.call(this, child);
-          };
 
-          const originalInsertBefore = Node.prototype.insertBefore;
-          Node.prototype.insertBefore = function(newNode, referenceNode) {
-            if (referenceNode && referenceNode.parentNode !== this) {
-              console.warn('insertBefore: referenceNode is not a child of this parent.', referenceNode, this);
-              return originalInsertBefore.call(this, newNode, null);
-            }
-            return originalInsertBefore.call(this, newNode, referenceNode);
-          };
-        }
-      })();
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AVELUT</title>
+  <meta name="theme-color" content="#002D62" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="AVELUT" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/logo_icon.png" />
+  <script>
+    // Monkeypatch Node.prototype.removeChild and insertBefore to prevent browser extensions 
+    // (like Google Translate, password managers, MetaMask) from crashing React.
+    (function () {
+      if (typeof Node !== 'undefined' && Node.prototype) {
+        const originalRemoveChild = Node.prototype.removeChild;
+        Node.prototype.removeChild = function (child) {
+          if (child.parentNode !== this) {
+            console.warn('removeChild: node is not a child of this parent.', child, this);
+            return child;
+          }
+          return originalRemoveChild.call(this, child);
+        };
 
-      // Capture PWA install prompt globally to prevent React lifecycle race conditions
+        const originalInsertBefore = Node.prototype.insertBefore;
+        Node.prototype.insertBefore = function (newNode, referenceNode) {
+          if (referenceNode && referenceNode.parentNode !== this) {
+            console.warn('insertBefore: referenceNode is not a child of this parent.', referenceNode, this);
+            return originalInsertBefore.call(this, newNode, null);
+          }
+          return originalInsertBefore.call(this, newNode, referenceNode);
+        };
+      }
+    })();
+
+    // Capture PWA install prompt globally to prevent React lifecycle race conditions
+    window.deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+      window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
+    });
+    window.addEventListener('appinstalled', () => {
       window.deferredPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        window.deferredPrompt = e;
-        window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
-      });
-      window.addEventListener('appinstalled', () => {
-        window.deferredPrompt = null;
-        window.dispatchEvent(new CustomEvent('pwa-installed'));
-      });
-    </script>
+      window.dispatchEvent(new CustomEvent('pwa-installed'));
+    });
+  </script>
 
     <!-- SEO and Social Media Preview Tags -->
-    <meta name="description" content="AVELUT is an advanced AI-powered tutor offering personalized learning, instant visual solving, and an intuitive workspace." />
-    <meta name="keywords" content="AI tutor, AI education, visual solver, personalized learning, edtech, AVELUT" />
+    <meta name="description" content="Transforming education with AI-powered study guides, visual problem solving, and adaptive learning." />
+    <meta name="keywords" content="education, AI, study guide, past questions, learning, avelut, avelut ai, avelu, ai tutor, personalized tutor" />
     <meta name="author" content="AVELUT Team" />
     <meta name="robots" content="index, follow" />
     
@@ -59,66 +60,73 @@
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="AVELUT: AI Tutoring Platform" />
-    <meta property="og:description" content="AVELUT is an AI-powered tutor with a responsive learning workspace. Solve problems instantly with our Visual Solver." />
-    <meta property="og:image" content="/logo_icon.png" />
-    <meta property="og:url" content="https://avelut.app/" />
+    <meta property="og:title" content="Avelut - An Ecosystem of Intelligence" />
+    <meta property="og:description" content="Transforming education with AI-powered study guides, visual problem solving, and adaptive learning." />
+    <meta property="og:image" content="https://www.avelut.xyz/logo_full.png" />
+    <meta property="og:url" content="https://avelut.xyz/" />
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AVELUT: AI Tutoring Platform" />
-    <meta name="twitter:description" content="AVELUT is an AI-powered tutor with a responsive learning workspace. Solve problems instantly with our Visual Solver." />
-    <meta name="twitter:image" content="/logo_icon.png" />
-    <meta name="twitter:site" content="@avelut_app" />
+    <meta name="twitter:title" content="Avelut - An Ecosystem of Intelligence" />
+    <meta name="twitter:description" content="Transforming education with AI-powered study guides, visual problem solving, and adaptive learning." />
+    <meta name="twitter:image" content="https://www.avelut.xyz/logo_full.png" />
+    <meta name="twitter:site" content="@avelut" />
 
-    <!-- Google Fonts: Plus Jakarta Sans & Nunito -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+  <!-- Google Fonts: Plus Jakarta Sans & Nunito -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
+    rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css"
+    integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
 
-    <!-- Google Identity Services and Picker API -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
-    <style>
-      html {
-        height: 100%;
-        scroll-behavior: smooth;
-      }
-      body {
-        height: 100%;
-      }
-      #root {
-        height: 100%;
-      }
-    </style>
+  <!-- Google Identity Services and Picker API -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <style>
+    html {
+      height: 100%;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      height: 100%;
+    }
+
+    #root {
+      height: 100%;
+    }
+  </style>
 
 </head>
-  <body class="bg-gray-100">
-    <div id="root"></div>
 
-    <script>
-      var __app_id = "avelut-app";
-      // Set to a token string for custom token testing, or undefined/null for anonymous fallback.
-      var __initial_auth_token = undefined;
+<body class="bg-gray-100">
+  <div id="root"></div>
 
-      // Firebase credentials
-      // IMPORTANT: Replace with your actual Firebase project configuration.
-      // You can find these in your Firebase Project Settings under "General" > "Your apps" > "SDK setup and configuration".
-      var __firebase_config = {
-        apiKey: "AIzaSyA2oJ1vB5TDQWr2-Gz72jpCl7pX8rmKmE8",
-        authDomain: "tlord-1ab38.firebaseapp.com",
-        databaseURL: "https://tlord-1ab38-default-rtdb.firebaseio.com",
-        projectId: "tlord-1ab38",
-        storageBucket: "tlord-1ab38.firebasestorage.app",
-        messagingSenderId: "750743868519",
-        appId: "1:750743868519:web:423b7ba5e2a3d73b6570c2",
-        measurementId: "G-RH14Z1F6T9"
-      };
-    </script>
+  <script>
+    var __app_id = "avelut-app";
+    // Set to a token string for custom token testing, or undefined/null for anonymous fallback.
+    var __initial_auth_token = undefined;
 
-    <script type="module" src="/index.tsx"></script>
-  </body>
+    // Firebase credentials
+    // IMPORTANT: Replace with your actual Firebase project configuration.
+    // You can find these in your Firebase Project Settings under "General" > "Your apps" > "SDK setup and configuration".
+    var __firebase_config = {
+      apiKey: "AIzaSyA2oJ1vB5TDQWr2-Gz72jpCl7pX8rmKmE8",
+      authDomain: "tlord-1ab38.firebaseapp.com",
+      databaseURL: "https://tlord-1ab38-default-rtdb.firebaseio.com",
+      projectId: "tlord-1ab38",
+      storageBucket: "tlord-1ab38.firebasestorage.app",
+      messagingSenderId: "750743868519",
+      appId: "1:750743868519:web:423b7ba5e2a3d73b6570c2",
+      measurementId: "G-RH14Z1F6T9"
+    };
+  </script>
+
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

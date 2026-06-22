@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, serverTimestamp } from "firebase/database";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
+import { getFunctions } from "firebase/functions";
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -40,12 +41,14 @@ const storage = getStorage(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+const functions = getFunctions(app);
 
 export { 
   db, 
   storage, 
   auth, 
   messaging,
+  functions,
   googleProvider,
   serverTimestamp,
   signInAnonymously, 
