@@ -11,7 +11,7 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
 import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
-import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion } from 'lucide-react';
+import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion, Menu, X } from 'lucide-react';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'] as const;
 const SEMESTERS = ['first', 'second'] as const;
@@ -206,6 +206,7 @@ export const UploadCenter: React.FC = () => {
   const [uploadModal, setUploadModal] = useState<{course: any, courseKey: string, deptPath: string} | null>(null);
   const [uploadType, setUploadType] = useState<'textbook'|'past_question'>('textbook');
   const [pqYear, setPqYear] = useState(new Date().getFullYear().toString());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -357,6 +358,7 @@ export const UploadCenter: React.FC = () => {
     if (typeof window === 'undefined') return;
     window.history.pushState(null, '', nextPath);
     setPathname(nextPath);
+    setIsMobileMenuOpen(false);
   };
 
   const handleAuth = async (event: React.FormEvent) => {
@@ -818,28 +820,57 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
   const collegeCourses = getCollegeCourses();
 
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900">
+    <div className="min-h-screen flex bg-slate-50 text-slate-900 overflow-hidden relative">
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+           className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 md:hidden" 
+           onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-200 bg-white flex flex-col fixed inset-y-0 left-0 z-10">
-        <div className="p-6">
-          <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-sky-600"><UploadCloud className="w-6 h-6" /> Upload Center</h1>
-          <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-wider">{profile.display_name}</p>
+      <aside className={`w-64 border-r border-slate-200 bg-white flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        <div className="p-6 flex items-center justify-between">
+          <div>
+             <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-sky-600"><UploadCloud className="w-6 h-6" /> Upload Center</h1>
+             <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-wider">{profile.display_name}</p>
+          </div>
+          <button className="md:hidden p-2 text-slate-400 hover:text-slate-700 bg-slate-50 rounded-xl" onClick={() => setIsMobileMenuOpen(false)}>
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           <button onClick={() => navigate('/upload-center')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'dashboard' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><LayoutDashboard className="w-5 h-5" /> Dashboard</button>
           <button onClick={() => navigate('/upload-center/courses')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'courses' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><BookOpen className="w-5 h-5" /> All Courses</button>
           <button onClick={() => navigate('/upload-center/upload')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'upload' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FolderOpen className="w-5 h-5" /> Manage Courses</button>
           <button onClick={() => navigate('/upload-center/past-questions')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'past_questions' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><FileQuestion className="w-5 h-5" /> Past Questions</button>
           <button onClick={() => navigate('/upload-center/requests')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'requests' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><List className="w-5 h-5" /> All Requests</button>
         </nav>
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 mt-auto">
           <button onClick={handleLogout} className="w-full py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition">Sign Out</button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-8">
-        {activeView === 'dashboard' && (
+      <main className="flex-1 flex flex-col min-w-0 md:ml-64 h-screen overflow-y-auto relative w-full">
+        {/* Mobile Header */}
+        <div className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                    <Menu className="w-6 h-6" />
+                </button>
+                <h1 className="text-lg font-black tracking-tight text-slate-900 capitalize">
+                    {activeView.replace('_', ' ')}
+                </h1>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-bold shadow-md shadow-sky-500/20">
+                {profile.display_name?.charAt(0).toUpperCase()}
+            </div>
+        </div>
+
+        <div className="p-4 sm:p-8 pt-6 sm:pt-8 w-full max-w-full">
+          {activeView === 'dashboard' && (
           <div className="max-w-5xl space-y-6">
             <h2 className="text-3xl font-black tracking-tight">Overview</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1139,6 +1170,7 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
              </div>
           </div>
         )}
+        </div>
       </main>
 
             {/* Upload Material Modal */}
