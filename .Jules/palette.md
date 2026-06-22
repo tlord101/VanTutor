@@ -9,3 +9,7 @@
 ## 2025-06-20 - [Automated Testing of Password Toggles]
 **Learning:** When implementing password visibility toggles, standard Playwright locators like `get_by_role('textbox', name='Password')` will fail when the input is in `type="password"` mode, as it no longer carries the 'textbox' role. Additionally, multiple elements (input and toggle button) might share the same ARIA label or text, causing strict mode violations.
 **Action:** Use unique `id` and `htmlFor` attributes for all form inputs. For testing toggles, prefer targeting by label (`get_by_label`) or specific CSS selectors to ensure the element is found regardless of its current `type` attribute.
+
+## 2025-10-27 - [Keyboard Accessibility for Custom Input Triggers]
+**Learning:** Using a `label` to wrap a hidden `input type="file"` is a common pattern for custom upload buttons, but `label` elements are not keyboard-accessible by default. They don't receive focus and don't trigger the input on Enter/Space when focused via tab.
+**Action:** Add `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler (to simulate click on Enter/Space) to labels acting as input triggers. Also ensure `focus-within:ring` styles are applied to provide visual focus indication.

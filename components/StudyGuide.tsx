@@ -8,8 +8,12 @@ import { db, storage } from '../firebase';
 import { ref as dbRef, onValue, off, set, update, get, push, runTransaction, serverTimestamp, increment } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import type { UserProfile, Message, Course, Topic, UserProgress, AppSettings } from '../types';
+import { triggerHaptic } from '../utils/capacitorUtils';
 import { SendIcon } from './icons/SendIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
+import { PencilIcon } from './icons/PencilIcon';
+import { ListIcon } from './icons/ListIcon';
+import { VideoIcon } from './icons/VideoIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -1409,33 +1413,47 @@ Student: "${tempInput}"
         <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <button
+                    onClick={() => { triggerHaptic(); onClose(); }}
+                    className="text-gray-500 hover:text-gray-900 transition-all p-1 rounded-full active:scale-95"
+                    aria-label="Go back"
+                    title="Go back"
+                >
+                    <ArrowLeftIcon />
+                </button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     {!diagnosticResults && (
                         <button 
-                            onClick={() => setShowDiagnosticModal(true)}
-                            className="flex items-center px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                            onClick={() => { triggerHaptic(); setShowDiagnosticModal(true); }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer select-none shadow-sm active:scale-95"
+                            title="Take Pre-Test"
                         >
-                            Pre-Test
+                            <PencilIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Pre-Test</span>
                         </button>
                     )}
                     <button 
                         onClick={() => {
+                            triggerHaptic();
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer select-none shadow-sm active:scale-95"
+                        title="Watch Video Tutorials"
                     >
-                        Video Tutorial
+                        <VideoIcon className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Tutorials</span>
                     </button>
 
                     {diagnosticResults && (
                         <button 
-                            onClick={() => setIsLearningPathOpen(!isLearningPathOpen)}
-                            className="flex items-center px-4 py-2 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                            onClick={() => { triggerHaptic(); setIsLearningPathOpen(!isLearningPathOpen); }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-700 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer select-none shadow-sm active:scale-95"
+                            title="View Learning Path"
                         >
-                            Learning Path
+                            <ListIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Path</span>
                         </button>
                     )}
                     
@@ -1710,17 +1728,33 @@ Student: "${tempInput}"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors">
+                    <label
+                        className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-all active:scale-95 focus-within:ring-2 focus-within:ring-lime-500 rounded-lg p-1"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Attach image"
+                        title="Attach image"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                const input = e.currentTarget.querySelector('input');
+                                if (input) input.click();
+                            }
+                        }}
+                    >
                         <PaperclipIcon className="w-5 h-5" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
                     <button 
                         onClick={(e) => {
                             e.preventDefault();
+                            triggerHaptic();
                             handleSend();
                         }} 
                         disabled={isThinking || isIllustrating || (!input.trim() && !file)}
-                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
+                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
+                        aria-label="Send message"
+                        title="Send message"
                     >
                         <SendIcon className="w-5 h-5" />
                     </button>
