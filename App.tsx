@@ -11,7 +11,7 @@ import { SignUp } from './components/SignUp';
 import { AdminLogin } from './components/AdminLogin';
 import { UploadCenter } from './components/UploadCenter';
 import { Onboarding } from './components/Onboarding';
-import { ActivationScreen } from './components/ActivationScreen';
+
 import { createAvelutAI } from './utils/inference';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -1204,20 +1204,7 @@ const App: React.FC = () => {
         );
     }
 
-    if (userProfile && !userProfile.is_activated && !userProfile.is_admin && !isAdminRoute) {
-        return (
-            <div key="activation-state" className="min-h-screen">
-                <ActivationScreen
-                    user={user}
-                    userProfile={userProfile}
-                    appSettings={appSettings}
-                    handleProfileUpdate={handleProfileUpdate}
-                    handleLogout={handleLogout}
-                    addToast={addToast}
-                />
-            </div>
-        );
-    }
+
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
