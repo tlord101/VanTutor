@@ -629,8 +629,8 @@ const App: React.FC = () => {
                     }
                 }
             } else {
-                if (!navigator.onLine) {
-                    // Do not force onboarding if offline, rely on cachedProfile
+                if (!navigator.onLine || cachedProfile?.department_id) {
+                    // Do not force onboarding if offline, or if cache confirms they are already onboarded.
                 } else {
                     setIsOnboarding(true);
                 }
