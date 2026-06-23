@@ -17,6 +17,7 @@ const Messenger = lazy(() => import('./components/Messenger').then(module => ({ 
 const AvelutAI = lazy(() => import('./components/AvelutAI'));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const Onboarding = lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
+const History = lazy(() => import('./components/History').then(module => ({ default: module.History })));
 
 interface MainContentProps {
     activeItem: string;
@@ -87,6 +88,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                         );
                     case 'exam':
                         return <Exam userProfile={userProfile} userProgress={userProgress} />;
+                    case 'history':
+                        return <History userProfile={userProfile} />;
                     case 'user_profile':
                         return <UserProfilePage user={user} userProfile={userProfile} onProfileUpdate={handleProfileUpdate} />;
                     case 'billing':

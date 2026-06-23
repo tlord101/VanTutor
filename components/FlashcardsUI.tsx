@@ -11,7 +11,7 @@ interface FlashcardsUIProps {
 export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [exitX, setExitX] = useState(0);
+  const [exitDirection, setExitDirection] = useState(1);
 
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 150], [-25, 25]);
@@ -19,38 +19,33 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
 
   const handleDragEnd = (event: any, info: any) => {
     if (info.offset.x > 150 || info.velocity.x > 500) {
-      setExitX(500);
-      swipeNext();
+      swipeNext(1);
     } else if (info.offset.x < -150 || info.velocity.x < -500) {
-      setExitX(-500);
-      swipeNext();
+      swipeNext(-1);
     }
   };
 
-  const swipeNext = () => {
+  const swipeNext = (direction: number = 1) => {
+    setExitDirection(direction);
     setIsFlipped(false);
     if (currentIndex < flashcards.length - 1) {
-      setTimeout(() => {
-        setCurrentIndex((prev) => prev + 1);
-        x.set(0);
-        setExitX(0);
-      }, 200);
+      setCurrentIndex((prev) => prev + 1);
+      x.set(0);
     } else {
-      setTimeout(onFinish, 200);
+      onFinish();
     }
   };
 
   const handleNextManual = () => {
-    setExitX(500);
-    swipeNext();
+    swipeNext(1);
   };
 
   const handlePrev = () => {
     if (currentIndex > 0) {
+      setExitDirection(-1);
       setIsFlipped(false);
       setCurrentIndex((prev) => prev - 1);
       x.set(0);
-      setExitX(0);
     }
   };
 
@@ -77,7 +72,7 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
       {/* Main Flashcard Arena */}
       <main className="flex-1 relative flex items-center justify-center p-6 bg-[#FFFFFF]">
         <div className="relative w-full max-w-sm aspect-[3/4]">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="popLayout" custom={exitDirection}>
             {flashcards.slice(currentIndex, currentIndex + 3).map((card, idx) => {
               const stackIndex = idx;
               const isFront = stackIndex === 0;
@@ -85,10 +80,12 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
               return (
                 <motion.div
                   key={`${currentIndex + idx}`}
+                  custom={exitDirection}
                   style={isFront ? { x, rotate, opacity } : {}}
                   drag={isFront ? "x" : false}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.7}
+                  dragListener={isFront}
                   onDragEnd={isFront ? handleDragEnd : undefined}
                   initial={{
                     scale: 0.9,
@@ -103,12 +100,12 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
                     opacity: 1,
                     zIndex: stackIndex === 0 ? 30 : stackIndex === 1 ? 20 : 10
                   }}
-                  exit={{
-                    x: exitX > 0 ? 300 : -300,
+                  exit={(dir: number) => ({
+                    x: dir * 300,
                     opacity: 0,
-                    rotate: exitX > 0 ? 45 : -45,
+                    rotate: dir * 45,
                     transition: { duration: 0.3 }
-                  }}
+                  })}
                   className="absolute inset-0 cursor-grab active:cursor-grabbing"
                   onTap={() => {
                     if (isFront) setIsFlipped(!isFlipped);

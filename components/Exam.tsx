@@ -6,6 +6,7 @@ import { FlashcardsUI } from './FlashcardsUI';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, get, serverTimestamp } from 'firebase/database';
 import type { UserProfile, Question, ExamHistoryItem, ExamQuestionResult, UserProgress, Course, AppSettings } from '../types';
+import { saveToHistory } from '../utils/history';
 import { awardDailyStreak } from '../utils/streaks';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
@@ -515,6 +516,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         setFlashcardIndex(0);
         setIsFlipped(false);
         deductAICredits(userProfile.uid, cost, 'Flashcard Generation', appSettings).catch(console.error);
+        
+        saveToHistory(userProfile.uid, {
+            type: 'flashcards',
+            title: `${safeCourseName} Flashcards`,
+            data: responseData.flashcards
+        }).catch(console.error);
+
         setExamState('flashcards');
       });
 
@@ -626,6 +634,12 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
 
         // Deduct credits
         deductAICredits(userProfile.uid, cost, 'Mock Exam Generation', appSettings).catch(console.error);
+
+        saveToHistory(userProfile.uid, {
+            type: 'exam',
+            title: `${safeCourseName} Mock Exam (${examFormat})`,
+            data: newQuestions
+        }).catch(console.error);
 
         const offlineId = `offline_${Date.now()}`;
         setCurrentExamId(offlineId);

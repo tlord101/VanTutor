@@ -1145,6 +1145,15 @@ const App: React.FC = () => {
         }
 
         if (currentPath === '/' || currentPath === '' || currentPath === '/home') {
+            if (Capacitor.isNativePlatform()) {
+                return (
+                    <div key="auth-state" className="min-h-screen">
+                        {authView === 'login' 
+                            ? <Login onSwitchToSignUp={() => setAuthView('signup')} /> 
+                            : <SignUp onSwitchToLogin={() => setAuthView('login')} />}
+                    </div>
+                );
+            }
             return (
                 <ErrorBoundary>
                     <LandingPage 
