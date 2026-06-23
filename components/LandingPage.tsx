@@ -52,19 +52,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="relative pt-40 pb-20 px-6 flex flex-col lg:flex-row items-center gap-16 overflow-hidden">
+        <section className="relative pt-40 pb-32 px-6 flex flex-col items-center justify-center overflow-hidden min-h-[80vh]">
           {/* Hero Background */}
           <div className="absolute inset-0 z-0 pointer-events-none">
             <img 
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
               alt="Students collaborating" 
-              className="w-full h-full object-cover opacity-40" 
+              className="w-full h-full object-cover opacity-30" 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/60 to-[#F8FAFC]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 via-slate-50/90 to-white" />
           </div>
 
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-10 w-full">
-            <div className="flex-1 space-y-8 text-center lg:text-left">
+          <div className="max-w-4xl mx-auto flex flex-col items-center relative z-10 w-full text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-600 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-3 h-3" />
               <span>Hyper-Personalized AI Tutoring</span>
@@ -72,10 +71,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900">
               The AI Tutor That Won't Rest Until Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">GPA Rises</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+            <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
               Meet your new context-aware personal tutor. Custom-trained on your exact syllabus, Avelut breaks down the hardest concepts step-by-step so you can master them instantly.
             </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center pt-4">
               <button onClick={() => {
                 onSignUp();
                 window.dispatchEvent(new Event('popstate'));
@@ -89,7 +88,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                 Sign In to Dashboard
               </button>
             </div>
-            <div className="flex items-center justify-center lg:justify-start gap-4 pt-6 text-sm font-bold text-slate-500">
+            <div className="flex items-center justify-center gap-4 pt-6 text-sm font-bold text-slate-500">
               <div className="flex -space-x-3">
                 <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
                 <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-300 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
@@ -99,26 +98,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <p>Join 10,000+ students mastering their courses.</p>
             </div>
           </div>
-          
-          <div className="flex-1 relative w-full max-w-lg lg:max-w-none">
-            {/* HERO MOCKUP PLACEHOLDER */}
-            <div className="relative w-full aspect-[9/18] max-w-[320px] mx-auto z-10 transform rotate-[-2deg] hover:rotate-0 transition duration-500 drop-shadow-2xl">
-                {/* Hero Dashboard Video */}
-                {/* We tilt the container to match the phone's tilt (-5deg) and counter-tilt the video (+5deg) */}
-                <div className="w-full h-full rounded-[40px] sm:rounded-[45px] overflow-hidden relative transform -rotate-6">
-                  <video 
-                    autoPlay loop muted playsInline 
-                    className="w-full h-full object-cover transform rotate-6"
-                  >
-                    <source src="/hero_video.mp4" type="video/mp4" />
-                  </video>
-                </div>
+        </section>
+
+        {/* Mockup Section */}
+        <section className="bg-white py-12 px-6 flex justify-center relative z-10 w-full overflow-hidden">
+            <div className="w-full max-w-[400px] mx-auto">
+                <video 
+                  autoPlay loop muted playsInline 
+                  className="w-full h-auto object-contain"
+                >
+                  <source src="/hero_video.mp4" type="video/mp4" />
+                </video>
             </div>
-            {/* Background Decorative Rings */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square border border-brand-200/50 rounded-full z-0 pointer-events-none" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] aspect-square border border-sky-200/50 rounded-full z-0 pointer-events-none" />
-          </div>
-          </div>
         </section>
 
         {/* Feature Carousel */}
