@@ -18,6 +18,7 @@ import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { useToast } from '../hooks/useToast';
+import { triggerHaptic } from '../utils/capacitorUtils';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BookOpen, UploadCloud } from 'lucide-react';
 import { LimitExceededModal } from './LimitExceededModal';
@@ -1302,19 +1303,21 @@ Student: "${tempInput}"
                     )}
                     <button 
                         onClick={() => {
+                            triggerHaptic();
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm active:scale-95"
                     >
                         Video Tutorial
                     </button>
                     
                     <div className="relative">
                         <button 
-                            onClick={() => setShowShareDropdown(!showShareDropdown)}
-                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
+                            onClick={() => { triggerHaptic(); setShowShareDropdown(!showShareDropdown); }}
+                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none active:scale-95"
                             title="Share Options"
+                            aria-label="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="1.5"/>
@@ -1632,8 +1635,9 @@ Student: "${tempInput}"
                     <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
                     <h3 className="text-base font-black uppercase tracking-widest text-slate-700">Video Tutorials</h3>
                     <button 
-                        onClick={() => setIsTutorialsOpen(false)}
-                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors"
+                        onClick={() => { triggerHaptic(); setIsTutorialsOpen(false); }}
+                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors active:scale-95"
+                        aria-label="Close tutorials"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -1735,6 +1739,7 @@ Student: "${tempInput}"
                             <button
                                 type="button"
                                 onClick={async () => {
+                                    triggerHaptic();
                                     if (messageActionTarget.text) {
                                         try {
                                             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1750,20 +1755,21 @@ Student: "${tempInput}"
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                                className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-95"
                             >
                                 📋 Copy message
                             </button>
                             <button
                                 type="button"
                                 onClick={() => {
+                                    triggerHaptic();
                                     setForwardTargetContent(messageActionTarget.text || '');
                                     setForwardTargetType('text');
                                     setIsForwardModalOpen(true);
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                                className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-95"
                             >
                                 ➤ Forward to Study Partner
                             </button>
@@ -1771,13 +1777,14 @@ Student: "${tempInput}"
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        triggerHaptic();
                                         const textToIllustrate = messageActionTarget.text;
                                         setMessageActionTarget(null);
                                         setMessageActionPosition(null);
                                         void handleGenerateIllustration(textToIllustrate);
                                     }}
                                     disabled={isThinking || isIllustrating}
-                                    className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
+                                    className="w-full rounded-xl border border-gray-100 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50 active:scale-95"
                                 >
                                     🎨 Visualize
                                 </button>
