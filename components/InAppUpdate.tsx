@@ -92,11 +92,11 @@ export const InAppUpdate: React.FC = () => {
             <div className="w-full flex-1 flex flex-col items-center max-w-md mx-auto relative px-6">
                 
                 {/* 3D Illustration Area */}
-                <div className="w-full relative mt-12 mb-8 flex justify-center items-center">
+                <div className="w-full relative mt-12 mb-8 flex justify-center items-center px-4">
                     <img 
-                        src="/images/app_update_graphic.png" 
+                        src="/images/app_update_graphic_v2.jpg" 
                         alt="App Update Graphic" 
-                        className="w-[280px] h-auto object-contain drop-shadow-2xl"
+                        className="w-full max-w-[340px] h-auto object-cover rounded-3xl drop-shadow-2xl"
                     />
                 </div>
 

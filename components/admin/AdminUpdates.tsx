@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, CheckCircle2, AlertCircle, Smartphone, Info, Loader2 } from 'lucide-react';
 import { db, storage } from '../../firebase';
 import { ref, set, get, onValue } from 'firebase/database';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '../../hooks/useToast';
 
 export const AdminUpdates: React.FC = () => {
@@ -46,6 +46,15 @@ export const AdminUpdates: React.FC = () => {
             let downloadUrl = currentUpdate?.downloadUrl || '';
 
             if (file) {
+                if (currentUpdate && currentUpdate.versionName) {
+                    try {
+                        const oldApkRef = storageRef(storage, `app_updates/avelut-${currentUpdate.versionName}.apk`);
+                        await deleteObject(oldApkRef);
+                    } catch (deleteError) {
+                        console.warn('Could not delete previous APK, it may not exist:', deleteError);
+                    }
+                }
+
                 const apkRef = storageRef(storage, `app_updates/avelut-${versionName}.apk`);
                 const uploadTask = uploadBytesResumable(apkRef, file);
 
