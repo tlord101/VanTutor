@@ -5,6 +5,8 @@ import { FeatureCarousel } from './marketing/FeatureCarousel';
 import { Testimonials } from './marketing/Testimonials';
 import { FAQs } from './marketing/FAQs';
 import { AppDownloadCTA } from './marketing/AppDownloadCTA';
+import { db } from '../../firebase';
+import { ref, onValue } from 'firebase/database';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -14,6 +16,7 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) => {
   const [scrolled, setScrolled] = useState(false);
   const [showAppPopup, setShowAppPopup] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,19 +27,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
   }, []);
 
   useEffect(() => {
+    // Fetch latest Android APK URL
+    const updatesRef = ref(db, 'app_updates/latest');
+    const unsubscribe = onValue(updatesRef, (snapshot) => {
+        if (snapshot.exists() && snapshot.val().downloadUrl) {
+            setDownloadUrl(snapshot.val().downloadUrl);
+        }
+    });
+
     // Show the popup after 5 seconds if they haven't closed it this session
     const hasClosed = sessionStorage.getItem('avelut_closed_app_popup');
     if (!hasClosed) {
       const timer = setTimeout(() => {
         setShowAppPopup(true);
       }, 5000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
     }
+    return () => unsubscribe();
   }, []);
 
   const closePopup = () => {
     setShowAppPopup(false);
     sessionStorage.setItem('avelut_closed_app_popup', 'true');
+  };
+
+  const handleAndroidDownload = () => {
+    if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
+        closePopup();
+    } else {
+        alert("The latest Android app is still being prepared. Please check back later!");
+    }
+  };
+
+  const handleIOSClick = () => {
+    alert("Avelut is not yet available as a native iOS app. Please use our mobile-friendly web app!");
+    closePopup();
+    onLogin();
+    window.dispatchEvent(new Event('popstate'));
   };
 
   return (
@@ -249,11 +280,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                     Scan math problems directly with your camera. Download now for iOS and Android.
                   </p>
                   <div className="flex gap-2">
-                    <button className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                    <button onClick={handleIOSClick} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
                        <Apple className="w-4 h-4" /> iOS
                     </button>
-                    <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
-                       <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Play" className="w-4 h-4" /> Android
+                    <button onClick={handleAndroidDownload} className={`flex-1 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 ${downloadUrl ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}>
+                       <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Play" className={`w-4 h-4 ${!downloadUrl && 'opacity-50 grayscale'}`} /> Android
                     </button>
                   </div>
                 </div>
