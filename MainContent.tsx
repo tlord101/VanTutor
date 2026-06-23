@@ -16,6 +16,7 @@ const Help = lazy(() => import('./components/Help'));
 const Messenger = lazy(() => import('./components/Messenger').then(module => ({ default: module.Messenger })));
 const AvelutAI = lazy(() => import('./components/AvelutAI'));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
+const Onboarding = lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
 
 interface MainContentProps {
     activeItem: string;
@@ -32,6 +33,7 @@ interface MainContentProps {
     triggerScanRef?: React.MutableRefObject<(() => void) | null>;
     onNavigate?: (tab: string) => void;
     setCustomHeaderConfig: (config: any) => void;
+    handleOnboardingComplete?: (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => Promise<void>;
 }
 
 const LoadingFallback = () => (
@@ -55,6 +57,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     triggerScanRef,
     onNavigate,
     setCustomHeaderConfig,
+    handleOnboardingComplete,
 }) => {
     if (!userProfile) return null;
 
@@ -62,6 +65,14 @@ export const MainContent: React.FC<MainContentProps> = ({
         <Suspense fallback={<LoadingFallback />}>
             {(() => {
                 switch (activeItem) {
+                    case 'onboarding':
+                        return (
+                            <ErrorBoundary>
+                                <div className="p-4 sm:p-6 md:p-10 max-w-7xl mx-auto min-h-[calc(100vh-140px)] flex items-center justify-center">
+                                    <Onboarding user={user!} onOnboardingComplete={handleOnboardingComplete!} />
+                                </div>
+                            </ErrorBoundary>
+                        );
                     case 'dashboard':
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'study_guide':

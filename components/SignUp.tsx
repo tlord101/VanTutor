@@ -59,6 +59,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
             created_at: Date.now()
           });
           await set(ipRef, { uid: user.uid, timestamp: Date.now() });
+          sessionStorage.setItem('just_signed_up', 'true');
         }
       } else {
         const result = await signInWithPopup(auth, provider);
@@ -74,6 +75,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
             created_at: Date.now()
           });
           await set(ipRef, { uid: user.uid, timestamp: Date.now() });
+          sessionStorage.setItem('just_signed_up', 'true');
         }
       }
       // On successful sign-in, onAuthStateChanged in App.tsx will trigger.
@@ -121,6 +123,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
       });
       await set(ipRef, { uid: user.uid, timestamp: Date.now() });
 
+      sessionStorage.setItem('just_signed_up', 'true');
       addToast("Account created successfully!", "success");
       // onAuthStateChanged in App.tsx will handle the state change.
     } catch (err: any) {

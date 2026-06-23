@@ -322,7 +322,6 @@ const App: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [isProfileLoading, setIsProfileLoading] = useState(true);
-    const [isOnboarding, setIsOnboarding] = useState(false);
     const [authView, setAuthView] = useState<'login' | 'signup'>('login');
 
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -613,11 +612,12 @@ const App: React.FC = () => {
                 
                 if (!isPartialUpdate) {
                     writeCachedJson(cacheKey, data);
-                    if (!data.department_id) {
-                        setIsOnboarding(true);
+                    setUserProfile(data as UserProfile);
+                    
+                    if (!data.department_id && sessionStorage.getItem('just_signed_up') === 'true') {
+                        setActiveItem('onboarding');
+                        sessionStorage.removeItem('just_signed_up');
                     } else {
-                        setUserProfile(data as UserProfile);
-                        setIsOnboarding(false);
                         if (tourStatusRef.current === 'unknown') {
                             if (data.privacy_consent?.granted && !data.has_completed_tour) {
                                 startTour();
@@ -631,8 +631,9 @@ const App: React.FC = () => {
             } else {
                 if (!navigator.onLine || cachedProfile?.department_id) {
                     // Do not force onboarding if offline, or if cache confirms they are already onboarded.
-                } else {
-                    setIsOnboarding(true);
+                } else if (sessionStorage.getItem('just_signed_up') === 'true') {
+                    setActiveItem('onboarding');
+                    sessionStorage.removeItem('just_signed_up');
                 }
             }
             setIsProfileLoading(false);
@@ -949,7 +950,8 @@ const App: React.FC = () => {
             });
             
             setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
-            setIsOnboarding(false);
+            setActiveItem('dashboard');
+            addToast("Profile completed successfully!", "success");
         } catch (error: any) {
             console.error("Failed to complete onboarding:", error.message || error);
             addToast(error.message || "Could not save your profile.", "error");
@@ -1185,9 +1187,7 @@ const App: React.FC = () => {
         );
     }
 
-    if (isOnboarding) {
-        return <div key="onboarding-state" className="min-h-screen"><Onboarding user={user} onOnboardingComplete={handleOnboardingComplete} /></div>;
-    }
+
     
     if (!userProfile) {
         return (
@@ -1272,6 +1272,7 @@ const App: React.FC = () => {
                             triggerScanRef={triggerScanRef}
                             onNavigate={setActiveItem}
                             setCustomHeaderConfig={setCustomHeaderConfig}
+                            handleOnboardingComplete={handleOnboardingComplete}
                         />
                     )}
                 </div>
