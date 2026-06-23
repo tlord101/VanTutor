@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, ChevronRight, Users, MessageSquare } from 'lucide-react';
+import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, ChevronRight, Users, MessageSquare, X, Smartphone, Apple } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { FeatureCarousel } from './marketing/FeatureCarousel';
 import { Testimonials } from './marketing/Testimonials';
 import { FAQs } from './marketing/FAQs';
@@ -12,6 +13,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) => {
   const [scrolled, setScrolled] = useState(false);
+  const [showAppPopup, setShowAppPopup] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,6 +22,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    // Show the popup after 5 seconds if they haven't closed it this session
+    const hasClosed = sessionStorage.getItem('avelut_closed_app_popup');
+    if (!hasClosed) {
+      const timer = setTimeout(() => {
+        setShowAppPopup(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const closePopup = () => {
+    setShowAppPopup(false);
+    sessionStorage.setItem('avelut_closed_app_popup', 'true');
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
@@ -58,9 +76,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <img 
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
               alt="Students collaborating" 
-              className="w-full h-full object-cover opacity-30" 
+              className="w-full h-full object-cover opacity-60" 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 via-slate-50/90 to-white" />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-50/60 via-slate-50/70 to-white" />
           </div>
 
           <div className="max-w-4xl mx-auto flex flex-col items-center relative z-10 w-full text-center space-y-8">
@@ -207,6 +225,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
           </div>
         </div>
       </footer>
+
+      {/* Download App Popup */}
+      <AnimatePresence>
+        {showAppPopup && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-50 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+          >
+            <div className="relative p-6">
+              <button onClick={closePopup} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition">
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-brand-500 flex items-center justify-center shrink-0 shadow-inner">
+                  <Smartphone className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg mb-1">Get the Avelut App</h3>
+                  <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                    Scan math problems directly with your camera. Download now for iOS and Android.
+                  </p>
+                  <div className="flex gap-2">
+                    <button className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                       <Apple className="w-4 h-4" /> iOS
+                    </button>
+                    <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                       <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Play" className="w-4 h-4" /> Android
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

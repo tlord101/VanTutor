@@ -105,8 +105,8 @@ export const FeatureCarousel: React.FC = () => {
                             >
                                 {/* Background Image */}
                                 <div className="absolute inset-0 z-0 bg-slate-900">
-                                    <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover opacity-15 group-hover:scale-110 transition duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+                                    <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover opacity-30 group-hover:scale-110 transition duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                                 </div>
 
                                 {/* Content */}
