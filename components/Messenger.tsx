@@ -1451,7 +1451,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         title: (
           <div className="flex-1 min-w-0 flex flex-col justify-center">
             <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
-              <span>{activeChat.otherUser.display_name}</span>
+              <span className="truncate max-w-[120px]">{activeChat.otherUser.display_name?.split(' ')[0].substring(0, 5)}</span>
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
             </h2>
