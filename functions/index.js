@@ -418,7 +418,7 @@ exports.checkTimetableReminders = functions.pubsub.schedule('* * * * *').onRun(a
                     emailPromise = emailRef.set({
                         recipients: userData.email,
                         subject: `${title}: ${session.subject}`,
-                        body: `Hi ${userData.display_name || 'Learner'},\n\n${message}\n\nHappy learning,\nThe AVELUT Team`,
+                        body: `Hi ${userData.display_name || 'AVELITE'},\n\n${message}\n\nHappy learning,\nThe AVELUT Team`,
                         created_at: Date.now(),
                         status: 'pending'
                     });

@@ -462,13 +462,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setCustomHeaderConfig({
         leftActions: (
           <div className="flex items-center">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-xl border border-slate-200 bg-white p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-50 mr-2" aria-label="Go back">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 sm:w-5 sm:h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="rounded-xl border border-slate-200 bg-white p-1.5 sm:p-2 text-slate-600 md:hidden mr-2"
+              className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
               aria-label="Open assistant history"
               title="Open assistant history"
             >

@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { fetchHistory, SavedItem } from '../utils/history';
 import { UserProfile } from '../types';
-import { LoadingSpinner } from './LoadingSpinner';
 import { XIcon } from './icons/XIcon';
+import { FlashcardsUI } from './FlashcardsUI';
+
+const LoadingSpinner: React.FC<{ text?: string }> = ({ text = "Loading..." }) => (
+    <div className="flex flex-col items-center justify-center p-8 space-y-4">
+        <div className="relative w-12 h-12">
+            <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+        {text && <p className="text-gray-500 font-medium text-sm animate-pulse">{text}</p>}
+    </div>
+);
 import { HelpCircle } from 'lucide-react';
 
 interface HistoryProps {
@@ -12,6 +22,7 @@ interface HistoryProps {
 export const History: React.FC<HistoryProps> = ({ userProfile }) => {
   const [items, setItems] = useState<SavedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeItem, setActiveItem] = useState<SavedItem | null>(null);
 
   useEffect(() => {
     if (userProfile?.uid) {
@@ -88,7 +99,10 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
                 {(item.type === 'exam' || item.type === 'past_questions') && item.data ? `${item.data.length} Questions` : ''}
               </p>
               
-              <button className="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors text-sm">
+              <button 
+                onClick={() => setActiveItem(item)}
+                className="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors text-sm"
+              >
                 Review {label}
               </button>
             </div>
@@ -110,6 +124,60 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
         
         {renderContent()}
       </div>
+
+      {/* Item Modal Overlay */}
+      {activeItem && activeItem.type === 'flashcards' && (
+        <FlashcardsUI 
+          flashcards={activeItem.data}
+          onClose={() => setActiveItem(null)}
+          onFinish={() => setActiveItem(null)}
+        />
+      )}
+
+      {activeItem && (activeItem.type === 'exam' || activeItem.type === 'past_questions') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+           <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setActiveItem(null)}></div>
+           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+                  <h3 className="text-xl font-black text-gray-900">{activeItem.title}</h3>
+                  <button onClick={() => setActiveItem(null)} className="p-2 rounded-xl hover:bg-gray-200 transition-colors">
+                     <XIcon className="w-5 h-5 text-gray-500" />
+                  </button>
+               </div>
+               <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                   {activeItem.data.map((q: any, idx: number) => (
+                       <div key={idx} className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
+                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Question {idx + 1}</p>
+                           <h4 className="text-lg font-black text-gray-900 mb-4">{q.question}</h4>
+                           
+                           {q.options && q.options.length > 0 ? (
+                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                   {q.options.map((opt: string, i: number) => (
+                                       <div key={i} className={`p-3 rounded-xl border-2 text-xs sm:text-sm font-bold ${
+                                           opt === q.correctAnswer || (opt.startsWith('(') && q.correctAnswer && (q.correctAnswer.startsWith(opt.substring(0, 3)) || opt.includes(q.correctAnswer)))
+                                            ? 'bg-lime-50 border-lime-200 text-lime-800' 
+                                            : 'bg-gray-50 border-gray-100 text-gray-600'
+                                       }`}>
+                                           {opt}
+                                       </div>
+                                   ))}
+                               </div>
+                           ) : (
+                               <div className="p-4 rounded-xl bg-lime-50 border-2 border-lime-200 text-sm font-bold text-lime-800 mb-4">
+                                   {q.correctAnswer || q.explanation || "No model answer provided."}
+                               </div>
+                           )}
+
+                           <div className="mt-4 p-4 rounded-xl bg-blue-50/50 border border-blue-100">
+                               <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Explanation</p>
+                               <p className="text-sm font-medium text-blue-900 leading-relaxed">{q.explanation}</p>
+                           </div>
+                       </div>
+                   ))}
+               </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

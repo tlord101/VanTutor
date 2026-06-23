@@ -53,7 +53,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     children,
     portalRoot
       ? createPortal(
-          React.createElement('div', { className: "fixed top-4 right-4 z-50 space-y-3 w-full max-w-sm" },
+          React.createElement('div', { className: "fixed top-4 left-4 right-4 md:left-auto md:right-4 z-50 space-y-3 max-w-sm pointer-events-none mx-auto md:mx-0" },
             toasts.map((toast) => React.createElement(Toast, {
               key: toast.id,
               message: toast.message,

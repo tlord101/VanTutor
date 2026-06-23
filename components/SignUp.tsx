@@ -53,7 +53,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         if (!userSnap.exists()) {
           await set(userRef, {
             uid: user.uid,
-            display_name: user.displayName || 'Learner',
+            display_name: user.displayName || 'AVELITE',
             email: user.email || '',
             photo_url: user.photoURL || '',
             created_at: Date.now()
@@ -69,7 +69,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         if (!userSnap.exists()) {
           await set(userRef, {
             uid: user.uid,
-            display_name: user.displayName || 'Learner',
+            display_name: user.displayName || 'AVELITE',
             email: user.email || '',
             photo_url: user.photoURL || '',
             created_at: Date.now()

@@ -926,13 +926,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                             <button
                             key={index}
                             onClick={() => !feedback && setSelectedOption(option)}
-                            className={`group w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 flex items-center gap-5 ${variantClasses}`}
+                            className={`group w-full text-left p-4 sm:p-5 rounded-[1.5rem] border-2 transition-all duration-300 flex items-center gap-4 ${variantClasses}`}
                             disabled={!!feedback}
                             >
-                            <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 font-black text-sm transition-colors ${indicatorClasses}`}>
+                            <div className={`w-8 h-8 rounded-[12px] flex items-center justify-center shrink-0 font-black text-sm transition-colors ${indicatorClasses}`}>
                                 {String.fromCharCode(65 + index)}
                             </div>
-                            <span className={`font-bold text-base md:text-lg leading-snug ${isSelected && !feedback ? 'text-white' : ''}`}>{option}</span>
+                            <span className={`font-bold text-sm md:text-base leading-snug ${isSelected && !feedback ? 'text-white' : ''}`}>{option}</span>
                             </button>
                         );
                     })}

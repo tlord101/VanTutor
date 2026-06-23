@@ -18,6 +18,9 @@ const AvelutAI = lazy(() => import('./components/AvelutAI'));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const Onboarding = lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
 const History = lazy(() => import('./components/History').then(module => ({ default: module.History })));
+const StudyPartners = lazy(() => import('./components/StudyPartners').then(module => ({ default: module.StudyPartners })));
+const PublicProfile = lazy(() => import('./components/PublicProfile').then(module => ({ default: module.PublicProfile })));
+const Notifications = lazy(() => import('./components/Notifications').then(module => ({ default: module.Notifications })));
 
 interface MainContentProps {
     activeItem: string;
@@ -35,6 +38,9 @@ interface MainContentProps {
     onNavigate?: (tab: string) => void;
     setCustomHeaderConfig: (config: any) => void;
     handleOnboardingComplete?: (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => Promise<void>;
+    notifications?: any[]; // Passed from App.tsx
+    onMarkAsRead?: (id: string) => void;
+    onMarkAllAsRead?: () => void;
 }
 
 const LoadingFallback = () => (
@@ -59,6 +65,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     onNavigate,
     setCustomHeaderConfig,
     handleOnboardingComplete,
+    notifications = [],
+    onMarkAsRead,
+    onMarkAllAsRead,
 }) => {
     if (!userProfile) return null;
 
@@ -118,7 +127,32 @@ export const MainContent: React.FC<MainContentProps> = ({
                                     </ErrorBoundary>
                                 )
                             : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                    case 'notifications':
+                        return (
+                            <ErrorBoundary>
+                                <Notifications 
+                                    notifications={notifications} 
+                                    onMarkAsRead={onMarkAsRead || (() => {})} 
+                                    onMarkAllAsRead={onMarkAllAsRead || (() => {})} 
+                                    onNavigate={onNavigate!} 
+                                />
+                            </ErrorBoundary>
+                        );
+                    case 'study_partners':
+                        return (
+                            <ErrorBoundary>
+                                <StudyPartners userProfile={userProfile} onNavigate={onNavigate!} />
+                            </ErrorBoundary>
+                        );
                     default:
+                        if (activeItem.startsWith('public_profile_')) {
+                            const targetUid = activeItem.replace('public_profile_', '');
+                            return (
+                                <ErrorBoundary>
+                                    <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />
+                                </ErrorBoundary>
+                            );
+                        }
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                 }
             })()}

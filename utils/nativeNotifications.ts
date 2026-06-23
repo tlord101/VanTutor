@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { ref as dbRef, update } from 'firebase/database';
+import { ref as dbRef, update, push, set } from 'firebase/database';
 import { db } from '../firebase';
 import type { FirebaseUser } from '../firebase';
 
@@ -110,7 +110,25 @@ export const initNativeNotifications = async (
       
       // Handle Action Buttons (e.g. Reply)
       if (action.actionId === 'reply_action') {
-         if (data.chatId) {
+         if (action.inputValue && data.chatId && user) {
+           // User replied inline from the notification shade!
+           try {
+             const messagesRef = dbRef(db, `messages/${data.chatId}`);
+             const newMsgRef = push(messagesRef);
+             set(newMsgRef, {
+               sender_id: user.uid,
+               text: action.inputValue,
+               timestamp: Date.now(),
+               is_read: false
+             });
+             addToast('Reply sent', 'success');
+           } catch (e) {
+             console.error('Failed to send inline reply:', e);
+             addToast('Failed to send reply', 'error');
+           }
+           return;
+         } else if (data.chatId) {
+           // Fallback to opening the app to the chat if no input was provided
            setTimeout(() => {
              setActiveItem('messenger');
              setPendingChatId(String(data.chatId));
@@ -156,7 +174,8 @@ export const initNativeNotifications = async (
                         {
                             id: 'reply_action',
                             title: 'Reply',
-                            foreground: true
+                            foreground: false,
+                            input: true
                         }
                     ]
                 }

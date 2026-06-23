@@ -286,6 +286,7 @@ const App: React.FC = () => {
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
 
     useEffect(() => {
         const handlePopState = () => setCurrentPath(getWindowPathname());
@@ -585,9 +586,7 @@ const App: React.FC = () => {
         if (cachedProfile) {
             setUserProfile(cachedProfile);
             setIsProfileLoading(false);
-            if (!cachedProfile.department_id) {
-                setActiveItemState('onboarding');
-            }
+            // Removed automatic onboarding redirect from cached profile
         } else {
             setIsProfileLoading(true);
         }
@@ -613,7 +612,7 @@ const App: React.FC = () => {
                     setUserProfile(data as UserProfile);
                     
                     if (!data.department_id && sessionStorage.getItem('just_signed_up') === 'true') {
-                        setActiveItem('onboarding');
+                        // Prevent automatic forced onboarding. It will be handled internally if needed.
                         sessionStorage.removeItem('just_signed_up');
                     } else {
                         if (tourStatusRef.current === 'unknown') {
@@ -625,26 +624,84 @@ const App: React.FC = () => {
                             }
                         }
                     }
+
+                    // --- Auto Notification Logic ---
+                    if (!sessionStorage.getItem('session_notifications_sent')) {
+                        sessionStorage.setItem('session_notifications_sent', 'true');
+                        const today = new Date().toISOString().split('T')[0];
+                        const lastLoginStr = localStorage.getItem('last_login_date');
+                        const currentAppVersion = "4.16.15"; // Current version from package.json
+                        const lastSeenVersion = localStorage.getItem('last_seen_app_version');
+
+                        // Welcome Back Notification (Once a day)
+                        if (lastLoginStr !== today) {
+                            localStorage.setItem('last_login_date', today);
+                            const notifRef = dbRef(db, `notifications/${user.uid}`);
+                            push(notifRef, {
+                                type: 'welcome',
+                                title: 'Welcome Back!',
+                                message: 'Ready for another productive study session?',
+                                timestamp: Date.now(),
+                                is_read: false,
+                                action_buttons: [
+                                    { label: 'Open Study Guide', action: 'navigate', route: 'study_guide' },
+                                    { label: 'Check Messages', action: 'navigate', route: 'messenger' }
+                                ]
+                            });
+                        }
+
+                        // App Update Notification
+                        if (lastSeenVersion !== currentAppVersion) {
+                            localStorage.setItem('last_seen_app_version', currentAppVersion);
+                            const notifRef = dbRef(db, `notifications/${user.uid}`);
+                            push(notifRef, {
+                                type: 'app_update',
+                                title: 'App Updated',
+                                message: `We've updated Avelut to version ${currentAppVersion}! Check out the new Notifications system and profile design.`,
+                                timestamp: Date.now(),
+                                is_read: false
+                            });
+                        }
+                    }
+                    // -------------------------------
                 }
+                setIsProfileLoading(false);
             } else {
-                if (!navigator.onLine || cachedProfile?.department_id) {
-                    // Do not force onboarding if offline, or if cache confirms they are already onboarded.
+                if (!navigator.onLine) {
+                    // Do nothing, wait for network to restore instead of showing an error or fallback.
                 } else if (sessionStorage.getItem('just_signed_up') === 'true') {
-                    setActiveItem('onboarding');
+                    // Prevent forced onboarding page load
                     sessionStorage.removeItem('just_signed_up');
+                    setIsProfileLoading(false);
+                } else {
+                    // If online and no data, we might need to wait for backend creation. 
+                    // Do not stop loading if we don't have a cached profile.
+                    if (cachedProfile) setIsProfileLoading(false);
                 }
             }
-            setIsProfileLoading(false);
         }, (error) => {
             console.error("Error fetching user profile:", error);
-            if (!cachedProfile) {
-                addToast("Failed to load your profile.", "error");
+            // Never show the "cant fetch" or "failed to load" flash message.
+            // Just silently wait, or rely on the network banner.
+            if (cachedProfile) {
+                setIsProfileLoading(false);
             }
-            setIsProfileLoading(false);
         });
         
         return () => { off(userRef, 'value', unsubscribeProfile); };
     }, [user, addToast, startTour]);
+
+    // =====================================================
+    // BACKGROUND SYNC DELAY ENGINE
+    // =====================================================
+    useEffect(() => {
+        if (userProfile && !isReadyForBackgroundSync) {
+            const timer = setTimeout(() => setIsReadyForBackgroundSync(true), 1500);
+            return () => clearTimeout(timer);
+        } else if (!userProfile) {
+            setIsReadyForBackgroundSync(false);
+        }
+    }, [userProfile, isReadyForBackgroundSync]);
 
     // =====================================================
     // SESSION STREAK: award after 10 seconds in the app
@@ -672,7 +729,7 @@ const App: React.FC = () => {
 
                 const nextProfile = {
                     uid: user.uid,
-                    display_name: user.displayName || existingProfile.display_name || 'Learner',
+                    display_name: user.displayName || existingProfile.display_name || 'AVELITE',
                     email: user.email || existingProfile.email || '',
                     photo_url: user.photoURL || existingProfile.photo_url || '',
                     timezone: clientTimezone,
@@ -724,6 +781,8 @@ const App: React.FC = () => {
         const cachedProgress = readCachedJson<UserProgress>(cacheKey, {});
         setUserProgress(cachedProgress);
 
+        if (!isReadyForBackgroundSync) return;
+
         const progressRef = dbRef(db, `user_progress/${userProfile.uid}`);
         const unsubscribeProgress = onValue(progressRef, (snapshot) => {
             const data = snapshot.val() || {};
@@ -731,7 +790,7 @@ const App: React.FC = () => {
             writeCachedJson(cacheKey, data);
         });
         return () => { off(progressRef, 'value', unsubscribeProgress); };
-    }, [userProfile]);
+    }, [userProfile, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile) {
@@ -748,7 +807,11 @@ const App: React.FC = () => {
 
         const cacheKeyNotif = `avelut_notifications_${userProfile.uid}`;
         const cachedNotif = readCachedJson<NotificationType[]>(cacheKeyNotif, []);
-        setNotifications(cachedNotif);
+        if (cachedNotif.length > 0) {
+            setNotifications(cachedNotif);
+        }
+
+        if (!isReadyForBackgroundSync) return;
         
         const notificationsRef = dbRef(db, `notifications/${userProfile.uid}`);
         const unsubscribeNotifications = onValue(notificationsRef, (snapshot) => {
@@ -773,13 +836,15 @@ const App: React.FC = () => {
             off(notificationsRef, 'value', unsubscribeNotifications);
             off(userChatsRef, 'value', unsubscribeUnreadCount);
         };
-    }, [userProfile?.uid]);
+    }, [userProfile, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile) {
             setExamHistory([]);
             return;
         }
+
+        if (!isReadyForBackgroundSync) return;
 
         const examHistoryRef = dbRef(db, `exam_history/${userProfile.uid}`);
         const unsubscribeExamHistory = onValue(examHistoryRef, (snapshot) => {
@@ -791,7 +856,7 @@ const App: React.FC = () => {
         return () => {
             off(examHistoryRef, 'value', unsubscribeExamHistory);
         };
-    }, [userProfile?.uid]);
+    }, [userProfile, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile?.school_id || !userProfile?.college_id || !userProfile?.department_id) {
@@ -804,6 +869,8 @@ const App: React.FC = () => {
         if (cached) {
             setDepartmentData(cached);
         }
+
+        if (!isReadyForBackgroundSync) return;
 
         // Always fetch courses from departments_data (the canonical course store)
         // schools_data only contains dept metadata (name, levels), NOT courses.
@@ -830,7 +897,7 @@ const App: React.FC = () => {
         }).catch(err => {
             console.error("Error fetching department courses:", err);
         });
-    }, [userProfile?.school_id, userProfile?.college_id, userProfile?.department_id]);
+    }, [userProfile, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile || !departmentData) return;
@@ -914,7 +981,7 @@ const App: React.FC = () => {
     const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
-        const displayName = user.displayName || 'Learner';
+        const displayName = user.displayName || 'AVELITE';
         const photoURL = user.photoURL || '';
         const userProfileData: Omit<UserProfile, 'privacy_consent'> = {
             uid: user.uid,
@@ -1229,7 +1296,7 @@ const App: React.FC = () => {
                 <Header 
                     currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
-                    onNotificationsClick={() => setIsNotificationsPanelOpen(true)}
+                    onNotificationsClick={() => setActiveItem('notifications')}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
                     onMessengerClick={() => setActiveItem('messenger')}
                     onCalendarClick={() => setIsCalendarOpen(true)}
@@ -1267,18 +1334,14 @@ const App: React.FC = () => {
                             onNavigate={setActiveItem}
                             setCustomHeaderConfig={setCustomHeaderConfig}
                             handleOnboardingComplete={handleOnboardingComplete}
+                            notifications={notifications}
+                            onMarkAsRead={handleMarkNotificationRead}
+                            onMarkAllAsRead={handleMarkAllNotificationsRead}
                         />
                     )}
                 </div>
             </main>
             {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}
-            <NotificationsPanel
-                notifications={notifications}
-                isOpen={isNotificationsPanelOpen}
-                onClose={() => setIsNotificationsPanelOpen(false)}
-                onMarkAsRead={handleMarkNotificationRead}
-                onMarkAllAsRead={handleMarkAllNotificationsRead}
-            />
             {userProfile && (
                 <CalendarModal
                     isOpen={isCalendarOpen}
@@ -1315,9 +1378,9 @@ const App: React.FC = () => {
             {/* Global Offline/Online Banner */}
             {(isOffline || showOnlineRestored) && (
                 <div 
-                    className={`fixed bottom-0 left-0 right-0 z-[100] h-[20px] flex items-center justify-center text-[11px] font-bold text-white transition-colors duration-300 ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}
+                    className={`fixed bottom-[calc(max(env(safe-area-inset-bottom),0px)+65px)] md:bottom-0 left-0 right-0 z-[100] h-[30px] flex items-center justify-center text-[12px] font-bold text-white transition-all duration-300 shadow-md ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}
                 >
-                    {isOffline ? 'No internet connection' : 'Internet restored'}
+                    {isOffline ? 'No internet or slow network' : 'Network restored'}
                 </div>
             )}
         </div>

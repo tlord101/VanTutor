@@ -39,6 +39,15 @@ export interface UserProfile {
   default_semester_tab?: string;
   ai_credits_balance?: number;
   blocked_users?: Record<string, boolean>;
+  cover_photo?: string;
+  bio?: string;
+  contact_details?: string;
+  privacy_settings?: {
+    public_contact: boolean;
+    public_school: boolean;
+    public_department: boolean;
+    public_level: boolean;
+  };
 }
 
 export interface Report {
@@ -263,12 +272,15 @@ export interface AppSettings {
 // Type for the new Notification System
 export interface Notification {
   id: string;
-  type: 'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder';
+  type: 'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder' | 'study_partner_request' | 'messenger' | 'app_update';
   title: string;
   message: string;
   timestamp: number;
   is_read: boolean;
   link?: string;
+  route?: string; // App-internal route to navigate to
+  action_buttons?: { label: string; action: string; metadata?: any }[]; // For inline buttons like "Reply", "View"
+  sender_id?: string; // Useful for replying directly to a user
 }
 
 // Type for the new Chat History System

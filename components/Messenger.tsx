@@ -475,10 +475,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
 
   // Study Partners contact system states
-  const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(getMessengerCacheKey(userProfile.uid, 'study_partners'), {}));
   const [partnerRequests, setPartnerRequests] = useState<Record<string, any>>(() => readCachedJson<Record<string, any>>(getMessengerCacheKey(userProfile.uid, 'partner_requests'), {}));
-  const [partnerActiveSubTab, setPartnerActiveSubTab] = useState<'find' | 'requests'>('find');
 
   // Forwarding states
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
@@ -698,7 +696,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const data = snap.val() || {};
       setAllUsers(Object.entries(data).map(([uid, u]: any) => ({
         uid,
-        display_name: u.displayName || u.display_name || 'Learner',
+        display_name: u.displayName || u.display_name || 'AVELITE',
         photo_url: u.photoURL || u.photo_url || '',
         is_online: u.is_online || false,
         last_seen: u.last_seen || 0,
@@ -1320,14 +1318,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const now = Date.now();
       await set(myRequestRef, {
         status: 'sent',
-        senderName: userProfile.display_name || 'Learner',
+        senderName: userProfile.display_name || 'AVELITE',
         senderId: firebaseUser.uid,
         receiverId: targetUser.uid,
         timestamp: now
       });
       await set(theirRequestRef, {
         status: 'received',
-        senderName: userProfile.display_name || 'Learner',
+        senderName: userProfile.display_name || 'AVELITE',
         senderId: firebaseUser.uid,
         receiverId: targetUser.uid,
         timestamp: now
@@ -1449,9 +1447,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     if (activeChat?.otherUser) {
       setCustomHeaderConfig({
         title: (
-          <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5">
-              <span className="truncate max-w-[120px]">{activeChat.otherUser.display_name?.split(' ')[0].substring(0, 5)}</span>
+          <div onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
+            <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5 hover:underline">
+              <span className="truncate max-w-[120px]">{(activeChat.otherUser.display_name || 'AVELITE').split(' ')[0].substring(0, 5)}</span>
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
             </h2>
@@ -1467,10 +1465,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         leftActions: (
           <>
-            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-1 mr-2 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200" aria-label="Go back">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-2.5 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[44px] min-h-[44px]" aria-label="Go back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
-            <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] mr-3" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'Learner'} />
+            <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
+              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'AVELITE'} />
+            </button>
           </>
         ),
         rightActions: (
@@ -1547,7 +1547,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 }}
                 className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA]' : ''}`}
               >
-                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'Learner'} />
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'AVELITE'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
@@ -1587,7 +1587,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               const unreadCount = getUnreadCountForUser(u.uid);
               return (
                 <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition">
-                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'AVELITE'} />
                   <div className="min-w-0 flex-1">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
                       <span>{u.display_name}</span>
@@ -1608,7 +1608,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
         {/* FAB: Add Study Partner */}
         <button
-          onClick={() => setShowPartnerModal(true)}
+          onClick={() => onNavigate?.('study_partners')}
           className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40"
           title="Add Study Partner"
         >
@@ -1652,7 +1652,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   <div key={msg.id} className="my-4 space-y-1">
                     <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
-                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'Learner'} />
+                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'AVELITE'} />
                       )}
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative select-text ${isMe
@@ -1899,88 +1899,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         )}
       </div>
-      {/* Study Partners network management modal */}
-      {showPartnerModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[85vh] animate-scale-in">
-            {/* Header */}
-            <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
-              <div>
-                <h2 className="text-lg font-bold text-[#212529]">Study Partners</h2>
-                <p className="text-xs text-[#6C757D] font-medium mt-0.5">Build your academic network to collaborate and share lessons.</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowPartnerModal(false);
-                }}
-                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#6C757D] hover:text-[#212529] transition border border-[#E9ECEF] shadow-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-[#E9ECEF] bg-[#F8F9FA] px-4 py-2 shrink-0 gap-2">
-              <button
-                onClick={() => setPartnerActiveSubTab('find')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition ${partnerActiveSubTab === 'find' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
-              >
-                Find Partners
-              </button>
-              <button
-                onClick={() => setPartnerActiveSubTab('requests')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 ${partnerActiveSubTab === 'requests' ? 'bg-[#009EE2] text-white' : 'text-[#6C757D] hover:text-[#212529] hover:bg-white/50'}`}
-              >
-                Requests
-                {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length > 0 && (
-                  <span className="bg-red-500 text-white rounded-full text-[10px] font-black h-4.5 w-4.5 flex items-center justify-center animate-pulse">
-                    {Object.values(partnerRequests).filter((req: any) => req.status === 'received').length}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {partnerActiveSubTab === 'find' ? (
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    {allUsers.filter(u => u.uid !== firebaseUser?.uid).map(u => {
-                      const isPartner = studyPartners[u.uid] === true;
-                      const req = partnerRequests[u.uid];
-                      return (
-                        <div key={u.uid} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl transition">
-                          <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
-                          <div className="min-w-0 flex-1">
-                            <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
-                          </div>
-                          <div className="shrink-0">
-                            {isPartner ? (
-                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">✓ Connected</span>
-                            ) : (
-                              <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-3.5 py-1.5 rounded-xl transition">Connect</button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#6C757D] mb-3">Received Partner Requests</h3>
-                    {Object.values(partnerRequests).filter((req: any) => req.status === 'received').map((req: any) => (
-                       <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-neutral-50 border border-[#E9ECEF] rounded-2xl">
-                          <div className="flex-1 text-sm font-semibold">{req.senderName}</div>
-                          <button onClick={() => acceptPartnerRequest({ uid: req.senderId } as UserProfile)} className="text-xs font-black text-white bg-emerald-600 px-3 py-1.5 rounded-xl">Accept</button>
-                       </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Report User Modal */}
       {showReportModal && (
@@ -2125,7 +2044,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                   className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'Learner'} />
+                    <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'AVELITE'} />
                     <div className="min-w-0 flex-1">
                       <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
                       <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
