@@ -5,7 +5,7 @@ import { FeatureCarousel } from './marketing/FeatureCarousel';
 import { Testimonials } from './marketing/Testimonials';
 import { FAQs } from './marketing/FAQs';
 import { AppDownloadCTA } from './marketing/AppDownloadCTA';
-import { db } from '../../firebase';
+import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 
 interface LandingPageProps {

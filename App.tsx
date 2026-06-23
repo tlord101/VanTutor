@@ -586,9 +586,7 @@ const App: React.FC = () => {
             setUserProfile(cachedProfile);
             setIsProfileLoading(false);
             if (!cachedProfile.department_id) {
-                setIsOnboarding(true);
-            } else {
-                setIsOnboarding(false);
+                setActiveItemState('onboarding');
             }
         } else {
             setIsProfileLoading(true);
