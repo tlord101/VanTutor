@@ -102,14 +102,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
           
           <div className="flex-1 relative w-full max-w-lg lg:max-w-none">
             {/* HERO MOCKUP PLACEHOLDER */}
-            <div className="relative w-full aspect-[9/19] max-w-[340px] mx-auto z-10 transform rotate-[-2deg] hover:rotate-0 transition duration-500 mix-blend-multiply pointer-events-none">
+            <div className="relative w-full aspect-[9/19] max-w-[320px] mx-auto z-10 transform rotate-[-2deg] hover:rotate-0 transition duration-500 drop-shadow-2xl">
                 {/* Hero Dashboard Video */}
-                <video 
-                  autoPlay loop muted playsInline 
-                  className="w-full h-full object-contain"
-                >
-                  <source src="/hero_video.mp4" type="video/mp4" />
-                </video>
+                {/* We tilt the container to match the phone's tilt (-5deg) and counter-tilt the video (+5deg) */}
+                <div className="w-full h-full rounded-[40px] sm:rounded-[45px] overflow-hidden border-[6px] border-slate-900 bg-slate-900 relative transform -rotate-6">
+                  <video 
+                    autoPlay loop muted playsInline 
+                    className="w-full h-full object-cover transform rotate-6 scale-[1.2]"
+                  >
+                    <source src="/hero_video.mp4" type="video/mp4" />
+                  </video>
+                </div>
             </div>
             {/* Background Decorative Rings */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square border border-brand-200/50 rounded-full z-0 pointer-events-none" />
