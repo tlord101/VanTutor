@@ -1292,10 +1292,10 @@ Student: "${tempInput}"
                             />
                             <label 
                                 htmlFor={`upload-textbook-${course.course_id}`}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-emerald/10 hover:bg-emerald/20 text-emerald rounded-full text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald/10 hover:bg-emerald/20 text-emerald rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                                 title="Contribute a textbook for this course"
                             >
-                                <UploadCloud className="w-3.5 h-3.5" />
+                                <UploadCloud className="w-4 h-4" />
                                 <span className="hidden sm:inline">Upload Textbook</span>
                             </label>
                         </div>
