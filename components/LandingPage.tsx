@@ -108,7 +108,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                 <div className="w-full h-full rounded-[40px] sm:rounded-[45px] overflow-hidden border-[6px] border-slate-900 bg-slate-900 relative transform -rotate-6">
                   <video 
                     autoPlay loop muted playsInline 
-                    className="w-full h-full object-cover transform rotate-6 scale-[1.2]"
+                    className="w-full h-full object-cover transform rotate-6"
                   >
                     <source src="/hero_video.mp4" type="video/mp4" />
                   </video>
