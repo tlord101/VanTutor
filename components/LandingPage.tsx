@@ -106,7 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                 {/* Hero Dashboard Video */}
                 <video 
                   autoPlay loop muted playsInline 
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain mix-blend-multiply pointer-events-none"
                 >
                   <source src="/hero_video.mp4" type="video/mp4" />
                 </video>
