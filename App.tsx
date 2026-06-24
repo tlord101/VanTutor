@@ -714,14 +714,14 @@ const App: React.FC = () => {
                 // Avoid overwriting a valid cached profile with an incomplete local optimistic update
                 // Firebase RTDB fires local events immediately on update(), which might lack department_id
                 // if the full server object hasn't been fetched yet.
-                const isPartialUpdate = Object.keys(data).length < 5 && !data.department_id;
+                const isPartialUpdate = Object.keys(data).length < 4 && !data.department_id;
                 
                 if (!isPartialUpdate) {
                     writeCachedJson(cacheKey, data);
                     setUserProfile(data as UserProfile);
                     
-                    if (!data.department_id && sessionStorage.getItem('just_signed_up') === 'true') {
-                        // Prevent automatic forced onboarding. It will be handled internally if needed.
+                    if (!data.department_id) {
+                        setActiveItem('onboarding');
                         sessionStorage.removeItem('just_signed_up');
                     } else {
                         if (tourStatusRef.current === 'unknown') {

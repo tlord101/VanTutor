@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword } from '../firebase';
 import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
+import { ref as dbRef, set, get } from 'firebase/database';
+import { db } from '../firebase';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeOffIcon } from './icons/EyeOffIcon';
@@ -25,6 +27,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
+      const provider = new GoogleAuthProvider();
       if (isNative()) {
         // Use @capacitor-firebase/authentication for native Google Sign-In (Capacitor 8 compatible)
         const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
@@ -35,9 +38,36 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
           throw new Error('No ID token returned from Google Sign-In.');
         }
         const credential = GoogleAuthProvider.credential(idToken, accessToken);
-        await signInWithCredential(auth, credential);
+        const fbResult = await signInWithCredential(auth, credential);
+        
+        const user = fbResult.user;
+        const userRef = dbRef(db, `users/${user.uid}`);
+        const userSnap = await get(userRef);
+        if (!userSnap.exists()) {
+          await set(userRef, {
+            uid: user.uid,
+            display_name: user.displayName || 'User',
+            email: user.email || '',
+            photo_url: user.photoURL || '',
+            created_at: Date.now()
+          });
+          sessionStorage.setItem('just_signed_up', 'true');
+        }
       } else {
-        await signInWithPopup(auth, googleProvider);
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const userRef = dbRef(db, `users/${user.uid}`);
+        const userSnap = await get(userRef);
+        if (!userSnap.exists()) {
+          await set(userRef, {
+            uid: user.uid,
+            display_name: user.displayName || 'User',
+            email: user.email || '',
+            photo_url: user.photoURL || '',
+            created_at: Date.now()
+          });
+          sessionStorage.setItem('just_signed_up', 'true');
+        }
       }
       // On successful sign-in, onAuthStateChanged will trigger in App.tsx
     } catch (err: any) {

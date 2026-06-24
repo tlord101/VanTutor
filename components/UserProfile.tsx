@@ -138,6 +138,53 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
     setIsSaving(false);
   };
 
+  const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number = 0.8): Promise<File> => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = event => {
+              const img = new Image();
+              img.src = event.target?.result as string;
+              img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  let width = img.width;
+                  let height = img.height;
+
+                  if (width > height) {
+                      if (width > maxWidth) {
+                          height = Math.round((height *= maxWidth / width));
+                          width = maxWidth;
+                      }
+                  } else {
+                      if (height > maxHeight) {
+                          width = Math.round((width *= maxHeight / height));
+                          height = maxHeight;
+                      }
+                  }
+                  
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext('2d');
+                  ctx?.drawImage(img, 0, 0, width, height);
+                  
+                  canvas.toBlob((blob) => {
+                      if (!blob) {
+                          reject(new Error("Canvas to Blob failed"));
+                          return;
+                      }
+                      const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                          type: 'image/jpeg',
+                          lastModified: Date.now(),
+                      });
+                      resolve(newFile);
+                  }, 'image/jpeg', quality);
+              };
+              img.onerror = (e) => reject(e);
+          };
+          reader.onerror = (e) => reject(e);
+      });
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -163,11 +210,18 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
         // profile-pictures/{userId}/{allPaths=**} and cover-photos/{userId}/{allPaths=**}
         const ext = file.name.split('.').pop() || 'jpg';
         const path = type === 'avatar'
-            ? `profile-pictures/${user.uid}/profile.${ext}`
-            : `cover-photos/${user.uid}/cover.${ext}`;
+            ? `profile-pictures/${user.uid}/profile.jpg`
+            : `cover-photos/${user.uid}/cover.jpg`;
         const sRef = storageRef(storage, path);
         try {
-            const uploadResult = await uploadBytes(sRef, file);
+            // Compress the image before uploading to avoid large payloads hanging
+            const compressedFile = await compressImage(
+                file, 
+                type === 'avatar' ? 800 : 1600, // Max width
+                type === 'avatar' ? 800 : 1600, // Max height
+                0.8 // Quality
+            );
+            const uploadResult = await uploadBytes(sRef, compressedFile);
             clearInterval(progressInterval);
             setUploadProgress({ type, progress: 100 });
             const downloadURL = await getDownloadURL(uploadResult.ref);
