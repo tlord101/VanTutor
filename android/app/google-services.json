@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "750743868519-6vuvhlgen1adnog2fdc9pf18b0k9vi0n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.avelut.app",
+            "certificate_hash": "7fcc7315d22b700cecd9a121cfe734c128893758"
+          }
+        },
+        {
           "client_id": "750743868519-vm1e3pbjlo1onl2llmtrbsf00ug3d5dt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

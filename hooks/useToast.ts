@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor } from '@capacitor/core';
+import { Toast as CapacitorToast } from '@capacitor/toast';
 import type { ToastMessage, ToastType } from '../types';
 import { Toast } from '../components/Toast';
 import { usePortalRoot } from '../utils/portal';
@@ -38,11 +40,18 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const portalRoot = usePortalRoot('avelut-toast-root');
 
-  const addToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = `toast-${Date.now()}-${Math.random()}`;
-    // Replace the active toast list entirely with the new toast to prevent screen crowding
-    setToasts([{ id, message, type }]);
+  const addToast = useCallback(async (message: string, type: ToastType = 'info') => {
     triggerHapticFeedback(type);
+    if (Capacitor.isNativePlatform()) {
+      await CapacitorToast.show({
+        text: message,
+        duration: 'short',
+        position: 'bottom',
+      });
+    } else {
+      const id = `toast-${Date.now()}-${Math.random()}`;
+      setToasts([{ id, message, type }]);
+    }
   }, []);
 
   const removeToast = useCallback((id: string) => {

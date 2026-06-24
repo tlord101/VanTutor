@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth } from '../firebase';
-import { ref as dbRef, onValue, set, push, update, increment } from 'firebase/database';
+import { ref as dbRef, onValue, set, push, update, increment, get } from 'firebase/database';
 import { UserProfile } from '../types';
 import { Avatar } from './Avatar';
 import { useToast } from '../hooks/useToast';
@@ -25,6 +25,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
     const [partnerRequests, setPartnerRequests] = useState<Record<string, any>>(() => 
         readCachedJson<Record<string, any>>(`messenger_${userProfile.uid}_partner_requests`, {})
     );
+    const [missingProfiles, setMissingProfiles] = useState<Record<string, UserProfile>>({});
 
     // Fetch users (same as Messenger logic)
     useEffect(() => {
@@ -62,6 +63,35 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
             unsubRequests();
         };
     }, [userProfile.uid]);
+
+    useEffect(() => {
+        const fetchMissingProfiles = async () => {
+            const missingIds = new Set<string>();
+            Object.values(partnerRequests).forEach((req: any) => {
+                if (req.senderId && !allUsers.find(u => u.uid === req.senderId) && !missingProfiles[req.senderId]) missingIds.add(req.senderId);
+                if (req.receiverId && !allUsers.find(u => u.uid === req.receiverId) && !missingProfiles[req.receiverId]) missingIds.add(req.receiverId);
+            });
+
+            if (missingIds.size > 0) {
+                const newMissingProfiles = { ...missingProfiles };
+                for (const uid of missingIds) {
+                    try {
+                        const snapshot = await get(dbRef(db, `users/${uid}`));
+                        if (snapshot.exists()) {
+                            newMissingProfiles[uid] = { uid, ...snapshot.val() };
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch missing profile", e);
+                    }
+                }
+                setMissingProfiles(newMissingProfiles);
+            }
+        };
+
+        if (Object.keys(partnerRequests).length > 0) {
+            fetchMissingProfiles();
+        }
+    }, [partnerRequests, allUsers]);
 
     const sendPartnerRequest = async (targetUser: UserProfile) => {
         if (!auth.currentUser || !userProfile) return;
@@ -240,12 +270,12 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                 <h3 className="text-xs font-black uppercase tracking-wider text-[#6C757D] mb-4 pl-1">Received Requests ({receivedRequests.length})</h3>
                                 <div className="space-y-3">
                                     {receivedRequests.map((req: any) => {
-                                        const sender = allUsers.find(u => u.uid === req.senderId);
+                                        const sender = allUsers.find(u => u.uid === req.senderId) || missingProfiles[req.senderId];
                                         return (
                                             <div key={req.senderId} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm cursor-pointer" onClick={() => onNavigate(`public_profile_${req.senderId}`)}>
-                                                <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={sender?.photo_url} display_name={req.senderName || 'User'} />
+                                                <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={sender?.photo_url} display_name={req.senderName || sender?.display_name || 'User'} />
                                                 <div className="min-w-0 flex-1">
-                                                    <h4 className="font-bold text-base text-[#212529] truncate">{req.senderName}</h4>
+                                                    <h4 className="font-bold text-base text-[#212529] truncate">{req.senderName || sender?.display_name || 'User'}</h4>
                                                     <p className="text-xs text-[#6C757D] font-medium truncate mt-0.5">Wants to connect with you</p>
                                                 </div>
                                                 <div className="shrink-0 flex gap-2" onClick={e => e.stopPropagation()}>
@@ -264,15 +294,16 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                 <h3 className="text-xs font-black uppercase tracking-wider text-[#6C757D] mb-4 pl-1">Sent Requests ({sentRequests.length})</h3>
                                 <div className="space-y-3">
                                     {sentRequests.map((req: any) => {
-                                        const receiver = allUsers.find(u => u.uid === req.receiverId);
+                                        const receiver = allUsers.find(u => u.uid === req.receiverId) || missingProfiles[req.receiverId];
                                         return (
-                                            <div key={req.receiverId} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm opacity-75 cursor-pointer" onClick={() => onNavigate(`public_profile_${req.receiverId}`)}>
+                                            <div key={req.receiverId} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm cursor-pointer hover:shadow-md transition" onClick={() => onNavigate(`public_profile_${req.receiverId}`)}>
                                                 <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={receiver?.photo_url} display_name={receiver?.display_name || 'User'} />
                                                 <div className="min-w-0 flex-1">
                                                     <h4 className="font-bold text-sm text-[#212529] truncate">{receiver?.display_name || 'Unknown'}</h4>
                                                 </div>
-                                                <div className="shrink-0">
-                                                    <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl">Pending</span>
+                                                <div className="shrink-0 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                                    <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl hidden sm:inline-block">Pending</span>
+                                                    <button onClick={() => declinePartnerRequest(req.receiverId)} className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition border border-red-100">Cancel</button>
                                                 </div>
                                             </div>
                                         );

@@ -145,7 +145,8 @@ exports.onChatMessageSent = functions.database.ref('/messages/{chatId}/{messageI
                 notification: {
                     color: '#002D62',
                     sound: 'default',
-                    channelId: 'avelut-alerts'
+                    channelId: 'avelut-alerts',
+                    clickAction: 'MESSENGER_ACTION'
                 }
             },
             apns: {
@@ -155,7 +156,8 @@ exports.onChatMessageSent = functions.database.ref('/messages/{chatId}/{messageI
                             title: senderName,
                             body: bodyPreview
                         },
-                        sound: 'default'
+                        sound: 'default',
+                        category: 'MESSENGER_ACTION'
                     }
                 }
             }

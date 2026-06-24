@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile } from '../types';
 import { auth, storage, db, type FirebaseUser } from '../firebase';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { ref as dbRef, get } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
@@ -25,7 +25,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
     public_level: true
   });
   const [isSaving, setIsSaving] = useState(false);
-
+  const [uploadProgress, setUploadProgress] = useState<{type: 'avatar' | 'cover' | null, progress: number}>({type: null, progress: 0});
   const [departmentName, setDepartmentName] = useState<string>('');
   const [isDepartmentLoading, setIsDepartmentLoading] = useState(true);
   const [levels, setLevels] = useState<string[]>([]);
@@ -147,26 +147,52 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
     }
 
     setIsSaving(true);
+    setUploadProgress({ type, progress: 0 });
     try {
         const path = type === 'avatar' ? `profile-pictures/${user.uid}` : `cover-photos/${user.uid}`;
         const ref = storageRef(storage, path);
-        const uploadResult = await uploadBytes(ref, file);
-        const downloadURL = await getDownloadURL(uploadResult.ref);
-        const cacheBustURL = `${downloadURL}&t=${new Date().getTime()}`;
         
-        const updateData = type === 'avatar' ? { photo_url: cacheBustURL } : { cover_photo: cacheBustURL };
-        const result = await onProfileUpdate(updateData);
-        
-        if (result.success) {
-            addToast(`${type === 'avatar' ? 'Profile' : 'Cover'} picture updated!`, "success");
-        } else {
-            throw new Error(result.error);
-        }
+        const uploadTask = uploadBytesResumable(ref, file);
+
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress({ type, progress });
+            }, 
+            (error) => {
+                console.error(`Failed to upload ${type}:`, error);
+                addToast(`Could not update ${type} picture.`, "error");
+                setIsSaving(false);
+                setUploadProgress({ type: null, progress: 0 });
+            }, 
+            async () => {
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    const cacheBustURL = `${downloadURL}&t=${new Date().getTime()}`;
+                    
+                    const updateData = type === 'avatar' ? { photo_url: cacheBustURL } : { cover_photo: cacheBustURL };
+                    const result = await onProfileUpdate(updateData);
+                    
+                    if (result.success) {
+                        addToast(`${type === 'avatar' ? 'Profile' : 'Cover'} picture updated!`, "success");
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error(`Failed to save ${type} url:`, error);
+                    addToast(`Could not update ${type} picture.`, "error");
+                } finally {
+                    setIsSaving(false);
+                    setUploadProgress({ type: null, progress: 0 });
+                    if (event.target) event.target.value = '';
+                }
+            }
+        );
     } catch (error) {
-        console.error(`Failed to upload ${type}:`, error);
+        console.error(`Failed to start upload for ${type}:`, error);
         addToast(`Could not update ${type} picture.`, "error");
-    } finally {
         setIsSaving(false);
+        setUploadProgress({ type: null, progress: 0 });
         event.target.value = '';
     }
   };
@@ -180,6 +206,23 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
             )}
             
             <input type="file" ref={coverInputRef} hidden accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
+            
+            {uploadProgress.type === 'cover' && (
+                <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center backdrop-blur-sm transition-all duration-300">
+                    <div className="w-64 bg-white/20 p-4 rounded-2xl backdrop-blur-md shadow-xl border border-white/30 flex flex-col items-center gap-3 transform scale-100">
+                        <div className="w-12 h-12 rounded-full bg-[#009EE2]/20 flex items-center justify-center mb-1">
+                            <svg className="w-6 h-6 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </div>
+                        <div className="w-full bg-black/30 rounded-full h-2.5 overflow-hidden ring-1 ring-white/20">
+                            <div className="bg-gradient-to-r from-[#009EE2] to-[#0070B8] h-2.5 rounded-full transition-all duration-300 ease-out relative" style={{ width: `${uploadProgress.progress}%` }}>
+                                <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+                            </div>
+                        </div>
+                        <p className="text-white text-xs font-black tracking-widest uppercase mt-1">Uploading... {Math.round(uploadProgress.progress)}%</p>
+                    </div>
+                </div>
+            )}
+
             <button
                 onClick={() => coverInputRef.current?.click()}
                 disabled={isSaving}
@@ -200,6 +243,21 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                     </div>
                     
                     <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />
+
+                    {uploadProgress.type === 'avatar' && (
+                        <div className="absolute inset-0 z-20 bg-black/50 rounded-full flex items-center justify-center flex-col gap-1 backdrop-blur-sm border-4 border-white/20 overflow-hidden group-hover:opacity-100">
+                            <div className="relative w-16 h-16 flex items-center justify-center">
+                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                    <circle className="text-white/20 stroke-current" strokeWidth="8" cx="50" cy="50" r="40" fill="transparent"></circle>
+                                    <circle className="text-[#009EE2] progress-ring__circle stroke-current transition-all duration-300 ease-out" strokeWidth="8" strokeLinecap="round" cx="50" cy="50" r="40" fill="transparent" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * uploadProgress.progress) / 100}></circle>
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-white text-[10px] font-black">{Math.round(uploadProgress.progress)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSaving}
