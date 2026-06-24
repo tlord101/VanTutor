@@ -15,6 +15,7 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
   const isFront = stackIndex === 0;
 
   const handleDragEnd = (event: any, info: any) => {
+    if (!isFront) return;
     if (info.offset.x > 80 || info.velocity.x > 300) {
       onSwipeNext(1);
     } else if (info.offset.x < -80 || info.velocity.x < -300) {
@@ -26,11 +27,10 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
     <motion.div
       custom={exitDirection}
       style={{ x, rotate, opacity }}
-      drag={isFront ? "x" : false}
+      drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.7}
-      dragListener={isFront}
-      onDragEnd={isFront ? handleDragEnd : undefined}
+      onDragEnd={handleDragEnd}
       initial={{
         scale: 0.9,
         y: stackIndex * -8,
@@ -41,7 +41,7 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
         scale: 1 - stackIndex * 0.05,
         y: stackIndex * -8,
         rotate: stackIndex === 1 ? 3 : stackIndex === 2 ? -3 : 0,
-        opacity: 1,
+        opacity: stackIndex > 2 ? 0 : 1,
         zIndex: stackIndex === 0 ? 30 : stackIndex === 1 ? 20 : 10
       }}
       exit={(dir: number) => ({
@@ -51,11 +51,11 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
         transition: { duration: 0.3 }
       })}
       className="absolute inset-0 cursor-grab active:cursor-grabbing"
-      onTap={() => {
+      onClick={() => {
         if (isFront) setIsFlipped(!isFlipped);
       }}
     >
-      <div className="relative w-full h-full preserve-3d transition-transform duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#E2E8F0] rounded-[2rem] bg-white overflow-hidden pointer-events-auto">
+      <div className={`relative w-full h-full preserve-3d transition-transform duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#E2E8F0] rounded-[2rem] bg-white overflow-hidden ${isFront ? 'pointer-events-auto' : 'pointer-events-none'}`}>
         <motion.div
           animate={{ rotateY: isFlipped && isFront ? 180 : 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 20 }}

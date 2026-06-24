@@ -82,7 +82,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
         try {
             // Get my own display name
             const myUserSnapshot = await get(dbRef(db, `users/${auth.currentUser.uid}`));
-            const myName = myUserSnapshot.exists() ? myUserSnapshot.val().display_name : 'AVELITE';
+            const myName = myUserSnapshot.exists() ? myUserSnapshot.val().display_name : 'User';
 
             const myRequestRef = dbRef(db, `partner_requests/${auth.currentUser.uid}/${targetUid}`);
             const theirRequestRef = dbRef(db, `partner_requests/${targetUid}/${auth.currentUser.uid}`);
@@ -175,7 +175,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                 <div className="flex flex-col items-center">
                     {/* Avatar */}
                     <div className="rounded-full p-1 bg-white shadow-xl relative z-10">
-                        <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white" photo_url={targetUser.photo_url} display_name={targetUser.display_name || 'AVELITE'} />
+                        <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white" photo_url={targetUser.photo_url} display_name={targetUser.display_name || 'User'} />
                     </div>
 
                     {/* Name & Basic Info */}

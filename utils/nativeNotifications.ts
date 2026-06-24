@@ -146,6 +146,26 @@ export const initNativeNotifications = async (
         return;
       }
 
+      // Handle open study guide
+      if (action.actionId === 'open_study_guide') {
+          setTimeout(() => setActiveItem('study_guide'), 50);
+          return;
+      }
+
+      // Handle mark as read
+      if (action.actionId === 'mark_as_read') {
+          if (data.notificationId && user) {
+              try {
+                  const notifRef = dbRef(db, `notifications/${user.uid}/${data.notificationId}`);
+                  update(notifRef, { is_read: true });
+                  // We don't really need a toast for this, but it's nice feedback
+              } catch (e) {
+                  console.error('Failed to mark as read:', e);
+              }
+          }
+          return;
+      }
+
       // Handle screen navigation
       if (data.screen) {
         const screenMap: Record<string, string> = {
@@ -176,6 +196,21 @@ export const initNativeNotifications = async (
                             title: 'Reply',
                             foreground: false,
                             input: true
+                        }
+                    ]
+                },
+                {
+                    id: 'STUDY_GUIDE_ACTION',
+                    actions: [
+                        {
+                            id: 'open_study_guide',
+                            title: 'Open Study Guide',
+                            foreground: true,
+                        },
+                        {
+                            id: 'mark_as_read',
+                            title: 'Mark as Read',
+                            foreground: false,
                         }
                     ]
                 }

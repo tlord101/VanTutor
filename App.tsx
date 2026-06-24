@@ -585,7 +585,9 @@ const App: React.FC = () => {
         const cachedProfile = readCachedJson<UserProfile | null>(cacheKey, null);
         if (cachedProfile) {
             setUserProfile(cachedProfile);
-            setIsProfileLoading(false);
+            if (!navigator.onLine) {
+                setIsProfileLoading(false);
+            }
             // Removed automatic onboarding redirect from cached profile
         } else {
             setIsProfileLoading(true);
@@ -729,7 +731,7 @@ const App: React.FC = () => {
 
                 const nextProfile = {
                     uid: user.uid,
-                    display_name: user.displayName || existingProfile.display_name || 'AVELITE',
+                    display_name: user.displayName || existingProfile.display_name || 'User',
                     email: user.email || existingProfile.email || '',
                     photo_url: user.photoURL || existingProfile.photo_url || '',
                     timezone: clientTimezone,

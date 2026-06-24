@@ -696,7 +696,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const data = snap.val() || {};
       setAllUsers(Object.entries(data).map(([uid, u]: any) => ({
         uid,
-        display_name: u.displayName || u.display_name || 'AVELITE',
+        display_name: u.displayName || u.display_name || 'User',
         photo_url: u.photoURL || u.photo_url || '',
         is_online: u.is_online || false,
         last_seen: u.last_seen || 0,
@@ -1318,14 +1318,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const now = Date.now();
       await set(myRequestRef, {
         status: 'sent',
-        senderName: userProfile.display_name || 'AVELITE',
+        senderName: userProfile.display_name || 'User',
         senderId: firebaseUser.uid,
         receiverId: targetUser.uid,
         timestamp: now
       });
       await set(theirRequestRef, {
         status: 'received',
-        senderName: userProfile.display_name || 'AVELITE',
+        senderName: userProfile.display_name || 'User',
         senderId: firebaseUser.uid,
         receiverId: targetUser.uid,
         timestamp: now
@@ -1449,7 +1449,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         title: (
           <div onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
             <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5 hover:underline">
-              <span className="truncate max-w-[120px]">{(activeChat.otherUser.display_name || 'AVELITE').split(' ')[0].substring(0, 5)}</span>
+              <span className="truncate max-w-[120px]">{(activeChat.otherUser.display_name || 'User').split(' ')[0].substring(0, 5)}</span>
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
             </h2>
@@ -1465,11 +1465,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         leftActions: (
           <>
-            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-2.5 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[44px] min-h-[44px]" aria-label="Go back">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
-              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'AVELITE'} />
+              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
             </button>
           </>
         ),
@@ -1547,7 +1547,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 }}
                 className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA]' : ''}`}
               >
-                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'AVELITE'} />
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
@@ -1587,7 +1587,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               const unreadCount = getUnreadCountForUser(u.uid);
               return (
                 <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition">
-                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'AVELITE'} />
+                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                   <div className="min-w-0 flex-1">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
                       <span>{u.display_name}</span>
@@ -1652,7 +1652,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   <div key={msg.id} className="my-4 space-y-1">
                     <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
-                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'AVELITE'} />
+                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative select-text ${isMe
@@ -2044,7 +2044,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                   className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'AVELITE'} />
+                    <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                     <div className="min-w-0 flex-1">
                       <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
                       <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>

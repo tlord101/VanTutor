@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 
 // A simple hash function to get a consistent color from a string (e.g., user ID or name)
 const generateColor = (str: string) => {
@@ -19,13 +18,15 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ display_name, photo_url, className = 'w-8 h-8' }) => {
-  if (photo_url) {
+  const [imageError, setImageError] = useState(false);
+
+  if (photo_url && !imageError) {
     return (
       <img
         src={photo_url}
         alt={display_name || 'Profile'}
         className={`rounded-full object-cover flex-shrink-0 bg-gray-200 ${className}`}
-        onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails to load
+        onError={() => setImageError(true)}
       />
     );
   }

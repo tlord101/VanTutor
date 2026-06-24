@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
                             {isAvatarMenuOpen && (
                                 <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                                     <div className="px-4 py-3 border-b border-slate-50 mb-2">
-                                        <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.display_name || 'AVELITE'}</p>
+                                        <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.display_name || 'User'}</p>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userProfile?.level || 'New'} Level</p>
                                     </div>
                                     <button

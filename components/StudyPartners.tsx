@@ -72,14 +72,14 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
             const now = Date.now();
             await set(myRequestRef, {
                 status: 'sent',
-                senderName: userProfile.display_name || 'AVELITE',
+                senderName: userProfile.display_name || 'User',
                 senderId: auth.currentUser.uid,
                 receiverId: targetUser.uid,
                 timestamp: now
             });
             await set(theirRequestRef, {
                 status: 'received',
-                senderName: userProfile.display_name || 'AVELITE',
+                senderName: userProfile.display_name || 'User',
                 senderId: auth.currentUser.uid,
                 receiverId: targetUser.uid,
                 timestamp: now
@@ -209,7 +209,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                 const req = partnerRequests[u.uid];
                                 return (
                                     <div key={u.uid} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => onNavigate(`public_profile_${u.uid}`)}>
-                                        <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'AVELITE'} />
+                                        <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                                         <div className="min-w-0 flex-1">
                                             <h4 className="font-bold text-base text-[#212529] truncate">{u.display_name}</h4>
                                             {u.department_id && <p className="text-xs text-[#6C757D] font-medium truncate mt-0.5">{u.department_id.replace(/_/g, ' ')}</p>}
@@ -243,7 +243,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                         const sender = allUsers.find(u => u.uid === req.senderId);
                                         return (
                                             <div key={req.senderId} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm cursor-pointer" onClick={() => onNavigate(`public_profile_${req.senderId}`)}>
-                                                <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={sender?.photo_url} display_name={req.senderName || 'AVELITE'} />
+                                                <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={sender?.photo_url} display_name={req.senderName || 'User'} />
                                                 <div className="min-w-0 flex-1">
                                                     <h4 className="font-bold text-base text-[#212529] truncate">{req.senderName}</h4>
                                                     <p className="text-xs text-[#6C757D] font-medium truncate mt-0.5">Wants to connect with you</p>
@@ -267,7 +267,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                         const receiver = allUsers.find(u => u.uid === req.receiverId);
                                         return (
                                             <div key={req.receiverId} className="flex items-center gap-4 p-4 bg-white border border-[#E9ECEF] rounded-2xl shadow-sm opacity-75 cursor-pointer" onClick={() => onNavigate(`public_profile_${req.receiverId}`)}>
-                                                <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={receiver?.photo_url} display_name={receiver?.display_name || 'AVELITE'} />
+                                                <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={receiver?.photo_url} display_name={receiver?.display_name || 'User'} />
                                                 <div className="min-w-0 flex-1">
                                                     <h4 className="font-bold text-sm text-[#212529] truncate">{receiver?.display_name || 'Unknown'}</h4>
                                                 </div>

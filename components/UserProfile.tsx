@@ -167,6 +167,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
         addToast(`Could not update ${type} picture.`, "error");
     } finally {
         setIsSaving(false);
+        event.target.value = '';
     }
   };
 
@@ -182,7 +183,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
             <button
                 onClick={() => coverInputRef.current?.click()}
                 disabled={isSaving}
-                className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-sm text-[#212529] px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-white transition flex items-center gap-2 border border-[#E9ECEF]"
+                className="absolute bottom-4 right-4 z-20 bg-white/80 backdrop-blur-sm text-[#212529] px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-white transition flex items-center gap-2 border border-[#E9ECEF]"
             >
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                 {userProfile.cover_photo ? 'Edit Cover' : 'Add Cover'}
@@ -195,7 +196,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                 {/* Avatar */}
                 <div className="relative group">
                     <div className="rounded-full p-1 bg-[#F8F9FA] shadow-xl">
-                        <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white" photo_url={userProfile.photo_url} display_name={userProfile.display_name || 'AVELITE'} />
+                        <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white" photo_url={userProfile.photo_url} display_name={userProfile.display_name || 'User'} />
                     </div>
                     
                     <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />

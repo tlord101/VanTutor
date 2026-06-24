@@ -371,7 +371,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
         [appSettings, userProfile]
     );
     const profileSnapshotRef = useRef({
-        display_name: userProfile.display_name || 'AVELITE',
+        display_name: userProfile.display_name || 'User',
         photo_url: userProfile.photo_url || '',
         level: userProfile.level,
     });
@@ -410,7 +410,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
             const data = snap.val() || {};
             const list: UserProfile[] = Object.entries(data).map(([uid, u]: any) => ({
                 uid,
-                display_name: u.displayName || u.display_name || 'AVELITE',
+                display_name: u.displayName || u.display_name || 'User',
                 photo_url: u.photoURL || u.photo_url || '',
                 subscription_status: u.subscription_status || 'free',
                 department_id: u.department_id || '',
@@ -472,7 +472,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
                 topicId: course.course_id || 'unspecified',
                 messages: JSON.parse(JSON.stringify(messages || [])),
                 ownerId: userProfile.uid,
-                ownerName: userProfile.display_name || 'AVELITE',
+                ownerName: userProfile.display_name || 'User',
                 timestamp: Date.now()
             });
 
@@ -641,7 +641,7 @@ Return valid JSON as a list of objects with keys: title, description, searchQuer
 
     useEffect(() => {
         profileSnapshotRef.current = {
-            display_name: userProfile.display_name || 'AVELITE',
+            display_name: userProfile.display_name || 'User',
             photo_url: userProfile.photo_url || '',
             level: userProfile.level,
         };
@@ -1596,7 +1596,7 @@ Student: "${tempInput}"
                         style={{ height: 'auto' }}
                     />
                     <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
-                        <PaperclipIcon className="w-7 h-7" />
+                        <PaperclipIcon className="w-9 h-9" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
                     <button 

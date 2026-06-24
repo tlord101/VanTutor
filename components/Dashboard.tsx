@@ -95,7 +95,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                 <div>
                     <p className="text-sm font-medium text-emerald-600">User Dashboard</p>
                     <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 md:text-5xl">
-                        Welcome back, {(userProfile.display_name || 'AVELITE').split(' ')[0]}.
+                        Welcome back, {(userProfile.display_name || 'User').split(' ')[0]}.
                     </h1>
                     <p className="mt-2 text-base font-normal text-gray-500">
                         Track your progress.
