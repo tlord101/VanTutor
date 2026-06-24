@@ -89,6 +89,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
 
         const examAverageLabel = dashboardData?.examHistory && dashboardData.examHistory.length > 0 ? `${examAverageScore}%` : 'No exams yet';
 
+    if (!dashboardData) {
+        return (
+            <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-10 animate-pulse">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <div className="h-4 w-32 bg-gray-200 rounded mb-4"></div>
+                        <div className="h-10 w-64 bg-gray-300 rounded mb-2"></div>
+                        <div className="h-4 w-48 bg-gray-200 rounded"></div>
+                    </div>
+                    <div className="h-8 w-32 bg-gray-200 rounded-full"></div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="h-32 bg-gray-200 rounded-3xl"></div>
+                    <div className="h-32 bg-gray-200 rounded-3xl"></div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="h-40 bg-gray-200 rounded-[2rem]"></div>
+                    <div className="h-40 bg-gray-200 rounded-[2rem]"></div>
+                </div>
+
+                <div className="h-80 bg-gray-200 rounded-3xl"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-10" data-tour-id="dashboard-content">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between font-sans">
@@ -109,14 +136,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <StatCard
                     title="Level"
-                    value={userProfile.level === 'all' ? 'MIXED' : `${userProfile.level}`}
+                    value={userProfile.level ? (userProfile.level === 'all' ? 'MIXED' : `${userProfile.level}`) : '—'}
                     description="Active study difficulty"
                     icon={<LevelIcon className="h-6 w-6" />}
                     color="blue"
                 />
                 <StatCard
                     title="Current Streak"
-                    value={`${userProfile.current_streak}`}
+                    value={userProfile.current_streak != null ? `${userProfile.current_streak}` : '—'}
                     description="Keep the momentum going"
                     icon={<StreakIcon className="h-6 w-6" />}
                     color="purple"

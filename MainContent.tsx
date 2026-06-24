@@ -2,6 +2,18 @@ import React, { Suspense, lazy } from 'react';
 import type { FirebaseUser } from './firebase';
 import type { UserProfile, UserProgress, DashboardData, AppSettings } from './types';
 import ErrorBoundary from './components/ErrorBoundary';
+import {
+    DashboardSkeleton,
+    LeaderboardSkeleton,
+    NotificationsSkeleton,
+    StudyPartnersSkeleton,
+    PublicProfileSkeleton,
+    UserProfileSkeleton,
+    HistorySkeleton,
+    SettingsSkeleton,
+    MessengerSkeleton,
+    PageSkeleton,
+} from './components/Skeleton';
 
 // Lazy load large components to reduce initial bundle size and improve TTI
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -21,6 +33,23 @@ const History = lazy(() => import('./components/History').then(module => ({ defa
 const StudyPartners = lazy(() => import('./components/StudyPartners').then(module => ({ default: module.StudyPartners })));
 const PublicProfile = lazy(() => import('./components/PublicProfile').then(module => ({ default: module.PublicProfile })));
 const Notifications = lazy(() => import('./components/Notifications').then(module => ({ default: module.Notifications })));
+
+// Per-route skeleton fallbacks — each matches the shape of its real UI
+const skeletonMap: Record<string, React.ReactNode> = {
+    dashboard:      <DashboardSkeleton />,
+    leaderboard:    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200"><LeaderboardSkeleton /></div>,
+    notifications:  <div className="flex-1 w-full max-w-4xl mx-auto"><NotificationsSkeleton /></div>,
+    study_partners: <StudyPartnersSkeleton />,
+    user_profile:   <UserProfileSkeleton />,
+    settings:       <SettingsSkeleton />,
+    history:        <div className="max-w-7xl mx-auto px-4 py-8"><HistorySkeleton /></div>,
+    messenger:      <MessengerSkeleton />,
+};
+
+const getSkeletonFallback = (activeItem: string): React.ReactNode => {
+    if (activeItem.startsWith('public_profile_')) return <PublicProfileSkeleton />;
+    return skeletonMap[activeItem] ?? <PageSkeleton />;
+};
 
 interface MainContentProps {
     activeItem: string;
@@ -43,11 +72,7 @@ interface MainContentProps {
     onMarkAllAsRead?: () => void;
 }
 
-const LoadingFallback = () => (
-    <div className="flex items-center justify-center h-full w-full">
-        <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-    </div>
-);
+
 
 export const MainContent: React.FC<MainContentProps> = ({
     activeItem,
@@ -72,7 +97,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (!userProfile) return null;
 
     return (
-        <Suspense fallback={<LoadingFallback />}>
+        <Suspense fallback={getSkeletonFallback(activeItem)}>
             {(() => {
                 switch (activeItem) {
                     case 'onboarding':

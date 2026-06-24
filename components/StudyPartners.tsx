@@ -122,7 +122,10 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                 message: `${userProfile.display_name || 'A user'} sent you a study partner request!`,
                 type: 'study_partner_request',
                 is_read: false,
-                timestamp: now
+                timestamp: now,
+                action_buttons: [
+                    { label: 'View Request', action: 'navigate', route: 'study_partners' }
+                ]
             });
             addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
         } catch (err: any) {
@@ -182,7 +185,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
             {/* Header */}
             <div className="flex items-center px-4 py-4 bg-white border-b border-[#E9ECEF] shrink-0 sticky top-0 z-10">
                 <button
-                    onClick={() => window.history.back()}
+                    onClick={() => window.dispatchEvent(new Event('app-go-back'))}
                     className="mr-3 w-10 h-10 flex items-center justify-center rounded-full hover:bg-neutral-100 text-[#6C757D] transition"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">

@@ -27,7 +27,10 @@ export const InAppUpdate: React.FC = () => {
                 onValue(updatesRef, (snapshot) => {
                     if (snapshot.exists()) {
                         const latest = snapshot.val();
-                        if (latest.versionCode > currentVersionCode) {
+                        const latestVersionCode = Number(latest.versionCode);
+                        const skippedVersion = localStorage.getItem('skipped_update_version');
+
+                        if (latestVersionCode > currentVersionCode && latestVersionCode.toString() !== skippedVersion) {
                             setUpdateInfo(latest);
                             setUpdateAvailable(true);
                         }
@@ -146,7 +149,10 @@ export const InAppUpdate: React.FC = () => {
                         <div className="flex w-full gap-4">
                             {!updateInfo.isMandatory && (
                                 <button 
-                                    onClick={() => setUpdateAvailable(false)}
+                                    onClick={() => {
+                                        localStorage.setItem('skipped_update_version', updateInfo.versionCode.toString());
+                                        setUpdateAvailable(false);
+                                    }}
                                     className="flex-1 py-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-sky-600 font-bold text-sm tracking-wide transition-all"
                                 >
                                     Skip

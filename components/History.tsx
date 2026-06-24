@@ -3,16 +3,8 @@ import { fetchHistory, SavedItem } from '../utils/history';
 import { UserProfile } from '../types';
 import { XIcon } from './icons/XIcon';
 import { FlashcardsUI } from './FlashcardsUI';
+import { HistorySkeleton } from './Skeleton';
 
-const LoadingSpinner: React.FC<{ text?: string }> = ({ text = "Loading..." }) => (
-    <div className="flex flex-col items-center justify-center p-8 space-y-4">
-        <div className="relative w-12 h-12">
-            <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
-        </div>
-        {text && <p className="text-gray-500 font-medium text-sm animate-pulse">{text}</p>}
-    </div>
-);
 import { HelpCircle } from 'lucide-react';
 
 interface HistoryProps {
@@ -57,8 +49,8 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex-1 flex justify-center items-center py-20">
-          <LoadingSpinner text="Loading saved history..." />
+        <div className="mt-8">
+          <HistorySkeleton />
         </div>
       );
     }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import type { UserProfile } from '../types';
 import { useToast } from '../hooks/useToast';
+import { MessengerSkeleton } from './Skeleton';
 import ReactMarkdown from 'react-markdown';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
@@ -1526,7 +1527,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         </div>
 
         <div className="flex-1 overflow-y-auto bg-white">
-          {tab === 'chats' ?
+          {isLoading ? (
+            <div className="p-4"><MessengerSkeleton /></div>
+          ) : tab === 'chats' ?
             activeChats.map(c => (
               <div
                 key={c.id}

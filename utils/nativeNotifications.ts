@@ -116,10 +116,10 @@ export const initNativeNotifications = async (
              const messagesRef = dbRef(db, `messages/${data.chatId}`);
              const newMsgRef = push(messagesRef);
              set(newMsgRef, {
-               sender_id: user.uid,
+               senderId: user.uid,   // must match Messenger's senderId field
                text: action.inputValue,
                timestamp: Date.now(),
-               is_read: false
+               isRead: false
              });
              addToast('Reply sent', 'success');
            } catch (e) {
@@ -135,6 +135,17 @@ export const initNativeNotifications = async (
            }, 50);
          }
          return;
+      }
+
+      // Handle Open Chat action button (from notification drawer)
+      if (action.actionId === 'open_chat') {
+        if (data.chatId) {
+          setTimeout(() => {
+            setActiveItem('messenger');
+            setPendingChatId(String(data.chatId));
+          }, 50);
+        }
+        return;
       }
 
       // Handle messenger chat open

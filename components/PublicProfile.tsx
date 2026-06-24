@@ -4,6 +4,7 @@ import { ref as dbRef, get, onValue, set, push } from 'firebase/database';
 import { UserProfile } from '../types';
 import { Avatar } from './Avatar';
 import { useToast } from '../hooks/useToast';
+import { PublicProfileSkeleton } from './Skeleton';
 
 interface PublicProfileProps {
     targetUid: string;
@@ -110,7 +111,10 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                 message: `${myName} sent you a study partner request!`,
                 type: 'study_partner_request',
                 is_read: false,
-                timestamp: now
+                timestamp: now,
+                action_buttons: [
+                    { label: 'View Request', action: 'navigate', route: 'study_partners' }
+                ]
             });
             
             setConnectionStatus('sent');
@@ -122,18 +126,14 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
     };
 
     if (isLoading) {
-        return (
-            <div className="flex h-full w-full items-center justify-center bg-[#F8F9FA]">
-                <div className="w-8 h-8 border-4 border-[#009EE2] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
+        return <PublicProfileSkeleton />;
     }
 
     if (!targetUser) {
         return (
             <div className="flex flex-col h-full w-full items-center justify-center bg-[#F8F9FA] p-6">
                 <p className="text-[#6C757D] font-bold text-lg mb-4">User not found.</p>
-                <button onClick={() => window.history.back()} className="px-6 py-2 bg-white border border-[#E9ECEF] rounded-xl font-bold shadow-sm">Go Back</button>
+                <button onClick={() => window.dispatchEvent(new Event('app-go-back'))} className="px-6 py-2 bg-white border border-[#E9ECEF] rounded-xl font-bold shadow-sm">Go Back</button>
             </div>
         );
     }
@@ -148,9 +148,9 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
     return (
         <div className="flex flex-col h-full w-full bg-[#F8F9FA] overflow-y-auto animate-fade-in">
             {/* Header / Nav */}
-            <div className="absolute top-4 left-4 z-20">
+            <div className="absolute top-20 left-4 z-20">
                 <button
-                    onClick={() => window.history.back()}
+                    onClick={() => window.dispatchEvent(new Event('app-go-back'))}
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">

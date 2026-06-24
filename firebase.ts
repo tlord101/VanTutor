@@ -16,6 +16,7 @@ import {
   sendPasswordResetEmail,
   signOut as firebaseSignOut
 } from "firebase/auth";
+import { getFunctions } from "firebase/functions";
 
 declare const __firebase_config: any;
 
@@ -38,6 +39,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
 const auth = getAuth(app);
+const functions = getFunctions(app);
 const googleProvider = new GoogleAuthProvider();
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
@@ -45,6 +47,7 @@ export {
   db, 
   storage, 
   auth, 
+  functions,
   messaging,
   googleProvider,
   serverTimestamp,
@@ -178,14 +181,18 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /profile-pictures/{userId}/{allPaths=**} {
-      allow read: if auth != null;
-      allow write: if auth != null && auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /cover-photos/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     match /chat-media/{allPaths=**} {
-      allow read, write: if auth != null;
+      allow read, write: if request.auth != null;
     }
     match /messenger-media/{chatId}/{allPaths=**} {
-      allow read, write: if auth != null;
+      allow read, write: if request.auth != null;
     }
   }
 }

@@ -20,22 +20,74 @@ exports.onNotificationWritten = functions.database.ref('/notifications/{userId}/
             return null;
         }
 
+        // Build action button data from stored action_buttons OR use type-based defaults
+        const actionButtons = notification.action_buttons || [];
+        const actionData = {};
+
+        if (actionButtons.length > 0) {
+            // Map stored action_buttons to FCM data fields
+            actionButtons.slice(0, 3).forEach((btn, i) => {
+                const n = i + 1;
+                // Use btn.route or btn.metadata?.route as the action ID (which App.tsx handles via appUrlOpen)
+                actionData[`action${n}_id`] = btn.route || btn.action || `action_${n}`;
+                actionData[`action${n}_title`] = btn.label || 'Open';
+                actionData[`action${n}_input`] = 'false';
+            });
+        } else {
+            // Provide default action buttons based on notification type
+            switch (notification.type) {
+                case 'welcome':
+                    actionData['action1_id'] = 'study_guide';
+                    actionData['action1_title'] = 'Open Study Guide';
+                    actionData['action1_input'] = 'false';
+                    actionData['action2_id'] = 'messenger';
+                    actionData['action2_title'] = 'Check Messages';
+                    actionData['action2_input'] = 'false';
+                    break;
+                case 'study_reminder':
+                    actionData['action1_id'] = 'study_guide';
+                    actionData['action1_title'] = 'Open Study Guide';
+                    actionData['action1_input'] = 'false';
+                    break;
+                case 'study_partner_request':
+                    actionData['action1_id'] = 'study_partners';
+                    actionData['action1_title'] = 'View Request';
+                    actionData['action1_input'] = 'false';
+                    break;
+                case 'messenger':
+                    actionData['action1_id'] = 'messenger';
+                    actionData['action1_title'] = 'Open Messenger';
+                    actionData['action1_input'] = 'false';
+                    break;
+                case 'exam_reminder':
+                    actionData['action1_id'] = 'exam';
+                    actionData['action1_title'] = 'Start Exam';
+                    actionData['action1_input'] = 'false';
+                    break;
+                // app_update and study_update: no action buttons needed
+                default:
+                    break;
+            }
+        }
+
+        // IMPORTANT: Use a pure data-only payload (no `notification` field).
+        // If a `notification` field is present and the app is in the background,
+        // the Android FCM SDK handles display automatically, BYPASSING our
+        // CustomFirebaseMessagingService.onMessageReceived() entirely — so action buttons never appear.
         const message = {
             token: tokenData.fcm_token,
-            notification: {
+            // NO `notification` field — data-only so our Java service builds the rich notification.
+            data: {
+                custom_notification: 'true',
                 title: notification.title || 'AVELUT',
                 body: notification.message || '',
-            },
-            data: {
                 type: notification.type || 'study_update',
-                timestamp: String(notification.timestamp || Date.now())
+                timestamp: String(notification.timestamp || Date.now()),
+                notificationId: context.params.notificationId,
+                ...actionData
             },
             android: {
-                notification: {
-                    color: '#002D62',
-                    sound: 'default',
-                    channelId: 'avelut-alerts'
-                }
+                priority: 'high'
             },
             apns: {
                 payload: {
@@ -126,27 +178,44 @@ exports.onChatMessageSent = functions.database.ref('/messages/{chatId}/{messageI
             return null;
         }
 
-        let bodyPreview = text;
-        if (type === 'voice') bodyPreview = '🎵 Sent a voice message';
-        else if (type === 'image') bodyPreview = '📷 Sent an image';
-        else if (type === 'file') bodyPreview = '📄 Sent a file';
+        const bodyPreview = type === 'voice' ? '🎵 Sent a voice message'
+            : type === 'image' ? '📷 Sent an image'
+            : type === 'file' ? '📄 Sent a file'
+            : text;
 
+        // IMPORTANT: Use a pure data-only payload (no `notification` field).
+        // If a `notification` field is present and the app is in the background,
+        // the Android FCM SDK handles display automatically, BYPASSING our
+        // CustomFirebaseMessagingService.onMessageReceived() entirely.
+        // That means our Reply action button logic never runs.
+        // With a data-only payload, onMessageReceived() always fires.
         const payload = {
             token: tokenData.fcm_token,
-            notification: {
+            // NO `notification` field here — data-only so our service handles it.
+            data: {
+                // Flag checked by CustomFirebaseMessagingService to build rich notifications
+                custom_notification: 'true',
+                // Notification content
                 title: senderName,
                 body: bodyPreview,
-            },
-            data: {
+                // Chat metadata
                 chatId: chatId,
-                type: 'private_chat'
+                type: 'private_chat',
+                // Action 1: Inline Reply (with text input in notification drawer)
+                action1_id: 'reply_action',
+                action1_title: 'Reply',
+                action1_input: 'true',
+                // Action 2: Open chat directly
+                action2_id: 'open_chat',
+                action2_title: 'Open Chat',
+                action2_input: 'false',
             },
             android: {
-                notification: {
-                    color: '#002D62',
-                    sound: 'default',
-                    channelId: 'avelut-alerts',
-                    clickAction: 'MESSENGER_ACTION'
+                // High priority ensures onMessageReceived fires even in Doze mode
+                priority: 'high',
+                data: {
+                    // Duplicate for android-level targeting just in case
+                    chatId: chatId
                 }
             },
             apns: {
@@ -190,26 +259,28 @@ exports.sendAutomaticReminders = functions.pubsub.schedule('every 24 hours').onR
         const user = users[userId];
         const tokenData = deviceTokens[userId];
         if (user.notifications_enabled !== false && tokenData && tokenData.fcm_token && user.last_activity_date && user.last_activity_date < twentyFourHoursAgo) {
+            const reminderTitle = '📚 Ready to study?';
+            const reminderBody = `Hi ${user.display_name || 'there'}! It's time to review your roadmap and continue your lessons on AVELUT.`;
+            
+            // Data-only payload — no `notification` field so our Java service handles it
+            // and can attach the "Open Study Guide" action button.
             const message = {
                 token: tokenData.fcm_token,
-                notification: {
-                    title: '📚 Ready to study?',
-                    body: `Hi ${user.display_name || 'there'}! It's time to review your roadmap and continue your lessons on AVELUT.`,
+                data: {
+                    custom_notification: 'true',
+                    title: reminderTitle,
+                    body: reminderBody,
+                    type: 'study_update',
+                    // Action button: Open Study Guide
+                    action1_id: 'study_guide',
+                    action1_title: 'Open Study Guide',
+                    action1_input: 'false',
                 },
-                android: {
-                    notification: {
-                        color: '#002D62',
-                        sound: 'default',
-                        channelId: 'avelut-alerts'
-                    }
-                },
+                android: { priority: 'high' },
                 apns: {
                     payload: {
                         aps: {
-                            alert: {
-                                title: '📚 Ready to study?',
-                                body: `Hi ${user.display_name || 'there'}! It's time to review your roadmap and continue your lessons on AVELUT.`
-                            },
+                            alert: { title: reminderTitle, body: reminderBody },
                             sound: 'default'
                         }
                     }
@@ -439,3 +510,21 @@ exports.checkTimetableReminders = functions.pubsub.schedule('* * * * *').onRun(a
     return null;
 });
 
+  
+// 6. Upload Image via HTTP Callable Function  
+exports.uploadImage = functions.https.onCall(async (data, context) => {  
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');  
+    const { imageBase64, path } = data;  
+    if (!imageBase64 || !path) throw new functions.https.HttpsError('invalid-argument', 'Missing image or path.');  
+    try {  
+        const buffer = Buffer.from(imageBase64, 'base64');  
+        const bucket = admin.storage().bucket();  
+        const file = bucket.file(path);  
+        await file.save(buffer, { metadata: { contentType: 'image/jpeg' } });  
+        await file.makePublic();  
+        return { url: file.publicUrl() };  
+    } catch (err) {  
+        console.error('Error uploading image via cloud function:', err);  
+        throw new functions.https.HttpsError('internal', 'Unable to upload image.');  
+    }  
+}); 

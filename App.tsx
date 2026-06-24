@@ -15,6 +15,7 @@ import { Onboarding } from './components/Onboarding';
 import { createAvelutAI } from './utils/inference';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { App as CapacitorApp } from '@capacitor/app';
 
 
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
@@ -27,7 +28,7 @@ import { Header } from './components/Header';
 import { NativePullToRefresh } from './components/NativePullToRefresh';
 import { MainContent } from './MainContent';
 import { CalendarModal } from './components/CalendarModal';
-import { NotificationsPanel } from './components/NotificationsPanel';
+
 import { BottomNavBar } from './components/BottomNavBar';
 import { useToast } from './hooks/useToast';
 import { useApiLimiter } from './hooks/useApiLimiter';
@@ -45,13 +46,37 @@ import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import { initNativeNotifications, cleanupNativeNotifications } from './utils/nativeNotifications';
 import { InAppUpdate } from './components/InAppUpdate';
+import { Skeleton, PageSkeleton } from './components/Skeleton';
 
 declare var __app_id: string;
 
 const AppLoader: React.FC = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f8fafc]" role="status" aria-label="Loading AVELUT application">
-      <img src="/logo_icon.png" alt="Loading AVELUT..." className="w-28 h-28 object-contain animate-pulse" />
+    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden animate-pulse">
+        {/* Fake Sidebar */}
+        <div className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col p-4">
+            <div className="flex items-center gap-3 mb-8 px-2">
+                <Skeleton className="w-8 h-8 rounded-lg" />
+                <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
+            </div>
+        </div>
+        
+        {/* Fake Main Content */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Fake Header */}
+            <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+            
+            {/* Fake Page */}
+            <div className="flex-1 p-6 overflow-hidden">
+                <PageSkeleton />
+            </div>
+        </div>
     </div>
   );
 };
@@ -351,6 +376,50 @@ const App: React.FC = () => {
         const item = resolveActiveItemFromPath(getWindowPathname());
         return item === 'admin' ? 'admin' : item;
     });
+    
+    // Maintain a simple navigation history stack for back buttons
+    const [navHistory, setNavHistory] = useState<string[]>([]);
+    
+    const setActiveItem = useCallback((newItem: string) => {
+        setNavHistory(prev => {
+            if (prev[prev.length - 1] === newItem) return prev;
+            return [...prev, activeItem].slice(-15);
+        });
+        setActiveItemState(newItem);
+        if (newItem === 'admin') {
+            const pathname = getWindowPathname();
+            const nextPath = pathname.startsWith('/admin') ? pathname : '/admin';
+            if (pathname !== nextPath && typeof window !== 'undefined') {
+                window.history.pushState(null, '', nextPath);
+            }
+            setAdminPath(nextPath);
+            return;
+        }
+        const pathname = getWindowPathname();
+        if (pathname === '/admin' && typeof window !== 'undefined') {
+            window.history.pushState(null, '', '/');
+        } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
+            window.history.replaceState(null, '', '/');
+        }
+    }, [activeItem]);
+
+    useEffect(() => {
+        const handleGoBack = () => {
+            setNavHistory(prev => {
+                if (prev.length === 0) {
+                    setActiveItemState('dashboard');
+                    return prev;
+                }
+                const newHistory = [...prev];
+                const lastRoute = newHistory.pop();
+                setActiveItemState(lastRoute || 'dashboard');
+                return newHistory;
+            });
+        };
+        window.addEventListener('app-go-back', handleGoBack);
+        return () => window.removeEventListener('app-go-back', handleGoBack);
+    }, []);
+
     const [adminPath, setAdminPath] = useState<string>(() => {
         const pathname = getWindowPathname();
         return resolveActiveItemFromPath(pathname) === 'admin' ? pathname : '/admin';
@@ -374,24 +443,7 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const setActiveItem = useCallback((item: string) => {
-        setActiveItemState(item);
-        if (item === 'admin') {
-            const pathname = getWindowPathname();
-            const nextPath = pathname.startsWith('/admin') ? pathname : '/admin';
-            if (pathname !== nextPath && typeof window !== 'undefined') {
-                window.history.pushState(null, '', nextPath);
-            }
-            setAdminPath(nextPath);
-            return;
-        }
-        const pathname = getWindowPathname();
-        if (pathname === '/admin' && typeof window !== 'undefined') {
-            window.history.pushState(null, '', '/');
-        } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
-            window.history.replaceState(null, '', '/');
-        }
-    }, []);
+
 
     useEffect(() => {
         const handlePopState = () => syncItemFromPath(getWindowPathname());
@@ -509,6 +561,61 @@ const App: React.FC = () => {
         });
         return () => unsubscribe();
     }, [addToast, setActiveItem]);
+
+    useEffect(() => {
+        if (!Capacitor.isNativePlatform()) return;
+        const urlListener = CapacitorApp.addListener('appUrlOpen', async (event) => {
+            const url = new URL(event.url);
+            if (url.protocol.replace(':', '') === 'avelut' && url.host === 'action') {
+                const actionId = url.searchParams.get('id');
+                const replyText = url.searchParams.get('replyText');
+                const chatId = url.searchParams.get('chatId');
+
+                if (actionId === 'reply_action' && replyText && chatId && user) {
+                     try {
+                         const messagesRef = dbRef(db, `messages/${chatId}`);
+                         const newMsgRef = push(messagesRef);
+                         await set(newMsgRef, {
+                             senderId: user.uid,   // must match Messenger's senderId field
+                             text: replyText,
+                             timestamp: Date.now(),
+                             isRead: false
+                         });
+                         addToast('Reply sent ✓', 'success');
+                     } catch (e) {
+                         console.error('Failed to send inline reply:', e);
+                         addToast('Failed to send reply', 'error');
+                     }
+                } else if (actionId === 'open_chat' && chatId) {
+                     // Open Chat button from notification drawer
+                     setActiveItem('messenger');
+                     setPendingMessengerChatId(chatId);
+                } else if (actionId === 'study_guide' || actionId === 'timetable') {
+                     setActiveItem('study_guide');
+                } else if (actionId === 'study_partners') {
+                     setActiveItem('study_partners');
+                } else if (actionId === 'messenger') {
+                     setActiveItem('messenger');
+                } else if (actionId === 'notifications') {
+                     setActiveItem('notifications');
+                } else if (actionId === 'leaderboard') {
+                     setActiveItem('leaderboard');
+                } else if (actionId === 'exam') {
+                     setActiveItem('exam');
+                } else if (chatId) {
+                     // Notification tap without specific action — open to chat
+                     setActiveItem('messenger');
+                     setPendingMessengerChatId(chatId);
+                } else if (actionId) {
+                     // Generic navigation fallback for any other route
+                     setActiveItem(actionId);
+                }
+            }
+        });
+        return () => {
+            urlListener.then(listener => listener.remove());
+        };
+    }, [user, addToast]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -1093,7 +1200,10 @@ const App: React.FC = () => {
       { target: 'body', title: "🎉 You're all set!", content: 'Enjoy exploring your learning journey. Tap "Finish" to start!', placement: 'center' },
     ];
 
-    if (isLoading || isProfileLoading) {
+    // Only show full-screen loader when we have NO data at all.
+    // If we have a cached userProfile, allow the app to render with skeleton UI
+    // in individual components rather than blocking the entire screen.
+    if (isLoading || (isProfileLoading && !userProfile)) {
         return <div key="app-loader-state"><AppLoader /></div>;
     }
 

@@ -5,6 +5,7 @@ import { ref as dbRef, onValue, off, query, orderByChild, limitToLast } from 'fi
 import type { UserProfile, LeaderboardEntry } from '../types';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
+import { LeaderboardSkeleton } from './Skeleton';
 
 const getWeekId = (date: Date): string => {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -14,11 +15,7 @@ const getWeekId = (date: Date): string => {
   return `${d.getUTCFullYear()}-${weekNo}`;
 };
 
-const LoadingSpinner: React.FC = () => (
-  <div className="flex justify-center items-center p-8">
-    <img src="/logo_icon.png" alt="Loading..." className="w-12 h-12 object-contain animate-pulse" />
-  </div>
-);
+
 
 const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: boolean}> = ({ rank, user, isCurrentUser }) => (
     <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-100 border-lime-300' : 'bg-gray-50 border-gray-100'}`}>
@@ -115,7 +112,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
   const isCurrentUserInTop = currentUserRank > 0 && currentUserRank <= 10;
 
   const renderList = () => {
-      if(isLoading) return <LoadingSpinner />;
+      if(isLoading) return <LeaderboardSkeleton />;
       if(error) return <p className="text-center text-red-600">{error}</p>
       if(data.length === 0) return <p className="text-center text-gray-500">The leaderboard is empty. Be the first to set a score!</p>;
 

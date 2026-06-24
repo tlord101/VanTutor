@@ -574,9 +574,9 @@ ${retrievedContext}
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         if (!supportedTypes.includes(file.type.toLowerCase())) {
-            addToast('Please upload a valid image (JPEG, PNG, WEBP, HEIC).', 'error');
+            addToast('Please upload a valid image (JPEG, PNG, WEBP).', 'error');
             return;
         }
 
@@ -585,16 +585,44 @@ ${retrievedContext}
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const imageDataUrl = event.target?.result as string;
-            setScannedImage(imageDataUrl);
-            setCameraState('preview');
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Resize if too large
+            const MAX_DIMENSION = 1920;
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                if (width > height) {
+                    height = Math.round((height * MAX_DIMENSION) / width);
+                    width = MAX_DIMENSION;
+                } else {
+                    width = Math.round((width * MAX_DIMENSION) / height);
+                    height = MAX_DIMENSION;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                // Compress image and extract base64
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                setScannedImage(imageDataUrl);
+                setCameraState('preview');
+            } else {
+                addToast('Could not process the image.', 'error');
+            }
+            URL.revokeObjectURL(objectUrl);
         };
-        reader.onerror = () => {
-            addToast('Could not read the image file.', 'error');
+        img.onerror = () => {
+            addToast('Could not load the image file.', 'error');
+            URL.revokeObjectURL(objectUrl);
         };
-        reader.readAsDataURL(file);
+        img.src = objectUrl;
 
         // Reset input so the same file can be selected again
         e.target.value = '';
@@ -657,7 +685,7 @@ ${retrievedContext}
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg, image/png, image/webp"
                             onChange={handleFileUpload}
                             className="hidden"
                         />
