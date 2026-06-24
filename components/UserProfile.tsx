@@ -7,6 +7,8 @@ import { ref as dbRef, get } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
+import ReactCrop, { type Crop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 interface UserProfileProps {
   user: FirebaseUser | null;
@@ -35,6 +37,12 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropType, setCropType] = useState<'avatar' | 'cover' | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
@@ -138,10 +146,10 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
     setIsSaving(false);
   };
 
-  const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number = 0.8): Promise<File> => {
+  const compressImage = (blob: Blob, maxWidth: number, maxHeight: number, quality: number = 0.8): Promise<Blob> => {
       return new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(blob);
           reader.onload = event => {
               const img = new Image();
               img.src = event.target?.result as string;
@@ -167,16 +175,12 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                   const ctx = canvas.getContext('2d');
                   ctx?.drawImage(img, 0, 0, width, height);
                   
-                  canvas.toBlob((blob) => {
-                      if (!blob) {
+                  canvas.toBlob((blobResult) => {
+                      if (!blobResult) {
                           reject(new Error("Canvas to Blob failed"));
                           return;
                       }
-                      const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                          type: 'image/jpeg',
-                          lastModified: Date.now(),
-                      });
-                      resolve(newFile);
+                      resolve(blobResult);
                   }, 'image/jpeg', quality);
               };
               img.onerror = (e) => reject(e);
@@ -185,7 +189,49 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
       });
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+  const getCroppedImg = (): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const image = imgRef.current;
+        if (!image || !completedCrop || completedCrop.width === 0 || completedCrop.height === 0) {
+            reject(new Error('Crop incomplete'));
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            reject(new Error('No 2d context'));
+            return;
+        }
+
+        canvas.width = completedCrop.width * scaleX;
+        canvas.height = completedCrop.height * scaleY;
+
+        ctx.drawImage(
+            image,
+            completedCrop.x * scaleX,
+            completedCrop.y * scaleY,
+            completedCrop.width * scaleX,
+            completedCrop.height * scaleY,
+            0,
+            0,
+            completedCrop.width * scaleX,
+            completedCrop.height * scaleY
+        );
+
+        canvas.toBlob(blob => {
+            if (!blob) {
+                reject(new Error('Canvas is empty'));
+                return;
+            }
+            resolve(blob);
+        }, 'image/jpeg', 1);
+    });
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
@@ -193,68 +239,103 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
         addToast("File is too large. Please select an image under 5MB.", "error");
         return;
     }
-
-    setIsSaving(true);
-    setUploadProgress({ type, progress: 0 });
     
-    // Simulate progress since uploadBytesResumable progress events
-    // may not fire reliably on Android Capacitor WebViews.
-    let simulatedProgress = 0;
-    const progressInterval = setInterval(() => {
-        simulatedProgress = Math.min(simulatedProgress + 8, 85);
-        setUploadProgress(prev => prev.type === type ? { type, progress: simulatedProgress } : prev);
-    }, 300);
-    
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+        setCropImageSrc(reader.result?.toString() || '');
+        setCropType(type);
+        setCrop(undefined);
+    });
+    reader.readAsDataURL(file);
+    if (event.target) event.target.value = '';
+  };
+  
+  const handleConfirmCrop = async () => {
+    if (!user || !cropType) return;
     try {
+        const croppedBlob = await getCroppedImg();
+        setCropImageSrc(null);
+        
+        setIsSaving(true);
+        setUploadProgress({ type: cropType, progress: 0 });
+        
+        // Simulate progress since uploadBytesResumable progress events
+        // may not fire reliably on Android Capacitor WebViews.
+        let simulatedProgress = 0;
+        const progressInterval = setInterval(() => {
+            simulatedProgress = Math.min(simulatedProgress + 8, 85);
+            setUploadProgress(prev => prev.type === cropType ? { type: cropType, progress: simulatedProgress } : prev);
+        }, 300);
+        
         // Paths must include a filename segment to match Firebase Storage rules:
         // profile-pictures/{userId}/{allPaths=**} and cover-photos/{userId}/{allPaths=**}
-        const ext = file.name.split('.').pop() || 'jpg';
-        const path = type === 'avatar'
+        const path = cropType === 'avatar'
             ? `profile-pictures/${user.uid}/profile.jpg`
             : `cover-photos/${user.uid}/cover.jpg`;
         const sRef = storageRef(storage, path);
         try {
             // Compress the image before uploading to avoid large payloads hanging
             const compressedFile = await compressImage(
-                file, 
-                type === 'avatar' ? 800 : 1600, // Max width
-                type === 'avatar' ? 800 : 1600, // Max height
+                croppedBlob, 
+                cropType === 'avatar' ? 800 : 1600, // Max width
+                cropType === 'avatar' ? 800 : 1600, // Max height
                 0.8 // Quality
             );
             const uploadResult = await uploadBytes(sRef, compressedFile);
             clearInterval(progressInterval);
-            setUploadProgress({ type, progress: 100 });
+            setUploadProgress({ type: cropType, progress: 100 });
             const downloadURL = await getDownloadURL(uploadResult.ref);
             const cacheBustURL = `${downloadURL}?t=${new Date().getTime()}`;
-            const updateData = type === 'avatar' ? { photo_url: cacheBustURL } : { cover_photo: cacheBustURL };
+            const updateData = cropType === 'avatar' ? { photo_url: cacheBustURL } : { cover_photo: cacheBustURL };
             const updateResult = await onProfileUpdate(updateData);
             
             if (updateResult.success) {
-                addToast(`${type === 'avatar' ? 'Profile' : 'Cover'} picture updated!`, "success");
+                addToast(`${cropType === 'avatar' ? 'Profile' : 'Cover'} picture updated!`, "success");
             } else {
-                addToast(updateResult.error || `Could not update ${type} picture.`, "error");
+                addToast(updateResult.error || `Could not update ${cropType} picture.`, "error");
             }
         } catch (error) {
             clearInterval(progressInterval);
-            console.error(`Failed to upload ${type}:`, error);
-            addToast(`Could not update ${type === 'avatar' ? 'profile' : 'cover'} picture. Check your connection.`, "error");
+            console.error(`Failed to upload ${cropType}:`, error);
+            addToast(`Could not update ${cropType === 'avatar' ? 'profile' : 'cover'} picture. Check your connection.`, "error");
         }
         
         setIsSaving(false);
         setUploadProgress({ type: null, progress: 0 });
-        if (event.target) event.target.value = '';
+        setCropType(null);
     } catch (error) {
-        clearInterval(progressInterval);
-        console.error(`Failed to start upload for ${type}:`, error);
-        addToast(`Could not update ${type} picture.`, "error");
+        console.error(`Failed to start upload for ${cropType}:`, error);
+        addToast(`Could not update ${cropType} picture.`, "error");
         setIsSaving(false);
         setUploadProgress({ type: null, progress: 0 });
-        if (event.target) event.target.value = '';
+        setCropType(null);
     }
   };
 
   return (
     <div className="h-full overflow-y-auto bg-[#F8F9FA] pb-24 lg:pb-8 animate-fade-in">
+        {cropImageSrc && (
+            <div className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl p-4 w-full max-w-lg max-h-[90vh] flex flex-col items-center">
+                    <h3 className="text-xl font-bold mb-4">Crop {cropType === 'avatar' ? 'Profile' : 'Cover'} Photo</h3>
+                    <div className="flex-1 overflow-auto w-full flex justify-center bg-gray-100 rounded-lg p-2 min-h-0">
+                        <ReactCrop
+                            crop={crop}
+                            onChange={(_, percentCrop) => setCrop(percentCrop)}
+                            onComplete={(c) => setCompletedCrop(c)}
+                            aspect={cropType === 'avatar' ? 1 : 16/9}
+                            className="max-h-full max-w-full"
+                        >
+                            <img ref={imgRef} src={cropImageSrc} alt="Crop me" style={{ maxHeight: '60vh', objectFit: 'contain' }} />
+                        </ReactCrop>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-4 w-full">
+                        <button onClick={() => setCropImageSrc(null)} className="px-5 py-2 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300">Cancel</button>
+                        <button onClick={handleConfirmCrop} disabled={isSaving} className="px-5 py-2 bg-[#009EE2] text-white rounded-xl font-bold hover:bg-[#0070B8] disabled:opacity-50">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        )}
         {/* Cover Photo */}
         <div className="relative w-full h-48 sm:h-64 bg-gradient-to-r from-[#009EE2]/20 to-[#0070B8]/20 shrink-0">
             {userProfile.cover_photo && (

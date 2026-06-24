@@ -529,19 +529,6 @@ exports.uploadImage = functions.https.onCall(async (data, context) => {
     }  
 }); 
 
-// 7. Admin: List Auth Users
-exports.listAuthUsers = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
-    if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
-    
-    try {
-        const listUsersResult = await admin.auth().listUsers(100, data.pageToken);
-        return {
-            users: listUsersResult.users.map(u => ({
-                uid: u.uid,
-                email: u.email,
-                displayName: u.displayName,
-                creationTime: u.metadata.creationTime,
                 lastSignInTime: u.metadata.lastSignInTime,
                 photoURL: u.photoURL
             })),
