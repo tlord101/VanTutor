@@ -20,6 +20,7 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { Loader } from './prompt-kit/loader';
 
 type AssistantSender = 'user' | 'assistant';
 
@@ -937,18 +938,19 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     type="button"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      if (!confirm(`Delete "${item.title}" from assistant history?`)) return;
-                      try {
-                        await remove(dbRef(db, `chat_conversations/${userProfile.uid}/${item.id}`));
-                        await remove(dbRef(db, `chat_messages/${item.id}`));
-                        if (activeHistoryId === item.id) {
-                          setActiveHistoryId(null);
-                          setMessages([]);
+                      if (window.confirm(`Are you sure you want to delete "${item.title}"?`)) {
+                        try {
+                          await remove(dbRef(db, `chat_conversations/${userProfile.uid}/${item.id}`));
+                          await remove(dbRef(db, `chat_messages/${item.id}`));
+                          if (activeHistoryId === item.id) {
+                            setActiveHistoryId(null);
+                            setMessages([]);
+                          }
+                          setStatusText(`Deleted ${item.title}.`);
+                        } catch (err) {
+                          console.error('Failed to delete history item:', err);
+                          setStatusText('Could not delete chat.');
                         }
-                        setStatusText(`Deleted ${item.title}.`);
-                      } catch (err) {
-                        console.error('Failed to delete history item:', err);
-                        setStatusText('Could not delete chat.');
                       }
                     }}
                     className="p-2 mt-2 rounded-full text-red-400 hover:bg-red-950/30"
@@ -1109,14 +1111,16 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
                 {isSending && streamingBotText === null && (
                   <div className="flex justify-start">
-                    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm min-w-[120px]">
                       {uploadProgress ? (
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
                           <span>{uploadProgress}</span>
                         </div>
                       ) : (
-                        "Thinking..."
+                        <div className="flex items-center gap-2">
+                          <Loader variant="loading-dots" size="sm" text="Thinking" className="text-emerald-600" />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1131,9 +1135,11 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             <div className="w-full max-w-6xl transition-all duration-300 mb-5 md:mb-[30px]">
               
               {/* Status Indicator */}
-              <div className="mb-2 mx-auto flex items-center justify-center pointer-events-none">
+              <div className="mb-2 mx-auto flex items-center justify-center pointer-events-none h-6">
                 <span className="inline-block rounded-full bg-emerald-50 border border-emerald-200/60 px-3 py-1 text-[10px] font-semibold text-emerald-600 sm:text-xs shadow-sm">
-                  {statusText}
+                  {statusText === 'Thinking...' ? (
+                    <Loader variant="loading-dots" size="sm" text="Thinking" className="text-emerald-600" />
+                  ) : statusText}
                 </span>
               </div>
               
