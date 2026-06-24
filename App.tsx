@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
-import { readCachedJson, writeCachedJson } from './utils/cache';
+import { writeCachedJson, clearCachedKey } from './utils/cache';
 import { GoogleGenAI, Type } from '@google/genai'; 
 import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
@@ -311,6 +311,7 @@ const App: React.FC = () => {
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const userProfileRef = useRef<UserProfile | null>(null);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
 
     useEffect(() => {
@@ -552,9 +553,23 @@ const App: React.FC = () => {
           setUser(currentUser);
           if (!currentUser) {
             setUserProfile(null);
+            userProfileRef.current = null;
             tourStatusRef.current = 'unknown';
             cleanupNativeNotifications();
           } else {
+            // Clear all user-specific caches on every sign-in so data is always fetched fresh
+            const uid = currentUser.uid;
+            clearCachedKey(`avelut_profile_${uid}`);
+            clearCachedKey(`avelut_progress_${uid}`);
+            clearCachedKey(`avelut_dashboard_${uid}`);
+            clearCachedKey(`avelut_notifications_${uid}`);
+            // Department cache key is based on department_id, clear any that match
+            try {
+              const keys = Object.keys(localStorage);
+              keys.forEach(k => {
+                if (k.startsWith('avelut_dept_data_')) localStorage.removeItem(k);
+              });
+            } catch (_) { /* ignore */ }
             initNativeNotifications(currentUser, addToast, setActiveItem, setPendingMessengerChatId);
           }
           setIsLoading(false);
@@ -689,16 +704,8 @@ const App: React.FC = () => {
             return;
         }
         const cacheKey = `avelut_profile_${user.uid}`;
-        const cachedProfile = readCachedJson<UserProfile | null>(cacheKey, null);
-        if (cachedProfile) {
-            setUserProfile(cachedProfile);
-            if (!navigator.onLine) {
-                setIsProfileLoading(false);
-            }
-            // Removed automatic onboarding redirect from cached profile
-        } else {
-            setIsProfileLoading(true);
-        }
+        // Always start fresh — no cache reads on login
+        setIsProfileLoading(true);
 
         const userRef = dbRef(db, `users/${user.uid}`);
         
@@ -711,14 +718,18 @@ const App: React.FC = () => {
                     return;
                 }
                 
-                // Avoid overwriting a valid cached profile with an incomplete local optimistic update
-                // Firebase RTDB fires local events immediately on update(), which might lack department_id
-                // if the full server object hasn't been fetched yet.
-                const isPartialUpdate = Object.keys(data).length < 4 && !data.department_id;
+                // Guard against partial optimistic updates from syncAuthIdentityToProfile.
+                // If the snapshot is missing all onboarding fields AND we already have a loaded
+                // profile with department_id, skip this event — it's a local optimistic write.
+                const hasOnboardingFields = !!(data.department_id && data.school_id && data.college_id);
+                const isLikelyPartialOptimistic = !hasOnboardingFields && !data.created_at && !data.is_activated;
+                const hasPriorCompleteProfile = !!(userProfileRef.current?.department_id);
+                const isPartialUpdate = isLikelyPartialOptimistic && hasPriorCompleteProfile;
                 
                 if (!isPartialUpdate) {
                     writeCachedJson(cacheKey, data);
                     setUserProfile(data as UserProfile);
+                    userProfileRef.current = data as UserProfile;
                     
                     if (!data.department_id) {
                         setActiveItem('onboarding');
@@ -739,7 +750,7 @@ const App: React.FC = () => {
                         sessionStorage.setItem('session_notifications_sent', 'true');
                         const today = new Date().toISOString().split('T')[0];
                         const lastLoginStr = localStorage.getItem('last_login_date');
-                        const currentAppVersion = "4.16.15"; // Current version from package.json
+                        const currentAppVersion = "5.1.0"; // Current version from package.json
                         const lastSeenVersion = localStorage.getItem('last_seen_app_version');
 
                         // Welcome Back Notification (Once a day)
@@ -783,18 +794,12 @@ const App: React.FC = () => {
                     sessionStorage.removeItem('just_signed_up');
                     setIsProfileLoading(false);
                 } else {
-                    // If online and no data, we might need to wait for backend creation. 
-                    // Do not stop loading if we don't have a cached profile.
-                    if (cachedProfile) setIsProfileLoading(false);
+                    // No data from server — keep loading, the profile may still be being created
                 }
             }
         }, (error) => {
             console.error("Error fetching user profile:", error);
-            // Never show the "cant fetch" or "failed to load" flash message.
-            // Just silently wait, or rely on the network banner.
-            if (cachedProfile) {
-                setIsProfileLoading(false);
-            }
+            // Silently wait for retry — rely on the network banner
         });
         
         return () => { off(userRef, 'value', unsubscribeProfile); };
@@ -825,8 +830,12 @@ const App: React.FC = () => {
     }, [userProfile?.uid]); // Only re-run if user changes (not on every profile update)
 
 
+    // Delay syncing auth identity to profile until the profile listener has had a chance
+    // to receive the full server data. This prevents the update() from firing a local
+    // optimistic event that creates a partial snapshot (missing department_id) before
+    // the full profile arrives, which was causing a false redirect to onboarding.
     useEffect(() => {
-        if (!user) return;
+        if (!user || isProfileLoading) return;
         const syncAuthIdentityToProfile = async () => {
             try {
                 const userRef = dbRef(db, `users/${user.uid}`);
@@ -852,8 +861,10 @@ const App: React.FC = () => {
                 console.error('Failed to sync auth identity to profile:', error);
             }
         };
-        syncAuthIdentityToProfile();
-    }, [user]);
+        // Small delay to let the onValue listener settle with the full server snapshot first
+        const timer = setTimeout(syncAuthIdentityToProfile, 800);
+        return () => clearTimeout(timer);
+    }, [user, isProfileLoading]);
 
 
 
@@ -887,8 +898,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!userProfile) return;
         const cacheKey = `avelut_progress_${userProfile.uid}`;
-        const cachedProgress = readCachedJson<UserProgress>(cacheKey, {});
-        setUserProgress(cachedProgress);
+        // No cache preload — always fetch fresh from Firebase
 
         if (!isReadyForBackgroundSync) return;
 
@@ -909,16 +919,9 @@ const App: React.FC = () => {
         }
 
         const cacheKeyDashboard = `avelut_dashboard_${userProfile.uid}`;
-        const cachedDashboard = readCachedJson<DashboardData | null>(cacheKeyDashboard, null);
-        if (cachedDashboard) {
-            setDashboardData(cachedDashboard);
-        }
+        // No cache preload — always fetch fresh from Firebase
 
         const cacheKeyNotif = `avelut_notifications_${userProfile.uid}`;
-        const cachedNotif = readCachedJson<NotificationType[]>(cacheKeyNotif, []);
-        if (cachedNotif.length > 0) {
-            setNotifications(cachedNotif);
-        }
 
         if (!isReadyForBackgroundSync) return;
         
@@ -974,10 +977,7 @@ const App: React.FC = () => {
         }
 
         const deptCacheKey = `avelut_dept_data_${userProfile.department_id}`;
-        const cached = readCachedJson<any>(deptCacheKey, null);
-        if (cached) {
-            setDepartmentData(cached);
-        }
+        // No cache preload — always fetch fresh from Firebase
 
         if (!isReadyForBackgroundSync) return;
 
