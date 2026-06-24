@@ -65,6 +65,7 @@ import { EmailsView } from './admin/pages/EmailsView';
 import { TicketsView } from './admin/pages/TicketsView';
 import { CoFoundersView } from './admin/pages/CoFoundersView';
 import { SEOSettingsView } from './admin/pages/SEOSettingsView';
+import { FirebaseAuthUsersView } from './admin/pages/FirebaseAuthUsersView';
 
 interface AdminPanelProps {
     userProfile: UserProfile;
@@ -102,7 +103,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo';
+type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -113,7 +114,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'notifications', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'firebase-users', 'notifications', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -2684,6 +2685,10 @@ FORMAT:
                     isUsersLoading={isUsersLoading}
                     refreshUsers={fetchUsers}
                 />
+            )}
+
+            {activeTab === 'firebase-users' && (
+                <FirebaseAuthUsersView adminPin="zFhnR7N8xXtUjiN" />
             )}
 
             {(activeTab === 'payments' || activeTab === 'usage-analytics' || activeTab === 'purchase-logs') && (

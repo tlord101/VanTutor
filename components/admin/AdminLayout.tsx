@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo';
+export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -21,6 +21,7 @@ const SIDEBAR_ITEMS = [
     { id: 'courses', label: 'Course Catalog', icon: BookOpen },
     { id: 'questions', label: 'Past Questions', icon: HelpCircle },
     { id: 'users', label: 'User Control', icon: Users },
+    { id: 'firebase-users', label: 'Auth Users', icon: Shield },
     { id: 'payments', label: 'Payments', icon: PaymentsIcon },
     { id: 'usage-analytics', label: 'Analytics', icon: Activity },
     { id: 'notifications', label: 'Push Notifications', icon: Bell },

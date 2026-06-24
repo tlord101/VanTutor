@@ -528,3 +528,54 @@ exports.uploadImage = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'Unable to upload image.');  
     }  
 }); 
+
+// 7. Admin: List Auth Users
+exports.listAuthUsers = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+    if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
+    
+    try {
+        const listUsersResult = await admin.auth().listUsers(100, data.pageToken);
+        return {
+            users: listUsersResult.users.map(u => ({
+                uid: u.uid,
+                email: u.email,
+                displayName: u.displayName,
+                creationTime: u.metadata.creationTime,
+                lastSignInTime: u.metadata.lastSignInTime,
+                photoURL: u.photoURL
+            })),
+            pageToken: listUsersResult.pageToken
+        };
+    } catch (err) {
+        console.error('Error listing auth users:', err);
+        throw new functions.https.HttpsError('internal', 'Unable to list users.');
+    }
+});
+
+// 8. Admin: Delete Auth User
+exports.deleteAuthUser = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+    if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
+    if (!data.uid) throw new functions.https.HttpsError('invalid-argument', 'Missing uid.');
+
+    const uid = data.uid;
+    try {
+        await admin.auth().deleteUser(uid);
+    } catch (err) {
+        if (err.code !== 'auth/user-not-found') {
+            console.error('Error deleting auth user:', err);
+            throw new functions.https.HttpsError('internal', 'Unable to delete user from Firebase Auth.');
+        }
+    }
+
+    try {
+        await admin.database().ref(`/users/${uid}`).remove();
+        await admin.database().ref(`/notifications/${uid}`).remove();
+        await admin.database().ref(`/user_device_tokens/${uid}`).remove();
+        return { success: true };
+    } catch (err) {
+        console.error('Error deleting RTDB data for user:', err);
+        throw new functions.https.HttpsError('internal', 'Unable to delete user data from RTDB.');
+    }
+});
