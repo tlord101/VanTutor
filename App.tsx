@@ -439,7 +439,8 @@ const App: React.FC = () => {
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const ai = useMemo(() => (
         createAvelutAI(appSettings, userProfile)
-    ), [appSettings, userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ), [appSettings, userProfile?.uid, userProfile?.use_personal_token, userProfile?.personal_api_key, userProfile?.subscription_status]);
     const isUploadCenterRoute = getWindowPathname().startsWith('/upload-center');
     const isAdminRoute = getWindowPathname().startsWith('/admin');
 
@@ -537,10 +538,10 @@ const App: React.FC = () => {
         }
     }, [user]);
 
-    const handleConsent = async (granted: boolean) => {
+    const handleConsent = useCallback(async (granted: boolean) => {
         setShowPrivacyModal(false);
         await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
-    };
+    }, [handleProfileUpdate]);
 
     useEffect(() => {
         if (!userProfile) return;
@@ -573,6 +574,7 @@ const App: React.FC = () => {
         };
         const timer = setTimeout(requestPermissions, 2500);
         return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid, handleProfileUpdate, userProfile?.notifications_enabled]);
 
     useEffect(() => {
@@ -709,17 +711,17 @@ const App: React.FC = () => {
     // SESSION STREAK: award after 10 seconds in the app
     // =====================================================
     useEffect(() => {
-        if (!userProfile) return;
+        if (!userProfile?.uid) return;
         const SESSION_STREAK_THRESHOLD_MS = 1000; // Reduced to 1 sec to immediately register streak
         const timer = window.setTimeout(async () => {
             await awardDailyStreak(userProfile.uid);
         }, SESSION_STREAK_THRESHOLD_MS);
         return () => window.clearTimeout(timer);
-    }, [userProfile?.uid]); // Only re-run if user changes (not on every profile update)
+    }, [userProfile?.uid]);
 
 
     useEffect(() => {
-        if (!user) return;
+        if (!user?.uid) return;
         const syncAuthIdentityToProfile = async () => {
             try {
                 const userRef = dbRef(db, `users/${user.uid}`);
@@ -746,12 +748,12 @@ const App: React.FC = () => {
             }
         };
         syncAuthIdentityToProfile();
-    }, [user]);
+    }, [user?.uid, user?.displayName, user?.email, user?.photoURL]);
 
 
 
     useEffect(() => {
-        if (!userProfile || !user) return;
+        if (!userProfile?.uid || !user?.uid) return;
         const userStatusRef = dbRef(db, `users/${user.uid}`);
         const connectedRef = dbRef(db, '.info/connected');
 
@@ -775,10 +777,10 @@ const App: React.FC = () => {
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             off(connectedRef, 'value', unsubscribeConnected);
         };
-    }, [userProfile?.uid, user]);
+    }, [userProfile?.uid, user?.uid]);
     
     useEffect(() => {
-        if (!userProfile) return;
+        if (!userProfile?.uid) return;
         const cacheKey = `avelut_progress_${userProfile.uid}`;
         const cachedProgress = readCachedJson<UserProgress>(cacheKey, {});
         setUserProgress(cachedProgress);
@@ -792,10 +794,10 @@ const App: React.FC = () => {
             writeCachedJson(cacheKey, data);
         });
         return () => { off(progressRef, 'value', unsubscribeProgress); };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
-        if (!userProfile) {
+        if (!userProfile?.uid) {
             setUnreadMessagesCount(0);
             setNotifications([]);
             return;
@@ -838,10 +840,10 @@ const App: React.FC = () => {
             off(notificationsRef, 'value', unsubscribeNotifications);
             off(userChatsRef, 'value', unsubscribeUnreadCount);
         };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
-        if (!userProfile) {
+        if (!userProfile?.uid) {
             setExamHistory([]);
             return;
         }
@@ -858,7 +860,7 @@ const App: React.FC = () => {
         return () => {
             off(examHistoryRef, 'value', unsubscribeExamHistory);
         };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile?.school_id || !userProfile?.college_id || !userProfile?.department_id) {
@@ -899,7 +901,7 @@ const App: React.FC = () => {
         }).catch(err => {
             console.error("Error fetching department courses:", err);
         });
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.school_id, userProfile?.college_id, userProfile?.department_id, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile || !departmentData) return;
@@ -967,7 +969,8 @@ const App: React.FC = () => {
         setDashboardData(nextDashboardData);
         const cacheKeyDashboard = `avelut_dashboard_${userProfile.uid}`;
         writeCachedJson(cacheKeyDashboard, nextDashboardData);
-    }, [userProfile, userProgress, examHistory, departmentData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile?.uid, userProfile?.level, userProgress, examHistory, departmentData]);
 
 
 
@@ -980,7 +983,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
+    const handleOnboardingComplete = useCallback(async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
         const displayName = user.displayName || 'AVELITE';
@@ -1023,9 +1026,9 @@ const App: React.FC = () => {
             console.error("Failed to complete onboarding:", error.message || error);
             addToast(error.message || "Could not save your profile.", "error");
         }
-    };
+    }, [user, addToast, setActiveItem]);
 
-    const handleMarkNotificationRead = async (id: string) => {
+    const handleMarkNotificationRead = useCallback(async (id: string) => {
         if (!user) return;
         const notificationRef = dbRef(db, `notifications/${user.uid}/${id}`);
         try {
@@ -1034,9 +1037,9 @@ const App: React.FC = () => {
             console.error("Error marking notification read:", err);
             addToast("Could not update notification.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleMarkAllNotificationsRead = async () => {
+    const handleMarkAllNotificationsRead = useCallback(async () => {
         if (!user) return;
         const notificationsRef = dbRef(db, `notifications/${user.uid}`);
         try {
@@ -1054,9 +1057,9 @@ const App: React.FC = () => {
             console.error("Error clearing notifications:", error);
             addToast("Could not clear notifications.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+    const handleAccountDeletion = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
             if (user) {
                 await update(dbRef(db, `users/${user.uid}`), { is_deleted: true });
@@ -1069,9 +1072,9 @@ const App: React.FC = () => {
             console.error("Error deleting account:", error.message || error);
             return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
-    };
+    }, [user, addToast]);
     
-    const handleTourClose = async (completed: boolean) => {
+    const handleTourClose = useCallback(async (completed: boolean) => {
         if (completed && userProfile && !userProfile.has_completed_tour) {
             const result = await handleProfileUpdate({ has_completed_tour: true });
             if (!result.success) {
@@ -1079,11 +1082,35 @@ const App: React.FC = () => {
             }
         }
         setIsTourOpen(false);
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile?.has_completed_tour, handleProfileUpdate, addToast]);
+
+    const handleCloseMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
+    const handleHeaderNotificationsClick = useCallback(() => setActiveItem('notifications'), [setActiveItem]);
+    const handleMenuClick = useCallback(() => setIsMobileSidebarOpen(true), []);
+    const handleMessengerClick = useCallback(() => setActiveItem('messenger'), [setActiveItem]);
+    const handleCalendarClick = useCallback(() => setIsCalendarOpen(true), []);
+    const handleNavigate = useCallback((route: string) => setActiveItem(route), [setActiveItem]);
+
+    const handleBottomNavItemClick = useCallback((id: string) => {
+        if (id === 'mobile_menu') {
+            setIsMobileSidebarOpen(true);
+        } else {
+            setActiveItem(id);
+        }
+    }, [setActiveItem]);
+
+    const handleCenterActionClick = useCallback(() => {
+        if (activeItem === 'visual_solver') {
+            triggerScanRef.current?.();
+        } else {
+            setActiveItem('visual_solver');
+        }
+    }, [activeItem, setActiveItem]);
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-    const tourSteps: TourStep[] = [
+    const tourSteps: TourStep[] = useMemo(() => [
       { target: 'body', title: '👋 Welcome to AVELUT!', content: "Let's take a quick tour of your new learning dashboard.", placement: 'center' },
       { target: '[data-tour-id="dashboard-content"]', title: '📊 Your Dashboard', content: 'View your progress, streaks, and personalized lessons.', placement: 'bottom' },
       { target: isMobile ? '[data-tour-id="bottomnav-study_guide"]' : '[data-tour-id="sidebar-study_guide"]', title: '📚 Study Guide', content: 'Explore tutorials and start new lessons anytime.', placement: isMobile ? 'top' : 'right' },
@@ -1091,7 +1118,7 @@ const App: React.FC = () => {
       { target: isMobile ? '[data-tour-id="bottomnav-messenger"]' : '[data-tour-id="header-messenger"]', title: '🤝 Messenger', content: 'Connect with other learners and chat privately.', placement: isMobile ? 'top' : 'bottom' },
       ...(isMobile ? [{ target: '[data-tour-id="mobile-menu-button"]', title: '⚙️ Main Menu', content: 'Access your settings, help, and logout options from here.', placement: 'bottom' as const }] : [{ target: '[data-tour-id="sidebar-settings"]', title: '⚙️ Settings', content: 'Update your info and view your achievements.', placement: 'top' as const }]),
       { target: 'body', title: "🎉 You're all set!", content: 'Enjoy exploring your learning journey. Tap "Finish" to start!', placement: 'center' },
-    ];
+    ], [isMobile]);
 
     if (isLoading || isProfileLoading) {
         return <div key="app-loader-state"><AppLoader /></div>;
@@ -1290,7 +1317,7 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
-                onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+                onCloseMobileSidebar={handleCloseMobileSidebar}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
             />
@@ -1298,16 +1325,16 @@ const App: React.FC = () => {
                 <Header 
                     currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
-                    onNotificationsClick={() => setActiveItem('notifications')}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
-                    onMessengerClick={() => setActiveItem('messenger')}
-                    onCalendarClick={() => setIsCalendarOpen(true)}
+                    onNotificationsClick={handleHeaderNotificationsClick}
+                    onMenuClick={handleMenuClick}
+                    onMessengerClick={handleMessengerClick}
+                    onCalendarClick={handleCalendarClick}
                     unreadMessagesCount={unreadMessagesCount}
                     userProfile={userProfile}
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
-                    onNavigate={(route) => setActiveItem(route)}
+                    onNavigate={handleNavigate}
                     onLogoutClick={handleLogout}
                 />
                 <div 
@@ -1353,20 +1380,8 @@ const App: React.FC = () => {
             )}
             <BottomNavBar
               activeItem={activeItem}
-              onItemClick={(id) => {
-                if (id === 'mobile_menu') {
-                    setIsMobileSidebarOpen(true);
-                } else {
-                    setActiveItem(id);
-                }
-              }}
-              onCenterActionClick={() => {
-                  if (activeItem === 'visual_solver') {
-                      triggerScanRef.current?.();
-                  } else {
-                      setActiveItem('visual_solver');
-                  }
-              }}
+              onItemClick={handleBottomNavItemClick}
+              onCenterActionClick={handleCenterActionClick}
               isVisible={activeItem !== 'chat' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
