@@ -417,7 +417,13 @@ ${retrievedContext}
 
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
+                    model: geminiModel || 'gemini-3.1-pro',
+                    config: {
+                        thinkingConfig: {
+                            thinkingLevel: 'HIGH',
+                        },
+                        temperature: 0.7,
+                    },
                     contents: [{ role: 'user', parts: [
                         { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }
@@ -478,7 +484,13 @@ ${retrievedContext}
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
+                    model: geminiModel || 'gemini-3.1-pro',
+                    config: {
+                        thinkingConfig: {
+                            thinkingLevel: 'HIGH',
+                        },
+                        temperature: 0.7,
+                    },
                     contents: [{ role: 'user', parts: [
                         { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }
@@ -535,7 +547,13 @@ ${retrievedContext}
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
+                    model: geminiModel || 'gemini-3.1-pro',
+                    config: {
+                        thinkingConfig: {
+                            thinkingLevel: 'HIGH',
+                        },
+                        temperature: 0.7,
+                    },
                     contents: [{ role: 'user', parts: [
                         { inlineData: { data: base64Data, mimeType } },
                         { text: promptText }

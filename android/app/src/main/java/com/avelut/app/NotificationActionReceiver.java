@@ -35,13 +35,11 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         Uri deepLinkUri = uriBuilder.build();
 
         // Launch MainActivity with the ACTION_VIEW intent so Capacitor AppUrlOpen intercepts it
-        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-        if (launchIntent != null) {
-            launchIntent.setAction(Intent.ACTION_VIEW);
-            launchIntent.setData(deepLinkUri);
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            context.startActivity(launchIntent);
-        }
+        Intent launchIntent = new Intent(context, MainActivity.class);
+        launchIntent.setAction(Intent.ACTION_VIEW);
+        launchIntent.setData(deepLinkUri);
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        context.startActivity(launchIntent);
     }
 
     private CharSequence getMessageText(Intent intent) {

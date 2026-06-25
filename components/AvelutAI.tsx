@@ -1241,102 +1241,32 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   </div>
 
                   <div className="flex items-center gap-[9px] shrink-0">
-                    {(inputState === 1 || inputState === 2) && (
-                      <button 
-                        type="button"
-                        onClick={() => setInputState(3)}
-                        className="text-slate-900 hover:opacity-85 transition active:scale-90 flex items-center justify-center w-9 h-9"
-                        aria-label="Start voice input"
-                        title="Start voice input"
-                      >
-                        <MicIcon />
-                      </button>
-                    )}
-
-                    {inputState === 3 && (
-                      <button 
-                        type="button"
-                        onClick={() => setInputState(1)}
-                        className="w-[42px] h-[42px] bg-[#27282b]/80 hover:bg-[#2e3034] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90"
-                        aria-label="Stop voice input"
-                        title="Stop voice input"
-                      >
-                        <StopIcon />
-                      </button>
-                    )}
-
                     <button
                       type="button"
                       onClick={() => {
-                        if (inputState === 1 && !inputValue.trim() && attachments.length === 0 && !isSending) {
-                          setInputState(4);
-                        } else {
+                        if ((inputValue.trim() || attachments.length > 0) && !isSending) {
                           void handleSend();
                         }
                       }}
-                      disabled={isSending || (inputState !== 1 && inputState !== 2 && inputState !== 3) || (inputState === 2 && !inputValue.trim())}
-                      className="w-11 h-11 bg-emerald-600 hover:bg-emerald-500 text-slate-900 rounded-full flex items-center justify-center shadow-md transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={inputState === 1 && !inputValue.trim() ? "Enter live mode" : "Send message"}
-                      title={inputState === 1 && !inputValue.trim() ? "Enter live mode" : "Send message"}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition active:scale-95 ${
+                        (inputValue.trim() || attachments.length > 0)
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-slate-900'
+                          : 'bg-[#27282b]/80 hover:bg-[#2e3034] text-white cursor-default'
+                      } ${isSending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      aria-label={(inputValue.trim() || attachments.length > 0) ? "Send message" : "Voice input"}
+                      title={(inputValue.trim() || attachments.length > 0) ? "Send message" : "Voice input disabled"}
                     >
-                      {inputState === 1 && !inputValue.trim() ? (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
-                      ) : (
+                      {(inputValue.trim() || attachments.length > 0) ? (
                         <UpArrowIcon />
+                      ) : (
+                        <MicIcon />
                       )}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* STATE 4: Fullscreen Live mode controls selection panel */}
-              {inputState === 4 && (
-                <div className="w-full flex items-center justify-between px-2 py-4 animate-fade-in select-none bg-[#101114] rounded-3xl border border-slate-200 p-4 shadow-xl">
-                  <button
-                    type="button"
-                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
-                    aria-label="Vision search"
-                    title="Vision search"
-                  >
-                    <VisionIcon />
-                  </button>
 
-                  <button
-                    type="button"
-                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
-                    aria-label="Share screen or upload"
-                    title="Share screen or upload"
-                  >
-                    <ShareUploadIcon />
-                  </button>
-
-                  <div className="relative w-[114px] h-[64px] bg-gradient-to-b from-[#08080a] to-[#0d0f14] rounded-full overflow-hidden border border-slate-200/70 flex items-center justify-center shadow-lg">
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[86px] h-[18px] bg-[#38bdf8] rounded-full blur-[8px] opacity-80 animate-ambient-pulse" />
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[82px] h-[4px] bg-[#60a5fa] rounded-full opacity-90" />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="w-[52px] h-[52px] bg-white hover:bg-[#2a2b2e] rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
-                    aria-label="Toggle live microphone"
-                    title="Toggle live microphone"
-                  >
-                    <MicIcon />
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => setInputState(1)}
-                    className="w-[52px] h-[52px] bg-white hover:bg-red-950/20 rounded-full flex items-center justify-center text-slate-900 transition active:scale-90 shadow-md"
-                    aria-label="Exit live mode"
-                    title="Exit live mode"
-                  >
-                    <XIcon className="w-5 h-5" />
-                  </button>
-                </div>
-              )}
             </div>
           </footer>
         </main>

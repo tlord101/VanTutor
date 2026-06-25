@@ -365,8 +365,9 @@ export const SystemSettingsView: React.FC = () => {
                                 <Database className="w-4 h-4 text-blue-500" /> Gemini AI
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Primary Model (e.g. gemini-1.5-pro)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
+                                <input type="text" placeholder="Global Primary Model (e.g. gemini-1.5-pro)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
                                 <input type="password" placeholder="Gemini API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
+                                <input type="text" placeholder="Visual Solver Model (e.g. gemini-3.1-pro)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm md:col-span-2" />
                             </div>
                         </div>
 

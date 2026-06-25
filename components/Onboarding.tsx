@@ -157,20 +157,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
   }, [schools, selectedSchool, selectedCollege]);
 
   const levelOptions = useMemo(() => {
-    const school = schools.find(s => s.id === selectedSchool);
-    if (!school || !school.colleges) return [];
-    const college = school.colleges[selectedCollege];
-    if (!college || !college.departments) return [];
-    const department = college.departments[selectedDepartment];
-    if (!department || !department.levels) return [];
-    
-    // Assuming levels is either an array of strings or an object in the new format
-    if (Array.isArray(department.levels)) {
-        return department.levels.map((lvl: string) => ({ id: lvl, name: lvl }));
-    } else {
-        return Object.keys(department.levels).map(lvl => ({ id: lvl, name: lvl }));
-    }
-  }, [schools, selectedSchool, selectedCollege, selectedDepartment]);
+    return [
+      { id: '100', name: '100 Level' },
+      { id: '200', name: '200 Level' },
+      { id: '300', name: '300 Level' },
+      { id: '400', name: '400 Level' },
+      { id: '500', name: '500 Level' },
+    ];
+  }, []);
 
   // Reset downstream selections when a parent changes
   useEffect(() => {

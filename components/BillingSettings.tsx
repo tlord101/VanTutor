@@ -51,12 +51,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
 
     setIsVerifyingKey(true);
 
-    if (isNative()) {
-      if (!appSettings.revenuecat_api_key_android) {
-        addToast("In-app purchases are not configured for Android yet.", "error");
-        setIsVerifyingKey(false);
-        return;
-      }
+    if (isNative() && appSettings.revenuecat_api_key_android) {
       try {
         await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
         await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
@@ -64,16 +59,12 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
         const currentOfferings = await Purchases.getOfferings();
         
         if (!currentOfferings.current) {
-          addToast("Could not load packages.", "error");
-          setIsVerifyingKey(false);
-          return;
+          throw new Error("Could not load packages.");
         }
 
         const pkgToBuy = currentOfferings.current.availablePackages.find((p: any) => p.identifier.toLowerCase().includes(effectivePlanKey));
         if (!pkgToBuy) {
-          addToast("This plan is not available on Android.", "error");
-          setIsVerifyingKey(false);
-          return;
+          throw new Error("This plan is not available on Android.");
         }
 
         const purchaseResult = await Purchases.purchasePackage({ aPackage: pkgToBuy });
@@ -91,15 +82,17 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
             addToast('Purchase successful but activation failed. Contact support.', 'error');
           }
         }
+        setIsVerifyingKey(false);
+        return; // Success, exit
       } catch (e: any) {
         console.error("RevenueCat Purchase Error:", e);
-        if (!e.userCancelled) {
-          addToast("Failed to complete purchase via Google Play.", "error");
+        if (e.userCancelled) {
+          setIsVerifyingKey(false);
+          return; // User cancelled, exit
         }
-      } finally {
-        setIsVerifyingKey(false);
+        // If not user cancelled, swallow error and fallback to paystack
+        console.warn("Falling back to Paystack due to RevenueCat error.");
       }
-      return;
     }
 
     const publicKey = appSettings.paystack_public_key?.trim();

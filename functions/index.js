@@ -529,6 +529,18 @@ exports.uploadImage = functions.https.onCall(async (data, context) => {
     }  
 }); 
 
+// 7. Admin: List Auth Users
+exports.listAuthUsers = functions.https.onCall(async (data, context) => {
+    if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
+    
+    try {
+        const listUsersResult = await admin.auth().listUsers(100, data.pageToken || undefined);
+        return {
+            users: listUsersResult.users.map(u => ({
+                uid: u.uid,
+                email: u.email,
+                displayName: u.displayName,
+                creationTime: u.metadata.creationTime,
                 lastSignInTime: u.metadata.lastSignInTime,
                 photoURL: u.photoURL
             })),
@@ -542,7 +554,6 @@ exports.uploadImage = functions.https.onCall(async (data, context) => {
 
 // 8. Admin: Delete Auth User
 exports.deleteAuthUser = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
     if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
     if (!data.uid) throw new functions.https.HttpsError('invalid-argument', 'Missing uid.');
 
@@ -557,9 +568,25 @@ exports.deleteAuthUser = functions.https.onCall(async (data, context) => {
     }
 
     try {
-        await admin.database().ref(`/users/${uid}`).remove();
-        await admin.database().ref(`/notifications/${uid}`).remove();
-        await admin.database().ref(`/user_device_tokens/${uid}`).remove();
+        const userSnap = await admin.database().ref(`/users/${uid}`).once('value');
+        const userData = userSnap.val();
+        
+        const updates = {
+            [`/users/${uid}`]: null,
+            [`/notifications/${uid}`]: null,
+            [`/user_device_tokens/${uid}`]: null,
+            [`/uploaders/${uid}`]: null,
+            [`/study_partners/${uid}`]: null,
+            [`/partner_requests/${uid}`]: null,
+            [`/user_progress/${uid}`]: null,
+            [`/study_guide_messages/${uid}`]: null
+        };
+
+        if (userData && userData.department_id) {
+            updates[`/leaderboard_overall/${userData.department_id}/${uid}`] = null;
+        }
+
+        await admin.database().ref().update(updates);
         return { success: true };
     } catch (err) {
         console.error('Error deleting RTDB data for user:', err);

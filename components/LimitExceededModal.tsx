@@ -37,28 +37,19 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
   const handlePurchase = async () => {
     setIsProcessing(true);
 
-    if (isNative()) {
-      if (!appSettings.revenuecat_api_key_android) {
-        addToast("In-app purchases are not configured for Android yet.", "error");
-        setIsProcessing(false);
-        return;
-      }
+    if (isNative() && appSettings.revenuecat_api_key_android) {
       try {
         await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
         await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
         await Purchases.logIn({ appUserID: userProfile.uid });
         const currentOfferings = await Purchases.getOfferings();
         if (!currentOfferings.current) {
-          addToast("Could not load packages.", "error");
-          setIsProcessing(false);
-          return;
+          throw new Error("Could not load packages.");
         }
 
         const pkgToBuy = currentOfferings.current.availablePackages.find((p: any) => p.identifier.toLowerCase().includes('refill'));
         if (!pkgToBuy) {
-          addToast("Refill package is not available on Android.", "error");
-          setIsProcessing(false);
-          return;
+          throw new Error("Refill package is not available on Android.");
         }
 
         await Purchases.purchasePackage({ aPackage: pkgToBuy });
@@ -75,15 +66,17 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
         addToast(`Refill successful! +${refillAmount} AI Credits added.`, 'success');
         onSuccessPurchase();
         onClose();
+        setIsProcessing(false);
+        return; // Success, exit
       } catch (e: any) {
         console.error("RevenueCat Purchase Error:", e);
-        if (!e.userCancelled) {
-          addToast("Failed to complete purchase via Google Play.", "error");
+        if (e.userCancelled) {
+          setIsProcessing(false);
+          return; // User cancelled, exit
         }
-      } finally {
-        setIsProcessing(false);
+        // If not user cancelled, we will swallow the error and fallback to paystack
+        console.warn("Falling back to Paystack due to RevenueCat error.");
       }
-      return;
     }
 
     const publicKey = appSettings.paystack_public_key?.trim();
