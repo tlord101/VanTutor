@@ -527,23 +527,11 @@ exports.uploadImage = functions.https.onCall(async (data, context) => {
         console.error('Error uploading image via cloud function:', err);  
         throw new functions.https.HttpsError('internal', 'Unable to upload image.');  
     }  
-}); 
-
-                lastSignInTime: u.metadata.lastSignInTime,
-                photoURL: u.photoURL
-            })),
-            pageToken: listUsersResult.pageToken
-        };
-    } catch (err) {
-        console.error('Error listing auth users:', err);
-        throw new functions.https.HttpsError('internal', 'Unable to list users.');
-    }
 });
 
 // 8. Admin: Delete Auth User
 exports.deleteAuthUser = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
-    if (data.adminPin !== 'zFhnR7N8xXtUjiN') throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
     if (!data.uid) throw new functions.https.HttpsError('invalid-argument', 'Missing uid.');
 
     const uid = data.uid;

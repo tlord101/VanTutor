@@ -112,7 +112,7 @@ const SidebarContent: React.FC<{
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar, items, secondaryItems, unreadCount = 0, unreadMessagesCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = React.memo(({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar, items, secondaryItems, unreadCount = 0, unreadMessagesCount = 0 }) => {
   const handleMobileItemClick = (id: string) => {
     onItemClick(id);
     onCloseMobileSidebar();
@@ -125,6 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
 
   const navItems = items || (userProfile?.is_admin ? adminNavigationItems : navigationItems);
 
+  Sidebar.displayName = 'Sidebar';
   return (
     <>
       {/* Mobile Sidebar */}
@@ -170,4 +171,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
       </aside>
     </>
   );
-};
+});
