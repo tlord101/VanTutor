@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
+import { triggerHaptic } from '../utils/capacitorUtils';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { awardDailyStreak } from '../utils/streaks';
 import { Type } from '@google/genai';
@@ -1273,7 +1274,14 @@ Student: "${tempInput}"
         <div className="flex flex-col h-full w-full bg-gray-50 md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white/80 backdrop-blur-lg border-b border-gray-200 z-10">
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <button
+                    onClick={() => { triggerHaptic(); onClose(); }}
+                    className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full active:scale-95"
+                    aria-label="Go back"
+                    title="Go back"
+                >
+                    <ArrowLeftIcon />
+                </button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     {!course.topics?.length && (
@@ -1302,10 +1310,11 @@ Student: "${tempInput}"
                     )}
                     <button 
                         onClick={() => {
+                            triggerHaptic();
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        className="flex items-center px-4 py-2 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm active:scale-95"
                     >
                         Video Tutorial
                     </button>
@@ -1473,6 +1482,7 @@ Student: "${tempInput}"
                                                 key={sIdx}
                                                 type="button"
                                                 onClick={() => {
+                                                    triggerHaptic();
                                                     handleSend(suggestion);
                                                 }}
                                                 className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation"
@@ -1595,17 +1605,35 @@ Student: "${tempInput}"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                    <label
+                        className="absolute left-4 cursor-pointer text-gray-500 hover:text-gray-900 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                triggerHaptic();
+                                const input = e.currentTarget.querySelector('input');
+                                if (input) input.click();
+                            }
+                        }}
+                        onClick={() => triggerHaptic()}
+                        aria-label="Attach image"
+                        title="Attach image"
+                    >
                         <PaperclipIcon className="w-9 h-9" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
                     <button 
                         onClick={(e) => {
                             e.preventDefault();
+                            triggerHaptic();
                             handleSend();
                         }} 
                         disabled={isThinking || isIllustrating || (!input.trim() && !file)}
-                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
+                        className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md active:scale-95"
+                        aria-label="Send message"
+                        title="Send message"
                     >
                         <SendIcon className="w-5 h-5" />
                     </button>
