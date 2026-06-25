@@ -21,7 +21,7 @@ interface HeaderProps {
   onLogoutClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = React.memo(({
     currentPageLabel, 
     onNotificationsClick, 
     unreadCount = 0, 
@@ -36,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     onNavigate,
     onLogoutClick
 }) => {
+    Header.displayName = 'Header';
     const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -177,4 +178,4 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
         </header>
     );
-};
+});

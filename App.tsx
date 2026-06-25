@@ -377,6 +377,8 @@ const App: React.FC = () => {
         const item = resolveActiveItemFromPath(getWindowPathname());
         return item === 'admin' ? 'admin' : item;
     });
+    const activeItemRef = useRef(activeItem);
+    useEffect(() => { activeItemRef.current = activeItem; }, [activeItem]);
     
     // Maintain a simple navigation history stack for back buttons
     const [navHistory, setNavHistory] = useState<string[]>([]);
@@ -384,7 +386,7 @@ const App: React.FC = () => {
     const setActiveItem = useCallback((newItem: string) => {
         setNavHistory(prev => {
             if (prev[prev.length - 1] === newItem) return prev;
-            return [...prev, activeItem].slice(-15);
+            return [...prev, activeItemRef.current].slice(-15);
         });
         setActiveItemState(newItem);
         if (newItem === 'admin') {
@@ -402,7 +404,7 @@ const App: React.FC = () => {
         } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
             window.history.replaceState(null, '', '/');
         }
-    }, [activeItem]);
+    }, []);
 
     useEffect(() => {
         const handleGoBack = () => {
@@ -492,7 +494,7 @@ const App: React.FC = () => {
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const ai = useMemo(() => (
         createAvelutAI(appSettings, userProfile)
-    ), [appSettings, userProfile]);
+    ), [appSettings, userProfile?.uid, userProfile?.personal_api_key, userProfile?.use_personal_token]);
     const isUploadCenterRoute = getWindowPathname().startsWith('/upload-center');
     const isAdminRoute = getWindowPathname().startsWith('/admin');
 
@@ -809,13 +811,14 @@ const App: React.FC = () => {
     // BACKGROUND SYNC DELAY ENGINE
     // =====================================================
     useEffect(() => {
-        if (userProfile && !isReadyForBackgroundSync) {
+        const hasProfile = !!userProfile;
+        if (hasProfile && !isReadyForBackgroundSync) {
             const timer = setTimeout(() => setIsReadyForBackgroundSync(true), 1500);
             return () => clearTimeout(timer);
-        } else if (!userProfile) {
+        } else if (!hasProfile) {
             setIsReadyForBackgroundSync(false);
         }
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [!!userProfile, isReadyForBackgroundSync]);
 
     // =====================================================
     // SESSION STREAK: award after 10 seconds in the app
@@ -896,7 +899,7 @@ const App: React.FC = () => {
     }, [userProfile?.uid, user]);
     
     useEffect(() => {
-        if (!userProfile) return;
+        if (!userProfile?.uid) return;
         const cacheKey = `avelut_progress_${userProfile.uid}`;
         // No cache preload — always fetch fresh from Firebase
 
@@ -909,10 +912,10 @@ const App: React.FC = () => {
             writeCachedJson(cacheKey, data);
         });
         return () => { off(progressRef, 'value', unsubscribeProgress); };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
-        if (!userProfile) {
+        if (!userProfile?.uid) {
             setUnreadMessagesCount(0);
             setNotifications([]);
             return;
@@ -948,10 +951,10 @@ const App: React.FC = () => {
             off(notificationsRef, 'value', unsubscribeNotifications);
             off(userChatsRef, 'value', unsubscribeUnreadCount);
         };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
-        if (!userProfile) {
+        if (!userProfile?.uid) {
             setExamHistory([]);
             return;
         }
@@ -968,7 +971,7 @@ const App: React.FC = () => {
         return () => {
             off(examHistoryRef, 'value', unsubscribeExamHistory);
         };
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.uid, isReadyForBackgroundSync]);
 
     useEffect(() => {
         if (!userProfile?.school_id || !userProfile?.college_id || !userProfile?.department_id) {
@@ -1006,10 +1009,10 @@ const App: React.FC = () => {
         }).catch(err => {
             console.error("Error fetching department courses:", err);
         });
-    }, [userProfile, isReadyForBackgroundSync]);
+    }, [userProfile?.school_id, userProfile?.college_id, userProfile?.department_id, isReadyForBackgroundSync]);
 
     useEffect(() => {
-        if (!userProfile || !departmentData) return;
+        if (!userProfile?.uid || !departmentData) return;
 
         const normalizedUserLevel = normalizeLevelValue(userProfile.level);
         const rawCourseList = departmentData.course_list;
@@ -1074,7 +1077,7 @@ const App: React.FC = () => {
         setDashboardData(nextDashboardData);
         const cacheKeyDashboard = `avelut_dashboard_${userProfile.uid}`;
         writeCachedJson(cacheKeyDashboard, nextDashboardData);
-    }, [userProfile, userProgress, examHistory, departmentData]);
+    }, [userProfile?.uid, userProfile?.level, userProgress, examHistory, departmentData]);
 
 
 
