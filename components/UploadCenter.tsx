@@ -211,6 +211,9 @@ export const UploadCenter: React.FC = () => {
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [newCourseType, setNewCourseType] = useState<'private' | 'general'>('private');
 
+  const [extractedCourses, setExtractedCourses] = useState<{ course_name: string; course_code: string; selected: boolean; type: 'private' | 'general' }[]>([]);
+  const [isExtractingCourses, setIsExtractingCourses] = useState(false);
+
   const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
@@ -728,11 +731,113 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
       
       setNewCourseName('');
       setNewCourseCode('');
+      setIsAddingCourse(false);
       await loadCatalog();
     } catch (error: any) {
       addToast(error.message || 'Failed to add course', 'error');
     } finally {
       setIsAddingCourse(false);
+    }
+  };
+
+  const handleExtractCoursesFromPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!ai || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (file.type !== 'application/pdf') return addToast('Please upload a PDF file.', 'error');
+
+    setIsExtractingCourses(true);
+    try {
+      const base64Chunk = await fileToBase64(file);
+      const prompt = `Analyze this PDF document. Extract all course names and course codes.
+Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
+
+      const aiResponse = await attemptApiCall(() => ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: 'application/pdf', data: base64Chunk } }] }],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              courses: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    course_name: { type: Type.STRING },
+                    course_code: { type: Type.STRING }
+                  },
+                  required: ['course_name', 'course_code']
+                }
+              }
+            },
+            required: ['courses']
+          }
+        },
+      }));
+
+      const text = getResponseText(aiResponse);
+      if (!text) throw new Error("Failed to get response from AI");
+      const data = JSON.parse(text);
+      if (data.courses && Array.isArray(data.courses)) {
+        setExtractedCourses(data.courses.map((c: any) => ({ ...c, selected: true, type: 'private' })));
+        addToast(`Extracted ${data.courses.length} courses`, 'success');
+      } else {
+        throw new Error("No courses found in the document");
+      }
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.message || 'Failed to extract courses', 'error');
+    } finally {
+      setIsExtractingCourses(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleSaveExtractedCourses = async () => {
+    const coursesToSave = extractedCourses.filter(c => c.selected && c.course_name.trim() && c.course_code.trim());
+    if (coursesToSave.length === 0) return addToast('No valid courses selected.', 'error');
+
+    setIsExtractingCourses(true); // Re-use loading state
+    try {
+      const updates: any = {};
+      const college = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId];
+
+      coursesToSave.forEach(course => {
+        const courseId = course.course_code.trim().toLowerCase().replace(/\s+/g, '');
+        const courseData: Partial<Course> = {
+          course_id: courseId,
+          course_name: course.course_name.trim(),
+          course_code: course.course_code.trim().toUpperCase(),
+          level: selectedLevel,
+          semester: selectedSemester,
+          course_status: 'active',
+        };
+
+        if (course.type === 'general') {
+           if (college && college.departments) {
+               Object.keys(college.departments).forEach(deptId => {
+                   updates[`schools_data/${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${deptId}/levels/${selectedLevel}/courses/${courseId}`] = courseData;
+               });
+           }
+        } else {
+           const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
+           updates[`schools_data/${deptPath}/levels/${selectedLevel}/courses/${courseId}`] = courseData;
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+         await update(dbRef(db), updates);
+         addToast(`Successfully saved ${coursesToSave.length} courses!`, 'success');
+      }
+
+      setExtractedCourses([]);
+      setIsAddingCourse(false);
+      await loadCatalog();
+    } catch (err: any) {
+      addToast(err.message || 'Failed to save batch courses', 'error');
+    } finally {
+      setIsExtractingCourses(false);
     }
   };
 
@@ -1154,23 +1259,101 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                 </div>
 
                 {isAddingCourse && (
-                  <div className="bg-sky-50 border border-sky-100 p-6 rounded-[24px] flex flex-col md:flex-row gap-4 items-end animate-fade-in">
-                    <div className="flex-[2] space-y-1 w-full">
-                      <label className="text-xs font-bold uppercase text-slate-500">Course Name</label>
-                      <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
+                  <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-2xl rounded-[32px] border border-sky-100 bg-white p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                      <button onClick={() => { setIsAddingCourse(false); setExtractedCourses([]); }} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition">
+                        ✕
+                      </button>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Add Courses</h3>
+                      <p className="text-sm text-slate-500 font-medium mb-6">Add courses manually or extract them from a syllabus document.</p>
+
+                      {extractedCourses.length > 0 ? (
+                        <div className="space-y-4">
+                          <h4 className="font-bold text-lg text-slate-800">Extracted Courses</h4>
+                          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                            {extractedCourses.map((c, idx) => (
+                              <div key={idx} className="flex flex-col sm:flex-row gap-3 items-center p-3 border border-slate-200 rounded-xl bg-slate-50">
+                                <input type="checkbox" checked={c.selected} onChange={e => {
+                                  const newCourses = [...extractedCourses];
+                                  newCourses[idx].selected = e.target.checked;
+                                  setExtractedCourses(newCourses);
+                                }} className="w-5 h-5 rounded text-sky-600 focus:ring-sky-500 cursor-pointer" />
+
+                                <input type="text" value={c.course_code} onChange={e => {
+                                  const newCourses = [...extractedCourses];
+                                  newCourses[idx].course_code = e.target.value;
+                                  setExtractedCourses(newCourses);
+                                }} className="w-full sm:w-28 p-2 text-sm border border-slate-200 rounded outline-none focus:border-sky-400" placeholder="Code" />
+
+                                <input type="text" value={c.course_name} onChange={e => {
+                                  const newCourses = [...extractedCourses];
+                                  newCourses[idx].course_name = e.target.value;
+                                  setExtractedCourses(newCourses);
+                                }} className="flex-1 w-full p-2 text-sm border border-slate-200 rounded outline-none focus:border-sky-400" placeholder="Course Name" />
+
+                                <select value={c.type} onChange={e => {
+                                  const newCourses = [...extractedCourses];
+                                  newCourses[idx].type = e.target.value as 'private' | 'general';
+                                  setExtractedCourses(newCourses);
+                                }} className="w-full sm:w-36 p-2 text-sm border border-slate-200 rounded outline-none focus:border-sky-400 bg-white">
+                                  <option value="private">Private</option>
+                                  <option value="general">General</option>
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-3 pt-4 border-t border-slate-100">
+                            <button onClick={() => setExtractedCourses([])} className="px-6 py-3 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Cancel</button>
+                            <button onClick={handleSaveExtractedCourses} disabled={isExtractingCourses} className="flex-1 px-6 py-3 rounded-xl font-bold bg-sky-600 text-white hover:bg-sky-700 transition disabled:opacity-50">
+                              {isExtractingCourses ? 'Saving...' : 'Save Selected Courses'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-8">
+                          {/* File Upload Section */}
+                          <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5">
+                            <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><UploadCloud className="w-4 h-4"/> Extract from PDF</h4>
+                            <p className="text-xs text-indigo-700/70 mb-4">Upload a syllabus or course outline PDF to automatically extract course codes and names.</p>
+                            <label className="flex items-center justify-center w-full py-3 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition cursor-pointer">
+                              {isExtractingCourses ? (
+                                <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing PDF...</span>
+                              ) : (
+                                "Select PDF File"
+                              )}
+                              <input type="file" accept="application/pdf" className="hidden" onChange={handleExtractCoursesFromPdf} disabled={isExtractingCourses} />
+                            </label>
+                          </div>
+
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+                            <div className="relative flex justify-center"><span className="bg-white px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Or add manually</span></div>
+                          </div>
+
+                          {/* Manual Entry Form */}
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Course Name</label>
+                              <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 ring-sky-200 bg-slate-50" />
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <div className="flex-1">
+                                <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Course Code</label>
+                                <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 ring-sky-200 bg-slate-50" />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Course Type</label>
+                                <select value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 ring-sky-200 bg-slate-50 text-sm">
+                                    <option value="private">Private (This Dept Only)</option>
+                                    <option value="general">General (Shared across Depts)</option>
+                                </select>
+                              </div>
+                            </div>
+                            <button onClick={handleAddCourse} disabled={(!newCourseCode || !newCourseName)} className="w-full bg-slate-900 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-sky-600 transition disabled:opacity-50 mt-4">Save Manual Course</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-1 space-y-1 w-full">
-                      <label className="text-xs font-bold uppercase text-slate-500">Course Code</label>
-                      <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-white outline-none focus:ring-2 ring-sky-200" />
-                    </div>
-                    <div className="flex-1 space-y-1 w-full">
-                      <label className="text-xs font-bold uppercase text-slate-500">Course Type</label>
-                      <select value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} className="w-full p-3 bg-white rounded-xl border border-white outline-none focus:ring-2 ring-sky-200 text-sm">
-                          <option value="private">Private (This Dept Only)</option>
-                          <option value="general">General (Shared across Depts)</option>
-                      </select>
-                    </div>
-                    <button onClick={handleAddCourse} disabled={isAddingCourse && (!newCourseCode || !newCourseName)} className="bg-sky-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-sky-700 transition disabled:opacity-50 w-full md:w-auto">Save Course</button>
                   </div>
                 )}
 
