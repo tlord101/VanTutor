@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { awardDailyStreak } from '../utils/streaks';
+import { triggerHaptic } from '../utils/capacitorUtils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -405,7 +406,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     return () => {
       isMounted = false;
     };
-  }, [userProfile.department_id, userProfile.level]);
+  }, [userProfile.department_id, userProfile.level, userProfile.school_id, userProfile.college_id]);
 
   useEffect(() => {
     if (!activeHistoryId) {
@@ -462,13 +463,17 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setCustomHeaderConfig({
         leftActions: (
           <div className="flex items-center">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
+            <button
+              onClick={() => { triggerHaptic(); onNavigate ? onNavigate('dashboard') : window.history.back(); }}
+              className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 text-slate-600 transition-all duration-200 hover:bg-slate-50 active:scale-95 mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Go back"
+            >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button
               type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
+              onClick={() => { triggerHaptic(); setIsSidebarOpen(true); }}
+              className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center transition-all duration-200 active:scale-95"
               aria-label="Open assistant history"
               title="Open assistant history"
             >
@@ -891,8 +896,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             </div>
             <button
               type="button"
-              onClick={() => setIsSidebarOpen(false)}
-              className="rounded-full border border-slate-200 p-2 text-slate-500 md:hidden"
+              onClick={() => { triggerHaptic(); setIsSidebarOpen(false); }}
+              className="rounded-full border border-slate-200 p-2 text-slate-500 md:hidden transition-all duration-200 active:scale-95"
               aria-label="Close assistant history"
               title="Close assistant history"
             >
@@ -902,8 +907,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           <button
             type="button"
-            onClick={startNewChat}
-            className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+            onClick={() => { triggerHaptic(); startNewChat(); }}
+            className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-emerald-500 active:scale-95"
           >
             <PlusIcon />
             New chat
@@ -924,11 +929,12 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <button
                     type="button"
                     onClick={() => {
+                      triggerHaptic();
                       setActiveHistoryId(item.id);
                       setIsSidebarOpen(false);
                       setStatusText(`Opened ${item.title}.`);
                     }}
-                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition-all duration-200 active:scale-[0.98] ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Recent chat</p>
                     <p className="mt-1 text-sm font-medium text-slate-800 truncate">{item.title}</p>
@@ -936,6 +942,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <button
                     type="button"
                     onClick={async (e) => {
+                      triggerHaptic();
                       e.stopPropagation();
                       if (!confirm(`Delete "${item.title}" from assistant history?`)) return;
                       try {
@@ -951,7 +958,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         setStatusText('Could not delete chat.');
                       }
                     }}
-                    className="p-2 mt-2 rounded-full text-red-400 hover:bg-red-950/30"
+                    className="p-2 mt-2 rounded-full text-red-400 hover:bg-red-950/30 transition-all duration-200 active:scale-90"
                     aria-label={`Delete ${item.title}`}
                     title={`Delete ${item.title}`}
                   >
@@ -1059,6 +1066,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             <button
                               type="button"
                               onClick={async () => {
+                                triggerHaptic();
                                 try {
                                   if (navigator.clipboard && navigator.clipboard.writeText) {
                                     await navigator.clipboard.writeText(message.text);
@@ -1070,7 +1078,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   addToast('Copied to clipboard', 'success');
                                 }
                               }}
-                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
+                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-all duration-200 hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
                               aria-label="Copy message"
                               title="Copy message"
                             >
@@ -1141,7 +1149,12 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
               {attachments.length > 0 && (
                 <div className="mb-2 mx-auto max-w-md flex items-center justify-between rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs text-slate-600">
                   <span className="truncate flex-1 pr-2">{attachments[0].name}</span>
-                  <button type="button" onClick={clearAttachment} className="text-red-400 hover:text-red-300 transition" aria-label="Remove attachment">
+                  <button
+                    type="button"
+                    onClick={() => { triggerHaptic(); clearAttachment(); }}
+                    className="text-red-400 hover:text-red-300 transition-all duration-200 active:scale-90"
+                    aria-label="Remove attachment"
+                  >
                     <XIcon className="h-4 w-4" />
                   </button>
                 </div>
@@ -1154,9 +1167,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                      onClick={() => { triggerHaptic(); setShowAttachmentMenu(!showAttachmentMenu); }}
                       disabled={isSending}
-                      className={`text-slate-600 hover:opacity-80 transition active:scale-95 shrink-0 flex items-center justify-center w-8 h-8 disabled:opacity-40 ${showAttachmentMenu ? 'bg-neutral-800 rounded-full' : ''}`}
+                      className={`text-slate-600 hover:opacity-80 transition-all duration-200 active:scale-95 shrink-0 flex items-center justify-center w-8 h-8 disabled:opacity-40 ${showAttachmentMenu ? 'bg-neutral-800 rounded-full' : ''}`}
                       aria-label="Upload attachment"
                       title="Upload attachment"
                     >
@@ -1168,13 +1181,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         <button
                           type="button"
                           onClick={() => {
+                            triggerHaptic();
                             if (attachmentInputRef.current) {
                               attachmentInputRef.current.accept = "image/*";
                               attachmentInputRef.current.click();
                             }
                             setShowAttachmentMenu(false);
                           }}
-                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-3"
+                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-all duration-200 active:bg-slate-200 flex items-center gap-3"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-emerald-400">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -1186,13 +1200,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         <button
                           type="button"
                           onClick={() => {
+                            triggerHaptic();
                             if (attachmentInputRef.current) {
                               attachmentInputRef.current.accept = "application/pdf";
                               attachmentInputRef.current.click();
                             }
                             setShowAttachmentMenu(false);
                           }}
-                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-3"
+                          className="w-full text-left px-4 py-3 text-sm text-slate-900 hover:bg-slate-100 transition-all duration-200 active:bg-slate-200 flex items-center gap-3"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-400">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1245,12 +1260,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       type="button"
                       onClick={() => {
                         if ((inputValue.trim() || attachments.length > 0) && !isSending) {
+                          triggerHaptic();
                           void handleSend();
                         }
                       }}
-                      className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition active:scale-95 ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all duration-200 active:scale-95 ${
                         (inputValue.trim() || attachments.length > 0)
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-slate-900'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                           : 'bg-[#27282b]/80 hover:bg-[#2e3034] text-white cursor-default'
                       } ${isSending ? 'opacity-50 cursor-not-allowed' : ''}`}
                       aria-label={(inputValue.trim() || attachments.length > 0) ? "Send message" : "Voice input"}
