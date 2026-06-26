@@ -27,3 +27,4 @@ dist-ssr
 *.apk
 *.aab
 avelut-release-key.keystore
+!app-release.apk
