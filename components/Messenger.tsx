@@ -444,6 +444,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
   const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
   const [isLoading, setIsLoading] = useState(true);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [tab, setTab] = useState<'chats' | 'people'>('chats');
   const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
   const [isAppActive, setIsAppActive] = useState(() => typeof document === 'undefined' ? true : document.visibilityState === 'visible');
@@ -485,6 +486,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [forwardTargetType, setForwardTargetType] = useState('text');
 
   const chatRowLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipeToReplyRef = useRef<{ id: string | null; startX: number; currentX: number }>({ id: null, startX: 0, currentX: 0 });
   const suppressNextChatOpenRef = useRef(false);
   const unreadCountsRef = useRef<Record<string, number>>({});
   const lastNotificationTimestampRef = useRef<Record<string, number>>({});
@@ -1272,7 +1274,18 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const msgRef = push(dbRef(db, `messages/${activeChat.chatId}`));
     const clientTimestamp = Date.now();
     const optimisticId = msgRef.key || `${clientTimestamp}`;
-    const data = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp() };
+    const data: any = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp() };
+
+    if (replyingTo) {
+      data.replyTo = {
+        id: replyingTo.id,
+        text: replyingTo.type === 'text' ? replyingTo.text : `[${replyingTo.type}]`,
+        senderId: replyingTo.senderId,
+        senderName: replyingTo.senderId === firebaseUser.uid ? 'You' : activeChat.otherUser.display_name
+      };
+      setReplyingTo(null);
+    }
+
     const optimisticMessage = { id: optimisticId, ...data, timestamp: clientTimestamp };
 
     setMessages(prev => [...prev, optimisticMessage]);
@@ -1670,15 +1683,29 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           if (!event.touches[0]) return;
                           if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
                           const touch = event.touches[0];
+                          swipeToReplyRef.current = { id: msg.id, startX: touch.clientX, currentX: touch.clientX };
                           longPressTimerRef.current = setTimeout(() => {
                             openMessageActions(msg, touch.clientX, touch.clientY);
+                            swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
                           }, 800);
                         }}
-                        onTouchEnd={() => {
+                        onTouchEnd={(e) => {
                           if (longPressTimerRef.current) {
                             clearTimeout(longPressTimerRef.current);
                             longPressTimerRef.current = null;
                           }
+
+                          if (swipeToReplyRef.current.id === msg.id) {
+                             const diffX = swipeToReplyRef.current.currentX - swipeToReplyRef.current.startX;
+                             if (diffX > 60) {
+                               setReplyingTo(msg);
+                               e.currentTarget.style.transform = 'translateX(0px)';
+                               swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                               return;
+                             }
+                             e.currentTarget.style.transform = 'translateX(0px)';
+                          }
+                          swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
 
                           const now = Date.now();
                           const lastTap = lastTapRef.current;
@@ -1691,19 +1718,39 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
                           lastTapRef.current = { id: msg.id, time: now };
                         }}
-                        onTouchMove={() => {
+                        onTouchMove={(e) => {
                           if (longPressTimerRef.current) {
                             clearTimeout(longPressTimerRef.current);
                             longPressTimerRef.current = null;
                           }
+                          if (swipeToReplyRef.current.id === msg.id && e.touches[0]) {
+                            const currentX = e.touches[0].clientX;
+                            swipeToReplyRef.current.currentX = currentX;
+                            const diffX = currentX - swipeToReplyRef.current.startX;
+                            if (diffX > 0 && diffX < 100) {
+                                e.currentTarget.style.transform = `translateX(${diffX}px)`;
+                            }
+                          }
                         }}
-                        onTouchCancel={() => {
+                        onTouchCancel={(e) => {
                           if (longPressTimerRef.current) {
                             clearTimeout(longPressTimerRef.current);
                             longPressTimerRef.current = null;
                           }
+                          if (swipeToReplyRef.current.id === msg.id) {
+                            e.currentTarget.style.transform = 'translateX(0px)';
+                          }
+                          swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
                         }}
+                        style={{ transition: 'transform 0.1s ease-out' }}
                       >
+                        {/* Reply Snippet */}
+                        {msg.replyTo && (
+                          <div className={`mb-1.5 p-2 rounded bg-black/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80'}`}>
+                            <div className="font-bold">{msg.replyTo.senderName}</div>
+                            <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{msg.replyTo.text}</div>
+                          </div>
+                        )}
                         {/* Voice Note Player */}
                         {msg.type === 'voice' ? (
                           <VoiceNotePlayer
@@ -1770,6 +1817,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
             {/* 3. Bottom Control Anchor Panel Bar */}
             <div className="p-3 border-t border-slate-200 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+               {replyingTo && (
+                 <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
+                   <div className="min-w-0">
+                     <p className="text-xs font-bold text-[#009EE2]">Replying to {replyingTo.senderId === firebaseUser?.uid ? 'You' : activeChat.otherUser.display_name}</p>
+                     <p className="text-xs text-neutral-600 truncate max-w-[200px] sm:max-w-[300px]">
+                       {replyingTo.type === 'text' ? replyingTo.text : `[${replyingTo.type}]`}
+                     </p>
+                   </div>
+                   <button onClick={() => setReplyingTo(null)} className="p-1 text-neutral-400 hover:text-neutral-600 transition">
+                     ✕
+                   </button>
+                 </div>
+               )}
                {isBlocked || isBlockingMe ? (
                  <div className="p-3 text-center text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
                    {isBlocked ? "You have blocked this user." : "This user is unavailable."}
