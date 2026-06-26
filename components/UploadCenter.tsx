@@ -13,6 +13,7 @@ import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
 import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion, Menu, X } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { PageSkeleton } from './Skeleton';
 
 function uint8ToBase64(bytes: Uint8Array): string {
     let binary = '';
@@ -810,10 +811,22 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
   );
 
   if (isAuthLoading || (user && isProfileLoading)) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-50 font-bold text-slate-400">Loading workspace...</div>;
+    return (
+      <div className="flex min-h-screen bg-slate-50 p-6">
+        <PageSkeleton />
+      </div>
+    );
   }
 
   if (!user || !profile) return renderAuth();
+
+  if (isCatalogLoading && Object.keys(schoolsData || {}).length === 0) {
+      return (
+        <div className="flex min-h-screen bg-slate-50 p-6 flex-1 w-full lg:pl-64">
+           <PageSkeleton />
+        </div>
+      );
+  }
 
   
   const handleDeleteCollegeCourse = async (course: any) => {
