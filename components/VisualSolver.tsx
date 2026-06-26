@@ -592,8 +592,9 @@ ${retrievedContext}
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        if (!supportedTypes.includes(file.type.toLowerCase())) {
+        // Expanded supported types to gracefully handle extensions or missing standard headers
+        const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (file.type && !supportedTypes.includes(file.type.toLowerCase())) {
             addToast('Please upload a valid image (JPEG, PNG, WEBP).', 'error');
             return;
         }
@@ -629,8 +630,12 @@ ${retrievedContext}
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.drawImage(img, 0, 0, width, height);
+                    // Extract exact mime type of original file, fallback to webp/jpeg to avoid strict data issues
+                    const fileMimeType = file.type || 'image/jpeg';
+                    const outMimeType = supportedTypes.includes(fileMimeType) ? fileMimeType : 'image/jpeg';
+
                     // Compress image and extract base64
-                    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const imageDataUrl = canvas.toDataURL(outMimeType, 0.8);
                     setScannedImage(imageDataUrl);
                     setCameraState('preview');
                 } else {

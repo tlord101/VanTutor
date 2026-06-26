@@ -537,19 +537,23 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
         }
     };
 
-    const fetchTutorials = async () => {
-        if (tutorials.length > 0 || isTutorialsLoading) return;
+    const fetchTutorials = async (forceRefresh: boolean = false) => {
+        if ((tutorials.length > 0 && !forceRefresh) || isTutorialsLoading) return;
         setIsTutorialsLoading(true);
         setTutorialsError(null);
         try {
             const contextToUse = textbookContext ? textbookContext : `Course: ${course.course_name}`;
+
+            // Get the last bot message if any
+            const lastBotMsg = [...messages].reverse().find(m => m.sender === 'bot');
+            const recentTopicContext = lastBotMsg?.text ? `\n\nMost recent topic discussed:\n"${lastBotMsg.text.substring(0, 500)}..."` : '';
 
             const prompt = `
 You are an expert academic advisor. Your task is to identify 5 to 10 highly specific, relevant video tutorials or search terms for the university-level course: '${course.course_name}' at level: '${userProfile.level || 'University'}'.
 
 CRITICAL INSTRUCTIONS FOR RELEVANCE AND CONTEXT:
 1. Every tutorial search query and title MUST be directly specific to the course ('${course.course_name}') at hand. Do NOT provide generic, out-of-context, or mismatched tutorials.
-2. Ground your selections in the following context/summary of what the student is about to learn:
+2. Ground your selections in the following context/summary of what the student is about to learn:${recentTopicContext ? recentTopicContext : ''}
 ${contextToUse}
 
 3. For each sub-topic, provide:
@@ -1210,20 +1214,20 @@ Student: "${tempInput}"
         try {
             const result = await attemptApiCall(async () => {
                 const prompt = `Create an educational visualization for this study guide explanation:\n\n${promptText}`;
-                const response = await ai.models.generateContent({
-                    model: geminiModel,
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                });
 
-                const parts = response.candidates?.[0]?.content?.parts ?? [];
+                // Using the specific implementation pattern requested:
+                const interaction = await (ai as any).interactions.create({
+                    model: "gemini-3-pro-image",
+                    input: prompt,
+                });
+                const generatedImage = interaction.output_image;
 
                 const imageUrls: string[] = [];
-                for (const part of parts) {
-                    if (!part.inlineData?.data) continue;
 
-                    const mimeType = part.inlineData.mimeType || 'image/png';
-                    const fileExtension = mimeType.split('/')[1] || 'png';
-                    const imageBlob = base64ToBlob(part.inlineData.data, mimeType);
+                if (generatedImage) {
+                    const mimeType = 'image/png';
+                    const fileExtension = 'png';
+                    const imageBlob = base64ToBlob(generatedImage.data, mimeType);
                     const uniqueImageId = createUniqueId();
                     const storageRefObj = storageRef(storage, `${userProfile.uid}/study-guide-illustrations/${course.course_id}/${uniqueImageId}.${fileExtension}`);
                     const uploadResult = await uploadBytes(storageRefObj, imageBlob);
@@ -1631,12 +1635,21 @@ Student: "${tempInput}"
                 <div className="flex flex-col items-center py-3 border-b border-gray-100 shrink-0 relative">
                     <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
                     <h3 className="text-base font-black uppercase tracking-widest text-slate-700">Video Tutorials</h3>
-                    <button 
-                        onClick={() => setIsTutorialsOpen(false)}
-                        className="absolute right-6 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+                    <div className="absolute right-6 top-3 flex gap-2">
+                        <button
+                            onClick={() => fetchTutorials(true)}
+                            title="Refresh Tutorials based on current topic"
+                            className="text-blue-500 hover:text-blue-700 p-1 rounded-full bg-blue-50 border border-blue-100 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        </button>
+                        <button
+                            onClick={() => setIsTutorialsOpen(false)}
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 border border-gray-100 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Drawer Body */}
