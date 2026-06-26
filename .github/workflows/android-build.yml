@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # You can adjust this to match your local environment
+          node-version: '22' # You can adjust this to match your local environment
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
