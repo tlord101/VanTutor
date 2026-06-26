@@ -19,9 +19,11 @@ android {
     signingConfigs {
         release {
             storeFile file("avelut-release-key.keystore")
-            storePassword "avelut2026"
-            keyAlias "avelut"
-            keyPassword "avelut2026"
+            
+            // THESE MUST USE System.getenv() TO READ FROM GITHUB ACTIONS
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
         }
     }
     buildTypes {
