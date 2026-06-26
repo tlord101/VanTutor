@@ -1,5 +1,61 @@
 name: Build Release APK
 
+# Allows manual triggering from the GitHub Actions tab
+on: workflow_dispatch
+
+jobs:
+  build-android:
+    name: Build and Sync Capacitor Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' 
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21' 
+
+      - name: Install NPM Dependencies
+        run: npm install
+
+      - name: Build Web Bundle 
+        run: npm run build:mobile
+
+      - name: Sync with Capacitor
+        run: npx cap sync android
+
+      - name: Decode Keystore File
+        # Decodes the hidden string back into the exact physical file Gradle expects
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/avelut-release-key.keystore
+
+      - name: Build Signed Release APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
+        env:
+          # Injects the passwords from GitHub Secrets directly into the Gradle build environment
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: avelut-release-apk
+          # Grabs any APK generated in the release folder
+          path: android/app/build/outputs/apk/release/*.apk 
+name: Build Release APK
+
 # This allows the workflow to be triggered via the GitHub REST API (from your Firebase Function/Agent)
 on: 
   workflow_dispatch: 
