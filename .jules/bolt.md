@@ -5,3 +5,7 @@
 ## 2026-06-26 - [Hook Dependency Narrowing]
 **Learning:** Using a large, frequently updated object (like `userProfile` with a `last_seen` timestamp) as a dependency in high-level hooks (like AI client `useMemo` or data-sync `useEffect`) causes massive performance overhead.
 **Action:** Always narrow dependencies to the specific primitive fields required by the hook logic to isolate them from unrelated state changes.
+
+## 2026-06-26 - [Core Layout Re-render Cascades]
+**Learning:** Even with `React.memo`, layout components like `Sidebar` or `Header` will re-render if the parent (`App.tsx`) passes inline functions or unstable object references. Stabilizing these with `useCallback` and `useMemo` is critical for preventing unnecessary work on every state update (e.g., notification counts).
+**Action:** When memoizing complex layout components, audit all props for stability and move all hook declarations above any conditional early returns in the parent component to maintain the Rules of Hooks.

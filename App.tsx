@@ -308,11 +308,92 @@ const playAlarmSound = () => {
 const App: React.FC = () => {
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
+
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const userProfileRef = useRef<UserProfile | null>(null);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
+
+    const handleProfileUpdate = useCallback(async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
+        if (!user) return { success: false, error: 'User not authenticated.' };
+        try {
+            const userRef = dbRef(db, `users/${user.uid}`);
+            await update(userRef, updatedData);
+            if (updatedData.display_name || updatedData.photo_url) {
+                const profileUpdates: any = {};
+                if (updatedData.display_name) profileUpdates.displayName = updatedData.display_name;
+                if (updatedData.photo_url) profileUpdates.photoURL = updatedData.photo_url;
+                await updateProfile(user, profileUpdates);
+            }
+            setUserProfile(prevProfile => {
+                if (!prevProfile) return null;
+                return { ...prevProfile, ...updatedData };
+            });
+            return { success: true };
+        } catch (err: any) {
+            console.error("Error updating profile:", err.message || err);
+            return { success: false, error: err.message };
+        }
+    }, [user]);
+
+    const handleConsent = useCallback(async (granted: boolean) => {
+        setShowPrivacyModal(false);
+        await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
+    }, [handleProfileUpdate]);
+
+    const handleAllowConsent = useCallback(() => handleConsent(true), [handleConsent]);
+    const handleDenyConsent = useCallback(() => handleConsent(false), [handleConsent]);
+
+    const setActiveItem = useCallback((newItem: string) => {
+        setNavHistory(prev => {
+            if (prev[prev.length - 1] === newItem) return prev;
+            return [...prev, activeItemRef.current].slice(-15);
+        });
+        setActiveItemState(newItem);
+        if (newItem === 'admin') {
+            const pathname = getWindowPathname();
+            const nextPath = pathname.startsWith('/admin') ? pathname : '/admin';
+            if (pathname !== nextPath && typeof window !== 'undefined') {
+                window.history.pushState(null, '', nextPath);
+            }
+            setAdminPath(nextPath);
+            return;
+        }
+        const pathname = getWindowPathname();
+        if (pathname === '/admin' && typeof window !== 'undefined') {
+            window.history.pushState(null, '', '/');
+        } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
+            window.history.replaceState(null, '', '/');
+        }
+    }, []);
+
+    const handleCloseMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
+    const handleHeaderNotificationsClick = useCallback(() => setActiveItem('notifications'), [setActiveItem]);
+    const handleMenuClick = useCallback(() => setIsMobileSidebarOpen(true), []);
+    const handleMessengerClick = useCallback(() => setActiveItem('messenger'), [setActiveItem]);
+    const handleCalendarClick = useCallback(() => setIsCalendarOpen(true), []);
+    const handleNavigate = useCallback((route: string) => setActiveItem(route), [setActiveItem]);
+
+    const handleBottomNavItemClick = useCallback((id: string) => {
+        if (id === 'mobile_menu') {
+            setIsMobileSidebarOpen(true);
+        } else {
+            setActiveItem(id);
+        }
+    }, [setActiveItem]);
+
+    const handleCenterActionClick = useCallback(() => {
+        if (activeItemRef.current === 'visual_solver') {
+            triggerScanRef.current?.();
+        } else {
+            setActiveItem('visual_solver');
+        }
+    }, [setActiveItem]);
+
+    const handleCloseCalendar = useCallback(() => setIsCalendarOpen(false), []);
 
     useEffect(() => {
         const handlePopState = () => setCurrentPath(getWindowPathname());
@@ -386,28 +467,6 @@ const App: React.FC = () => {
     // Maintain a simple navigation history stack for back buttons
     const [navHistory, setNavHistory] = useState<string[]>([]);
     
-    const setActiveItem = useCallback((newItem: string) => {
-        setNavHistory(prev => {
-            if (prev[prev.length - 1] === newItem) return prev;
-            return [...prev, activeItemRef.current].slice(-15);
-        });
-        setActiveItemState(newItem);
-        if (newItem === 'admin') {
-            const pathname = getWindowPathname();
-            const nextPath = pathname.startsWith('/admin') ? pathname : '/admin';
-            if (pathname !== nextPath && typeof window !== 'undefined') {
-                window.history.pushState(null, '', nextPath);
-            }
-            setAdminPath(nextPath);
-            return;
-        }
-        const pathname = getWindowPathname();
-        if (pathname === '/admin' && typeof window !== 'undefined') {
-            window.history.pushState(null, '', '/');
-        } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
-            window.history.replaceState(null, '', '/');
-        }
-    }, []);
 
     useEffect(() => {
         const handleGoBack = () => {
@@ -481,7 +540,6 @@ const App: React.FC = () => {
         if (typeof window === 'undefined') return false;
         return window.localStorage.getItem('avelut_admin_authenticated') === 'true';
     });
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [pendingMessengerChatId, setPendingMessengerChatId] = useState<string | null>(null);
 
     const currentPageLabel = activeItem === 'messenger' 
@@ -492,7 +550,6 @@ const App: React.FC = () => {
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [isTourOpen, setIsTourOpen] = useState(false);
-    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const triggerScanRef = useRef<(() => void) | null>(null);
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const ai = useMemo(() => (
@@ -648,32 +705,6 @@ const App: React.FC = () => {
         window.localStorage.setItem('avelut_admin_authenticated', isAdminAuthenticated ? 'true' : 'false');
     }, [isAdminAuthenticated]);
 
-    const handleProfileUpdate = useCallback(async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
-        if (!user) return { success: false, error: 'User not authenticated.' };
-        try {
-            const userRef = dbRef(db, `users/${user.uid}`);
-            await update(userRef, updatedData);
-            if (updatedData.display_name || updatedData.photo_url) {
-                const profileUpdates: any = {};
-                if (updatedData.display_name) profileUpdates.displayName = updatedData.display_name;
-                if (updatedData.photo_url) profileUpdates.photoURL = updatedData.photo_url;
-                await updateProfile(user, profileUpdates);
-            }
-            setUserProfile(prevProfile => {
-                if (!prevProfile) return null;
-                return { ...prevProfile, ...updatedData };
-            });
-            return { success: true };
-        } catch (err: any) {
-            console.error("Error updating profile:", err.message || err);
-            return { success: false, error: err.message };
-        }
-    }, [user]);
-
-    const handleConsent = async (granted: boolean) => {
-        setShowPrivacyModal(false);
-        await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
-    };
 
     useEffect(() => {
         if (!userProfile) return;
@@ -1100,16 +1131,16 @@ const App: React.FC = () => {
 
 
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await firebaseSignOut(firebaseAuth);
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
             addToast(error.message || "Failed to log out.", "error");
         }
-    };
+    }, [addToast]);
 
-    const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
+    const handleOnboardingComplete = useCallback(async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
         const displayName = user.displayName || 'AVELITE';
@@ -1152,9 +1183,9 @@ const App: React.FC = () => {
             console.error("Failed to complete onboarding:", error.message || error);
             addToast(error.message || "Could not save your profile.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleMarkNotificationRead = async (id: string) => {
+    const handleMarkNotificationRead = useCallback(async (id: string) => {
         if (!user) return;
         const notificationRef = dbRef(db, `notifications/${user.uid}/${id}`);
         try {
@@ -1163,9 +1194,9 @@ const App: React.FC = () => {
             console.error("Error marking notification read:", err);
             addToast("Could not update notification.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleMarkAllNotificationsRead = async () => {
+    const handleMarkAllNotificationsRead = useCallback(async () => {
         if (!user) return;
         const notificationsRef = dbRef(db, `notifications/${user.uid}`);
         try {
@@ -1183,9 +1214,9 @@ const App: React.FC = () => {
             console.error("Error clearing notifications:", error);
             addToast("Could not clear notifications.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+    const handleAccountDeletion = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
             if (user) {
                 await update(dbRef(db, `users/${user.uid}`), { is_deleted: true });
@@ -1198,9 +1229,9 @@ const App: React.FC = () => {
             console.error("Error deleting account:", error.message || error);
             return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
-    };
+    }, [user, addToast]);
     
-    const handleTourClose = async (completed: boolean) => {
+    const handleTourClose = useCallback(async (completed: boolean) => {
         if (completed && userProfile && !userProfile.has_completed_tour) {
             const result = await handleProfileUpdate({ has_completed_tour: true });
             if (!result.success) {
@@ -1208,11 +1239,11 @@ const App: React.FC = () => {
             }
         }
         setIsTourOpen(false);
-    };
+    }, [userProfile, handleProfileUpdate, addToast]);
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-    const tourSteps: TourStep[] = [
+    const tourSteps: TourStep[] = useMemo(() => [
       { target: 'body', title: '👋 Welcome to AVELUT!', content: "Let's take a quick tour of your new learning dashboard.", placement: 'center' },
       { target: '[data-tour-id="dashboard-content"]', title: '📊 Your Dashboard', content: 'View your progress, streaks, and personalized lessons.', placement: 'bottom' },
       { target: isMobile ? '[data-tour-id="bottomnav-study_guide"]' : '[data-tour-id="sidebar-study_guide"]', title: '📚 Study Guide', content: 'Explore tutorials and start new lessons anytime.', placement: isMobile ? 'top' : 'right' },
@@ -1220,7 +1251,7 @@ const App: React.FC = () => {
       { target: isMobile ? '[data-tour-id="bottomnav-messenger"]' : '[data-tour-id="header-messenger"]', title: '🤝 Messenger', content: 'Connect with other learners and chat privately.', placement: isMobile ? 'top' : 'bottom' },
       ...(isMobile ? [{ target: '[data-tour-id="mobile-menu-button"]', title: '⚙️ Main Menu', content: 'Access your settings, help, and logout options from here.', placement: 'bottom' as const }] : [{ target: '[data-tour-id="sidebar-settings"]', title: '⚙️ Settings', content: 'Update your info and view your achievements.', placement: 'top' as const }]),
       { target: 'body', title: "🎉 You're all set!", content: 'Enjoy exploring your learning journey. Tap "Finish" to start!', placement: 'center' },
-    ];
+    ], [isMobile]);
 
     // Only show full-screen loader when we have NO data at all.
     // If we have a cached userProfile, allow the app to render with skeleton UI
@@ -1407,7 +1438,7 @@ const App: React.FC = () => {
 
 
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = notifications.length > 0 ? notifications.filter(n => !n.is_read).length : 0;
 
     return (
         <div className="flex h-screen w-full bg-off-white font-sans text-charcoal selection:bg-brand-200 selection:text-brand-900 overflow-hidden">
@@ -1422,7 +1453,7 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
-                onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+                onCloseMobileSidebar={handleCloseMobileSidebar}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
             />
@@ -1430,16 +1461,16 @@ const App: React.FC = () => {
                 <Header 
                     currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
-                    onNotificationsClick={() => setActiveItem('notifications')}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
-                    onMessengerClick={() => setActiveItem('messenger')}
-                    onCalendarClick={() => setIsCalendarOpen(true)}
+                    onNotificationsClick={handleHeaderNotificationsClick}
+                    onMenuClick={handleMenuClick}
+                    onMessengerClick={handleMessengerClick}
+                    onCalendarClick={handleCalendarClick}
                     unreadMessagesCount={unreadMessagesCount}
                     userProfile={userProfile}
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
-                    onNavigate={(route) => setActiveItem(route)}
+                    onNavigate={handleNavigate}
                     onLogoutClick={handleLogout}
                 />
                 <div 
@@ -1475,30 +1506,18 @@ const App: React.FC = () => {
                     )}
                 </div>
             </main>
-            {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}
+            {showPrivacyModal && <PrivacyConsentModal onAllow={handleAllowConsent} onDeny={handleDenyConsent} />}
             {userProfile && (
                 <CalendarModal
                     isOpen={isCalendarOpen}
-                    onClose={() => setIsCalendarOpen(false)}
+                    onClose={handleCloseCalendar}
                     userProfile={userProfile}
                 />
             )}
             <BottomNavBar
               activeItem={activeItem}
-              onItemClick={(id) => {
-                if (id === 'mobile_menu') {
-                    setIsMobileSidebarOpen(true);
-                } else {
-                    setActiveItem(id);
-                }
-              }}
-              onCenterActionClick={() => {
-                  if (activeItem === 'visual_solver') {
-                      triggerScanRef.current?.();
-                  } else {
-                      setActiveItem('visual_solver');
-                  }
-              }}
+              onItemClick={handleBottomNavItemClick}
+              onCenterActionClick={handleCenterActionClick}
               isVisible={activeItem !== 'chat' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
