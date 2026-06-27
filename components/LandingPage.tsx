@@ -250,7 +250,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <span className="text-slate-400 font-black tracking-widest text-sm">AVELUT INC.</span>
           </div>
           <div className="flex gap-8 text-sm font-bold text-slate-500">
-            <a href="/privacy" className="hover:text-brand-600 transition">Privacy Policy</a>
+            <a href="https://www.avelut.xyz/policy" className="hover:text-brand-600 transition">Privacy Policy</a>
             <a href="/terms" className="hover:text-brand-600 transition">Terms of Service</a>
             <a href="#" className="hover:text-brand-600 transition">Contact Support</a>
           </div>

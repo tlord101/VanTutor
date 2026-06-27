@@ -24,18 +24,18 @@ async function deploy() {
     try {
         console.log("Signing in anonymously...");
         await signInAnonymously(auth);
-        
+
         console.log("Reading APK file...");
-        const apkBuffer = fs.readFileSync("android/app/build/outputs/apk/debug/app-debug.apk");
-        
+        const apkBuffer = fs.readFileSync("android/app/build/outputs/apk/release/app-release.apk");
+
         console.log("Uploading to Firebase Storage...");
         const sRef = storageRef(storage, "app_releases/avelut-v4.17.6.apk");
         await uploadBytes(sRef, new Uint8Array(apkBuffer), { contentType: "application/vnd.android.package-archive" });
         console.log("Upload complete.");
-        
+
         const downloadUrl = await getDownloadURL(sRef);
         console.log("Download URL:", downloadUrl);
-        
+
         console.log("Updating Realtime Database at app_updates/latest...");
         await set(dbRef(db, "app_updates/latest"), {
             versionName: "4.17.6",
@@ -43,7 +43,7 @@ async function deploy() {
             downloadUrl: downloadUrl,
             releaseDate: new Date().toISOString()
         });
-        
+
         console.log("Database updated successfully.");
         process.exit(0);
     } catch (e) {

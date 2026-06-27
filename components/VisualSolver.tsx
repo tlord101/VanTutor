@@ -605,46 +605,9 @@ ${retrievedContext}
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            const objectUrl = event.target?.result as string;
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                // Resize if too large
-                const MAX_DIMENSION = 1920;
-                if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-                    if (width > height) {
-                        height = Math.round((height * MAX_DIMENSION) / width);
-                        width = MAX_DIMENSION;
-                    } else {
-                        width = Math.round((width * MAX_DIMENSION) / height);
-                        height = MAX_DIMENSION;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, width, height);
-                    // Extract exact mime type of original file, fallback to webp/jpeg to avoid strict data issues
-                    const fileMimeType = file.type || 'image/jpeg';
-                    const outMimeType = fileMimeType.startsWith('image/') ? fileMimeType : 'image/jpeg';
-
-                    // Compress image and extract base64
-                    const imageDataUrl = canvas.toDataURL(outMimeType, 0.8);
-                    setScannedImage(imageDataUrl);
-                    setCameraState('preview');
-                } else {
-                    addToast('Could not process the image.', 'error');
-                }
-            };
-            img.onerror = () => {
-                addToast('Could not load the image file.', 'error');
-            };
-            img.src = objectUrl;
+            const dataUrl = event.target?.result as string;
+            setScannedImage(dataUrl);
+            setCameraState('preview');
         };
         reader.onerror = () => {
             addToast('Could not read the file.', 'error');
@@ -771,7 +734,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleSolution} 
-                                            className="w-full bg-white dark:bg-black/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-black/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white/10 dark:bg-black/40 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/20 dark:hover:bg-black/60 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -780,7 +743,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleQuickAnswer} 
-                                            className="w-full bg-white dark:bg-black/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-black/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white/10 dark:bg-black/40 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/20 dark:hover:bg-black/60 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
