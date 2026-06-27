@@ -369,8 +369,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         {!isRecording && !isLocked && (
           <div className="flex-1 h-[52px] bg-transparent border border-gray-200 dark:border-transparent rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
             <div className="relative flex items-center h-full">
-              <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
-                 <Sticker className="w-6 h-6" />
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
+                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
               </button>
               {showStickerPopup && (
                 <div className="absolute -top-10 left-2 bg-white text-black text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
@@ -389,11 +389,11 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 className="w-full h-full bg-transparent text-[17px] text-black dark:text-white placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
               />
             </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#A0ABC0]">
-              <FileText className="w-5 h-5" />
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#A0ABC0]">
+               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
             </button>
-            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#A0ABC0]">
-              <ImageIcon className="w-5 h-5" />
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#A0ABC0]">
+               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             </button>
           </div>
         )}
@@ -437,8 +437,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
         <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
           {hasText ? (
-            <button type="button" onClick={executeTextSend} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
-              <Send className="w-5 h-5" />
+            <button type="button" onMouseDown={(e) => { e.preventDefault(); executeTextSend(); }} onTouchStart={(e) => { e.preventDefault(); executeTextSend(); }} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           ) : (
             <button
@@ -1570,36 +1570,64 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
            </div>
          ),
          leftActions: (
-            <button onClick={closeMessageActions} className="p-3 -ml-2 text-[#212529] dark:text-white hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
+            <button 
+                onClick={closeMessageActions} 
+                onTouchEnd={(e) => { e.preventDefault(); closeMessageActions(); }}
+                className="p-3 -ml-2 text-[#212529] dark:text-white hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
          ),
          rightActions: (
-            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-               <button onClick={(e) => { e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }}
+                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }}
+                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>
                </button>
-               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
+               <button 
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
                </button>
                {messageActionTarget.senderId === firebaseUser?.uid && (
-               <button onClick={(e) => { e.stopPropagation(); void deleteSelectedMessage(); }} className="p-3 text-red-500 hover:bg-red-50 rounded-full transition-colors" aria-label="Delete">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); void deleteSelectedMessage(); }}
+                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); void deleteSelectedMessage(); }}
+                  className="p-3 text-red-500 hover:bg-red-50 rounded-full transition-colors" aria-label="Delete">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2-2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
                )}
-               <button onClick={(e) => { e.stopPropagation(); void copyMessageContent(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
+               <button 
+                  onClick={(e) => { e.stopPropagation(); void copyMessageContent(); }}
+                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); void copyMessageContent(); }}
+                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                </button>
-               <button onClick={(e) => {
-                      e.stopPropagation();
-                      setForwardTargetContent(messageActionTarget.text || '');
-                      setForwardTargetType(messageActionTarget.type || 'text');
-                      setIsForwardModalOpen(true);
-                      closeMessageActions();
-                    }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
+               <button 
+                  onClick={(e) => {
+                     e.stopPropagation();
+                     setForwardTargetContent(messageActionTarget.text || '');
+                     setForwardTargetType(messageActionTarget.type || 'text');
+                     setIsForwardModalOpen(true);
+                     closeMessageActions();
+                  }}
+                  onTouchEnd={(e) => {
+                     e.preventDefault();
+                     e.stopPropagation();
+                     setForwardTargetContent(messageActionTarget.text || '');
+                     setForwardTargetType(messageActionTarget.type || 'text');
+                     setIsForwardModalOpen(true);
+                     closeMessageActions();
+                  }}
+                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
                </button>
-               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
+               <button 
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
                   <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
                </button>
             </div>
