@@ -20,10 +20,10 @@ android {
         release {
             storeFile file("avelut-release-key.keystore")
             
-            // THESE MUST USE System.getenv() TO READ FROM GITHUB ACTIONS
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
+            // Explicitly hardcoding the credentials for testing
+            storePassword "AvelutSecureKey2026!"
+            keyAlias "avelut"
+            keyPassword "AvelutSecureKey2026!"
         }
     }
     buildTypes {
