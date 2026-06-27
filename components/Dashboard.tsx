@@ -120,8 +120,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
         <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-10" data-tour-id="dashboard-content">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between font-sans">
                 <div>
-                    <p className="text-sm font-medium text-emerald-600">User Dashboard</p>
-                    <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 md:text-5xl">
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">User Dashboard</p>
+                    <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-5xl">
                         Welcome back, {(userProfile.display_name || 'User').split(' ')[0]}.
                     </h1>
                     <p className="mt-2 text-base font-normal text-gray-500 dark:text-gray-400">

@@ -508,9 +508,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const typingRef = dbRef(db, `chat_meta_data/${activeChat.chatId}/typing`);
     const unsub = onValue(typingRef, (snap) => {
       if (snap.exists()) {
-        setTypingStatus(snap.val());
+        setChatStatuses(prev => ({ ...prev, [activeChat.chatId]: snap.val() }));
       } else {
-        setTypingStatus({});
+        setChatStatuses(prev => {
+          const newStatuses = { ...prev };
+          delete newStatuses[activeChat.chatId];
+          return newStatuses;
+        });
       }
     });
     return () => unsub();
@@ -1288,8 +1292,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
   const startRecording = async (e: any) => {
     updateTypingStatus('recording');
-    setRecordingTime(0);
-    recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     if (!activeChat) return;
     if (e && 'preventDefault' in e) e.preventDefault();
     startYRef.current = 'touches' in e ? e.touches[0].clientY : e.clientY;
