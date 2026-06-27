@@ -157,7 +157,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                     className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-8 text-white text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/30"
                 >
                     <div className="flex flex-col gap-4">
-                        <div className="rounded-2xl bg-white dark:bg-black/20 p-4 w-fit backdrop-blur-sm">
+                        <div className="rounded-2xl bg-white/20 dark:bg-black/20 p-4 w-fit backdrop-blur-sm">
                             <ExamIcon className="w-8 h-8 text-white" />
                         </div>
                         <div>
@@ -172,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                     className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-500 to-purple-600 p-8 text-white text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/30"
                 >
                     <div className="flex flex-col gap-4">
-                        <div className="rounded-2xl bg-white dark:bg-black/20 p-4 w-fit backdrop-blur-sm">
+                        <div className="rounded-2xl bg-white/20 dark:bg-black/20 p-4 w-fit backdrop-blur-sm">
                             <LeaderboardIcon className="w-8 h-8 text-white" />
                         </div>
                         <div>

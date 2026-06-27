@@ -113,12 +113,12 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
   return (
     <div className="p-4 sm:p-6 space-y-6 animate-in fade-in duration-300 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Account Settings</h2>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Account Settings</h2>
         <p className="text-sm text-slate-500 dark:text-gray-400 font-medium mt-1">Manage your security, notifications, and preferences.</p>
       </div>
 
       <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Security</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Security</h3>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -173,7 +173,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
       </div>
 
       <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Legal & Support</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Legal & Support</h3>
          <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
            <a
               href="/t&c"

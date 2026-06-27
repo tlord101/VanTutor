@@ -347,7 +347,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className={`w-full relative select-none z-40 bg-[#0A101F] pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`w-full relative select-none z-40 bg-transparent pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
@@ -367,7 +367,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       <div className="w-full flex items-end gap-2 relative">
         {!isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-[#121A2F] border border-white/10 rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
+          <div className="flex-1 h-[52px] bg-transparent border border-gray-200 dark:border-white/5 rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
             <div className="relative flex items-center h-full">
               <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
                  <Sticker className="w-6 h-6" />
@@ -386,7 +386,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
                 onKeyDown={(e) => e.key === 'Enter' && executeTextSend()}
                 placeholder="Message"
-                className="w-full h-full bg-transparent text-[17px] text-white placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
+                className="w-full h-full bg-transparent text-[17px] text-black dark:text-white placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
               />
             </div>
             <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#A0ABC0]">
@@ -415,9 +415,9 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
 
         {isLocked && (
-            <div className="flex-1 bg-[#121A2F] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-white/10">
+            <div className="flex-1 bg-transparent rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-gray-200 dark:border-white/5">
                <div className="flex items-center justify-between mb-4 px-3 w-full">
-                  <span className="text-[17px] text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
+                  <span className="text-[17px] text-black dark:text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
                   <div className="flex-1 mx-3 flex items-center gap-[3px]">
                       {[...Array(24)].map((_, i) => (
                           <div key={i} className="w-[3px] rounded-full bg-[#009EE2] animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
@@ -1666,7 +1666,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       {/* Sidebar Pane */}
       <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-white/10 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
         <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-white/10 shrink-0">
-          <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-xl text-sm shrink-0 mb-4">
+          <div className="flex gap-1 bg-[#E9ECEF] dark:bg-gray-900 p-1 rounded-xl text-sm shrink-0 mb-4">
             <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Chats</button>
             <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
           </div>
@@ -1828,9 +1828,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-white/10" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
-                      <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
-                          ? 'bg-[#0d1122] text-white rounded-2xl rounded-tr-sm border border-[#0d1122]/50'
-                          : 'bg-white dark:bg-black text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
+                      <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[85%] md:max-w-[70%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
+                          ? 'bg-black text-white rounded-2xl rounded-tr-sm border border-black dark:border-white/10'
+                          : 'bg-white text-black rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
                         }`}
                         onContextMenu={(event) => {
                           event.preventDefault();
