@@ -1980,6 +1980,30 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   </div>
                 );
               })}
+
+              {activeChat && chatStatuses[activeChat.chatId]?.[activeChat.otherUser.uid] === 'typing' && (
+                  <div className="flex justify-start mb-6 w-full max-w-[85%] pr-14 group transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-end gap-2">
+                      <div className="w-[38px] h-[38px] shrink-0 rounded-full overflow-hidden border border-neutral-100 dark:border-transparent shadow-sm select-none pointer-events-none">
+                        {activeChat.otherUser.profile_pic ? (
+                          <img src={activeChat.otherUser.profile_pic} alt={activeChat.otherUser.display_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 font-bold uppercase text-sm">
+                            {activeChat.otherUser.display_name?.charAt(0) || '?'}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="px-4 py-3 bg-white dark:bg-[#202C33] rounded-[20px] rounded-bl-sm border border-neutral-100 dark:border-transparent shadow-sm flex items-center gap-1.5 min-h-[44px]">
+                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
