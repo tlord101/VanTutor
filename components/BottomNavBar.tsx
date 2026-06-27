@@ -62,22 +62,20 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
   const renderTab = (itemId: string, iconComponent: React.ReactElement, label: string) => {
     const isActive = activeItem === itemId;
-    const color = isActive ? '#0052FF' : '#002D62';
+    const activeColorClass = isActive ? 'text-[#0052FF] dark:text-blue-400' : 'text-[#002D62] dark:text-slate-300';
 
     return (
       <button
         key={itemId}
         data-tour-id={`bottomnav-${itemId}`}
         onClick={() => { triggerHaptic(); onItemClick(itemId); }}
-        className="flex flex-col items-center justify-center h-full w-full focus:outline-none group active:scale-95 transition-all duration-200"
-        style={{ color }}
+        className={`flex flex-col items-center justify-center h-full w-full focus:outline-none group active:scale-95 transition-all duration-200 ${activeColorClass}`}
       >
         <div className="mb-1 transition-transform group-hover:scale-105 duration-200">
           {React.cloneElement(iconComponent as React.ReactElement<any>, { active: isActive, className: 'w-[26px] h-[26px]' })}
         </div>
         <span 
-          className="text-[11px] tracking-wide transition-all duration-200"
-          style={{ color, fontWeight: isActive ? '700' : '600' }}
+          className={`text-[11px] tracking-wide transition-all duration-200 ${isActive ? 'font-bold' : 'font-semibold'}`}
         >
           {label}
         </span>
@@ -89,21 +87,20 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   if (navItems.length !== 5) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up pb-[env(safe-area-inset-bottom,0px)] bg-transparent">
-        <div className="relative w-full max-w-md h-16 bg-white/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 px-6 flex items-center justify-around">
+        <div className="relative w-full max-w-md h-16 bg-white/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 dark:border-border px-6 flex items-center justify-around">
           {navItems.map((item) => {
             const isActive = activeItem === item.id;
-            const color = isActive ? '#0052FF' : '#002D62';
+            const activeColorClass = isActive ? 'text-[#0052FF] dark:text-blue-400' : 'text-[#002D62] dark:text-slate-300';
             return (
               <button
                 key={item.id}
                 onClick={() => onItemClick(item.id)}
-                className="flex flex-col items-center justify-center focus:outline-none"
-                style={{ color }}
+                className={`flex flex-col items-center justify-center focus:outline-none ${activeColorClass}`}
               >
                 <div className="mb-1">
                   {React.cloneElement(item.icon as React.ReactElement<any>, { active: isActive, className: 'w-6 h-6' })}
                 </div>
-                <span className="text-[10px] font-semibold" style={{ color }}>
+                <span className="text-[10px] font-semibold">
                   {item.label}
                 </span>
               </button>
@@ -158,7 +155,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
       >
         {/* Glassmorphic Background clipped to the custom notch shape */}
         <div 
-          className="absolute inset-0 shadow-[0_-8px_30px_rgba(0,45,98,0.08)] z-0 transform-gpu"
+          className="absolute inset-0 shadow-[0_-8px_30px_rgba(0,45,98,0.08)] dark:shadow-none z-0 transform-gpu"
           style={{ 
             clipPath: `url(#${clipId})`, 
             WebkitClipPath: `url(#${clipId})`,
@@ -167,7 +164,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
             willChange: 'transform'
           }}
         >
-           <div className="absolute inset-0 bg-white/95 backdrop-blur-xl translate-z-0"></div>
+           <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl translate-z-0 border-t border-slate-200/50 dark:border-slate-800/80"></div>
         </div>
 
         {/* Premium highlight border tracing the notch shape */}

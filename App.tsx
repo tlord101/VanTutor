@@ -52,9 +52,9 @@ declare var __app_id: string;
 
 const AppLoader: React.FC = () => {
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden animate-pulse">
+    <div className="flex h-screen w-full bg-[#f8fafc] dark:bg-background overflow-hidden animate-pulse">
         {/* Fake Sidebar */}
-        <div className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col p-4">
+        <div className="hidden lg:flex w-64 bg-white dark:bg-card border-r border-slate-200 dark:border-border flex-col p-4">
             <div className="flex items-center gap-3 mb-8 px-2">
                 <Skeleton className="w-8 h-8 rounded-lg" />
                 <Skeleton className="h-6 w-24" />
@@ -67,7 +67,7 @@ const AppLoader: React.FC = () => {
         {/* Fake Main Content */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* Fake Header */}
-            <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
+            <div className="h-16 bg-white dark:bg-card border-b border-slate-200 dark:border-border flex items-center justify-between px-4 sm:px-6">
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-8 w-8 rounded-full" />
             </div>

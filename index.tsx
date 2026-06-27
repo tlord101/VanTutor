@@ -50,15 +50,19 @@ const isConfigured =
 
 import { HelmetProvider } from 'react-helmet-async';
 
+import { ThemeProvider } from './contexts/ThemeContext';
+
 if (isConfigured) {
   root.render(
     <React.StrictMode>
       <HelmetProvider>
-        <ToastProvider>
-          <ErrorBoundary>
-            <App />
-          </ErrorBoundary>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+          </ToastProvider>
+        </ThemeProvider>
       </HelmetProvider>
     </React.StrictMode>
   );

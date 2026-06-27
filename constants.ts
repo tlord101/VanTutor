@@ -62,7 +62,7 @@ export const navigationItems: NavItem[] = [
   { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
   { id: 'chat', label: 'Chat', icon: React.createElement(ChatIcon) },
   { id: 'messenger', label: 'Messages', icon: React.createElement(MessengerIcon) },
-  { id: 'exam', label: 'Exam', icon: React.createElement(ExamIcon) },
+  { id: 'exam', label: 'Assessments', icon: React.createElement(ExamIcon) },
   { id: 'history', label: 'History', icon: React.createElement(HistoryIcon) },
 ];
 

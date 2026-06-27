@@ -22,6 +22,8 @@ const VisualSolver = lazy(() => import('./components/VisualSolver').then(module 
 const Exam = lazy(() => import('./components/Exam').then(module => ({ default: module.Exam })));
 const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
 const Settings = lazy(() => import('./components/Settings').then(module => ({ default: module.SettingsScreen })));
+const AppThemeSettings = lazy(() => import('./components/AppThemeSettings').then(module => ({ default: module.AppThemeSettings })));
+const MessengerThemeSettings = lazy(() => import('./components/MessengerThemeSettings').then(module => ({ default: module.MessengerThemeSettings })));
 const UserProfilePage = lazy(() => import('./components/UserProfile').then(module => ({ default: module.UserProfileScreen })));
 const BillingSettingsPage = lazy(() => import('./components/BillingSettings').then(module => ({ default: module.BillingSettingsScreen })));
 const Help = lazy(() => import('./components/Help'));
@@ -129,7 +131,19 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'billing':
                         return <BillingSettingsPage userProfile={userProfile} appSettings={appSettings} onProfileUpdate={handleProfileUpdate} />;
                     case 'settings':
-                        return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleDeleteAccount} />;
+                        return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleDeleteAccount} onNavigate={onNavigate!} />;
+                    case 'app_theme':
+                        return (
+                            <ErrorBoundary>
+                                <AppThemeSettings onNavigate={onNavigate!} />
+                            </ErrorBoundary>
+                        );
+                    case 'messenger_theme':
+                        return (
+                            <ErrorBoundary>
+                                <MessengerThemeSettings onNavigate={onNavigate!} />
+                            </ErrorBoundary>
+                        );
                     case 'help':
                         return <Help onStartTour={startTour} />;
                     case 'messenger':

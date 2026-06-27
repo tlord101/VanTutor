@@ -1139,11 +1139,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         
         return (
           <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-700 relative pb-12">
-            {/* Tabs & Sidebar Toggle */}
+            {/* Tabs */}
             <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start mb-8">
-                <button onClick={() => setShowHistorySidebar(true)} className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm">
-                    <MenuIcon className="w-6 h-6" />
-                </button>
                 <div className="flex flex-wrap gap-2 md:gap-4 flex-1">
                     <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
                 <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>

@@ -5,6 +5,8 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { useToast } from '../hooks/useToast';
 import { ConfirmationModal } from './ConfirmationModal';
 import { isNative } from '../utils/capacitorUtils';
+import { useTheme } from '../contexts/ThemeContext';
+import { Palette, MessageSquare } from 'lucide-react';
 
 interface SettingsProps {
   user: FirebaseUser | null;
@@ -12,6 +14,7 @@ interface SettingsProps {
   onLogout: () => void;
   onProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   onDeleteAccount: () => Promise<{ success: boolean; error?: string }>;
+  onNavigate: (route: string) => void;
 }
 
 const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
@@ -33,7 +36,8 @@ const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
   </button>
 );
 
-export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate, onDeleteAccount }) => {
+export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate, onDeleteAccount, onNavigate }) => {
+  const { mode, setMode } = useTheme();
   const [isNotificationSwitchOn, setIsNotificationSwitchOn] = useState(userProfile.notifications_enabled);
   const [isNotificationSaving, setIsNotificationSaving] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -132,8 +136,48 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
         </div>
       </div>
 
-      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Notifications</h3>
+      <div className="bg-white dark:bg-card p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-border shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Appearance</h3>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center gap-4">
+              <div>
+                  <span className="text-slate-800 dark:text-slate-200 font-bold block mb-1">Dark Mode</span>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      Toggle between light and dark mode.
+                  </p>
+              </div>
+              <Switch 
+                  checked={mode === 'dark'} 
+                  onChange={(checked) => setMode(checked ? 'dark' : 'light')}
+              />
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50 border border-slate-100 dark:border-slate-700/50 rounded-xl overflow-hidden">
+             <button
+                onClick={() => onNavigate('app_theme')}
+                className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Palette className="w-5 h-5 text-blue-500" />
+                  <span>Change App Theme</span>
+                </div>
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              </button>
+              <button
+                onClick={() => onNavigate('messenger_theme')}
+                className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-purple-500" />
+                  <span>Change Messenger Theme</span>
+                </div>
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              </button>
+           </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-card p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-border shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Notifications</h3>
         <div className="flex justify-between items-center gap-4">
             <div>
                 <span className="text-slate-800 font-bold block mb-1">Push Notifications</span>

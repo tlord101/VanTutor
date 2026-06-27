@@ -48,6 +48,11 @@ export interface UserProfile {
     public_department: boolean;
     public_level: boolean;
   };
+  theme_preferences?: {
+    mode: 'light' | 'dark';
+    app_theme: 'blue' | 'emerald' | 'violet' | 'rose' | 'amber';
+    messenger_theme: 'default' | 'neon' | 'sunset' | 'forest' | 'midnight';
+  };
 }
 
 export interface Report {
@@ -295,7 +300,6 @@ export interface ChatConversation {
 // Types for new Private Messaging System
 export interface PrivateMessage {
     id: string;
-    // FIX: Added chat_id to match database schema and resolve typing error.
     chat_id: string;
     sender_id: string;
     text?: string;
@@ -313,6 +317,9 @@ export interface PrivateMessage {
         audio_url?: string;
         sender_id: string;
     };
+    reactions?: Record<string, string>; // user_id -> emoji
+    is_forwarded?: boolean;
+    status?: 'sent' | 'delivered' | 'read';
 }
 
 export interface PrivateChat {
@@ -331,10 +338,12 @@ export interface PrivateChat {
         timestamp: number;
         sender_id: string;
         read_by: string[]; // Array of UIDs that have read this message
+        status?: 'sent' | 'delivered' | 'read';
     };
     created_at: number;
     last_activity_timestamp: number;
     typing?: string[]; // Array of UIDs of users currently typing
+    recording?: string[]; // Array of UIDs of users currently recording voice note
 }
 
 

@@ -340,6 +340,49 @@
   html {
     font-family: var(--font-sans);
   }
+
+  /* Dynamic App Themes */
+  .app-theme-emerald {
+    --primary: #10B981;
+    --ring: #10B981;
+  }
+  .app-theme-violet {
+    --primary: #8B5CF6;
+    --ring: #8B5CF6;
+  }
+  .app-theme-rose {
+    --primary: #F43F5E;
+    --ring: #F43F5E;
+  }
+  .app-theme-amber {
+    --primary: #F59E0B;
+    --ring: #F59E0B;
+  }
+
+  /* Messenger Themes */
+  :root {
+    --msg-sender-bg: var(--primary);
+    --msg-sender-fg: var(--primary-foreground);
+    --msg-receiver-bg: var(--muted);
+    --msg-receiver-fg: var(--foreground);
+  }
+
+  .msg-theme-neon {
+    --msg-sender-bg: #F0ABFC;
+    --msg-sender-fg: #4A044E;
+  }
+  .msg-theme-sunset {
+    --msg-sender-bg: #FB923C;
+    --msg-sender-fg: #FFF7ED;
+  }
+  .msg-theme-forest {
+    --msg-sender-bg: #4ADE80;
+    --msg-sender-fg: #064E3B;
+  }
+  .msg-theme-midnight {
+    --msg-sender-bg: #818CF8;
+    --msg-sender-fg: #1E1B4B;
+  }
 }
 
 /* Custom AdminLTE 4 Dark Theme Styles override */

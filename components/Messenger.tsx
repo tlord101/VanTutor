@@ -10,6 +10,8 @@ import { StreakBadge } from './StreakBadge';
 import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { playBubbleSound, playReceiveSound } from '../utils/sound';
+import { useTheme } from '../contexts/ThemeContext';
 
 const REACTION_EMOJIS = ['🔥', '😂', '😍', '👏', '😮', '😭', '👍', '❤️'];
 
@@ -244,6 +246,7 @@ interface AvelutInputProps {
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  onTyping?: () => void;
 }
 
 const AvelutMessageInput: React.FC<AvelutInputProps> = ({
@@ -257,10 +260,38 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   recordDuration,
   onFileSelect,
   onImageSelect,
-  disabled = false
+  disabled = false,
+  onTyping
 }) => {
+  let appTheme = 'blue';
+  try {
+     const themeContext = useTheme();
+     if (themeContext) appTheme = themeContext.appTheme;
+  } catch (e) {
+     // fallback
+  }
+
+  const getThemeColor = (theme: string) => {
+    switch (theme) {
+      case 'emerald': return '#10B981';
+      case 'violet': return '#8B5CF6';
+      case 'rose': return '#F43F5E';
+      case 'amber': return '#F59E0B';
+      case 'blue': 
+      default: return '#009EE2';
+    }
+  };
+
+  const themeColor = getThemeColor(appTheme);
+
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
+  const [showStickerPopup, setShowStickerPopup] = useState(false);
+
+  const handleStickerClick = () => {
+    setShowStickerPopup(true);
+    setTimeout(() => setShowStickerPopup(false), 3000);
+  };
 
   const [startY, setStartY] = useState(0);
   const [startX, setStartX] = useState(0);
@@ -343,75 +374,105 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       {isRecording && !isLocked && (
         <div
-          className="absolute right-[21px] bottom-[64px] w-[52px] h-[120px] bg-white rounded-full flex flex-col items-center justify-start py-4 gap-2 border border-[#E9ECEF] shadow-xl z-20"
-          style={{ transform: `translateY(${Math.max(-20, swipeDeltaY * 0.15)}px)` }}
+          className="absolute right-[19px] bottom-[70px] w-[46px] h-[130px] bg-white rounded-full flex flex-col items-center justify-start py-4 gap-3 shadow-md z-20"
+          style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.15)}px)` }}
         >
-          <div className="flex items-center justify-center animate-bounce" style={{ transform: `translateY(${Math.max(-50, swipeDeltaY * 0.5)}px)` }}>
-            <LockIcon locked={false} />
+          <div className="flex items-center justify-center text-slate-500" style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.5)}px)` }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 10v-3.5a6.5 6.5 0 0 0-13 0V10H4v11h16V10h-2zm-10-3.5a4.5 4.5 0 0 1 9 0V10H8V6.5z"/></svg>
           </div>
-          <span className="text-[10px] text-[#6C757D] font-bold uppercase tracking-wider text-center leading-none mt-auto">Lock</span>
+          <div className="text-slate-400 mt-2 animate-bounce">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          </div>
         </div>
       )}
 
-      <div className="w-full flex items-center gap-2 relative">
+      <div className="w-full flex items-end gap-2 relative">
         {!isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-white border border-[#E9ECEF] rounded-full flex items-center pl-3.5 pr-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 shrink-0 flex items-center justify-center w-9 h-9 mr-1">
-              <AttachmentIcon />
-            </button>
+          <div className="flex-1 h-[52px] bg-white border border-[#E9ECEF] rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
+            <div className="relative flex items-center h-full">
+              <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#6C757D]">
+                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"></path><path d="M15 3v6h6"></path><path d="M10 14a3.5 3.5 0 0 0 4 0"></path><path d="M9 10h.01"></path><path d="M15 10h.01"></path></svg>
+              </button>
+              {showStickerPopup && (
+                <div className="absolute -top-10 left-2 bg-[#212529] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
+                  Coming soon
+                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-[#212529] rotate-45"></div>
+                </div>
+              )}
+            </div>
             <div className="flex-1 h-full flex items-center min-w-0">
               <input
                 type="text"
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
                 onKeyDown={(e) => e.key === 'Enter' && executeTextSend()}
                 placeholder="Message"
-                className="w-full h-full bg-transparent text-[16px] text-[#212529] placeholder-[#80868B] outline-none border-none focus:ring-0"
+                className="w-full h-full bg-transparent text-[17px] text-[#212529] placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
               />
             </div>
-            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-9 h-9 ml-1">
-              <CameraIcon />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#6C757D]">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="-rotate-45"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+            </button>
+            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#6C757D]">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             </button>
           </div>
         )}
 
-        {(isRecording || isLocked) && (
-          <div className="flex-1 h-[52px] bg-white rounded-full flex items-center pl-4 pr-5 shadow-xl border border-[#E9ECEF] animate-fade-in relative overflow-hidden">
-            <div className="flex items-center gap-2.5 shrink-0 z-10">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[16px] font-medium text-[#212529] tabular-nums">{formatTime(recordDuration)}</span>
-            </div>
-
-            {isLocked ? (
-              <div className="flex-1 flex items-center justify-between pl-6 animate-fade-in z-10">
-                <button onClick={discardVoice} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-100 active:scale-90 transition" type="button">
-                  <TrashIcon />
-                </button>
-                <span className="text-xs text-[#6C757D] font-semibold tracking-wider">RECORDING LOCKED</span>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-end pr-4 z-10 transition-transform duration-75" style={{ transform: `translateX(${swipeDeltaX * 0.8}px)` }}>
-                <span className="text-sm font-medium text-[#6C757D] flex items-center gap-1">
-                  <span className="inline-block animate-slide-left font-bold">&lt;</span> Slide to cancel
-                </span>
-              </div>
-            )}
-            {!isLocked && <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-white/40 to-transparent w-24 pointer-events-none" />}
+        {isRecording && !isLocked && (
+          <div className="flex-1 h-[52px] bg-white rounded-full flex items-center shadow-sm relative overflow-hidden">
+             <div className="flex items-center h-full w-full">
+                <div className="pl-5 w-20 text-[18px] text-[#212529] tabular-nums font-normal">
+                   {formatTime(recordDuration)}
+                </div>
+                <div className="flex-1 flex items-center justify-end pr-14 z-10 transition-transform duration-75" style={{ transform: `translateX(${swipeDeltaX * 0.8}px)` }}>
+                  <span className="text-[15px] font-normal text-slate-500 flex items-center gap-1.5">
+                    <span className="inline-block font-bold text-lg text-slate-400">&lt;</span> Slide to cancel
+                  </span>
+                </div>
+             </div>
+             <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-white/40 to-transparent w-24 pointer-events-none" />
           </div>
         )}
 
-        <div style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+        {isLocked && (
+            <div className="flex-1 bg-[#F5F6F6] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-[#E9ECEF]">
+               <div className="flex items-center justify-between mb-4 px-3 w-full">
+                  <span className="text-[17px] text-[#212529] tabular-nums font-normal">{formatTime(recordDuration)}</span>
+                  <div className="flex-1 mx-3 flex items-center gap-[3px]">
+                      {/* Live wave visualizer animation */}
+                      {[...Array(24)].map((_, i) => (
+                          <div key={i} className="w-[3px] rounded-full bg-slate-400 animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
+                      ))}
+                  </div>
+                  <button className="w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-400 text-slate-500 shrink-0">
+                      <span className="text-[10px] font-bold">1</span>
+                  </button>
+               </div>
+               <div className="flex items-center justify-between px-3 w-full">
+                  <button onClick={discardVoice} className="w-7 h-7 flex items-center justify-center text-slate-500 active:scale-90 transition-transform">
+                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                  <button className="w-8 h-8 flex items-center justify-center text-red-500">
+                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  </button>
+                  <div className="w-12"></div> {/* Spacer for the send button absolute alignment */}
+               </div>
+            </div>
+        )}
+
+        <div className={`shrink-0 ${isLocked ? 'absolute bottom-2 right-2' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
           {hasText ? (
-            <button type="button" onClick={executeTextSend} className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100">
+            <button type="button" onClick={executeTextSend} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100" style={{ backgroundColor: themeColor }}>
               <SendIcon />
             </button>
           ) : isLocked ? (
-            <button type="button" onClick={() => stopRecording(true)} className="w-[52px] h-[52px] bg-[#009EE2] hover:bg-[#0089C4] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform active:scale-95 duration-100 animate-pulse">
+            <button type="button" onClick={() => stopRecording(true)} className="w-[44px] h-[44px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 mb-0.5 mr-0.5" style={{ backgroundColor: themeColor }}>
               <SendIcon />
             </button>
           ) : (
             <div className="relative">
-              {isRecording && <div className="absolute -inset-2 bg-[#009EE2]/20 rounded-full animate-ping pointer-events-none" />}
+              {isRecording && <div className="absolute -inset-2 rounded-full animate-ping pointer-events-none" style={{ backgroundColor: `${themeColor}33` }} />}
               <button
                 type="button"
                 onMouseDown={handleVoicePress}
@@ -421,9 +482,9 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onTouchStart={handleVoicePress}
                 onTouchMove={handleVoiceMove}
                 onTouchEnd={handleVoiceRelease}
-                className={`w-[52px] h-[52px] bg-[#009EE2] text-white rounded-full flex items-center justify-center shadow-md shrink-0 transition-all select-none touch-none ${isRecording ? 'scale-125 bg-[#0089C4]' : 'hover:bg-[#0089C4] active:scale-95'}`}
+                className={`w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all select-none touch-none hover:brightness-95 ${isRecording ? 'scale-125 brightness-90' : 'active:scale-95'}`} style={{ backgroundColor: themeColor }}
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
               </button>
             </div>
           )}
@@ -484,6 +545,29 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const [forwardTargetContent, setForwardTargetContent] = useState('');
   const [forwardTargetType, setForwardTargetType] = useState('text');
+  
+  // Realtime active chats statuses (typing, recording)
+  const [chatStatuses, setChatStatuses] = useState<Record<string, { isTyping?: boolean; isRecording?: boolean }>>({});
+  
+  // Ref for my typing timeout
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const handleTypingStatus = (status: 'typing' | 'recording' | 'idle') => {
+      if (!firebaseUser || !activeChat) return;
+      const myId = firebaseUser.uid;
+      const otherId = activeChat.otherUser.uid;
+      const refPath = `user_chats/${otherId}/${activeChat.chatId}`;
+      if (status === 'typing') {
+         update(dbRef(db, refPath), { isTyping: true, isRecording: false });
+         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+         typingTimeoutRef.current = setTimeout(() => handleTypingStatus('idle'), 3000);
+      } else if (status === 'recording') {
+         update(dbRef(db, refPath), { isTyping: false, isRecording: true });
+      } else {
+         update(dbRef(db, refPath), { isTyping: false, isRecording: false });
+      }
+  };
+
 
   const chatRowLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeToReplyRef = useRef<{ id: string | null; startX: number; currentX: number }>({ id: null, startX: 0, currentX: 0 });
@@ -806,7 +890,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           return {
             id: chatId,
             ...details,
-            otherUser
+            otherUser,
+            isTyping: !!details.isTyping,
+            isRecording: !!details.isRecording
           };
         });
 
@@ -931,7 +1017,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const messagesQuery = query(messagesRef, limitToLast(50));
     onValue(messagesQuery, (snap) => {
       const cloudMsgs = Object.entries(snap.val() || {}).map(([id, msg]: any) => ({ id, ...msg })).sort((a, b) => a.timestamp - b.timestamp);
-      setMessages(cloudMsgs);
+      setMessages(prev => {
+        if (prev.length > 0) {
+            const lastPrev = prev[prev.length - 1];
+            const lastNew = cloudMsgs[cloudMsgs.length - 1];
+            if (lastNew && lastNew.id !== lastPrev.id && lastNew.senderId !== firebaseUser.uid && lastNew.timestamp > lastPrev.timestamp) {
+                playReceiveSound();
+            }
+        }
+        return cloudMsgs;
+      });
 
       setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
 
@@ -941,14 +1036,20 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         
         const updates: any = {};
         let needsUpdate = false;
-        cloudMsgs.forEach((msg: any) => {
+        let lastMsgRead = false;
+        cloudMsgs.forEach((msg: any, index: number) => {
           if (msg.senderId !== firebaseUser.uid && !msg.isRead) {
-            updates[`${msg.id}/isRead`] = true;
+            updates[`messages/${activeChat.chatId}/${msg.id}/isRead`] = true;
             needsUpdate = true;
+            if (index === cloudMsgs.length - 1) lastMsgRead = true;
           }
         });
+        if (lastMsgRead) {
+            updates[`user_chats/${activeChat.otherUser.uid}/${activeChat.chatId}/last_message/isRead`] = true;
+            updates[`user_chats/${firebaseUser.uid}/${activeChat.chatId}/last_message/isRead`] = true;
+        }
         if (needsUpdate) {
-          update(dbRef(db, `messages/${activeChat.chatId}`), updates).catch(console.error);
+          update(dbRef(db, '/'), updates).catch(console.error);
         }
       }
     });
@@ -1095,6 +1196,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         await remove(reactionPath);
       } else {
         await set(reactionPath, emoji);
+        playBubbleSound();
       }
     } catch (error: any) {
       console.error('Failed to react to message:', error);
@@ -1114,6 +1216,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         addToast('Reaction removed.', 'info');
       } else {
         await set(reactionPath, emoji);
+        playBubbleSound();
         addToast('Reacted with ❤️', 'success');
       }
     } catch (error: any) {
@@ -1242,6 +1345,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       recorder.start();
       setIsRecording(true);
       setRecordDuration(0);
+      handleTypingStatus('recording');
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => setRecordDuration(prev => prev + 1), 1000);
     } catch (err) {
@@ -1258,6 +1362,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const stopRecording = (shouldSave: boolean) => {
     setIsRecording(false);
     setIsLocked(false);
+    handleTypingStatus('idle');
     if (timerRef.current) clearInterval(timerRef.current);
     if (mediaRecorderRef.current) {
       (mediaRecorderRef.current as any).shouldSave = shouldSave;
@@ -1289,6 +1394,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const optimisticMessage = { id: optimisticId, ...data, timestamp: clientTimestamp };
 
     setMessages(prev => [...prev, optimisticMessage]);
+    playBubbleSound();
     try {
       await set(msgRef, data);
       const updates: any = {};
@@ -1422,7 +1528,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       for (const recipientId of recipientUserIds) {
         const chatId = [firebaseUser.uid, recipientId].sort().join('_');
         const msgRef = push(dbRef(db, `messages/${chatId}`));
-        const data = { senderId: firebaseUser.uid, text, type, timestamp: Date.now() };
+        const data = { senderId: firebaseUser.uid, text, type, timestamp: Date.now(), is_forwarded: true };
         await set(msgRef, data);
         const updates: any = {};
         let summaryText = text;
@@ -1457,6 +1563,52 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
+
+    if (messageActionTarget) {
+      setCustomHeaderConfig({
+         title: (
+           <div className="flex items-center gap-4 text-xl font-medium text-[#212529]">
+             1
+           </div>
+         ),
+         leftActions: (
+            <button onClick={closeMessageActions} className="p-3 -ml-2 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
+               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+         ),
+         rightActions: (
+            <div className="flex items-center gap-1">
+               <button onClick={() => { setReplyingTo(messageActionTarget); closeMessageActions(); }} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>
+               </button>
+               <button className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+               </button>
+               {messageActionTarget.senderId === firebaseUser?.uid && (
+               <button onClick={() => void deleteSelectedMessage()} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Delete">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+               </button>
+               )}
+               <button onClick={() => void copyMessageContent()} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+               </button>
+               <button onClick={() => {
+                      setForwardTargetContent(messageActionTarget.text || '');
+                      setForwardTargetType(messageActionTarget.type || 'text');
+                      setIsForwardModalOpen(true);
+                      closeMessageActions();
+                    }} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
+               </button>
+               <button className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
+                  <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
+               </button>
+            </div>
+         ),
+         hideBottomNav: true
+      });
+      return;
+    }
 
     if (activeChat?.otherUser) {
       setCustomHeaderConfig({
@@ -1509,7 +1661,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     return () => {
       setCustomHeaderConfig(null);
     };
-  }, [setCustomHeaderConfig, activeChat, tab, onNavigate, showUserOptions]);
+  }, [setCustomHeaderConfig, activeChat, tab, onNavigate, showUserOptions, messageActionTarget, firebaseUser]);
 
 
   return (
@@ -1578,7 +1730,15 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       {c.last_message?.senderId === firebaseUser?.uid && (
                         <DoubleCheckIcon color={c.last_message?.isRead ? "#009EE2" : "#8696a0"} />
                       )}
-                      <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
+                      
+                      {c.isTyping ? (
+                          <span className="text-[#009EE2] font-semibold flex items-center gap-1 italic"><div className="flex gap-0.5"><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'0ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'150ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'300ms'}}></div></div> typing...</span>
+                      ) : c.isRecording ? (
+                          <span className="text-[#009EE2] font-semibold flex items-center gap-1 italic">🎵 recording...</span>
+                      ) : (
+                          <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
+                      )}
+
                     </div>
                     {getUnreadCount(c) > 0 && (
                       <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
@@ -1745,6 +1905,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         style={{ transition: 'transform 0.1s ease-out' }}
                       >
                         {/* Reply Snippet */}
+                        {msg.is_forwarded && (
+                           <div className="flex items-center gap-1 mb-1 text-[10px] text-white/70 italic" style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)' }}>
+                               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 21l9-9-9-9v6H3v6h9z"/></svg>
+                               Forwarded
+                           </div>
+                        )}
                         {msg.replyTo && (
                           <div className={`mb-1.5 p-2 rounded bg-black/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80'}`}>
                             <div className="font-bold">{msg.replyTo.senderName}</div>
@@ -1846,6 +2012,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   recordDuration={recordDuration}
                   onFileSelect={handleFileSelection}
                   onImageSelect={handleImageSelection}
+                  onTyping={() => handleTypingStatus('typing')}
                 />
               ) : (
                 <div className="w-[95%] mx-auto px-6 py-4 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-lg">
@@ -1895,58 +2062,28 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {messageActionTarget && (
-              <div className="fixed inset-0 z-40 bg-black/20">
-                <div
-                  ref={messageActionMenuRef}
-                  className="absolute w-[min(92vw,320px)] rounded-2xl border border-[#E9ECEF] bg-white p-3 shadow-2xl"
-                  style={{
-                    left: `${Math.max(12, Math.min((messageActionPosition?.x || 24) - 140, window.innerWidth - 332))}px`,
-                    top: `${Math.max(12, Math.min((messageActionPosition?.y || 24) - 80, window.innerHeight - 220))}px`
-                  }}
+              <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity flex items-center justify-center animate-fade-in" onClick={closeMessageActions}>
+                <div 
+                   ref={messageActionMenuRef}
+                   className="flex flex-col gap-4 items-center"
+                   onClick={(e) => e.stopPropagation()}
                 >
-                  <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#6C757D]">Message actions</p>
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {REACTION_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => void reactToMessage(emoji)}
-                        className="rounded-full border border-[#E9ECEF] bg-[#F8F9FA] px-2.5 py-1.5 text-base transition hover:bg-[#E9ECEF]"
-                        title={`React with ${emoji}`}
-                      >
-                        {emoji}
+                   {/* WhatsApp-style Reaction Overlay */}
+                   <div className="bg-white rounded-[24px] px-3 py-2 shadow-xl flex items-center gap-1 sm:gap-2 animate-scale-in">
+                      {REACTION_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => void reactToMessage(emoji)}
+                          className="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center text-2xl hover:scale-125 hover:-translate-y-2 transition-transform duration-200"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                      <button className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#F0F2F5] hover:bg-[#E9ECEF] text-xl font-medium text-[#6C757D] ml-2 transition-colors">
+                        +
                       </button>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => void copyMessageContent()}
-                      className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
-                    >
-                      Copy message
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForwardTargetContent(messageActionTarget.text || '');
-                        setForwardTargetType(messageActionTarget.type || 'text');
-                        setIsForwardModalOpen(true);
-                        closeMessageActions();
-                      }}
-                      className="w-full rounded-xl border border-[#E9ECEF] bg-white px-3 py-2 text-left text-sm font-semibold text-[#212529] transition hover:bg-[#F8F9FA]"
-                    >
-                      Forward message
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void deleteSelectedMessage()}
-                      disabled={messageActionTarget.senderId !== firebaseUser?.uid}
-                      className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Delete message
-                    </button>
-                  </div>
+                   </div>
                 </div>
               </div>
             )}
