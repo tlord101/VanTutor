@@ -437,7 +437,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
         <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
           {hasText ? (
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); executeTextSend(); }} onTouchStart={(e) => { e.preventDefault(); executeTextSend(); }} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           ) : (
@@ -1986,10 +1986,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             {/* 3. Bottom Control Anchor Panel Bar */}
             <div className="p-3 bg-[#EFEAE2] dark:bg-[#0B141A] z-10 shrink-0">
                {replyingTo && (
-                 <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
+                 <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 dark:bg-[#1A1D21] rounded-lg border-l-4 border-[#009EE2]">
                    <div className="min-w-0">
-                     <p className="text-xs font-bold text-[#009EE2] dark:text-[#F8F9FA]">Replying to {replyingTo.senderId === firebaseUser?.uid ? 'You' : activeChat.otherUser.display_name}</p>
-                     <p className="text-xs text-neutral-600 truncate max-w-[200px] sm:max-w-[300px]">
+                     <p className="text-xs font-bold text-[#009EE2] dark:text-white">Replying to {replyingTo.senderId === firebaseUser?.uid ? 'You' : activeChat.otherUser.display_name}</p>
+                     <p className="text-xs text-neutral-600 dark:text-gray-400 truncate max-w-[200px] sm:max-w-[300px]">
                        {replyingTo.type === 'text' ? replyingTo.text : `[${replyingTo.type}]`}
                      </p>
                    </div>
