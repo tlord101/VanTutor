@@ -1,7 +1,7 @@
 name: Build Release APK
 
-# Allows manual triggering from the GitHub Actions tab
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -12,45 +12,40 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
           node-version: '22' 
 
-      - name: Setup Java JDK
+      - name: Setup Java JDK Environment
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21' 
 
-      - name: Install NPM Dependencies
+      - name: Install Project Dependencies
         run: npm install
 
-      - name: Build Web Bundle 
+      - name: Build Production Web Bundle 
         run: npm run build:mobile
 
-      - name: Sync with Capacitor
+      - name: Sync Web Code to Capacitor Android
         run: npx cap sync android
 
-      - name: Decode Keystore File
-        # Decodes the hidden string back into the exact physical file Gradle expects
+      - name: Decode and Inject Keystore File
+        # Places the binary keystore file directly into android/app/ where Gradle expects it
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/avelut-release-key.keystore
 
-      - name: Build Signed Release APK
+      - name: Build Signed Release APK via Gradle
+        # Compiles the app. Gradle reads your hardcoded credentials from build.gradle natively
         run: |
           cd android
           chmod +x ./gradlew
           ./gradlew assembleRelease
-        env:
-          # Injects the passwords from GitHub Secrets directly into the Gradle build environment
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload Release APK Artifact
+      - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: avelut-release-apk
-          # Grabs any APK generated in the release folder
           path: android/app/build/outputs/apk/release/*.apk 
