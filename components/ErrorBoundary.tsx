@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 bg-white dark:bg-[#121A2F] rounded-lg shadow text-center">
+        <div className="p-8 bg-white dark:bg-black rounded-lg shadow text-center">
           <h3 className="text-lg font-bold text-red-600">Something went wrong</h3>
           <p className="mt-2 text-sm text-gray-600">An error occurred while loading this section. Check the console for details.</p>
           <pre className="mt-3 text-xs text-left whitespace-pre-wrap text-gray-700">{this.state.error?.message}</pre>

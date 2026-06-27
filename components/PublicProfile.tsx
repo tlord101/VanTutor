@@ -131,9 +131,9 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
 
     if (!targetUser) {
         return (
-            <div className="flex flex-col h-full w-full items-center justify-center bg-[#F8F9FA] dark:bg-[#0A101F] p-6">
-                <p className="text-[#6C757D] dark:text-[#A0ABC0] font-bold text-lg mb-4">User not found.</p>
-                <button onClick={() => window.dispatchEvent(new Event('app-go-back'))} className="px-6 py-2 bg-white dark:bg-[#121A2F] border border-[#E9ECEF] dark:border-white/10 rounded-xl font-bold shadow-sm">Go Back</button>
+            <div className="flex flex-col h-full w-full items-center justify-center bg-[#F8F9FA] dark:bg-black p-6">
+                <p className="text-[#6C757D] dark:text-gray-400 font-bold text-lg mb-4">User not found.</p>
+                <button onClick={() => window.dispatchEvent(new Event('app-go-back'))} className="px-6 py-2 bg-white dark:bg-black border border-[#E9ECEF] dark:border-white/10 rounded-xl font-bold shadow-sm">Go Back</button>
             </div>
         );
     }
@@ -146,7 +146,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-[#F8F9FA] dark:bg-[#0A101F] overflow-y-auto animate-fade-in">
+        <div className="flex flex-col h-full w-full bg-[#F8F9FA] dark:bg-black overflow-y-auto animate-fade-in">
             {/* Header / Nav */}
             <div className="absolute top-20 left-4 z-20">
                 <button
@@ -174,7 +174,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
             <div className="relative px-6 pb-8 max-w-3xl mx-auto w-full -mt-16 sm:-mt-20">
                 <div className="flex flex-col items-center">
                     {/* Avatar */}
-                    <div className="rounded-full p-1 bg-white dark:bg-[#121A2F] shadow-xl relative z-10">
+                    <div className="rounded-full p-1 bg-white dark:bg-black shadow-xl relative z-10">
                         <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white" photo_url={targetUser.photo_url} display_name={targetUser.display_name || 'User'} />
                     </div>
 
@@ -218,7 +218,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Bio */}
-                    <div className="bg-white dark:bg-[#121A2F] p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm md:col-span-2">
+                    <div className="bg-white dark:bg-black p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm md:col-span-2">
                         <h3 className="text-xs font-black uppercase tracking-widest text-[#ADB5BD] mb-3">About</h3>
                         <p className="text-[#495057] font-medium leading-relaxed whitespace-pre-wrap">
                             {targetUser.bio || "No bio provided."}
@@ -226,7 +226,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                     </div>
 
                     {/* Academic Info */}
-                    <div className="bg-white dark:bg-[#121A2F] p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm space-y-4">
+                    <div className="bg-white dark:bg-black p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm space-y-4">
                         <h3 className="text-xs font-black uppercase tracking-widest text-[#ADB5BD] mb-3">Academic Details</h3>
                         
                         <div>
@@ -244,7 +244,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                     </div>
 
                     {/* Contact Info */}
-                    <div className="bg-white dark:bg-[#121A2F] p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm space-y-4">
+                    <div className="bg-white dark:bg-black p-6 rounded-3xl border border-[#E9ECEF] dark:border-white/10 shadow-sm space-y-4">
                         <h3 className="text-xs font-black uppercase tracking-widest text-[#ADB5BD] mb-3">Contact Information</h3>
                         <div>
                             <p className="text-[10px] font-bold text-[#ADB5BD] uppercase">Contact Details</p>

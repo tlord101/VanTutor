@@ -111,7 +111,7 @@ export const FeatureCarousel: React.FC = () => {
 
                                 {/* Content */}
                                 <div className="relative z-10 flex-1 p-8 flex flex-col justify-end">
-                                    <div className="text-white mb-6 bg-white dark:bg-[#121A2F]/20 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30 shadow-lg">
+                                    <div className="text-white mb-6 bg-white dark:bg-black/20 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30 shadow-lg">
                                         {feature.icon}
                                     </div>
                                     <h3 className="text-3xl font-black text-white mb-4 leading-tight">{feature.title}</h3>
@@ -128,7 +128,7 @@ export const FeatureCarousel: React.FC = () => {
                 <div className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 flex items-center gap-6">
                     <button 
                         onClick={handlePrev}
-                        className="w-12 h-12 rounded-full bg-white dark:bg-[#121A2F] shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
+                        className="w-12 h-12 rounded-full bg-white dark:bg-black shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
                     >
                         <ChevronLeft className="w-6 h-6" />
                     </button>
@@ -142,7 +142,7 @@ export const FeatureCarousel: React.FC = () => {
                     </div>
                     <button 
                         onClick={handleNext}
-                        className="w-12 h-12 rounded-full bg-white dark:bg-[#121A2F] shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
+                        className="w-12 h-12 rounded-full bg-white dark:bg-black shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
                     >
                         <ChevronRight className="w-6 h-6" />
                     </button>

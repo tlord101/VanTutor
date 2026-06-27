@@ -193,7 +193,7 @@ function ConversationPromptInput() {
                   {status === "ready" || status === "error" ? (
                     <ArrowUp size={18} />
                   ) : (
-                    <span className="size-3 rounded-xs bg-white dark:bg-[#121A2F]" />
+                    <span className="size-3 rounded-xs bg-white dark:bg-black" />
                   )}
                 </Button>
               </div>

@@ -38,7 +38,7 @@ const Notifications = lazy(() => import('./components/Notifications').then(modul
 // Per-route skeleton fallbacks — each matches the shape of its real UI
 const skeletonMap: Record<string, React.ReactNode> = {
     dashboard:      <DashboardSkeleton />,
-    leaderboard:    <div className="flex-1 flex flex-col w-full bg-white dark:bg-[#121A2F] p-4 sm:p-6 rounded-xl border border-gray-200"><LeaderboardSkeleton /></div>,
+    leaderboard:    <div className="flex-1 flex flex-col w-full bg-white dark:bg-black p-4 sm:p-6 rounded-xl border border-gray-200"><LeaderboardSkeleton /></div>,
     notifications:  <div className="flex-1 w-full max-w-4xl mx-auto"><NotificationsSkeleton /></div>,
     study_partners: <StudyPartnersSkeleton />,
     user_profile:   <UserProfileSkeleton />,

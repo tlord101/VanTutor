@@ -111,7 +111,7 @@ export const DashboardSkeleton: React.FC = () => (
 // LEADERBOARD skeleton
 // ---------------------------------------------------------------------------
 const LeaderboardRowSkeleton: React.FC = () => (
-    <div className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-[#0A101F] border border-gray-100">
+    <div className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-black border border-gray-100">
         <Skeleton className="w-7 h-5" />
         <SkeletonAvatar size={40} />
         <div className="flex-1 space-y-2">
@@ -133,7 +133,7 @@ export const LeaderboardSkeleton: React.FC = () => (
 // NOTIFICATIONS skeleton
 // ---------------------------------------------------------------------------
 const NotificationRowSkeleton: React.FC = () => (
-    <div className="flex items-start gap-4 p-4 rounded-xl border border-gray-100 bg-white dark:bg-[#121A2F]">
+    <div className="flex items-start gap-4 p-4 rounded-xl border border-gray-100 bg-white dark:bg-black">
         <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />
         <div className="flex-1 space-y-2">
             <div className="flex justify-between">
@@ -157,7 +157,7 @@ export const NotificationsSkeleton: React.FC = () => (
 // STUDY PARTNERS skeleton
 // ---------------------------------------------------------------------------
 const PartnerCardSkeleton: React.FC = () => (
-    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-[#121A2F] border border-gray-100 shadow-sm">
+    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-black border border-gray-100 shadow-sm">
         <SkeletonAvatar size={52} />
         <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-32" />
@@ -181,7 +181,7 @@ export const StudyPartnersSkeleton: React.FC = () => (
 // PUBLIC PROFILE skeleton
 // ---------------------------------------------------------------------------
 export const PublicProfileSkeleton: React.FC = () => (
-    <div className="flex flex-col h-full w-full bg-[#F8F9FA] dark:bg-[#0A101F] overflow-y-auto">
+    <div className="flex flex-col h-full w-full bg-[#F8F9FA] dark:bg-black overflow-y-auto">
         {/* Cover photo */}
         <div className="relative">
             <Skeleton className="w-full h-40 rounded-none" rounded="rounded-none" />
@@ -220,7 +220,7 @@ export const PublicProfileSkeleton: React.FC = () => (
 // USER PROFILE (settings profile page) skeleton
 // ---------------------------------------------------------------------------
 export const UserProfileSkeleton: React.FC = () => (
-    <div className="flex flex-col bg-white dark:bg-[#121A2F] min-h-full">
+    <div className="flex flex-col bg-white dark:bg-black min-h-full">
         {/* Cover */}
         <Skeleton className="w-full h-36" rounded="rounded-none" />
 
@@ -248,7 +248,7 @@ export const UserProfileSkeleton: React.FC = () => (
 // HISTORY skeleton
 // ---------------------------------------------------------------------------
 const HistoryCardSkeleton: React.FC = () => (
-    <div className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-3xl p-6 space-y-4">
+    <div className="bg-white dark:bg-black border border-gray-200 rounded-3xl p-6 space-y-4">
         <div className="flex justify-between items-start">
             <Skeleton className="h-5 w-24 rounded-full" />
             <Skeleton className="h-4 w-16" />
@@ -297,7 +297,7 @@ export const MessengerSkeleton: React.FC = () => (
 export const SettingsSkeleton: React.FC = () => (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-5">
         {/* Profile card */}
-        <div className="bg-white dark:bg-[#121A2F] rounded-3xl p-5 flex items-center gap-4 border border-gray-100">
+        <div className="bg-white dark:bg-black rounded-3xl p-5 flex items-center gap-4 border border-gray-100">
             <SkeletonAvatar size={60} />
             <div className="space-y-2 flex-1">
                 <Skeleton className="h-5 w-36" />
@@ -307,7 +307,7 @@ export const SettingsSkeleton: React.FC = () => (
 
         {/* Section headers + rows */}
         {[1, 2, 3].map(section => (
-            <div key={section} className="bg-white dark:bg-[#121A2F] rounded-3xl border border-gray-100 overflow-hidden">
+            <div key={section} className="bg-white dark:bg-black rounded-3xl border border-gray-100 overflow-hidden">
                 <div className="px-5 pt-4 pb-2">
                     <Skeleton className="h-4 w-24" />
                 </div>

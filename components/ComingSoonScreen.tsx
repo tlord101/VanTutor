@@ -11,7 +11,7 @@ export const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ title, subti
     <div className="min-h-screen overflow-hidden bg-[#07111f] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(132,204,22,0.22),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(180deg,_#081120_0%,_#050b14_100%)]" />
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid w-full gap-6 overflow-hidden rounded-[36px] border border-white/10 bg-white dark:bg-[#121A2F]/5 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
+        <div className="grid w-full gap-6 overflow-hidden rounded-[36px] border border-white/10 bg-white dark:bg-black/5 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
           <div className="flex flex-col justify-between rounded-[28px] bg-[linear-gradient(135deg,_rgba(132,204,22,0.16),_rgba(59,130,246,0.12),_rgba(255,255,255,0.06))] p-6 ring-1 ring-white/10 lg:p-8">
             <div>
               <div className="inline-flex items-center gap-3 rounded-full border border-lime-400/20 bg-lime-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.28em] text-lime-200">
@@ -28,7 +28,7 @@ export const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ title, subti
                 ['AI-ready', 'Gemini-powered support will return shortly.'],
                 ['Clean rollout', 'Admins can switch the app back on anytime.'],
               ].map(([label, copy]) => (
-                <div key={label} className="rounded-[22px] border border-white/10 bg-white dark:bg-[#121A2F]/5 p-4">
+                <div key={label} className="rounded-[22px] border border-white/10 bg-white dark:bg-black/5 p-4">
                   <p className="text-sm font-bold text-white">{label}</p>
                   <p className="mt-1 text-xs leading-5 text-white/60">{copy}</p>
                 </div>
@@ -36,7 +36,7 @@ export const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ title, subti
             </div>
           </div>
 
-          <div className="flex flex-col justify-between rounded-[28px] border border-white/10 bg-white dark:bg-[#121A2F]/6 p-6 lg:p-8">
+          <div className="flex flex-col justify-between rounded-[28px] border border-white/10 bg-white dark:bg-black/6 p-6 lg:p-8">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.32em] text-lime-300">Coming soon</p>
               <div className="mt-4 rounded-[28px] border border-white/10 bg-black/20 p-5">

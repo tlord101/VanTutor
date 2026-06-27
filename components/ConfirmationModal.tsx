@@ -32,7 +32,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       aria-modal="true"
     >
       <div
-        className="bg-white dark:bg-[#121A2F] border border-gray-100 rounded-[2.5rem] p-8 md:p-10 shadow-3xl w-full max-w-sm relative animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        className="bg-white dark:bg-black border border-gray-100 rounded-[2.5rem] p-8 md:p-10 shadow-3xl w-full max-w-sm relative animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center text-center">
@@ -59,7 +59,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 <button
                     onClick={onCancel}
                     disabled={isConfirming}
-                    className="w-full py-4 rounded-2xl bg-gray-50 dark:bg-[#0A101F] text-gray-400 font-black text-xs uppercase tracking-widest hover:text-gray-600 hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full py-4 rounded-2xl bg-gray-50 dark:bg-black text-gray-400 font-black text-xs uppercase tracking-widest hover:text-gray-600 hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                     {cancelText}
                 </button>

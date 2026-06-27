@@ -80,21 +80,21 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             <div className="flex gap-4 border-b border-slate-200 dark:border-white/10">
                 <button 
                     onClick={() => handleCourseTabNavigate('/admin/courses/global')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('global') ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('global') ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Database className="w-4 h-4" />
                     Global Search
                 </button>
                 <button 
                     onClick={() => handleCourseTabNavigate('/admin/courses/manager')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('manager') ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode.startsWith('manager') ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Folder className="w-4 h-4" />
                     Department Manager
                 </button>
                 <button 
                     onClick={() => handleCourseTabNavigate(buildCourseAddPath(managerSelectionDepartmentId || undefined, managerSelectionLevel || undefined))}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode === 'add' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${courseAdminView.mode === 'add' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Plus className="w-4 h-4" />
                     Add Courses
@@ -104,18 +104,18 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             {/* Global Search Root Mode */}
             {courseAdminView.mode === 'global' && (
                 <div className="space-y-6">
-                    <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 space-y-6">
+                    <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">Global Course Directory</h3>
-                                <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Search all courses across all departments globally.</p>
+                                <p className="text-sm text-slate-500 dark:text-gray-400">Search all courses across all departments globally.</p>
                             </div>
                             <input 
                                 type="text" 
                                 placeholder="Search courses..." 
                                 value={globalSearchQuery} 
                                 onChange={e => setGlobalSearchQuery(e.target.value)}
-                                className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:ring-4 focus:ring-indigo-100 transition min-w-[250px]"
+                                className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-black outline-none focus:ring-4 focus:ring-indigo-100 transition min-w-[250px]"
                             />
                         </div>
                         
@@ -123,7 +123,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         {isGlobalSearch && (
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-bold text-slate-500 dark:text-[#A0ABC0]">
+                                    <p className="text-sm font-bold text-slate-500 dark:text-gray-400">
                                         Found {filteredGlobalCourses.length} courses across all departments
                                     </p>
                                     {selectedCourses.size > 0 && (
@@ -147,7 +147,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         <div
                                             key={`${deptId}-${level}-${courseRouteIdentifier}`}
                                             onClick={() => handleCourseTabNavigate(buildCourseManagerPath(deptId, level, courseRouteIdentifier))}
-                                            className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
                                         >
                                             <div 
                                                 className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
@@ -170,7 +170,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                             </div>
                                             <div className="flex-1 min-w-0 pl-6">
                                                 <div className="font-bold text-slate-900 dark:text-white">{course.course_name}</div>
-                                                <div className="text-xs text-slate-500 dark:text-[#A0ABC0]">{deptName} • {level}</div>
+                                                <div className="text-xs text-slate-500 dark:text-gray-400">{deptName} • {level}</div>
                                             </div>
                                         </div>
                                     );
@@ -180,11 +180,11 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                     </div>
                     
                     {!isGlobalSearch && (
-                        <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
+                        <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
                             <Database className="w-16 h-16 text-indigo-200 mx-auto" />
                             <div>
                                 <h3 className="font-black text-2xl text-slate-900 dark:text-white mb-2">Global Level View</h3>
-                                <p className="text-slate-500 dark:text-[#A0ABC0]">Select a level to view aggregated courses deduplicated across the entire college.</p>
+                                <p className="text-slate-500 dark:text-gray-400">Select a level to view aggregated courses deduplicated across the entire college.</p>
                             </div>
                             <div className="max-w-xs mx-auto text-left">
                                 <select
@@ -193,7 +193,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         setManagerSelectionLevel(e.target.value);
                                         handleCourseTabNavigate(buildCourseGlobalPath(e.target.value));
                                     }}
-                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition"
+                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition"
                                 >
                                     <option value="">Select Level</option>
                                     {LEVELS.map(level => (
@@ -231,7 +231,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         )}
                     </div>
                     
-                    <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6">
+                    <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6">
                         {globalLevelCourses.length ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {globalLevelCourses.map(({ course, departmentIds, key }) => {
@@ -241,7 +241,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         <div
                                             key={key}
                                             onClick={() => handleCourseTabNavigate(buildCourseGlobalPath(courseAdminView.level, courseRouteIdentifier))}
-                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0A101F] hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
                                         >
                                             <div 
                                                 className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
@@ -269,7 +269,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                                         <BookOpen className="w-4 h-4 text-indigo-500 shrink-0" />
                                                     )}
                                                 </div>
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-[#A0ABC0]">{course.course_code || course.course_id}</p>
+                                                <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">{course.course_code || course.course_id}</p>
                                                 <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">
                                                     Offered in {departmentIds.length} department(s)
                                                 </p>
@@ -294,7 +294,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <div className="py-16 text-center">
                                 <Database className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                 <h3 className="font-bold text-slate-700">No courses globally</h3>
-                                <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-1">There are no courses mapped to this level.</p>
+                                <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">There are no courses mapped to this level.</p>
                             </div>
                         )}
                     </div>
@@ -311,14 +311,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         ← Back to Global Level
                     </button>
                     
-                    <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                    <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-1">
                                     Global Context • {courseAdminView.level}
                                 </p>
                                 <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-tight">{selectedGlobalCourseEntry.course.course_name}</h2>
-                                <p className="font-semibold text-slate-500 dark:text-[#A0ABC0] mt-1">{selectedGlobalCourseEntry.course.course_code || selectedGlobalCourseEntry.course.course_id}</p>
+                                <p className="font-semibold text-slate-500 dark:text-gray-400 mt-1">{selectedGlobalCourseEntry.course.course_code || selectedGlobalCourseEntry.course.course_id}</p>
                                 <p className="text-xs text-slate-400 mt-2">Shared across {selectedGlobalCourseEntry.departmentIds.length} department(s)</p>
                             </div>
                             <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase border ${selectedGlobalCourseEntry.course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
@@ -330,12 +330,12 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                 <BookOpen className="w-5 h-5 text-indigo-500" /> Textbook Materials
                             </h4>
-                            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100 space-y-4">
+                            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100 space-y-4">
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <input
                                         type="file" multiple accept="application/pdf"
                                         onChange={e => setCourseDetailFiles(e.target.files ? Array.from(e.target.files) : [])}
-                                        className="flex-1 text-sm text-slate-500 dark:text-[#A0ABC0] file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                        className="flex-1 text-sm text-slate-500 dark:text-gray-400 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
                                     />
                                 </div>
                                 <label className="flex items-center gap-3">
@@ -385,17 +385,17 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
             {/* Manager Root */}
             {courseAdminView.mode === 'manager-root' && (
-                <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
+                <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
                     <Folder className="w-16 h-16 text-indigo-200 mx-auto" />
                     <div>
                         <h3 className="font-black text-2xl text-slate-900 dark:text-white mb-2">Department Manager</h3>
-                        <p className="text-slate-500 dark:text-[#A0ABC0]">Select a department and level to manage its courses.</p>
+                        <p className="text-slate-500 dark:text-gray-400">Select a department and level to manage its courses.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                         <select
                             value={managerSelectionDepartmentId}
                             onChange={e => setManagerSelectionDepartmentId(e.target.value)}
-                            className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition"
+                            className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Department</option>
                             {allDepartments.map(dept => (
@@ -405,7 +405,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         <select
                             value={managerSelectionLevel}
                             onChange={e => setManagerSelectionLevel(e.target.value)}
-                            className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition"
+                            className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Level</option>
                             {LEVELS.map(level => (
@@ -433,13 +433,13 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
             {/* Add Courses Mode */}
             {courseAdminView.mode === 'add' && (
-                <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8 max-w-4xl">
+                <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8 max-w-4xl">
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="font-black text-xl text-slate-900 dark:text-white flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-indigo-500" /> AI Course Extraction
                             </h3>
-                            <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-1">Upload university course forms to auto-generate catalogs.</p>
+                            <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Upload university course forms to auto-generate catalogs.</p>
                         </div>
                     </div>
                     
@@ -450,7 +450,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 <select
                                     value={courseImportTargetMode}
                                     onChange={e => setCourseImportTargetMode(e.target.value as 'selected' | 'all')}
-                                    className="w-full p-4 border border-indigo-200 rounded-2xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                                    className="w-full p-4 border border-indigo-200 rounded-2xl bg-white dark:bg-black outline-none focus:ring-4 focus:ring-indigo-100 transition"
                                 >
                                     <option value="selected">Selected Department(s)</option>
                                     <option value="all">All Departments</option>
@@ -461,7 +461,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 <select
                                     value={courseImportLevelOverride}
                                     onChange={e => setCourseImportLevelOverride(e.target.value)}
-                                    className="w-full p-4 border border-indigo-200 rounded-2xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                                    className="w-full p-4 border border-indigo-200 rounded-2xl bg-white dark:bg-black outline-none focus:ring-4 focus:ring-indigo-100 transition"
                                 >
                                     <option value="">Auto-detect from PDF</option>
                                     {LEVELS.map(level => (
@@ -476,7 +476,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 <label className="text-xs font-black uppercase tracking-widest text-indigo-400">Select Departments</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                     {allDepartments.map((dept) => (
-                                        <label key={dept.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-white dark:bg-[#121A2F] cursor-pointer hover:bg-indigo-50 transition shadow-sm">
+                                        <label key={dept.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-white dark:bg-black cursor-pointer hover:bg-indigo-50 transition shadow-sm">
                                             <input
                                                 type="checkbox"
                                                 checked={courseImportDepartmentIds.includes(dept.id)}
@@ -496,12 +496,12 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 <input
                                     type="file" multiple accept="application/pdf"
                                     onChange={e => setCourseRegistrationFiles(e.target.files ? Array.from(e.target.files) : [])}
-                                    className="flex-1 text-sm text-slate-500 dark:text-[#A0ABC0] file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                    className="flex-1 text-sm text-slate-500 dark:text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => handleGoogleDrivePick(setCourseRegistrationFiles)}
-                                    className="px-6 py-3 rounded-xl bg-white dark:bg-[#121A2F] text-blue-600 text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition border border-blue-200 flex items-center justify-center gap-2 shadow-sm"
+                                    className="px-6 py-3 rounded-xl bg-white dark:bg-black text-blue-600 text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition border border-blue-200 flex items-center justify-center gap-2 shadow-sm"
                                 >
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" className="w-4 h-4" /> Drive
                                 </button>
@@ -547,7 +547,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         )}
                     </div>
                     
-                    <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6">
+                    <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6">
                         {managerCoursesForLevel.length ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {managerCoursesForLevel.map((course) => {
@@ -557,7 +557,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         <div
                                             key={courseRouteIdentifier}
                                             onClick={() => handleCourseTabNavigate(buildCourseManagerPath(courseAdminView.departmentId, courseAdminView.level, courseRouteIdentifier))}
-                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0A101F] hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
+                                            className="group flex items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black hover:bg-indigo-50 hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
                                         >
                                             <div 
                                                 className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
@@ -585,7 +585,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                                         <BookOpen className="w-4 h-4 text-indigo-500 shrink-0" />
                                                     )}
                                                 </div>
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-[#A0ABC0]">{course.course_code || course.course_id}</p>
+                                                <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">{course.course_code || course.course_id}</p>
                                             </div>
                                             <div className="flex flex-col items-end gap-2 shrink-0">
                                                 <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
@@ -606,7 +606,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <div className="py-16 text-center">
                                 <Folder className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                 <h3 className="font-bold text-slate-700">No courses mapped</h3>
-                                <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-1">Add courses to this level to see them here.</p>
+                                <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Add courses to this level to see them here.</p>
                             </div>
                         )}
                     </div>
@@ -623,14 +623,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         ← Back to Level
                     </button>
                     
-                    <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                    <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-1">
                                     {selectedManagerDepartment?.department_name} • {courseAdminView.level}
                                 </p>
                                 <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-tight">{selectedManagerCourse.course_name}</h2>
-                                <p className="font-semibold text-slate-500 dark:text-[#A0ABC0] mt-1">{selectedManagerCourse.course_code || selectedManagerCourse.course_id}</p>
+                                <p className="font-semibold text-slate-500 dark:text-gray-400 mt-1">{selectedManagerCourse.course_code || selectedManagerCourse.course_id}</p>
                             </div>
                             <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase border ${selectedManagerCourse.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                 {selectedManagerCourse.semester === 'first' ? '1st Sem' : '2nd Sem'}
@@ -641,12 +641,12 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                 <BookOpen className="w-5 h-5 text-indigo-500" /> Textbook Materials
                             </h4>
-                            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100 space-y-4">
+                            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100 space-y-4">
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <input
                                         type="file" multiple accept="application/pdf"
                                         onChange={e => setCourseDetailFiles(e.target.files ? Array.from(e.target.files) : [])}
-                                        className="flex-1 text-sm text-slate-500 dark:text-[#A0ABC0] file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                        className="flex-1 text-sm text-slate-500 dark:text-gray-400 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
                                     />
                                 </div>
                                 <label className="flex items-center gap-3">

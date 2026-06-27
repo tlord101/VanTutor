@@ -84,7 +84,7 @@ export const CoFoundersView: React.FC = () => {
     };
 
     if (isLoading) {
-        return <div className="p-8 text-center text-slate-500 dark:text-[#A0ABC0] font-bold animate-pulse">Loading co-founders...</div>;
+        return <div className="p-8 text-center text-slate-500 dark:text-gray-400 font-bold animate-pulse">Loading co-founders...</div>;
     }
 
     return (
@@ -95,7 +95,7 @@ export const CoFoundersView: React.FC = () => {
                         <Users className="w-6 h-6 text-indigo-500" />
                         Co-Founders Management
                     </h2>
-                    <p className="text-sm font-medium text-slate-500 dark:text-[#A0ABC0] mt-1">
+                    <p className="text-sm font-medium text-slate-500 dark:text-gray-400 mt-1">
                         Manage the team members displayed on the About Us and Founder pages.
                     </p>
                 </div>
@@ -110,17 +110,17 @@ export const CoFoundersView: React.FC = () => {
             </div>
 
             {isAdding ? (
-                <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8 max-w-3xl">
+                <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8 max-w-3xl">
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">{isEditing ? 'Edit' : 'Add'} Co-Founder</h3>
                     <form onSubmit={handleSave} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-black uppercase tracking-widest text-slate-400">Full Name</label>
-                                <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-black uppercase tracking-widest text-slate-400">Role / Title</label>
-                                <input type="text" required value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                <input type="text" required value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                             </div>
                         </div>
 
@@ -130,28 +130,28 @@ export const CoFoundersView: React.FC = () => {
                                 <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200 dark:border-white/10 overflow-hidden">
                                     {formData.imageUrl ? <img src={formData.imageUrl} alt="preview" className="w-full h-full object-cover" /> : <ImageIcon className="w-5 h-5 text-slate-400" />}
                                 </div>
-                                <input type="url" required value={formData.imageUrl || ''} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="flex-1 p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="https://..." />
+                                <input type="url" required value={formData.imageUrl || ''} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="flex-1 p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="https://..." />
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-xs font-black uppercase tracking-widest text-slate-400">Short Bio (Card)</label>
-                            <textarea required rows={2} value={formData.bio || ''} onChange={e => setFormData({...formData, bio: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-none" placeholder="Brief 1-2 sentence intro..." />
+                            <textarea required rows={2} value={formData.bio || ''} onChange={e => setFormData({...formData, bio: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-none" placeholder="Brief 1-2 sentence intro..." />
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-xs font-black uppercase tracking-widest text-slate-400">Long Bio (Dedicated Page)</label>
-                            <textarea required rows={6} value={formData.longBio || ''} onChange={e => setFormData({...formData, longBio: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-y" placeholder="Detailed background and vision..." />
+                            <textarea required rows={6} value={formData.longBio || ''} onChange={e => setFormData({...formData, longBio: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-y" placeholder="Detailed background and vision..." />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"><LinkIcon className="w-3 h-3" /> LinkedIn URL (Optional)</label>
-                                <input type="url" value={formData.linkedinUrl || ''} onChange={e => setFormData({...formData, linkedinUrl: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                <input type="url" value={formData.linkedinUrl || ''} onChange={e => setFormData({...formData, linkedinUrl: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"><LinkIcon className="w-3 h-3" /> Twitter URL (Optional)</label>
-                                <input type="url" value={formData.twitterUrl || ''} onChange={e => setFormData({...formData, twitterUrl: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                <input type="url" value={formData.twitterUrl || ''} onChange={e => setFormData({...formData, twitterUrl: e.target.value})} className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                             </div>
                         </div>
 
@@ -169,7 +169,7 @@ export const CoFoundersView: React.FC = () => {
                         </div>
                     ) : (
                         founders.map(founder => (
-                            <div key={founder.id} className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col group">
+                            <div key={founder.id} className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col group">
                                 <div className="h-48 overflow-hidden relative">
                                     <img src={founder.imageUrl} alt={founder.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">

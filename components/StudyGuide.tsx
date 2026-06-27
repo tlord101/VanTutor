@@ -1274,10 +1274,10 @@ Student: "${tempInput}"
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-[#0A101F] md:rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black md:rounded-xl border border-gray-200 overflow-hidden">
             {/* Sticky Header */}
-            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white dark:bg-[#121A2F]/80 backdrop-blur-lg border-b border-gray-200 z-10">
-                <button onClick={onClose} className="text-gray-500 dark:text-[#A0ABC0] hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+            <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white dark:bg-black/80 backdrop-blur-lg border-b border-gray-200 z-10">
+                <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
                 <h2 className="text-lg font-bold text-gray-800 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     {!course.topics?.length && (
@@ -1317,7 +1317,7 @@ Student: "${tempInput}"
                     <div className="relative">
                         <button 
                             onClick={() => setShowShareDropdown(!showShareDropdown)}
-                            className="p-1.5 text-gray-500 dark:text-[#A0ABC0] hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
                             title="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1327,13 +1327,13 @@ Student: "${tempInput}"
                             </svg>
                         </button>
                         {showShareDropdown && (
-                            <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-gray-200 bg-white dark:bg-[#121A2F] p-2 shadow-xl z-50 animate-fade-in">
+                            <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-gray-200 bg-white dark:bg-black p-2 shadow-xl z-50 animate-fade-in">
                                 <button
                                     onClick={() => {
                                         setShowShareDropdown(false);
                                         void handleShareTopicChat();
                                     }}
-                                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 dark:bg-[#0A101F] transition flex items-center gap-2"
+                                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 dark:bg-black transition flex items-center gap-2"
                                 >
                                     <span>🔗</span> Share Chat Session
                                 </button>
@@ -1344,7 +1344,7 @@ Student: "${tempInput}"
             </header>
 
             {uploadProgress && (
-                <div className="absolute top-16 left-0 right-0 z-40 p-4 bg-white dark:bg-[#121A2F]/90 backdrop-blur border-b border-gray-200 shadow-sm animate-fade-in">
+                <div className="absolute top-16 left-0 right-0 z-40 p-4 bg-white dark:bg-black/90 backdrop-blur border-b border-gray-200 shadow-sm animate-fade-in">
                     <div className="max-w-2xl mx-auto">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-xs font-bold text-gray-700">{uploadProgress.status}</span>
@@ -1361,7 +1361,7 @@ Student: "${tempInput}"
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {isInitialChatLoading ? (
                     <div className="h-full min-h-[200px] flex items-center justify-center">
-                        <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white dark:bg-[#121A2F] px-4 py-3 text-sm text-gray-600 shadow-sm">
+                        <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white dark:bg-black px-4 py-3 text-sm text-gray-600 shadow-sm">
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -1383,7 +1383,7 @@ Student: "${tempInput}"
                             
                             <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                 <div 
-                                    className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#121A2F] text-gray-800 rounded-bl-none border border-gray-200 cursor-pointer select-text'}`}
+                                    className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-black text-gray-800 rounded-bl-none border border-gray-200 cursor-pointer select-text'}`}
                                     onContextMenu={(e) => {
                                         e.preventDefault();
                                         setMessageActionTarget(message);
@@ -1509,7 +1509,7 @@ Student: "${tempInput}"
                                <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                             </div>
                             <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: 'flex-start' }}>
-                                <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-[#121A2F] text-gray-800 rounded-bl-none border border-gray-200">
+                                <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-black text-gray-800 rounded-bl-none border border-gray-200">
                                     <div className="text-sm sm:text-base prose prose-sm max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkMath]}
@@ -1552,7 +1552,7 @@ Student: "${tempInput}"
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
                            <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                         </div>
-                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#121A2F] border border-gray-200 rounded-bl-none">
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-black border border-gray-200 rounded-bl-none">
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
                                 <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
                                 <span>Creating visualization...</span>
@@ -1565,7 +1565,7 @@ Student: "${tempInput}"
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
                            <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                         </div>
-                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#121A2F] border border-gray-200 rounded-bl-none shadow-sm">
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-black border border-gray-200 rounded-bl-none shadow-sm">
                             <div className="flex items-center space-x-2">
                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
@@ -1580,7 +1580,7 @@ Student: "${tempInput}"
             </div>
             
             {/* Fixed Input Area */}
-            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white dark:bg-[#121A2F]/80 backdrop-blur-lg">
+            <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-white dark:bg-black/80 backdrop-blur-lg">
                 <div className="relative flex items-center">
                     <textarea 
                         value={input} 
@@ -1592,14 +1592,14 @@ Student: "${tempInput}"
                             } 
                         }} 
                         placeholder="Ask a question..." 
-                        className="w-full bg-white dark:bg-[#121A2F] border border-gray-300 rounded-[24px] py-3.5 pl-12 pr-14 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500 focus:outline-none resize-none overflow-y-auto max-h-[180px] transition-all"
+                        className="w-full bg-white dark:bg-black border border-gray-300 rounded-[24px] py-3.5 pl-12 pr-14 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500 focus:outline-none resize-none overflow-y-auto max-h-[180px] transition-all"
                         rows={1}
                         disabled={isThinking || isIllustrating}
                         autoComplete="off"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 dark:text-[#A0ABC0] hover:text-gray-900 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                    <label className="absolute left-4 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-900 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
                         <PaperclipIcon className="w-9 h-9" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
@@ -1630,7 +1630,7 @@ Student: "${tempInput}"
             />
 
             {/* Video Tutorials bottom drawer */}
-            <div className={`fixed inset-x-0 bottom-0 z-40 transform transition-transform duration-500 ease-in-out bg-white dark:bg-[#121A2F] rounded-t-[2.5rem] shadow-2xl border-t border-gray-100 flex flex-col max-h-[80vh] min-h-[40vh] ${isTutorialsOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+            <div className={`fixed inset-x-0 bottom-0 z-40 transform transition-transform duration-500 ease-in-out bg-white dark:bg-black rounded-t-[2.5rem] shadow-2xl border-t border-gray-100 flex flex-col max-h-[80vh] min-h-[40vh] ${isTutorialsOpen ? 'translate-y-0' : 'translate-y-full'}`}>
                 {/* Drag Handle & Close */}
                 <div className="flex flex-col items-center py-3 border-b border-gray-100 shrink-0 relative">
                     <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
@@ -1645,7 +1645,7 @@ Student: "${tempInput}"
                         </button>
                         <button
                             onClick={() => setIsTutorialsOpen(false)}
-                            className="text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 dark:bg-[#0A101F] border border-gray-100 transition-colors"
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded-full bg-gray-50 dark:bg-black border border-gray-100 transition-colors"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -1703,7 +1703,7 @@ Student: "${tempInput}"
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">{video.title}</h4>
-                                        <p className="text-xs text-gray-500 dark:text-[#A0ABC0] mt-1 line-clamp-2 leading-relaxed">{video.description}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">{video.description}</p>
                                     </div>
                                 </button>
                             ))}
@@ -1737,7 +1737,7 @@ Student: "${tempInput}"
                     <div
                         ref={messageActionMenuRef}
                         onClick={e => e.stopPropagation()}
-                        className="absolute w-[min(92vw,280px)] rounded-2xl border border-gray-200 bg-white dark:bg-[#121A2F] p-3 shadow-2xl"
+                        className="absolute w-[min(92vw,280px)] rounded-2xl border border-gray-200 bg-white dark:bg-black p-3 shadow-2xl"
                         style={{
                             left: `${Math.max(12, Math.min((messageActionPosition.x) - 140, window.innerWidth - 292))}px`,
                             top: `${Math.max(12, Math.min((messageActionPosition.y) - 60, window.innerHeight - 180))}px`
@@ -1763,7 +1763,7 @@ Student: "${tempInput}"
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 bg-white dark:bg-[#121A2F] px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-[#0A101F]"
+                                className="w-full rounded-xl border border-gray-100 bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-black"
                             >
                                 📋 Copy message
                             </button>
@@ -1776,7 +1776,7 @@ Student: "${tempInput}"
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 bg-white dark:bg-[#121A2F] px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-[#0A101F]"
+                                className="w-full rounded-xl border border-gray-100 bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-black"
                             >
                                 ➤ Forward to Study Partner
                             </button>
@@ -1790,7 +1790,7 @@ Student: "${tempInput}"
                                         void handleGenerateIllustration(textToIllustrate);
                                     }}
                                     disabled={isThinking || isIllustrating}
-                                    className="w-full rounded-xl border border-gray-100 bg-white dark:bg-[#121A2F] px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-[#0A101F] disabled:opacity-50"
+                                    className="w-full rounded-xl border border-gray-100 bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:bg-black disabled:opacity-50"
                                 >
                                     🎨 Visualize
                                 </button>
@@ -1803,18 +1803,18 @@ Student: "${tempInput}"
             {/* Forward Message Modal (inline for StudyGuide) */}
             {isForwardModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-[#121A2F] w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[75vh]">
+                    <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[75vh]">
                         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                             <div>
                                 <h2 className="text-base font-bold text-gray-900">Forward Message</h2>
-                                <p className="text-[11px] text-gray-500 dark:text-[#A0ABC0] mt-0.5">Select study partners to forward to.</p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Select study partners to forward to.</p>
                             </div>
                             <button
                                 onClick={() => { setIsForwardModalOpen(false); setForwardTargetContent(''); setSelectedRecipients([]); setForwardSearchQuery(''); }}
-                                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 dark:text-[#A0ABC0] text-xs font-bold transition"
+                                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs font-bold transition"
                             >✕</button>
                         </div>
-                        <div className="px-5 py-3.5 bg-gray-50 dark:bg-[#0A101F] border-b border-gray-100 text-xs font-medium text-gray-500 dark:text-[#A0ABC0]">
+                        <div className="px-5 py-3.5 bg-gray-50 dark:bg-black border-b border-gray-100 text-xs font-medium text-gray-500 dark:text-gray-400">
                             <span className="font-bold uppercase tracking-wider block text-[10px] mb-1">Preview</span>
                             <p className="truncate italic text-gray-600">{forwardTargetContent}</p>
                         </div>
@@ -1824,7 +1824,7 @@ Student: "${tempInput}"
                                 placeholder="Search partners..."
                                 value={forwardSearchQuery}
                                 onChange={e => setForwardSearchQuery(e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-[#0A101F] text-sm px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-lime-400/30 focus:border-lime-400 transition"
+                                className="w-full bg-gray-50 dark:bg-black text-sm px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-lime-400/30 focus:border-lime-400 transition"
                             />
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
@@ -1836,14 +1836,14 @@ Student: "${tempInput}"
                                         <div
                                             key={u.uid}
                                             onClick={() => setSelectedRecipients(prev => isChecked ? prev.filter(id => id !== u.uid) : [...prev, u.uid])}
-                                            className={`flex items-center gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-lime-50 border-lime-400' : 'bg-white dark:bg-[#121A2F] border-gray-100 hover:bg-gray-50 dark:bg-[#0A101F]'}`}
+                                            className={`flex items-center gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-lime-50 border-lime-400' : 'bg-white dark:bg-black border-gray-100 hover:bg-gray-50 dark:bg-black'}`}
                                         >
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                                                 {(u.display_name || 'L')[0].toUpperCase()}
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="font-semibold text-sm text-gray-900 truncate">{u.display_name}</p>
-                                                <p className="text-[10px] text-gray-500 dark:text-[#A0ABC0] truncate">{u.department_id || 'No Department'}</p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{u.department_id || 'No Department'}</p>
                                             </div>
                                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${isChecked ? 'border-lime-500 bg-lime-500' : 'border-gray-300'}`}>
                                                 {isChecked && <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
@@ -1855,10 +1855,10 @@ Student: "${tempInput}"
                                 <p className="text-center text-xs text-gray-400 italic py-8">No study partners yet. Add partners in Messenger.</p>
                             )}
                         </div>
-                        <div className="p-4 border-t border-gray-100 bg-gray-50 dark:bg-[#0A101F] flex gap-3 shrink-0">
+                        <div className="p-4 border-t border-gray-100 bg-gray-50 dark:bg-black flex gap-3 shrink-0">
                             <button
                                 onClick={() => { setIsForwardModalOpen(false); setForwardTargetContent(''); setSelectedRecipients([]); setForwardSearchQuery(''); }}
-                                className="flex-1 bg-white dark:bg-[#121A2F] hover:bg-gray-100 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
+                                className="flex-1 bg-white dark:bg-black hover:bg-gray-100 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
                             >Cancel</button>
                             <button
                                 disabled={selectedRecipients.length === 0}
@@ -1881,14 +1881,14 @@ Student: "${tempInput}"
             {/* Share URL Modal */}
             {shareModalUrl && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-[#121A2F] w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-200">
+                    <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-200">
                         <h2 className="text-base font-bold text-gray-900 mb-1">Chat Shared! 🎉</h2>
-                        <p className="text-xs text-gray-500 dark:text-[#A0ABC0] mb-4">Anyone with this link can view the shared chat session.</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Anyone with this link can view the shared chat session.</p>
                         <div className="flex gap-2">
                             <input
                                 readOnly
                                 value={shareModalUrl}
-                                className="flex-1 min-w-0 bg-gray-50 dark:bg-[#0A101F] border border-gray-200 text-xs text-gray-700 px-3 py-2.5 rounded-xl font-mono truncate"
+                                className="flex-1 min-w-0 bg-gray-50 dark:bg-black border border-gray-200 text-xs text-gray-700 px-3 py-2.5 rounded-xl font-mono truncate"
                             />
                             <button
                                 onClick={async () => {
@@ -1939,11 +1939,11 @@ const CourseHeader: React.FC<{
                     </div>
                     <div className="flex flex-col">
                         <div className="text-base font-black text-gray-800 tracking-tight">{courseLabel}</div>
-                        <div className="text-xs font-semibold text-gray-500 dark:text-[#A0ABC0] line-clamp-1">{course.course_name}</div>
+                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 line-clamp-1">{course.course_name}</div>
                     </div>
                 </div>
                 {timeSpent > 0 && (
-                    <div className="mt-3 sm:mt-0 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#121A2F] rounded-full border border-gray-100 text-[10px] font-bold text-gray-500 dark:text-[#A0ABC0] shadow-sm shrink-0">
+                    <div className="mt-3 sm:mt-0 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-black rounded-full border border-gray-100 text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                         </svg>
@@ -2096,14 +2096,14 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full bg-white dark:bg-[#121A2F] border border-gray-200 overflow-hidden rounded-2xl">
-        <div className="flex-shrink-0 px-8 py-10 bg-gray-50 dark:bg-[#0A101F] border-b border-gray-200">
+    <div className="flex-1 flex flex-col w-full bg-white dark:bg-black border border-gray-200 overflow-hidden rounded-2xl">
+        <div className="flex-shrink-0 px-8 py-10 bg-gray-50 dark:bg-black border-b border-gray-200">
             <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald/10 text-emerald text-[10px] font-bold uppercase tracking-widest mb-4">
                     Your Learning Path
                 </div>
                 <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">Knowledge Roadmap</h2>
-                <p className="text-gray-500 dark:text-[#A0ABC0] text-lg max-w-lg">Master your curriculum topic by topic with personalized AI guidance.</p>
+                <p className="text-gray-500 dark:text-gray-400 text-lg max-w-lg">Master your curriculum topic by topic with personalized AI guidance.</p>
                 
                 <div className="mt-8 w-full flex flex-col sm:flex-row gap-3">
                     <div className="flex-1 relative group">
@@ -2112,16 +2112,16 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             placeholder="Find a topic..."
                             value={filter.searchTerm}
                             onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
-                            className="w-full bg-white dark:bg-[#121A2F] border border-gray-200 rounded-xl py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald focus:border-emerald focus:outline-none transition-all"
+                            className="w-full bg-white dark:bg-black border border-gray-200 rounded-xl py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald focus:border-emerald focus:outline-none transition-all"
                         />
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-emerald transition-colors">
                            <SearchIcon className="w-5 h-5" />
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-[#121A2F] p-1 rounded-xl flex border border-gray-200">
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-[#A0ABC0] hover:text-gray-700'}`}>1st Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-[#A0ABC0] hover:text-gray-700'}`}>2nd Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-[#A0ABC0] hover:text-gray-700'}`}>All</button>
+                    <div className="bg-white dark:bg-black p-1 rounded-xl flex border border-gray-200">
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>1st Sem</button>
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>2nd Sem</button>
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>All</button>
                     </div>
                 </div>
             </div>
@@ -2146,11 +2146,11 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center p-20 text-center">
-                        <div className="w-16 h-16 bg-gray-50 dark:bg-[#0A101F] rounded-full flex items-center justify-center mb-4 text-gray-300">
+                        <div className="w-16 h-16 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-4 text-gray-300">
                             <SearchIcon className="w-8 h-8" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-1">No topics found</h3>
-                        <p className="text-gray-500 dark:text-[#A0ABC0]">Try adjusting your filters or search term.</p>
+                        <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or search term.</p>
                     </div>
                 )
             )}
@@ -2454,7 +2454,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                             max={duration || 100}
                             value={currentTime}
                             onChange={handleSeekChange}
-                            className="flex-1 h-1 bg-white dark:bg-[#121A2F]/20 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 focus:outline-none"
+                            className="flex-1 h-1 bg-white dark:bg-black/20 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 focus:outline-none"
                         />
                         <span className="text-xs font-mono text-slate-300">{formatTime(duration)}</span>
                     </div>
@@ -2484,7 +2484,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                                     max={100}
                                     value={isMuted ? 0 : volume}
                                     onChange={handleVolumeChange}
-                                    className="w-16 md:w-24 h-1 bg-white dark:bg-[#121A2F]/20 rounded-lg appearance-none cursor-pointer accent-white hover:accent-blue-400 focus:outline-none"
+                                    className="w-16 md:w-24 h-1 bg-white dark:bg-black/20 rounded-lg appearance-none cursor-pointer accent-white hover:accent-blue-400 focus:outline-none"
                                 />
                             </div>
                         </div>

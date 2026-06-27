@@ -58,11 +58,11 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
     if (items.length === 0) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 bg-gray-50 dark:bg-[#0A101F] rounded-full flex items-center justify-center mb-6">
+          <div className="w-20 h-20 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-6">
             <HelpCircle className="w-10 h-10 text-gray-300" />
           </div>
           <h3 className="text-xl font-black text-gray-800 mb-2">No Saved History</h3>
-          <p className="text-gray-500 dark:text-[#A0ABC0] max-w-sm">When you generate flashcards, take mock exams, or practice past questions, they will automatically be saved here for you to review later.</p>
+          <p className="text-gray-500 dark:text-gray-400 max-w-sm">When you generate flashcards, take mock exams, or practice past questions, they will automatically be saved here for you to review later.</p>
         </div>
       );
     }
@@ -76,7 +76,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
              : 'Recently';
 
           return (
-            <div key={item.id} className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+            <div key={item.id} className="bg-white dark:bg-black border border-gray-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
               <div className="flex justify-between items-start mb-4">
                 <span className={`px-3 py-1 text-xs font-black uppercase tracking-widest rounded-full border ${colorClass}`}>
                   {label}
@@ -86,14 +86,14 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
               <h3 className="text-lg font-black text-gray-900 leading-tight mb-4 group-hover:text-blue-600 transition-colors">
                 {item.title}
               </h3>
-              <p className="text-sm font-medium text-gray-500 dark:text-[#A0ABC0] mb-6">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-6">
                 {item.type === 'flashcards' && item.data ? `${item.data.length} Cards` : ''}
                 {(item.type === 'exam' || item.type === 'past_questions') && item.data ? `${item.data.length} Questions` : ''}
               </p>
               
               <button 
                 onClick={() => setActiveItem(item)}
-                className="w-full bg-gray-50 dark:bg-[#0A101F] hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors text-sm"
+                className="w-full bg-gray-50 dark:bg-black hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors text-sm"
               >
                 Review {label}
               </button>
@@ -105,12 +105,12 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
   };
 
   return (
-    <div className="flex-1 w-full bg-gray-50 dark:bg-[#0A101F]/50 min-h-full">
+    <div className="flex-1 w-full bg-gray-50 dark:bg-black/50 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Saved History</h1>
-            <p className="text-gray-500 dark:text-[#A0ABC0] font-medium mt-2">Review your past generated study materials.</p>
+            <p className="text-gray-500 dark:text-gray-400 font-medium mt-2">Review your past generated study materials.</p>
           </div>
         </div>
         
@@ -129,16 +129,16 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
       {activeItem && (activeItem.type === 'exam' || activeItem.type === 'past_questions') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setActiveItem(null)}></div>
-           <div className="relative bg-white dark:bg-[#121A2F] rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 dark:bg-[#0A101F]/50 shrink-0">
+           <div className="relative bg-white dark:bg-black rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 dark:bg-black/50 shrink-0">
                   <h3 className="text-xl font-black text-gray-900">{activeItem.title}</h3>
                   <button onClick={() => setActiveItem(null)} className="p-2 rounded-xl hover:bg-gray-200 transition-colors">
-                     <XIcon className="w-5 h-5 text-gray-500 dark:text-[#A0ABC0]" />
+                     <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                   </button>
                </div>
                <div className="p-6 overflow-y-auto flex-1 space-y-6">
                    {activeItem.data.map((q: any, idx: number) => (
-                       <div key={idx} className="p-6 rounded-2xl bg-white dark:bg-[#121A2F] border border-gray-200 shadow-sm">
+                       <div key={idx} className="p-6 rounded-2xl bg-white dark:bg-black border border-gray-200 shadow-sm">
                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Question {idx + 1}</p>
                            <h4 className="text-lg font-black text-gray-900 mb-4">{q.question}</h4>
                            
@@ -148,7 +148,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
                                        <div key={i} className={`p-3 rounded-xl border-2 text-xs sm:text-sm font-bold ${
                                            opt === q.correctAnswer || (opt.startsWith('(') && q.correctAnswer && (q.correctAnswer.startsWith(opt.substring(0, 3)) || opt.includes(q.correctAnswer)))
                                             ? 'bg-lime-50 border-lime-200 text-lime-800' 
-                                            : 'bg-gray-50 dark:bg-[#0A101F] border-gray-100 text-gray-600'
+                                            : 'bg-gray-50 dark:bg-black border-gray-100 text-gray-600'
                                        }`}>
                                            {opt}
                                        </div>

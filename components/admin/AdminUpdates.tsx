@@ -107,56 +107,56 @@ export const AdminUpdates: React.FC = () => {
         <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">
             <div>
                 <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">App Updates</h1>
-                <p className="text-slate-500 dark:text-[#A0ABC0] font-medium mt-2 max-w-2xl">Publish new versions of the AVELUT app directly to your users. When you upload a new version here with a higher Version Code, users will be prompted to update.</p>
+                <p className="text-slate-500 dark:text-gray-400 font-medium mt-2 max-w-2xl">Publish new versions of the AVELUT app directly to your users. When you upload a new version here with a higher Version Code, users will be prompted to update.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form Section */}
-                <div className="lg:col-span-2 bg-white dark:bg-[#121A2F] rounded-[32px] p-8 border border-slate-200 dark:border-white/10 shadow-sm">
+                <div className="lg:col-span-2 bg-white dark:bg-black rounded-[32px] p-8 border border-slate-200 dark:border-white/10 shadow-sm">
                     <h2 className="text-xl font-black mb-6 text-slate-800">Publish New Release</h2>
                     
                     <form onSubmit={handlePublish} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#A0ABC0] mb-2">Version Code (Number)</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Version Code (Number)</label>
                                 <input 
                                     type="number" 
                                     value={versionCode}
                                     onChange={(e) => setVersionCode(e.target.value)}
                                     placeholder="e.g. 64"
-                                    className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                                    className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
                                 />
                                 <p className="text-[10px] text-slate-400 mt-1.5 font-semibold">Must be exactly +1 from the previous release.</p>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#A0ABC0] mb-2">Version Name</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Version Name</label>
                                 <input 
                                     type="text" 
                                     value={versionName}
                                     onChange={(e) => setVersionName(e.target.value)}
                                     placeholder="e.g. 4.17.0"
-                                    className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                                    className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
                                 />
                                 <p className="text-[10px] text-slate-400 mt-1.5 font-semibold">The user-facing version name.</p>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#A0ABC0] mb-2">Release Notes</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Release Notes</label>
                             <textarea 
                                 value={releaseNotes}
                                 onChange={(e) => setReleaseNotes(e.target.value)}
                                 placeholder="What's new in this version?"
                                 rows={4}
-                                className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition resize-none"
+                                className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition resize-none"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-[#A0ABC0] mb-2">APK File</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">APK File</label>
                             <div 
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition ${file ? 'border-sky-400 bg-sky-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50 dark:bg-[#0A101F] hover:bg-slate-100'}`}
+                                className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition ${file ? 'border-sky-400 bg-sky-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50 dark:bg-black hover:bg-slate-100'}`}
                             >
                                 <input 
                                     type="file" 
@@ -167,7 +167,7 @@ export const AdminUpdates: React.FC = () => {
                                 />
                                 <UploadCloud className={`w-10 h-10 mb-3 ${file ? 'text-sky-500' : 'text-slate-400'}`} />
                                 <p className="text-sm font-bold text-slate-700">{file ? file.name : 'Click to select APK file'}</p>
-                                <p className="text-xs text-slate-500 dark:text-[#A0ABC0] mt-1">{file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : 'Upload your app-debug.apk file here'}</p>
+                                <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : 'Upload your app-debug.apk file here'}</p>
                             </div>
                         </div>
 
@@ -215,7 +215,7 @@ export const AdminUpdates: React.FC = () => {
                                 <div className="flex items-baseline gap-2 mb-2">
                                     <span className="text-4xl font-black tracking-tight">v{currentUpdate.versionName}</span>
                                 </div>
-                                <div className="inline-flex items-center gap-1.5 bg-white dark:bg-[#121A2F]/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md mb-6">
+                                <div className="inline-flex items-center gap-1.5 bg-white dark:bg-black/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md mb-6">
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     Code: {currentUpdate.versionCode}
                                 </div>

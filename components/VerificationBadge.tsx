@@ -28,7 +28,7 @@ export const VerificationBadge: React.FC<VerificationBadgeProps> = ({ status, cl
 
   if (status === 'free') {
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 dark:text-[#A0ABC0] border border-slate-200 dark:border-white/10 rounded-full shrink-0 select-none ${className}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-white/10 rounded-full shrink-0 select-none ${className}`}>
         Free
       </span>
     );

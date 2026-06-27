@@ -36,7 +36,7 @@ export const AboutUsPage: React.FC = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-[#0A101F] font-sans selection:bg-brand-500 selection:text-white">
+        <div className="min-h-screen bg-slate-50 dark:bg-black font-sans selection:bg-brand-500 selection:text-white">
             <SEOHead 
                 title="About Us"
                 description="Learn more about Avelut's mission to revolutionize education with AI, and meet the founders behind the vision."
@@ -51,7 +51,7 @@ export const AboutUsPage: React.FC = () => {
                             window.dispatchEvent(new Event('popstate'));
                         }
                     }}
-                    className="flex items-center gap-2 text-slate-500 dark:text-[#A0ABC0] hover:text-slate-900 dark:text-white transition mb-12 font-semibold"
+                    className="flex items-center gap-2 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:text-white transition mb-12 font-semibold"
                 >
                     <ArrowLeft className="w-5 h-5" /> Back to Home
                 </button>
@@ -65,7 +65,7 @@ export const AboutUsPage: React.FC = () => {
 
                 <div className="mb-16 text-center">
                     <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Meet the Founders</h2>
-                    <p className="text-lg text-slate-500 dark:text-[#A0ABC0]">The visionaries powering the future of learning.</p>
+                    <p className="text-lg text-slate-500 dark:text-gray-400">The visionaries powering the future of learning.</p>
                 </div>
 
                 {loading ? (
@@ -75,7 +75,7 @@ export const AboutUsPage: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {founders.map((founder) => (
-                            <div key={founder.id} className="bg-white dark:bg-[#121A2F] rounded-[32px] p-6 shadow-xl shadow-slate-200/50 hover:-translate-y-2 transition duration-300 border border-slate-100 flex flex-col group">
+                            <div key={founder.id} className="bg-white dark:bg-black rounded-[32px] p-6 shadow-xl shadow-slate-200/50 hover:-translate-y-2 transition duration-300 border border-slate-100 flex flex-col group">
                                 <div className="w-full aspect-square rounded-[24px] overflow-hidden bg-slate-100 mb-6 relative">
                                     {founder.imageUrl ? (
                                         <img src={founder.imageUrl} alt={founder.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
@@ -95,7 +95,7 @@ export const AboutUsPage: React.FC = () => {
                                             window.dispatchEvent(new Event('popstate'));
                                         }
                                     }}
-                                    className="w-full py-4 bg-slate-50 dark:bg-[#0A101F] hover:bg-slate-100 text-slate-900 dark:text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition"
+                                    className="w-full py-4 bg-slate-50 dark:bg-black hover:bg-slate-100 text-slate-900 dark:text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition"
                                 >
                                     Read Full Bio <ArrowRight className="w-4 h-4" />
                                 </button>

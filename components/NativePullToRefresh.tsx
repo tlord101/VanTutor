@@ -95,7 +95,7 @@ export const NativePullToRefresh: React.FC = () => {
       }}
     >
       <div
-        className="bg-white dark:bg-[#121A2F] rounded-full shadow-lg flex items-center justify-center overflow-hidden transition-transform duration-200 ease-out"
+        className="bg-white dark:bg-black rounded-full shadow-lg flex items-center justify-center overflow-hidden transition-transform duration-200 ease-out"
         style={{
           width: '40px',
           height: '40px',

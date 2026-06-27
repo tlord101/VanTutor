@@ -94,7 +94,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
                     <div className="mt-8 text-center">
                         <button 
                             onClick={() => window.location.href = '/'}
-                            className="text-sm text-gray-500 dark:text-[#A0ABC0] hover:text-gray-300"
+                            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-300"
                         >
                             Return to Student Dashboard
                         </button>

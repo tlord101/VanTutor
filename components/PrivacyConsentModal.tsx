@@ -14,7 +14,7 @@ export const PrivacyConsentModal: React.FC<PrivacyConsentModalProps> = ({ onAllo
       aria-modal="true"
       aria-labelledby="privacy-title"
     >
-      <div className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative privacy-modal-content">
+      <div className="bg-white dark:bg-black border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative privacy-modal-content">
         <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center mb-4">
                 <ShieldCheckIcon className="w-8 h-8"/>

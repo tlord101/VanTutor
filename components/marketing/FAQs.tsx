@@ -42,7 +42,7 @@ export const FAQs: React.FC = () => {
                     return (
                         <div 
                             key={index} 
-                            className={`border ${isOpen ? 'border-brand-500 shadow-md' : 'border-slate-200 dark:border-white/10'} rounded-2xl bg-white dark:bg-[#121A2F] overflow-hidden transition-all duration-300`}
+                            className={`border ${isOpen ? 'border-brand-500 shadow-md' : 'border-slate-200 dark:border-white/10'} rounded-2xl bg-white dark:bg-black overflow-hidden transition-all duration-300`}
                         >
                             <button
                                 onClick={() => setOpenIndex(isOpen ? null : index)}
@@ -51,7 +51,7 @@ export const FAQs: React.FC = () => {
                                 <span className={`text-lg font-bold ${isOpen ? 'text-brand-600' : 'text-slate-900 dark:text-white'}`}>
                                     {faq.question}
                                 </span>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-brand-100 text-brand-600' : 'bg-slate-50 dark:bg-[#0A101F] text-slate-400'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-brand-100 text-brand-600' : 'bg-slate-50 dark:bg-black text-slate-400'}`}>
                                     {isOpen ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                                 </div>
                             </button>

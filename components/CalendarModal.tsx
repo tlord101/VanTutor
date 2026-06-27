@@ -246,18 +246,18 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".pdf,.doc,.docx,.txt" />
             <input type="file" ref={imageInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
 
-            <div className="bg-white dark:bg-[#121A2F] w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-scale-in">
+            <div className="bg-white dark:bg-black w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-scale-in">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-[#009EE2]/5 to-[#0070B8]/5">
                     <div>
                         <h2 className="text-xl font-bold text-charcoal flex items-center gap-2">
                             <span>📅</span> Study Timetable
                         </h2>
-                        <p className="text-xs text-[#6C757D] dark:text-[#A0ABC0] font-medium mt-0.5">Organize your syllabus and build an interactive AI-powered study schedule.</p>
+                        <p className="text-xs text-[#6C757D] dark:text-gray-400 font-medium mt-0.5">Organize your syllabus and build an interactive AI-powered study schedule.</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-full bg-white dark:bg-[#121A2F] hover:bg-neutral-100 flex items-center justify-center text-charcoal shadow-sm border border-gray-100 font-bold transition"
+                        className="w-9 h-9 rounded-full bg-white dark:bg-black hover:bg-neutral-100 flex items-center justify-center text-charcoal shadow-sm border border-gray-100 font-bold transition"
                     >
                         ✕
                     </button>
@@ -267,11 +267,11 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                 <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {/* Left: AI Generator Panel */}
                     <div className="w-full lg:w-[350px] shrink-0 space-y-4">
-                        <div className="bg-[#F8F9FA] dark:bg-[#0A101F] p-5 rounded-2xl border border-gray-100">
+                        <div className="bg-[#F8F9FA] dark:bg-black p-5 rounded-2xl border border-gray-100">
                             <h3 className="text-sm font-bold text-charcoal mb-2.5">Generate Study Timetable</h3>
                             
                             {/* Premium Input Text Area with Attachment button inside */}
-                            <div className="relative border border-gray-200 bg-white dark:bg-[#121A2F] rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2] transition-all">
+                            <div className="relative border border-gray-200 bg-white dark:bg-black rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2] transition-all">
                                 <textarea
                                     value={textInput}
                                     onChange={(e) => setTextInput(e.target.value)}
@@ -293,7 +293,7 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                                         <button
                                             type="button"
                                             onClick={() => setShowUploadMenu(!showUploadMenu)}
-                                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] border border-gray-100 text-charcoal/60 hover:text-charcoal hover:bg-neutral-50 active:scale-95 shadow-sm transition"
+                                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-black border border-gray-100 text-charcoal/60 hover:text-charcoal hover:bg-neutral-50 active:scale-95 shadow-sm transition"
                                             title="Attach Course File or Syllabus"
                                         >
                                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -303,7 +303,7 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
 
                                         {/* Upload Options Menu */}
                                         {showUploadMenu && (
-                                            <div className="absolute left-0 bottom-11 w-44 bg-white dark:bg-[#121A2F] border border-gray-100 rounded-2xl shadow-xl p-2 z-50 animate-scale-in">
+                                            <div className="absolute left-0 bottom-11 w-44 bg-white dark:bg-black border border-gray-100 rounded-2xl shadow-xl p-2 z-50 animate-scale-in">
                                                 <button
                                                     type="button"
                                                     onClick={() => { imageInputRef.current?.click(); }}
@@ -356,10 +356,10 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                     </div>
 
                     {/* Right: Timetable Schedule Grid Viewer */}
-                    <div className="flex-1 min-w-0 bg-[#F8F9FA] dark:bg-[#0A101F] rounded-2xl p-5 border border-gray-100 flex flex-col max-h-full">
+                    <div className="flex-1 min-w-0 bg-[#F8F9FA] dark:bg-black rounded-2xl p-5 border border-gray-100 flex flex-col max-h-full">
                         <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
                             <h3 className="text-sm font-bold text-charcoal">Weekly Study Calendar</h3>
-                            <span className="text-[10px] font-black text-[#6C757D] dark:text-[#A0ABC0] uppercase tracking-wider bg-white dark:bg-[#121A2F] border border-gray-100 px-2.5 py-1 rounded-full shadow-sm">
+                            <span className="text-[10px] font-black text-[#6C757D] dark:text-gray-400 uppercase tracking-wider bg-white dark:bg-black border border-gray-100 px-2.5 py-1 rounded-full shadow-sm">
                                 {timetable.length} Sessions scheduled
                             </span>
                         </div>
@@ -370,13 +370,13 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                <p className="text-xs font-black text-[#6C757D] dark:text-[#A0ABC0] uppercase tracking-widest animate-pulse">Loading Weekly timetable...</p>
+                                <p className="text-xs font-black text-[#6C757D] dark:text-gray-400 uppercase tracking-widest animate-pulse">Loading Weekly timetable...</p>
                             </div>
                         ) : timetable.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center py-16 px-6 text-center">
                                 <span className="text-4xl mb-3 block">📆</span>
                                 <h4 className="text-sm font-bold text-[#212529] dark:text-white">No Study Timetable Found</h4>
-                                <p className="text-xs text-[#6C757D] dark:text-[#A0ABC0] mt-1 max-w-sm">
+                                <p className="text-xs text-[#6C757D] dark:text-gray-400 mt-1 max-w-sm">
                                     Describe your target topics or upload a course syllabus outline inside the scheduler to create a neat weekly schedule.
                                 </p>
                             </div>
@@ -390,13 +390,13 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                                                 <div
                                                     key={session.id}
                                                     onClick={() => void toggleSessionComplete(session.id)}
-                                                    className={`flex items-start justify-between p-4 bg-white dark:bg-[#121A2F] border rounded-2xl shadow-sm transition cursor-pointer select-none ${
+                                                    className={`flex items-start justify-between p-4 bg-white dark:bg-black border rounded-2xl shadow-sm transition cursor-pointer select-none ${
                                                         session.complete ? 'border-emerald-200 bg-emerald-50/20 opacity-70' : 'border-gray-100 hover:border-[#009EE2]'
                                                     }`}
                                                 >
                                                     <div className="min-w-0 flex-1 pr-3">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-[10px] font-bold text-[#6C757D] dark:text-[#A0ABC0] tabular-nums">🕒 {session.time}</span>
+                                                            <span className="text-[10px] font-bold text-[#6C757D] dark:text-gray-400 tabular-nums">🕒 {session.time}</span>
                                                             <span className="text-[10px] font-black uppercase text-[#009EE2] dark:text-[#F8F9FA] bg-[#009EE2]/5 px-2 py-0.5 rounded">
                                                                 {session.subject}
                                                             </span>
@@ -404,7 +404,7 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                                                         <h5 className={`font-bold text-xs text-[#212529] dark:text-white ${session.complete ? 'line-through text-neutral-500' : ''}`}>
                                                             {session.topic}
                                                         </h5>
-                                                        <p className="text-[11px] text-[#6C757D] dark:text-[#A0ABC0] font-medium leading-relaxed mt-1">
+                                                        <p className="text-[11px] text-[#6C757D] dark:text-gray-400 font-medium leading-relaxed mt-1">
                                                             {session.activity}
                                                         </p>
                                                     </div>

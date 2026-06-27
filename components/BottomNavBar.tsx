@@ -62,7 +62,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
   const renderTab = (itemId: string, iconComponent: React.ReactElement, label: string) => {
     const isActive = activeItem === itemId;
-    const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-[#F5F2EA]';
+    const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-gray-400';
 
     return (
       <button
@@ -87,10 +87,10 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   if (navItems.length !== 5) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up pb-[env(safe-area-inset-bottom,0px)] bg-transparent">
-        <div className="relative w-full max-w-md h-16 bg-white dark:bg-[#121A2F]/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 dark:border-border px-6 flex items-center justify-around">
+        <div className="relative w-full max-w-md h-16 bg-white dark:bg-black/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 dark:border-border px-6 flex items-center justify-around">
           {navItems.map((item) => {
             const isActive = activeItem === item.id;
-            const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-[#F5F2EA]';
+            const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-gray-400';
             return (
               <button
                 key={item.id}
@@ -164,7 +164,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
             willChange: 'transform'
           }}
         >
-           <div className="absolute inset-0 bg-white dark:bg-[#121A2F]/95 dark:bg-slate-900/95 backdrop-blur-xl translate-z-0 border-t border-slate-200 dark:border-white/10/50 dark:border-slate-800/80"></div>
+           <div className="absolute inset-0 bg-white dark:bg-black/80 backdrop-blur-xl translate-z-0 border-t border-slate-200 dark:border-white/10 dark:border-gray-800"></div>
         </div>
 
         {/* Premium highlight border tracing the notch shape */}
@@ -185,12 +185,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
         <button
           onClick={() => onCenterActionClick ? onCenterActionClick() : onItemClick(navItems[2].id)}
-          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-[#121A2F] border-[5px] border-[#002D62] dark:border-[#0A101F] flex items-center justify-center shadow-[0_8px_24px_rgba(0,45,98,0.18)] hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#002D62]/20 dark:ring-white/20 animate-pulse' : ''}`}
+          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-black border-[5px] border-[#002D62] dark:border-black flex items-center justify-center shadow-[0_8px_24px_rgba(0,45,98,0.18)] hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#002D62]/20 dark:ring-white/20 animate-pulse' : ''}`}
         >
           {activeItem === 'visual_solver' ? (
-            <ShutterIcon className="w-8 h-8 text-[#002D62] dark:text-[#F5F2EA]" />
+            <ShutterIcon className="w-8 h-8 text-[#002D62] dark:text-gray-400" />
           ) : (
-            <CameraIcon className="w-8 h-8 text-[#002D62] dark:text-[#F5F2EA]" />
+            <CameraIcon className="w-8 h-8 text-[#002D62] dark:text-gray-400" />
           )}
         </button>
 

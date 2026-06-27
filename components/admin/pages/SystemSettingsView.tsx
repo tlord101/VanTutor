@@ -98,40 +98,40 @@ export const SystemSettingsView: React.FC = () => {
     };
 
     if (isLoading) {
-        return <div className="p-8 text-center text-slate-500 dark:text-[#A0ABC0] font-bold animate-pulse">Loading system settings...</div>;
+        return <div className="p-8 text-center text-slate-500 dark:text-gray-400 font-bold animate-pulse">Loading system settings...</div>;
     }
 
     const renderTierForm = (tierId: 'free' | 'basic' | 'premium', title: string) => {
         const tier = appSettings.usage_settings?.tiers?.[tierId] || {} as TierConfig;
         return (
-            <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100 mb-6">
+            <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100 mb-6">
                 <h4 className="font-bold text-slate-800 capitalize flex items-center gap-2">
                     <Layers className="w-4 h-4 text-indigo-500" /> {title} Plan
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Display Name</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Display Name</label>
                         <input type="text" value={tier.display_name || ''} onChange={e => updateUsageSetting('tiers', 'display_name', e.target.value, tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Price (NGN)</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Price (NGN)</label>
                         <input type="number" value={tier.price_ngn || 0} onChange={e => updateUsageSetting('tiers', 'price_ngn', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                     </div>
                     <div className="space-y-1 md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Description</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Description</label>
                         <input type="text" value={tier.description || ''} onChange={e => updateUsageSetting('tiers', 'description', e.target.value, tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Credit Allocation</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Credit Allocation</label>
                         <input type="number" value={tier.credit_allocation || 0} onChange={e => updateUsageSetting('tiers', 'credit_allocation', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Max Saved Courses</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Max Saved Courses</label>
                         <input type="number" value={tier.max_saved_courses || 0} onChange={e => updateUsageSetting('tiers', 'max_saved_courses', Number(e.target.value), tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Badge Color</label>
-                        <select value={tier.badge_color || 'none'} onChange={e => updateUsageSetting('tiers', 'badge_color', e.target.value, tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white dark:bg-[#121A2F]">
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Badge Color</label>
+                        <select value={tier.badge_color || 'none'} onChange={e => updateUsageSetting('tiers', 'badge_color', e.target.value, tierId)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white dark:bg-black">
                             <option value="none">None</option>
                             <option value="blue">Blue</option>
                             <option value="purple">Purple</option>
@@ -154,28 +154,28 @@ export const SystemSettingsView: React.FC = () => {
             <div className="flex flex-wrap gap-4 border-b border-slate-200 dark:border-white/10">
                 <button 
                     onClick={() => setActiveTab('general')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'general' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'general' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Settings className="w-4 h-4" />
                     General Platform
                 </button>
                 <button 
                     onClick={() => setActiveTab('plans')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'plans' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'plans' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <CreditCard className="w-4 h-4" />
                     Usage & Plans
                 </button>
                 <button 
                     onClick={() => setActiveTab('keys')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'keys' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'keys' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Key className="w-4 h-4" />
                     API & Secrets
                 </button>
                 <button 
                     onClick={() => setActiveTab('email')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'email' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'email' ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700'}`}
                 >
                     <Mail className="w-4 h-4" />
                     SMTP Configuration
@@ -183,10 +183,10 @@ export const SystemSettingsView: React.FC = () => {
             </div>
 
             {activeTab === 'general' && (
-                <div className="max-w-4xl bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                <div className="max-w-4xl bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
                         <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">Platform Preferences</h3>
-                        <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Manage global limits and feature toggles.</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400">Manage global limits and feature toggles.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -196,7 +196,7 @@ export const SystemSettingsView: React.FC = () => {
                                 type="number" 
                                 value={appSettings.custom_user_limit_rpm || 0} 
                                 onChange={e => setAppSettings({...appSettings, custom_user_limit_rpm: Number(e.target.value)})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                         </div>
                         <div className="space-y-2">
@@ -205,18 +205,18 @@ export const SystemSettingsView: React.FC = () => {
                                 type="number" 
                                 value={appSettings.custom_user_limit_tpm || 0} 
                                 onChange={e => setAppSettings({...appSettings, custom_user_limit_tpm: Number(e.target.value)})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                         </div>
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 space-y-4">
-                        <label className="flex items-center justify-between p-4 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-slate-50 dark:bg-[#0A101F] transition">
+                        <label className="flex items-center justify-between p-4 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-slate-50 dark:bg-black transition">
                             <div className="flex items-center gap-3">
                                 <HardDrive className="w-5 h-5 text-indigo-500" />
                                 <div>
                                     <p className="font-bold text-slate-900 dark:text-white">Upload Center Enabled</p>
-                                    <p className="text-xs text-slate-500 dark:text-[#A0ABC0]">Allow users to upload files.</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Allow users to upload files.</p>
                                 </div>
                             </div>
                             <input 
@@ -227,12 +227,12 @@ export const SystemSettingsView: React.FC = () => {
                             />
                         </label>
 
-                        <label className="flex items-center justify-between p-4 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-slate-50 dark:bg-[#0A101F] transition">
+                        <label className="flex items-center justify-between p-4 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-slate-50 dark:bg-black transition">
                             <div className="flex items-center gap-3">
                                 <Shield className="w-5 h-5 text-amber-500" />
                                 <div>
                                     <p className="font-bold text-slate-900 dark:text-white">Maintenance Mode (Coming Soon)</p>
-                                    <p className="text-xs text-slate-500 dark:text-[#A0ABC0]">Locks the app for non-admins.</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Locks the app for non-admins.</p>
                                 </div>
                             </div>
                             <input 
@@ -247,7 +247,7 @@ export const SystemSettingsView: React.FC = () => {
                     <div className="pt-6 border-t border-slate-100 space-y-6">
                         <div>
                             <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">Support Contact Credentials</h3>
-                            <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Displayed on the Contact Us page.</p>
+                            <p className="text-sm text-slate-500 dark:text-gray-400">Displayed on the Contact Us page.</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
@@ -256,7 +256,7 @@ export const SystemSettingsView: React.FC = () => {
                                     type="email" 
                                     value={appSettings.support_email || ''} 
                                     onChange={e => setAppSettings({...appSettings, support_email: e.target.value})}
-                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                                     placeholder="support@avelut.xyz"
                                 />
                             </div>
@@ -266,7 +266,7 @@ export const SystemSettingsView: React.FC = () => {
                                     type="text" 
                                     value={appSettings.support_phone || ''} 
                                     onChange={e => setAppSettings({...appSettings, support_phone: e.target.value})}
-                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                                     placeholder="+1 (555) 123-4567"
                                 />
                             </div>
@@ -276,7 +276,7 @@ export const SystemSettingsView: React.FC = () => {
                                     type="text" 
                                     value={appSettings.support_address || ''} 
                                     onChange={e => setAppSettings({...appSettings, support_address: e.target.value})}
-                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                    className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                                     placeholder="San Francisco, CA"
                                 />
                             </div>
@@ -292,10 +292,10 @@ export const SystemSettingsView: React.FC = () => {
             )}
 
             {activeTab === 'plans' && (
-                <div className="max-w-4xl bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                <div className="max-w-4xl bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
                         <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">Subscriptions & Usage Settings</h3>
-                        <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Configure plans, pricing, and AI feature costs.</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400">Configure plans, pricing, and AI feature costs.</p>
                     </div>
 
                     <div className="space-y-8">
@@ -311,7 +311,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).map((key) => (
                                     <div key={key} className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
+                                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
                                         <input type="number" value={(appSettings.usage_settings?.feature_costs as any)[key] || 0} onChange={e => updateUsageSetting('feature_costs', key, Number(e.target.value))} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                                     </div>
                                 ))}
@@ -323,7 +323,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
                                     <div key={key} className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
+                                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
                                         <input type="text" placeholder="e.g. gemini-1.5-pro" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                                     </div>
                                 ))}
@@ -335,7 +335,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {Object.keys(appSettings.usage_settings?.additional_prices || {}).map((key) => (
                                     <div key={key} className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
+                                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</label>
                                         <input type="number" value={(appSettings.usage_settings?.additional_prices as any)[key] || 0} onChange={e => updateUsageSetting('additional_prices', key, Number(e.target.value))} className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                                     </div>
                                 ))}
@@ -352,15 +352,15 @@ export const SystemSettingsView: React.FC = () => {
             )}
 
             {activeTab === 'keys' && (
-                <div className="max-w-4xl bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                <div className="max-w-4xl bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
                         <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">API Keys & Secrets</h3>
-                        <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Manage third-party integrations.</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400">Manage third-party integrations.</p>
                     </div>
 
                     <div className="space-y-6">
                         {/* Gemini */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-blue-500" /> Gemini AI
                             </h4>
@@ -372,7 +372,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         {/* Google/Firebase Auth */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-red-500" /> Google Auth & Identity
                             </h4>
@@ -383,7 +383,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         {/* YouTube */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-red-600" /> YouTube
                             </h4>
@@ -393,7 +393,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         {/* Paystack */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-teal-500" /> Paystack
                             </h4>
@@ -404,7 +404,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         {/* RevenueCat */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-rose-500" /> RevenueCat (Android IAP)
                             </h4>
@@ -414,7 +414,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         {/* Pinecone */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100">
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-black border border-slate-100">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <Database className="w-4 h-4 text-purple-500" /> Pinecone Vector DB
                             </h4>
@@ -434,19 +434,19 @@ export const SystemSettingsView: React.FC = () => {
             )}
 
             {activeTab === 'email' && (
-                <div className="max-w-4xl bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+                <div className="max-w-4xl bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
                         <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1">SMTP Configuration</h3>
-                        <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Configure outbound email server for systemic broadcasts.</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400">Configure outbound email server for systemic broadcasts.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <input type="text" placeholder="SMTP Host (e.g. smtp.gmail.com)" value={emailConfig.host || ''} onChange={e => setEmailConfig({...emailConfig, host: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
-                        <input type="number" placeholder="SMTP Port (e.g. 465)" value={emailConfig.port || ''} onChange={e => setEmailConfig({...emailConfig, port: Number(e.target.value)})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
-                        <input type="text" placeholder="Username / Email" value={emailConfig.user || ''} onChange={e => setEmailConfig({...emailConfig, user: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
-                        <input type="password" placeholder="App Password" value={emailConfig.pass || ''} onChange={e => setEmailConfig({...emailConfig, pass: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
-                        <input type="text" placeholder="Sender Name (e.g. Avelut Support)" value={emailConfig.from_name || ''} onChange={e => setEmailConfig({...emailConfig, from_name: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
-                        <input type="email" placeholder="Sender Email" value={emailConfig.from_email || ''} onChange={e => setEmailConfig({...emailConfig, from_email: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] outline-none focus:bg-white dark:bg-[#121A2F] focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="text" placeholder="SMTP Host (e.g. smtp.gmail.com)" value={emailConfig.host || ''} onChange={e => setEmailConfig({...emailConfig, host: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="number" placeholder="SMTP Port (e.g. 465)" value={emailConfig.port || ''} onChange={e => setEmailConfig({...emailConfig, port: Number(e.target.value)})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="text" placeholder="Username / Email" value={emailConfig.user || ''} onChange={e => setEmailConfig({...emailConfig, user: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="password" placeholder="App Password" value={emailConfig.pass || ''} onChange={e => setEmailConfig({...emailConfig, pass: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="text" placeholder="Sender Name (e.g. Avelut Support)" value={emailConfig.from_name || ''} onChange={e => setEmailConfig({...emailConfig, from_name: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
+                        <input type="email" placeholder="Sender Email" value={emailConfig.from_email || ''} onChange={e => setEmailConfig({...emailConfig, from_email: e.target.value})} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black outline-none focus:bg-white dark:bg-black focus:ring-4 focus:ring-indigo-100 transition-all text-sm" />
                     </div>
 
                     <label className="flex items-center gap-3">

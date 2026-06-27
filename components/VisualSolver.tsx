@@ -110,10 +110,10 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                     <thead className="bg-indigo-600 text-white" {...props} />
                                 ),
                                 tbody: ({node, ...props}) => (
-                                    <tbody className="bg-white dark:bg-[#121A2F] divide-y divide-gray-200" {...props} />
+                                    <tbody className="bg-white dark:bg-black divide-y divide-gray-200" {...props} />
                                 ),
                                 tr: ({node, ...props}) => (
-                                    <tr className="hover:bg-gray-50 dark:bg-[#0A101F] transition-colors" {...props} />
+                                    <tr className="hover:bg-gray-50 dark:bg-black transition-colors" {...props} />
                                 ),
                                 th: ({node, ...props}) => (
                                     <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />
@@ -132,7 +132,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     </div>
                 </div>
             </div>
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 bg-white dark:bg-[#121A2F]/90 backdrop-blur-md shadow-lg">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 bg-white dark:bg-black/90 backdrop-blur-md shadow-lg">
                 <div className="max-w-4xl mx-auto">
                     <button 
                         onClick={onClose} 
@@ -735,7 +735,7 @@ ${retrievedContext}
                     <div className="relative w-full h-full flex flex-col items-center justify-center bg-gray-900">
                         {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
                         {cameraState === 'analyzing' && (
-                            <div className="absolute inset-0 bg-white dark:bg-[#121A2F]/80 flex flex-col items-center justify-center text-gray-900">
+                            <div className="absolute inset-0 bg-white dark:bg-black/80 flex flex-col items-center justify-center text-gray-900">
                                 <img src="/logo_icon.png" alt="AVELUT" className="w-12 h-12 object-contain animate-pulse" />
                                 <p className="mt-4 text-lg font-semibold">Analyzing...</p>
                                 <p className="text-gray-600">This may take a moment.</p>
@@ -756,7 +756,7 @@ ${retrievedContext}
                                                 value={customPrompt}
                                                 onChange={(e) => setCustomPrompt(e.target.value)}
                                                 placeholder="Optional: Add custom instructions (e.g., 'Explain this step by step', 'Focus on the methodology', etc.)"
-                                                className="w-full bg-white dark:bg-[#121A2F]/20 backdrop-blur-sm border-2 border-white/50 text-white placeholder-white/70 rounded-xl p-2 sm:p-3 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400 transition-all"
+                                                className="w-full bg-white dark:bg-black/20 backdrop-blur-sm border-2 border-white/50 text-white placeholder-white/70 rounded-xl p-2 sm:p-3 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400 transition-all"
                                                 rows={2}
                                             />
                                         </div>
@@ -771,7 +771,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleSolution} 
-                                            className="w-full bg-white dark:bg-[#121A2F]/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-[#121A2F]/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white dark:bg-black/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-black/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -780,7 +780,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleQuickAnswer} 
-                                            className="w-full bg-white dark:bg-[#121A2F]/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-[#121A2F]/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white dark:bg-black/20 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white dark:bg-black/30 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

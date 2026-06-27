@@ -53,12 +53,12 @@ const ChatComposer: React.FC<{
                 className="rounded-[28px] p-[1.5px] shadow-[0_20px_60px_rgba(15,23,42,0.14)]"
                 style={{ background: 'linear-gradient(90deg, #ff4d4d, #ffb84d, #4dff88, #4dd2ff, #b84dff)' }}
             >
-                <div className="rounded-[27px] bg-white dark:bg-[#121A2F]/95 backdrop-blur-xl border border-white/70 px-4 py-4 md:py-[18px]">
+                <div className="rounded-[27px] bg-white dark:bg-black/95 backdrop-blur-xl border border-white/70 px-4 py-4 md:py-[18px]">
                     <div className="flex items-end gap-3">
                         <button className="mb-1.5 p-2 text-charcoal hover:text-emerald transition-colors rounded-full hover:bg-gray-100" onClick={onAttach} aria-label="Attach file">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                         </button>
-                        <div className="flex-1 rounded-[22px] bg-gray-50 dark:bg-[#0A101F] border border-gray-100 px-4 py-3 min-h-[72px] md:min-h-[76px] transition-all duration-300 focus-within:border-transparent focus-within:ring-0">
+                        <div className="flex-1 rounded-[22px] bg-gray-50 dark:bg-black border border-gray-100 px-4 py-3 min-h-[72px] md:min-h-[76px] transition-all duration-300 focus-within:border-transparent focus-within:ring-0">
                             <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
@@ -76,7 +76,7 @@ const ChatComposer: React.FC<{
                                 <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400">AI Assistant</span>
                                 <button
                                     onClick={onToggleVoice}
-                                    className={`text-[11px] font-bold uppercase tracking-[0.28em] px-3 py-2 rounded-full transition-all ${voiceStatus !== 'idle' ? 'text-emerald bg-emerald/10 animate-pulse' : 'text-gray-500 dark:text-[#A0ABC0] bg-white dark:bg-[#121A2F] hover:bg-gray-100'}`}
+                                    className={`text-[11px] font-bold uppercase tracking-[0.28em] px-3 py-2 rounded-full transition-all ${voiceStatus !== 'idle' ? 'text-emerald bg-emerald/10 animate-pulse' : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-black hover:bg-gray-100'}`}
                                 >
                                     {voiceStatus !== 'idle' ? 'Listening' : 'Voice'}
                                 </button>
@@ -318,7 +318,7 @@ const TextChat: React.FC<{
 
     return (
         <>
-        <div className="flex-1 flex w-full h-full overflow-hidden bg-white dark:bg-[#121A2F]">
+        <div className="flex-1 flex w-full h-full overflow-hidden bg-white dark:bg-black">
             <div className="flex w-full">
                 {/* Desktop History Sidebar */}
                 <div className="hidden md:flex w-[320px] flex-col border-r border-gray-100">
@@ -338,9 +338,9 @@ const TextChat: React.FC<{
                 </div>
 
                 {/* Main Chat View */}
-                <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#121A2F] relative animate-in fade-in duration-500 overflow-hidden pb-20 md:pb-0">
+                <div className="flex-1 flex flex-col h-full bg-white dark:bg-black relative animate-in fade-in duration-500 overflow-hidden pb-20 md:pb-0">
                     {/* Top Navigation Bar */}
-                    <div className="flex items-center justify-between px-4 md:px-6 py-4 bg-white dark:bg-[#121A2F] border-b border-gray-100 h-[60px] sticky top-0 z-20 shrink-0">
+                    <div className="flex items-center justify-between px-4 md:px-6 py-4 bg-white dark:bg-black border-b border-gray-100 h-[60px] sticky top-0 z-20 shrink-0">
                         <button 
                             onClick={() => setIsMobilePanelOpen(true)}
                             className="p-2 text-charcoal md:hidden"
@@ -364,7 +364,7 @@ const TextChat: React.FC<{
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#121A2F]">
+                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-black">
                         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-8 pb-44 space-y-8 scroll-smooth">
                             {!activeConversationId && messages.length === 0 ? (
                                 <div className="flex h-full min-h-[48vh] items-center justify-center px-4 text-center">
@@ -373,7 +373,7 @@ const TextChat: React.FC<{
                                             <ChatBubbleIcon className="w-7 h-7" />
                                         </div>
                                         <h3 className="text-2xl font-black text-gray-900">Start a conversation</h3>
-                                        <p className="text-sm leading-6 text-gray-500 dark:text-[#A0ABC0]">
+                                        <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
                                             Ask for explanations, solve problems, or study with the course context already available to you.
                                         </p>
                                     </div>
@@ -388,13 +388,13 @@ const TextChat: React.FC<{
                                             </div>
                                             <div className={`mt-1 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
                                                 <div className="flex items-center gap-2 mb-1.5 px-1 justify-inherit">
-                                                    <span className="text-[11px] font-bold text-gray-500 dark:text-[#A0ABC0] uppercase tracking-widest">{msg.sender === 'user' ? 'You' : 'AVELUT'}</span>
+                                                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{msg.sender === 'user' ? 'You' : 'AVELUT'}</span>
                                                     <span className="text-[10px] text-gray-400">{timeAgo(msg.timestamp)}</span>
                                                 </div>
                                                 <div className={`rounded-2xl px-5 py-3 text-[15px] leading-relaxed shadow-sm ${
                                                     msg.sender === 'user' 
-                                                    ? 'bg-off-white dark:bg-[#0A101F] text-charcoal dark:text-off-white border border-gray-100 rounded-tr-none' 
-                                                    : 'text-charcoal dark:text-off-white bg-white dark:bg-[#121A2F] border border-gray-100 rounded-tl-none'
+                                                    ? 'bg-off-white dark:bg-black text-charcoal dark:text-white border border-gray-100 rounded-tr-none' 
+                                                    : 'text-charcoal dark:text-white bg-white dark:bg-black border border-gray-100 rounded-tl-none'
                                                 }`}>
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
                                                 </div>
@@ -405,7 +405,7 @@ const TextChat: React.FC<{
                                 {isLoading && (
                                     <div className="flex justify-start animate-pulse">
                                         <div className="flex gap-4">
-                                            <div className="w-8 h-8 rounded-full bg-white dark:bg-[#121A2F] border border-gray-100 flex items-center justify-center p-1">
+                                            <div className="w-8 h-8 rounded-full bg-white dark:bg-black border border-gray-100 flex items-center justify-center p-1">
                                                 <img src="/logo_icon.png" alt="AVELUT" className="w-full h-full object-contain" />
                                             </div>
                                             <div className="mt-4 flex gap-1.5">
@@ -536,7 +536,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     };
 
     return (
-        <div className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white dark:bg-[#121A2F]">
+        <div className="flex-1 flex flex-col w-full h-full overflow-hidden bg-white dark:bg-black">
             <ConfirmationModal {...modalState} onCancel={() => setModalState(s => ({...s, isOpen: false}))} isConfirming={isDeleting} />
             <TextChat 
                 userProfile={userProfile}

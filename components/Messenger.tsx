@@ -25,13 +25,13 @@ const DoubleCheckIcon = ({ color = "#8696a0" }) => (
 );
 
 const AttachmentIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 
 const CameraIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
     <circle cx="12" cy="13" r="4" />
   </svg>
@@ -53,7 +53,7 @@ const TrashIcon = () => (
 );
 
 const LockIcon = ({ locked }: { locked: boolean }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
     {locked ? (
       <>
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -173,7 +173,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
         type="button"
         onClick={togglePlay}
         disabled={isUploading}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white dark:bg-[#121A2F]/20 text-white hover:bg-white dark:bg-[#121A2F]/30' : 'bg-[#F8F9FA] dark:bg-[#0A101F] text-[#486380] hover:bg-[#E9ECEF]'
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white dark:bg-black/20 text-white hover:bg-white dark:bg-black/30' : 'bg-[#F8F9FA] dark:bg-black text-[#486380] hover:bg-[#E9ECEF]'
           } ${isUploading ? 'cursor-not-allowed' : ''}`}
       >
         {isUploading ? (
@@ -214,13 +214,13 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
           })}
         </div>
 
-        <div className={`flex justify-between items-center text-[11px] font-medium ${isMe ? 'text-white/80' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>
+        <div className={`flex justify-between items-center text-[11px] font-medium ${isMe ? 'text-white/80' : 'text-[#6C757D] dark:text-gray-400'}`}>
           <span>{isUploading ? "Uploading..." : formatTime(isPlaying ? currentTime : duration)}</span>
           <button
             type="button"
             onClick={handleSpeedChange}
             disabled={isUploading}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white dark:bg-[#121A2F]/10' : 'border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-100'
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white dark:bg-black/10' : 'border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-100'
               } ${isUploading ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {playbackRate}x
@@ -353,10 +353,10 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       {isRecording && !isLocked && (
         <div
-          className="absolute right-[19px] bottom-[70px] w-[46px] h-[130px] bg-white dark:bg-[#121A2F] rounded-full flex flex-col items-center justify-start py-4 gap-3 shadow-md z-20"
+          className="absolute right-[19px] bottom-[70px] w-[46px] h-[130px] bg-white dark:bg-black rounded-full flex flex-col items-center justify-start py-4 gap-3 shadow-md z-20"
           style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.15)}px)` }}
         >
-          <div className="flex items-center justify-center text-slate-500 dark:text-[#A0ABC0]" style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.5)}px)` }}>
+          <div className="flex items-center justify-center text-slate-500 dark:text-gray-400" style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.5)}px)` }}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 10v-3.5a6.5 6.5 0 0 0-13 0V10H4v11h16V10h-2zm-10-3.5a4.5 4.5 0 0 1 9 0V10H8V6.5z"/></svg>
           </div>
           <div className="text-slate-400 mt-2 animate-bounce">
@@ -1616,7 +1616,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
             </h2>
-            <p className="text-[12px] text-[#6C757D] dark:text-[#A0ABC0] font-normal mt-0.5 flex items-center">
+            <p className="text-[12px] text-[#6C757D] dark:text-gray-400 font-normal mt-0.5 flex items-center">
               {activeChat.otherUser.is_online ? (
                 <>
                   <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
@@ -1628,7 +1628,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         leftActions: (
           <>
-            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
@@ -1638,13 +1638,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         rightActions: (
           <div className="relative">
-             <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 dark:text-[#A0ABC0] hover:bg-slate-100 rounded-full transition-colors">
+             <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 dark:text-gray-400 hover:bg-slate-100 rounded-full transition-colors">
                 <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
              </button>
              {showUserOptions && (
-              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
+              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
                  <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
-                 <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:bg-[#0A101F] font-bold">Report User</button>
+                 <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:bg-black font-bold">Report User</button>
               </div>
              )}
           </div>
@@ -1662,13 +1662,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] dark:bg-[#0A101F] font-sans antialiased text-[#212529] dark:text-white">
+    <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] dark:bg-black font-sans antialiased text-[#212529] dark:text-white">
       {/* Sidebar Pane */}
-      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-white/10 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-[#121A2F] relative`}>
-        <div className="p-4 bg-[#F8F9FA] dark:bg-[#0A101F] border-b border-[#E9ECEF] dark:border-white/10 shrink-0">
+      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-white/10 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
+        <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-white/10 shrink-0">
           <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-xl text-sm shrink-0 mb-4">
-            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-[#121A2F] text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white'}`}>Chats</button>
-            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-[#121A2F] text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
+            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Chats</button>
+            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
           </div>
 
           {/* Search Bar */}
@@ -1679,16 +1679,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 placeholder="Search study mates..."
                 value={peopleSearchQuery}
                 onChange={(e) => setPeopleSearchQuery(e.target.value)}
-                className="w-full bg-white dark:bg-[#121A2F] text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
+                className="w-full bg-white dark:bg-black text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
               />
               {peopleSearchQuery && (
-                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] dark:text-[#A0ABC0] text-xs hover:text-[#212529] dark:text-white">✕</button>
+                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] dark:text-gray-400 text-xs hover:text-[#212529] dark:text-white">✕</button>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-white dark:bg-[#121A2F]">
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-black">
           {isLoading ? (
             <div className="p-4"><MessengerSkeleton /></div>
           ) : tab === 'chats' ?
@@ -1710,7 +1710,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   event.preventDefault();
                   void handleDeleteChatThread(c);
                 }}
-                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-[#0A101F] cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-[#0A101F]' : ''}`}
+                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-black' : ''}`}
               >
                 <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
@@ -1720,7 +1720,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       <VerificationBadge status={c.otherUser?.subscription_status} />
                       {c.otherUser && <StreakBadge userProfile={c.otherUser} size="sm" />}
                     </h3>
-                    <span className="text-[12px] text-[#6C757D] dark:text-[#A0ABC0]">10:16 AM</span>
+                    <span className="text-[12px] text-[#6C757D] dark:text-gray-400">10:16 AM</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -1733,7 +1733,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       ) : c.isRecording ? (
                           <span className="text-[#009EE2] dark:text-[#F8F9FA] font-semibold flex items-center gap-1 italic">🎵 recording...</span>
                       ) : (
-                          <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>{getLastMessagePreview(c)}</p>
+                          <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'text-[#6C757D] dark:text-gray-400'}`}>{getLastMessagePreview(c)}</p>
                       )}
 
                     </div>
@@ -1743,23 +1743,23 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] mt-1 text-[#6C757D] dark:text-[#A0ABC0] font-normal">
+                  <p className="text-[11px] mt-1 text-[#6C757D] dark:text-gray-400 font-normal">
                     {c.otherUser?.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(c.otherUser?.last_seen)}
                   </p>
                 </div>
               </div>
             )) : filteredPeople.length === 0 ? (
-              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-[#0A101F]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-white/10">
-                <span className="text-2xl block mb-2 font-black text-[#6C757D] dark:text-[#A0ABC0]">👥</span>
+              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-black/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-white/10">
+                <span className="text-2xl block mb-2 font-black text-[#6C757D] dark:text-gray-400">👥</span>
                 <p className="text-sm font-bold text-[#212529] dark:text-white">No study mates found</p>
-                <p className="text-xs text-[#6C757D] dark:text-[#A0ABC0] mt-1">
+                <p className="text-xs text-[#6C757D] dark:text-gray-400 mt-1">
                   {peopleSearchQuery ? "No matches for your search." : "Build your network to collaborate and share chats."}
                 </p>
               </div>
             ) : filteredPeople.map(u => {
               const unreadCount = getUnreadCountForUser(u.uid);
               return (
-                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-[#0A101F] cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition">
+                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition">
                   <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                   <div className="min-w-0 flex-1">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
@@ -1767,7 +1767,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       <VerificationBadge status={u.subscription_status} />
                       <StreakBadge userProfile={u} size="sm" />
                     </h3>
-                    <p className="text-[11px] text-[#6C757D] dark:text-[#A0ABC0] font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
+                    <p className="text-[11px] text-[#6C757D] dark:text-gray-400 font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
                   </div>
                   {unreadCount > 0 && (
                     <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
@@ -1793,11 +1793,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       </div>
 
       {/* Main Chat Viewport */}
-      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] dark:bg-[#0A101F] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] dark:bg-black relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] dark:bg-[#0A101F] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] dark:bg-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               {combinedMessageStream.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-4">
                   <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
@@ -1806,7 +1806,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     </svg>
                   </div>
                   <h3 className="text-xl font-bold text-[#212529] dark:text-white mb-2 text-center">Start a Conversation</h3>
-                  <p className="text-[#6C757D] dark:text-[#A0ABC0] text-center max-w-sm text-sm">
+                  <p className="text-[#6C757D] dark:text-gray-400 text-center max-w-sm text-sm">
                     Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
                   </p>
                 </div>
@@ -1830,7 +1830,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
                           ? 'bg-[#0d1122] text-white rounded-2xl rounded-tr-sm border border-[#0d1122]/50'
-                          : 'bg-white dark:bg-[#121A2F] text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
+                          : 'bg-white dark:bg-black text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
                         }`}
                         onContextMenu={(event) => {
                           event.preventDefault();
@@ -1949,7 +1949,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         )}
 
                         {/* Meta Timestamp */}
-                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>
+                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-gray-400'}`}>
                           <span className="uppercase font-normal tracking-tight">
                             {msg.isUploading ? 'Sending...' : '12:53 PM'}
                           </span>
@@ -1959,7 +1959,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         {sortedReactions.length > 0 && (
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
                             {sortedReactions.map(([emoji, count]) => (
-                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white dark:bg-[#121A2F]/20 text-white' : 'bg-[#E9ECEF] text-[#212529] dark:text-white'}`}>
+                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white dark:bg-black/20 text-white' : 'bg-[#E9ECEF] text-[#212529] dark:text-white'}`}>
                                 {emoji} {count}
                               </span>
                             ))}
@@ -1968,7 +1968,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       </div>
                     </div>
                     {!isMe && (
-                      <div className="pl-[46px] text-[13px] text-[#6C757D] dark:text-[#A0ABC0] font-normal">
+                      <div className="pl-[46px] text-[13px] text-[#6C757D] dark:text-gray-400 font-normal">
                         {selectedChatUser.display_name}
                       </div>
                     )}
@@ -1979,7 +1979,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+            <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-black shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
                {replyingTo && (
                  <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
                    <div className="min-w-0">
@@ -2039,7 +2039,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <button
                           type="button"
                           onClick={() => declinePartnerRequest(selectedChatUser)}
-                          className="px-4 py-2 bg-white dark:bg-[#121A2F] hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                          className="px-4 py-2 bg-white dark:bg-black hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
                         >
                           Decline
                         </button>
@@ -2066,7 +2066,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                    onClick={(e) => e.stopPropagation()}
                 >
                    {/* WhatsApp-style Reaction Overlay */}
-                   <div className="bg-white dark:bg-[#121A2F] rounded-[24px] px-3 py-2 shadow-xl flex items-center gap-1 sm:gap-2 animate-scale-in">
+                   <div className="bg-white dark:bg-black rounded-[24px] px-3 py-2 shadow-xl flex items-center gap-1 sm:gap-2 animate-scale-in">
                       {REACTION_EMOJIS.map((emoji) => (
                         <button
                           key={emoji}
@@ -2077,7 +2077,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           {emoji}
                         </button>
                       ))}
-                      <button className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#F0F2F5] hover:bg-[#E9ECEF] text-xl font-medium text-[#6C757D] dark:text-[#A0ABC0] ml-2 transition-colors">
+                      <button className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#F0F2F5] hover:bg-[#E9ECEF] text-xl font-medium text-[#6C757D] dark:text-gray-400 ml-2 transition-colors">
                         +
                       </button>
                    </div>
@@ -2088,11 +2088,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         ) : (
           <div className="mx-auto max-w-md px-6 text-center select-none">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white dark:bg-[#121A2F] shadow-sm border border-[#E9ECEF] dark:border-white/10">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white dark:bg-black shadow-sm border border-[#E9ECEF] dark:border-white/10">
               <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529] dark:text-white">AVELUT</h2>
-            <p className="mt-2 text-sm leading-6 text-[#6C757D] dark:text-[#A0ABC0]">Pick a person to start a new chat and connect with them.</p>
+            <p className="mt-2 text-sm leading-6 text-[#6C757D] dark:text-gray-400">Pick a person to start a new chat and connect with them.</p>
           </div>
         )}
       </div>
@@ -2101,13 +2101,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       {/* Report User Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#121A2F] rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-slide-up">
+          <div className="bg-white dark:bg-black rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-slide-up">
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Report User</h3>
-            <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mb-4 font-semibold">Why are you reporting this user?</p>
+            <p className="text-sm text-slate-500 dark:text-gray-400 mb-4 font-semibold">Why are you reporting this user?</p>
             <select 
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
-              className="w-full mb-4 p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 dark:bg-[#0A101F] outline-none"
+              className="w-full mb-4 p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 dark:bg-black outline-none"
             >
               <option value="spam">Spam / Unsolicited Messages</option>
               <option value="harassment">Harassment / Bullying</option>
@@ -2192,25 +2192,25 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
   };
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white dark:bg-[#121A2F] w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] dark:border-white/10 flex flex-col max-h-[75vh] animate-scale-in">
+      <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] dark:border-white/10 flex flex-col max-h-[75vh] animate-scale-in">
         {/* Header */}
         <div className="p-5 border-b border-[#E9ECEF] dark:border-white/10 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-[#212529] dark:text-white">Forward Message</h2>
-            <p className="text-[11px] text-[#6C757D] dark:text-[#A0ABC0] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
+            <p className="text-[11px] text-[#6C757D] dark:text-gray-400 font-medium mt-0.5">Select one or more study partners to send this message to.</p>
           </div>
           <button
             onClick={onClose}
             disabled={submitting}
-            className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] dark:text-[#A0ABC0] text-xs font-bold transition"
+            className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] dark:text-gray-400 text-xs font-bold transition"
           >
             ✕
           </button>
         </div>
 
         {/* Content preview */}
-        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] dark:border-white/10 text-xs font-medium text-[#6C757D] dark:text-[#A0ABC0]">
-          <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] dark:text-[#A0ABC0] mb-1">Message Preview</span>
+        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] dark:border-white/10 text-xs font-medium text-[#6C757D] dark:text-gray-400">
+          <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] dark:text-gray-400 mb-1">Message Preview</span>
           <p className="truncate max-w-full italic text-neutral-600">
             {messageType === 'voice' ? '🎵 Voice message' : messageType === 'image' ? '📷 Image file' : messageText}
           </p>
@@ -2223,14 +2223,14 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
             placeholder="Search partners..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#F8F9FA] dark:bg-[#0A101F] text-sm text-[#212529] dark:text-white px-4 py-2 rounded-xl border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
+            className="w-full bg-[#F8F9FA] dark:bg-black text-sm text-[#212529] dark:text-white px-4 py-2 rounded-xl border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
           />
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {partnersList.length === 0 ? (
-            <p className="text-center text-xs font-medium text-[#6C757D] dark:text-[#A0ABC0] py-8 italic">No study partners found</p>
+            <p className="text-center text-xs font-medium text-[#6C757D] dark:text-gray-400 py-8 italic">No study partners found</p>
           ) : (
             partnersList.map(u => {
               const isChecked = selectedIds.includes(u.uid);
@@ -2238,13 +2238,13 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                 <div
                   key={u.uid}
                   onClick={() => handleToggleSelect(u.uid)}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white dark:bg-[#121A2F] border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-50'}`}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white dark:bg-black border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-50'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                     <div className="min-w-0 flex-1">
                       <h4 className="font-semibold text-sm text-[#212529] dark:text-white truncate">{u.display_name}</h4>
-                      <p className="text-[10px] text-[#6C757D] dark:text-[#A0ABC0] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
+                      <p className="text-[10px] text-[#6C757D] dark:text-gray-400 font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
                     </div>
                   </div>
                   <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
@@ -2264,11 +2264,11 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[#E9ECEF] dark:border-white/10 bg-[#F8F9FA] dark:bg-[#0A101F] flex gap-3 shrink-0">
+        <div className="p-4 border-t border-[#E9ECEF] dark:border-white/10 bg-[#F8F9FA] dark:bg-black flex gap-3 shrink-0">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="flex-1 bg-white dark:bg-[#121A2F] hover:bg-neutral-100 border border-[#E9ECEF] dark:border-white/10 text-[#6C757D] dark:text-[#A0ABC0] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
+            className="flex-1 bg-white dark:bg-black hover:bg-neutral-100 border border-[#E9ECEF] dark:border-white/10 text-[#6C757D] dark:text-gray-400 font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
           >
             Cancel
           </button>

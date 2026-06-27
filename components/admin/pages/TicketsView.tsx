@@ -65,7 +65,7 @@ export const TicketsView: React.FC = () => {
     };
 
     if (isLoading) {
-        return <div className="p-8 text-center text-slate-500 dark:text-[#A0ABC0] font-bold animate-pulse">Loading tickets...</div>;
+        return <div className="p-8 text-center text-slate-500 dark:text-gray-400 font-bold animate-pulse">Loading tickets...</div>;
     }
 
     const unreadCount = tickets.filter(t => t.status === 'unread').length;
@@ -78,7 +78,7 @@ export const TicketsView: React.FC = () => {
                         <Mail className="w-6 h-6 text-indigo-500" />
                         Support Tickets
                     </h2>
-                    <p className="text-sm font-medium text-slate-500 dark:text-[#A0ABC0] mt-1">
+                    <p className="text-sm font-medium text-slate-500 dark:text-gray-400 mt-1">
                         Manage user inquiries from the Contact Us page.
                     </p>
                 </div>
@@ -95,19 +95,19 @@ export const TicketsView: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Tickets List */}
-                <div className="lg:col-span-1 bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col max-h-[70vh]">
-                    <div className="p-4 border-b border-slate-100 bg-slate-50 dark:bg-[#0A101F]">
+                <div className="lg:col-span-1 bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col max-h-[70vh]">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50 dark:bg-black">
                         <h3 className="font-bold text-slate-800 text-sm">Recent Tickets</h3>
                     </div>
                     <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
                         {tickets.length === 0 ? (
-                            <div className="p-8 text-center text-slate-500 dark:text-[#A0ABC0] text-sm">No tickets found.</div>
+                            <div className="p-8 text-center text-slate-500 dark:text-gray-400 text-sm">No tickets found.</div>
                         ) : (
                             tickets.map(ticket => (
                                 <button 
                                     key={ticket.id}
                                     onClick={() => setSelectedTicket(ticket)}
-                                    className={`w-full text-left p-4 hover:bg-slate-50 dark:bg-[#0A101F] transition ${selectedTicket?.id === ticket.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'} ${ticket.status === 'unread' ? 'font-bold' : ''}`}
+                                    className={`w-full text-left p-4 hover:bg-slate-50 dark:bg-black transition ${selectedTicket?.id === ticket.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'} ${ticket.status === 'unread' ? 'font-bold' : ''}`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
                                         <span className="text-sm text-slate-900 dark:text-white truncate pr-2">{ticket.name}</span>
@@ -134,11 +134,11 @@ export const TicketsView: React.FC = () => {
                 {/* Ticket Details */}
                 <div className="lg:col-span-2">
                     {selectedTicket ? (
-                        <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden h-full flex flex-col">
-                            <div className="p-6 border-b border-slate-100 bg-slate-50 dark:bg-[#0A101F] flex justify-between items-start">
+                        <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden h-full flex flex-col">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50 dark:bg-black flex justify-between items-start">
                                 <div>
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{selectedTicket.subject}</h3>
-                                    <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-[#A0ABC0]">
+                                    <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-gray-400">
                                         <span className="flex items-center gap-1"><User className="w-4 h-4" /> {selectedTicket.name}</span>
                                         <a href={`mailto:${selectedTicket.email}`} className="flex items-center gap-1 hover:text-indigo-600 transition"><Mail className="w-4 h-4" /> {selectedTicket.email}</a>
                                         <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {new Date(selectedTicket.createdAt).toLocaleString()}</span>
@@ -160,12 +160,12 @@ export const TicketsView: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                            <div className="p-6 flex-1 bg-white dark:bg-[#121A2F] overflow-y-auto">
+                            <div className="p-6 flex-1 bg-white dark:bg-black overflow-y-auto">
                                 <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
                                     {selectedTicket.message}
                                 </div>
                             </div>
-                            <div className="p-4 bg-slate-50 dark:bg-[#0A101F] border-t border-slate-100 text-right">
+                            <div className="p-4 bg-slate-50 dark:bg-black border-t border-slate-100 text-right">
                                 <a href={`mailto:${selectedTicket.email}?subject=Re: ${selectedTicket.subject}`} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition shadow-md shadow-indigo-200">
                                     <Mail className="w-4 h-4" />
                                     Reply via Email
@@ -173,7 +173,7 @@ export const TicketsView: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-slate-50 dark:bg-[#0A101F]/50 rounded-3xl border border-dashed border-slate-200 dark:border-white/10 h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                        <div className="bg-slate-50 dark:bg-black/50 rounded-3xl border border-dashed border-slate-200 dark:border-white/10 h-full flex flex-col items-center justify-center text-slate-400 p-8">
                             <Mail className="w-12 h-12 mb-4 text-slate-300" />
                             <p className="font-medium">Select a ticket from the list to view details</p>
                         </div>

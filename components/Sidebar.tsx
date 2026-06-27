@@ -41,11 +41,11 @@ const NavButton: React.FC<{
             } ${
                 isActive
                 ? (isModal ? 'bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 font-bold border border-blue-500/20' : 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/10')
-                : (isModal ? 'bg-white dark:bg-[#121A2F]/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-700' : 'text-slate-655 opacity-85 hover:bg-white dark:bg-[#121A2F]/50 hover:text-blue-600 hover:opacity-100')
+                : (isModal ? 'bg-white dark:bg-black/50 dark:bg-slate-800/50 text-slate-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-slate-700' : 'text-slate-655 opacity-85 hover:bg-white dark:bg-black/50 hover:text-blue-600 hover:opacity-100')
             }`}
         >
-            {!isModal && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-white dark:bg-[#121A2F] rounded-r-full"></div>}
-            <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${!isModal && isExpanded ? 'mr-4' : 'mr-0'} ${!isModal && isActive ? 'text-white' : (isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-[#A0ABC0] group-hover:text-blue-600')}`}>{item.icon}</span>
+            {!isModal && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-white dark:bg-black rounded-r-full"></div>}
+            <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${!isModal && isExpanded ? 'mr-4' : 'mr-0'} ${!isModal && isActive ? 'text-white' : (isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-gray-400 group-hover:text-blue-600')}`}>{item.icon}</span>
             <span className={`font-semibold overflow-hidden transition-opacity duration-300 ease-in-out flex-1 ${!isModal && isExpanded ? 'opacity-100 whitespace-nowrap' : (isModal ? 'text-xs leading-tight' : 'opacity-0 whitespace-nowrap')}`}>
                 {item.label}
             </span>
@@ -95,7 +95,7 @@ const SidebarContent: React.FC<{
       
       {/* Bottom Section: Profile & Logout */}
       <div className="flex-shrink-0">
-        <div className={`mt-6 p-3 rounded-xl border relative ${isModal ? 'bg-slate-50 dark:bg-[#0A101F] dark:bg-slate-800/50 border-slate-100 dark:border-slate-700' : 'bg-white dark:bg-[#121A2F]/45 backdrop-blur-sm border-white/50 shadow-sm'}`}>
+        <div className={`mt-6 p-3 rounded-xl border relative ${isModal ? 'bg-slate-50 dark:bg-black dark:bg-slate-800/50 border-slate-100 dark:border-slate-700' : 'bg-white dark:bg-black/45 backdrop-blur-sm border-white/50 shadow-sm'}`}>
           {unreadCount > 0 && (
              <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse ring-2 ring-white dark:ring-slate-800" title={`${unreadCount} unread notifications`} />
           )}
@@ -106,7 +106,7 @@ const SidebarContent: React.FC<{
                 <span>{userProfile?.display_name}</span>
                 <VerificationBadge status={userProfile?.subscription_status} />
               </p>
-              <p className="text-[10px] text-slate-500 dark:text-[#A0ABC0] dark:text-slate-400 font-extrabold uppercase tracking-widest">{userProfile?.level} Level</p>
+              <p className="text-[10px] text-slate-500 dark:text-gray-400 dark:text-slate-400 font-extrabold uppercase tracking-widest">{userProfile?.level} Level</p>
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
           aria-hidden="true"
         ></div>
         
-        <aside className={`relative w-full max-w-sm max-h-[85vh] bg-white dark:bg-[#121A2F]/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/40 dark:border-slate-700 shadow-2xl rounded-3xl overflow-hidden transform transition-all duration-400 cubic-bezier(0.34, 1.56, 0.64, 1) ${isMobileSidebarOpen ? 'scale-100 translate-y-0 opacity-100 rotate-0' : 'scale-75 translate-y-8 opacity-0 -rotate-2'}`}>
+        <aside className={`relative w-full max-w-sm max-h-[85vh] bg-white dark:bg-black/80 dark:bg-black/80 backdrop-blur-xl border border-white/40 dark:border-slate-700 shadow-2xl rounded-3xl overflow-hidden transform transition-all duration-400 cubic-bezier(0.34, 1.56, 0.64, 1) ${isMobileSidebarOpen ? 'scale-100 translate-y-0 opacity-100 rotate-0' : 'scale-75 translate-y-8 opacity-0 -rotate-2'}`}>
             <SidebarContent 
                 isExpanded={true}
                 isModal={true}
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userP
       
       {/* Desktop Sidebar */}
       <aside 
-          className={`hidden md:block flex-shrink-0 bg-white dark:bg-[#121A2F]/60 dark:bg-card/40 backdrop-blur-lg border-r border-white/40 dark:border-border shadow-sm w-72 h-full`}
+          className={`hidden md:block flex-shrink-0 bg-white dark:bg-black/60 dark:bg-card/40 backdrop-blur-lg border-r border-white/40 dark:border-border shadow-sm w-72 h-full`}
       >
         <SidebarContent 
             isExpanded={true}

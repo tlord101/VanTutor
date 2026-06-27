@@ -40,7 +40,7 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
     };
     
     return (
-        <div className="flex-1 flex flex-col w-full bg-white dark:bg-[#121A2F] p-4 sm:p-6 md:p-8 items-center justify-center">
+        <div className="flex-1 flex flex-col w-full bg-white dark:bg-black p-4 sm:p-6 md:p-8 items-center justify-center">
             <div className="max-w-2xl w-full">
                 <header className="text-center mb-10">
                     <h1 className="text-4xl font-extrabold bg-gradient-to-r from-lime-600 to-teal-600 text-transparent bg-clip-text pb-2">
@@ -52,21 +52,21 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
                 </header>
 
                 <main>
-                    <div className="bg-gray-50 dark:bg-[#0A101F] p-4 sm:p-6 rounded-xl border border-gray-200 space-y-3">
+                    <div className="bg-gray-50 dark:bg-black p-4 sm:p-6 rounded-xl border border-gray-200 space-y-3">
                         {contributors.map((contact, index) => (
                             <a 
                                 key={index}
                                 href={formatWhatsAppLink(contact.number)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-between p-4 bg-white dark:bg-[#121A2F] rounded-lg border border-gray-200 hover:border-lime-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                                className="flex items-center justify-between p-4 bg-white dark:bg-black rounded-lg border border-gray-200 hover:border-lime-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                             >
                                 <div>
                                     <p className="font-semibold text-gray-800 inline-flex items-center gap-1.5">
                                         {contact.name}
                                         {contact.verified === 'blue' && <BlueVerifiedBadge />}
                                     </p>
-                                    <p className="text-sm text-gray-500 dark:text-[#A0ABC0]">{contact.number}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{contact.number}</p>
                                 </div>
                                 <div className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-full bg-green-100 text-green-800">
                                     <WhatsAppIcon className="w-4 h-4" />
@@ -76,7 +76,7 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
                         ))}
                     </div>
 
-                    <div className="mt-8 p-4 bg-white dark:bg-[#121A2F] rounded-xl border border-gray-200 text-center">
+                    <div className="mt-8 p-4 bg-white dark:bg-black rounded-xl border border-gray-200 text-center">
                         <h3 className="font-semibold text-gray-800">Need a refresher?</h3>
                         <p className="text-sm text-gray-600 mt-1">Take a guided tour of the app's features.</p>
                         <button
@@ -88,7 +88,7 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
                     </div>
                 </main>
 
-                <footer className="text-center mt-12 text-gray-500 dark:text-[#A0ABC0]">
+                <footer className="text-center mt-12 text-gray-500 dark:text-gray-400">
                     <p className="text-sm mb-2">Powered By</p>
                     <div className="flex items-center justify-center gap-2">
                         <img src="/logo_icon.png" alt="AVELUT" className="w-8 h-8 object-contain" />

@@ -87,7 +87,7 @@ ${staticRoutes.map(route => `  <url>
     };
 
     if (isLoading) {
-        return <div className="p-8 text-center text-slate-500 dark:text-[#A0ABC0] font-bold animate-pulse">Loading SEO settings...</div>;
+        return <div className="p-8 text-center text-slate-500 dark:text-gray-400 font-bold animate-pulse">Loading SEO settings...</div>;
     }
 
     return (
@@ -98,7 +98,7 @@ ${staticRoutes.map(route => `  <url>
                         <Search className="w-6 h-6 text-indigo-500" />
                         SEO & Marketing Settings
                     </h2>
-                    <p className="text-sm font-medium text-slate-500 dark:text-[#A0ABC0] mt-1">
+                    <p className="text-sm font-medium text-slate-500 dark:text-gray-400 mt-1">
                         Manage global metadata tags and generate sitemaps for search engines.
                     </p>
                 </div>
@@ -106,7 +106,7 @@ ${staticRoutes.map(route => `  <url>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Meta Settings */}
-                <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8">
+                <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
                         <Globe className="w-5 h-5 text-indigo-500" /> Global Meta Tags
                     </h3>
@@ -118,7 +118,7 @@ ${staticRoutes.map(route => `  <url>
                                 required
                                 value={settings.default_title} 
                                 onChange={e => setSettings({...settings, default_title: e.target.value})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                             <p className="text-[10px] text-slate-400">Used as a fallback if a page doesn't specify its own title.</p>
                         </div>
@@ -130,7 +130,7 @@ ${staticRoutes.map(route => `  <url>
                                 rows={3}
                                 value={settings.default_description} 
                                 onChange={e => setSettings({...settings, default_description: e.target.value})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
                             />
                             <p className="text-[10px] text-slate-400">Optimal length is 150-160 characters.</p>
                         </div>
@@ -141,7 +141,7 @@ ${staticRoutes.map(route => `  <url>
                                 type="text" 
                                 value={settings.default_keywords} 
                                 onChange={e => setSettings({...settings, default_keywords: e.target.value})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                             <p className="text-[10px] text-slate-400">Comma-separated list of keywords.</p>
                         </div>
@@ -152,7 +152,7 @@ ${staticRoutes.map(route => `  <url>
                                 type="url" 
                                 value={settings.og_image_url} 
                                 onChange={e => setSettings({...settings, og_image_url: e.target.value})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                             <p className="text-[10px] text-slate-400">Image shown when sharing links on social media.</p>
                         </div>
@@ -163,7 +163,7 @@ ${staticRoutes.map(route => `  <url>
                                 type="text" 
                                 value={settings.twitter_handle} 
                                 onChange={e => setSettings({...settings, twitter_handle: e.target.value})}
-                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50 dark:bg-black focus:bg-white dark:bg-black text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
                             />
                         </div>
 
@@ -180,7 +180,7 @@ ${staticRoutes.map(route => `  <url>
                 </div>
 
                 {/* Sitemap Generator */}
-                <div className="bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8 flex flex-col">
+                <div className="bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8 flex flex-col">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
                         <Code className="w-5 h-5 text-indigo-500" /> Sitemap Generator
                     </h3>
