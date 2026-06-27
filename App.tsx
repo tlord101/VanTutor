@@ -54,7 +54,7 @@ const AppLoader: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] dark:bg-background overflow-hidden animate-pulse">
         {/* Fake Sidebar */}
-        <div className="hidden lg:flex w-64 bg-white dark:bg-card border-r border-slate-200 dark:border-border flex-col p-4">
+        <div className="hidden lg:flex w-64 bg-white dark:bg-[#121A2F] dark:bg-card border-r border-slate-200 dark:border-white/10 dark:border-border flex-col p-4">
             <div className="flex items-center gap-3 mb-8 px-2">
                 <Skeleton className="w-8 h-8 rounded-lg" />
                 <Skeleton className="h-6 w-24" />
@@ -67,7 +67,7 @@ const AppLoader: React.FC = () => {
         {/* Fake Main Content */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* Fake Header */}
-            <div className="h-16 bg-white dark:bg-card border-b border-slate-200 dark:border-border flex items-center justify-between px-4 sm:px-6">
+            <div className="h-16 bg-white dark:bg-[#121A2F] dark:bg-card border-b border-slate-200 dark:border-white/10 dark:border-border flex items-center justify-between px-4 sm:px-6">
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-8 w-8 rounded-full" />
             </div>
@@ -143,7 +143,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
 
     return (
         <div className="fixed inset-0 z-[99998] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Add AVELUT to Home Screen">
-            <div className="relative w-full max-w-sm overflow-hidden rounded-[32px] border border-neutral-100 bg-white shadow-2xl p-6 md:p-8 text-center animate-scale-in">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[32px] border border-neutral-100 bg-white dark:bg-[#121A2F] shadow-2xl p-6 md:p-8 text-center animate-scale-in">
                 <button
                     type="button"
                     onClick={() => setDismissed(true)}
@@ -179,7 +179,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
                 ) : isIOS ? (
                     <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-100 text-left space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-[#007AFF]">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] shadow-sm border border-neutral-200 text-[#007AFF]">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                                 </svg>
@@ -187,7 +187,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
                             <p className="text-sm font-semibold text-neutral-700">1. Tap the <strong className="text-neutral-900">Share</strong> button at the bottom of your screen.</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] shadow-sm border border-neutral-200 text-neutral-800">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path>
                                 </svg>
@@ -198,7 +198,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
                 ) : (
                     <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-100 text-left space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] shadow-sm border border-neutral-200 text-neutral-800">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                                     <circle cx="12" cy="5" r="1.5"></circle>
                                     <circle cx="12" cy="12" r="1.5"></circle>
@@ -208,7 +208,7 @@ const PWAInstallBannerOverlay: React.FC = () => {
                             <p className="text-sm font-semibold text-neutral-700">1. Tap the <strong className="text-neutral-900">Browser Menu</strong> (three dots) at the top right.</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-neutral-200 text-neutral-800">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] shadow-sm border border-neutral-200 text-neutral-800">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
@@ -1410,7 +1410,7 @@ const App: React.FC = () => {
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <div className="flex h-screen w-full bg-off-white font-sans text-charcoal selection:bg-brand-200 selection:text-brand-900 overflow-hidden">
+        <div className="flex h-screen w-full bg-off-white dark:bg-[#0A101F] font-sans text-charcoal dark:text-off-white selection:bg-brand-200 selection:text-brand-900 overflow-hidden">
             <NativePullToRefresh />
 
             {/* Automatic PWA App Intercept Modal Overlay */}

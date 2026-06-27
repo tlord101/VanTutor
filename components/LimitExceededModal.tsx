@@ -130,23 +130,23 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
       
       {/* Dialog Body */}
-      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-[28px] p-6 shadow-2xl animate-in scale-in duration-200">
+      <div className="relative w-full max-w-md bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10 rounded-[28px] p-6 shadow-2xl animate-in scale-in duration-200">
         <div className="flex flex-col items-center text-center">
           <div className="w-12 h-12 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-center text-blue-600 mb-4 animate-pulse">
             ⚡
           </div>
-          <h3 className="text-lg font-black text-slate-900 leading-tight">
+          <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
             Out of AI Credits
           </h3>
-          <p className="text-xs text-slate-500 mt-1 font-semibold">
+          <p className="text-xs text-slate-500 dark:text-[#A0ABC0] mt-1 font-semibold">
             Top-up your balance to continue using AI features.
           </p>
         </div>
 
-        <div className="my-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs font-semibold text-slate-700">
+        <div className="my-6 bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-2 text-xs font-semibold text-slate-700">
           <div className="flex justify-between">
             <span>Your Current Balance:</span>
-            <span className="font-extrabold text-slate-900">{balance} Credits</span>
+            <span className="font-extrabold text-slate-900 dark:text-white">{balance} Credits</span>
           </div>
           <div className="flex justify-between border-t border-slate-100 pt-2">
             <span>Action Cost:</span>
@@ -159,7 +159,7 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
           <p className="text-xs text-slate-700 font-extrabold mb-3">
             Add {refillAmount} AI Credits to your balance.
           </p>
-          <span className="text-2xl font-black text-slate-900">
+          <span className="text-2xl font-black text-slate-900 dark:text-white">
             ₦{refillPrice.toLocaleString()}
           </span>
         </div>
@@ -168,7 +168,7 @@ export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="py-3 text-slate-500 hover:text-slate-800 text-xs font-black uppercase tracking-wider rounded-xl transition-all border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+            className="py-3 text-slate-500 dark:text-[#A0ABC0] hover:text-slate-800 text-xs font-black uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:bg-[#0A101F] disabled:opacity-50"
           >
             Cancel
           </button>

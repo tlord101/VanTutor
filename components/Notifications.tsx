@@ -114,9 +114,9 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <div className="flex-1 w-full max-w-4xl mx-auto h-full overflow-hidden flex flex-col bg-gray-50/50 md:rounded-2xl md:my-4 md:border border-gray-200 md:shadow-sm">
+        <div className="flex-1 w-full max-w-4xl mx-auto h-full overflow-hidden flex flex-col bg-gray-50 dark:bg-[#0A101F]/50 md:rounded-2xl md:my-4 md:border border-gray-200 md:shadow-sm">
             {/* Header */}
-            <div className="flex-none p-4 md:p-6 bg-white border-b border-gray-200 flex justify-between items-center z-10 sticky top-0">
+            <div className="flex-none p-4 md:p-6 bg-white dark:bg-[#121A2F] border-b border-gray-200 flex justify-between items-center z-10 sticky top-0">
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                     <NotificationBellIcon className="w-6 h-6 text-lime-600" />
                     Notifications
@@ -140,7 +140,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                             onClick={() => handleNotificationClick(notification)}
                             className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-200 cursor-pointer
                                 ${notification.is_read 
-                                    ? 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm' 
+                                    ? 'bg-white dark:bg-[#121A2F] border-gray-100 hover:border-gray-200 hover:shadow-sm' 
                                     : 'bg-lime-50/30 border-lime-200 shadow-sm ring-1 ring-lime-500/10'}`}
                         >
                             {!notification.is_read && (
@@ -149,7 +149,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                             
                             <div className="flex items-start gap-4">
                                 <div className={`flex-shrink-0 p-3 rounded-xl flex items-center justify-center 
-                                    ${notification.is_read ? 'bg-gray-100 text-gray-500' : 'bg-lime-100 text-lime-600'}`}>
+                                    ${notification.is_read ? 'bg-gray-100 text-gray-500 dark:text-[#A0ABC0]' : 'bg-lime-100 text-lime-600'}`}>
                                    <NotificationTypeIcon type={notification.type} />
                                 </div>
                                 
@@ -162,7 +162,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                                             {timeAgo(notification.timestamp)}
                                         </span>
                                     </div>
-                                    <p className={`text-sm line-clamp-2 ${notification.is_read ? 'text-gray-500' : 'text-gray-700'}`}>
+                                    <p className={`text-sm line-clamp-2 ${notification.is_read ? 'text-gray-500 dark:text-[#A0ABC0]' : 'text-gray-700'}`}>
                                         {notification.message}
                                     </p>
 
@@ -192,7 +192,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                                                 value={replyText}
                                                 onChange={(e) => setReplyText(e.target.value)}
                                                 placeholder="Type your reply..."
-                                                className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all shadow-sm"
+                                                className="flex-1 bg-white dark:bg-[#121A2F] border border-gray-200 text-gray-900 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all shadow-sm"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') handleSendReply(notification, e as any);
                                                 }}
@@ -211,12 +211,12 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                         </div>
                     ))
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500">
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500 dark:text-[#A0ABC0]">
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <NotificationBellIcon className="w-10 h-10 text-gray-300" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">No notifications yet</h3>
-                        <p className="text-gray-500 max-w-sm">When you receive new messages, partner requests, or study reminders, they will appear here.</p>
+                        <p className="text-gray-500 dark:text-[#A0ABC0] max-w-sm">When you receive new messages, partner requests, or study reminders, they will appear here.</p>
                     </div>
                 )}
             </div>

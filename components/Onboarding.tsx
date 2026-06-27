@@ -44,7 +44,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
     <div className="relative" ref={dropdownRef}>
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       <div 
-        className={`w-full bg-gray-50 border border-gray-300 rounded-lg py-3 px-4 flex items-center justify-between text-gray-900 focus-within:ring-2 focus-within:ring-lime-500 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full bg-gray-50 dark:bg-[#0A101F] border border-gray-300 rounded-lg py-3 px-4 flex items-center justify-between text-gray-900 focus-within:ring-2 focus-within:ring-lime-500 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
@@ -54,8 +54,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
       </div>
 
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
-          <div className="p-2 border-b border-gray-100 flex items-center bg-gray-50 rounded-t-lg">
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#121A2F] border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
+          <div className="p-2 border-b border-gray-100 flex items-center bg-gray-50 dark:bg-[#0A101F] rounded-t-lg">
             <Search className="w-4 h-4 text-gray-400 ml-2 mr-2 shrink-0" />
             <input
               type="text"
@@ -69,12 +69,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
           </div>
           <div className="overflow-y-auto p-1 flex-1">
             {filteredOptions.length === 0 ? (
-              <div className="p-3 text-sm text-gray-500 text-center">No options found.</div>
+              <div className="p-3 text-sm text-gray-500 dark:text-[#A0ABC0] text-center">No options found.</div>
             ) : (
               filteredOptions.map((opt) => (
                 <div
                   key={opt.id}
-                  className={`p-3 text-sm rounded-md cursor-pointer flex items-center justify-between ${value === opt.id ? 'bg-lime-50 text-lime-700 font-medium' : 'hover:bg-gray-50'}`}
+                  className={`p-3 text-sm rounded-md cursor-pointer flex items-center justify-between ${value === opt.id ? 'bg-lime-50 text-lime-700 font-medium' : 'hover:bg-gray-50 dark:bg-[#0A101F]'}`}
                   onClick={() => {
                     onChange(opt.id);
                     setIsOpen(false);
@@ -278,13 +278,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4 font-sans relative z-50">
       <div className="w-full max-w-md">
-        <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="flex justify-center mb-6">
               <img src="/logo_full.png" alt="AVELUT" className="h-14 sm:h-16 object-contain" />
           </div>
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Welcome!</h2>
-            <p className="text-gray-500 mt-2 font-medium">Let's set up your personalized learning path.</p>
+            <p className="text-gray-500 dark:text-[#A0ABC0] mt-2 font-medium">Let's set up your personalized learning path.</p>
           </div>
           {renderFormContent()}
         </div>

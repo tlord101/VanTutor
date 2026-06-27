@@ -36,8 +36,8 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             onClick={() => setBillingInterval('monthly')}
             className={`px-6 py-1.5 rounded-full text-xs font-black transition-all ${
               billingInterval === 'monthly'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white dark:bg-[#121A2F] text-blue-600 shadow-sm'
+                : 'text-gray-500 dark:text-[#A0ABC0] hover:text-gray-800'
             }`}
           >
             Monthly
@@ -47,8 +47,8 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             onClick={() => setBillingInterval('annually')}
             className={`px-6 py-1.5 rounded-full text-xs font-black transition-all ${
               billingInterval === 'annually'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white dark:bg-[#121A2F] text-blue-600 shadow-sm'
+                : 'text-gray-500 dark:text-[#A0ABC0] hover:text-gray-800'
             }`}
           >
             Annually
@@ -60,7 +60,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
       <div className="flex overflow-x-auto snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-6 mb-6 pb-4 px-2 scroll-smooth">
 
         {/* Card 1: Forever Free */}
-        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-blue-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] p-6 flex flex-col justify-between transition-all relative hover:border-blue-300 ${
           showCurrentPlan && (userProfile.subscription_status === 'free' || !userProfile.subscription_status)
             ? 'border-blue-500 shadow-lg'
             : ''
@@ -75,26 +75,26 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
               </svg>
             </div>
-            <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
+            <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.free?.display_name || 'Forever Free'}
             </h4>
-            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
               <ReactMarkdown>{tiers?.free?.description || "Perfect if you're just getting started with your study promotion."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
-              <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 ₦{tiers?.free?.price_ngn ?? 0}
               </span>
-              <span className="text-slate-500 font-bold text-sm">Free</span>
+              <span className="text-slate-500 dark:text-[#A0ABC0] font-bold text-sm">Free</span>
             </div>
 
             {showCurrentPlan && (userProfile.subscription_status === 'free' || !userProfile.subscription_status) ? (
-              <span className="w-full text-center py-3 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl block border border-slate-200 mb-6">Current Plan</span>
+              <span className="w-full text-center py-3 bg-slate-50 dark:bg-[#0A101F] text-slate-400 text-sm font-bold rounded-xl block border border-slate-200 dark:border-white/10 mb-6">Current Plan</span>
             ) : (
               <button
                 onClick={() => onSelectPlan('free')}
                 disabled={isVerifyingKey}
-                className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
+                className="w-full py-3 bg-white dark:bg-[#121A2F] hover:bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
               >
                 Select Free
               </button>
@@ -122,8 +122,8 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         {/* Card 2: Student Plan */}
         <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border-2 flex flex-col justify-between transition-all relative overflow-hidden p-6 pt-12 hover:-translate-y-1 ${
           showCurrentPlan && userProfile.subscription_status === 'basic'
-            ? 'border-blue-650 bg-white shadow-xl'
-            : 'border-blue-600 bg-white hover:shadow-2xl'
+            ? 'border-blue-650 bg-white dark:bg-[#121A2F] shadow-xl'
+            : 'border-blue-600 bg-white dark:bg-[#121A2F] hover:shadow-2xl'
         }`}>
           <div className="absolute top-0 left-0 right-0 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest text-center py-2">
             Most Popular
@@ -136,17 +136,17 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
               </svg>
             </div>
-            <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
+            <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.basic?.display_name || 'Student Plan'}
             </h4>
-            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
               <ReactMarkdown>{tiers?.basic?.description || "Take your study promotion to the next level."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
-              <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 ₦{billingInterval === 'monthly' ? tiers?.basic?.price_ngn ?? 1000 : Math.round((tiers?.basic?.price_ngn ?? 1000) * 0.75)}
               </span>
-              <span className="text-slate-500 font-bold text-sm">/month</span>
+              <span className="text-slate-500 dark:text-[#A0ABC0] font-bold text-sm">/month</span>
             </div>
 
             {showCurrentPlan && userProfile.subscription_status === 'basic' ? (
@@ -181,7 +181,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         </div>
 
         {/* Card 3: Pro Plan */}
-        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-purple-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] p-6 flex flex-col justify-between transition-all relative hover:border-purple-300 ${
           showCurrentPlan && userProfile.subscription_status === 'premium'
             ? 'border-blue-500 shadow-lg'
             : ''
@@ -194,26 +194,26 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <path d="M2 9h20" />
               </svg>
             </div>
-            <h4 className="font-extrabold text-xl text-slate-900 leading-tight">
+            <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.premium?.display_name || 'Pro Plan'}
             </h4>
-            <div className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
               <ReactMarkdown>{tiers?.premium?.description || "Completely automate your learning progress with maximum options."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
-              <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 ₦{billingInterval === 'monthly' ? tiers?.premium?.price_ngn ?? 3000 : Math.round((tiers?.premium?.price_ngn ?? 3000) * 0.75)}
               </span>
-              <span className="text-slate-500 font-bold text-sm">/month</span>
+              <span className="text-slate-500 dark:text-[#A0ABC0] font-bold text-sm">/month</span>
             </div>
 
             {showCurrentPlan && userProfile.subscription_status === 'premium' ? (
-              <span className="w-full text-center py-3 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl block border border-slate-200 mb-6">Current Plan</span>
+              <span className="w-full text-center py-3 bg-slate-50 dark:bg-[#0A101F] text-slate-400 text-sm font-bold rounded-xl block border border-slate-200 dark:border-white/10 mb-6">Current Plan</span>
             ) : (
               <button
                 onClick={() => onSelectPlan('premium')}
                 disabled={isVerifyingKey}
-                className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
+                className="w-full py-3 bg-white dark:bg-[#121A2F] hover:bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
               >
                 Select Pro
               </button>
@@ -239,7 +239,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         </div>
 
         {/* Card 4: Connect to Gemini */}
-        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 bg-white p-6 flex flex-col justify-between transition-all relative hover:border-emerald-300 ${
+        <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] p-6 flex flex-col justify-between transition-all relative hover:border-emerald-300 ${
           showCurrentPlan && userProfile.subscription_status === 'personal_token'
             ? 'border-emerald-600 shadow-lg'
             : ''
@@ -251,13 +251,13 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <polyline points="8 6 2 12 8 18" />
               </svg>
             </div>
-            <h4 className="font-extrabold text-xl text-slate-900 leading-tight">Connect to Gemini</h4>
-            <p className="text-sm text-slate-500 mt-2 font-semibold leading-snug min-h-[40px]">
+            <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">Connect to Gemini</h4>
+            <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mt-2 font-semibold leading-snug min-h-[40px]">
               We partner with Google to give you the best services. Connect your personal Google Gemini API key to bypass all limits.
             </p>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
               <span className="text-4xl font-extrabold text-emerald-600 tracking-tight">Gemini</span>
-              <span className="text-slate-500 font-bold text-sm">Key</span>
+              <span className="text-slate-500 dark:text-[#A0ABC0] font-bold text-sm">Key</span>
             </div>
 
             <div className="mb-6">
@@ -269,12 +269,12 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                       placeholder="Paste Gemini API key"
                       value={personalApiKey}
                       onChange={(e) => setPersonalApiKey(e.target.value)}
-                      className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-lg py-2 px-3 pr-10 text-slate-800 font-medium focus:outline-none transition-all font-mono text-[11px] shadow-sm"
+                      className="w-full bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10 focus:border-blue-500 rounded-lg py-2 px-3 pr-10 text-slate-800 font-medium focus:outline-none transition-all font-mono text-[11px] shadow-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 text-xs font-bold"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-[#A0ABC0] hover:text-slate-700 text-xs font-bold"
                     >
                       {showApiKey ? 'HIDE' : 'SHOW'}
                     </button>
@@ -294,7 +294,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <button
                   onClick={() => setUsePersonalToken(true)}
                   disabled={isVerifyingKey}
-                  className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-sm mb-6"
+                  className="w-full py-3 bg-white dark:bg-[#121A2F] hover:bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-sm mb-6"
                 >
                   Configure Personal Token
                 </button>

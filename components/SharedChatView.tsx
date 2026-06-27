@@ -146,7 +146,7 @@ export const SharedChatView: React.FC<SharedChatViewProps> = ({ shareId, user })
             {/* Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center p-1 flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-white dark:bg-[#121A2F] flex items-center justify-center p-1 flex-shrink-0">
                         <img src="/logo_icon.png" alt="AVELUT" className="w-full h-full object-contain" />
                     </div>
                     <div>

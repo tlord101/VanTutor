@@ -183,11 +183,11 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
       </div>
 
       {/* Subscription Status Details */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="bg-white dark:bg-[#121A2F] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2 block">Current Subscription</span>
           <div className="flex items-center gap-3">
-            <h4 className="font-extrabold text-slate-900 text-xl">
+            <h4 className="font-extrabold text-slate-900 dark:text-white text-xl">
               {(userProfile.subscription_status === 'pro' || userProfile.subscription_status === 'premium') && (tiers?.premium?.display_name || 'Premium Plan')}
               {userProfile.subscription_status === 'basic' && (tiers?.basic?.display_name || 'Student Plan')}
               {(userProfile.subscription_status === 'free' || !userProfile.subscription_status) && (tiers?.free?.display_name || 'Free Plan')}
@@ -206,8 +206,8 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
       {/* Subscription Plans Slider */}
       <div>
         <div className="mb-6 px-2">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Upgrade Your Plan</h3>
-            <p className="text-sm text-slate-500 font-semibold mt-1">Swipe to view all available tiers. Cancel anytime.</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Upgrade Your Plan</h3>
+            <p className="text-sm text-slate-500 dark:text-[#A0ABC0] font-semibold mt-1">Swipe to view all available tiers. Cancel anytime.</p>
         </div>
         
         <SubscriptionCards

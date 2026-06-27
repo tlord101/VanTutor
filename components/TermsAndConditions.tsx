@@ -26,7 +26,7 @@ export default function TermsAndConditions() {
       <header className="sticky top-0 z-40 w-full border-b border-neutral-800/60 bg-[#060814]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-[#121A2F] p-1">
               <img src="/logo_icon.png" alt="AVELUT" className="h-full w-full object-contain" />
             </div>
             <div>
@@ -67,7 +67,7 @@ export default function TermsAndConditions() {
                 ))}
               </nav>
               <div className="mt-6 pt-5 border-t border-neutral-850">
-                <p className="text-[10px] text-slate-500">LAST UPDATED</p>
+                <p className="text-[10px] text-slate-500 dark:text-[#A0ABC0]">LAST UPDATED</p>
                 <p className="text-xs font-medium text-slate-400 mt-1">{lastUpdated}</p>
               </div>
             </div>
@@ -218,7 +218,7 @@ export default function TermsAndConditions() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-800/60 bg-[#0d1122] py-8 text-center text-xs text-slate-500">
+      <footer className="border-t border-neutral-800/60 bg-[#0d1122] py-8 text-center text-xs text-slate-500 dark:text-[#A0ABC0]">
         <p>&copy; {new Date().getFullYear()} AVELUT AI. All rights reserved.</p>
         <div className="mt-2 flex justify-center gap-4">
           <a href="/policy" className="hover:text-slate-300 hover:underline">Privacy Policy</a>

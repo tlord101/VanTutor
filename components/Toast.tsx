@@ -79,7 +79,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
       </div>
       <button
         onClick={handleDismiss}
-        className="ml-4 flex-shrink-0 p-1 rounded-full text-gray-400 hover:bg-white/20 hover:text-white transition-colors"
+        className="ml-4 flex-shrink-0 p-1 rounded-full text-gray-400 hover:bg-white dark:bg-[#121A2F]/20 hover:text-white transition-colors"
         aria-label="Close"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

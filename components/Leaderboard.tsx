@@ -18,8 +18,8 @@ const getWeekId = (date: Date): string => {
 
 
 const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: boolean}> = ({ rank, user, isCurrentUser }) => (
-    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-100 border-lime-300' : 'bg-gray-50 border-gray-100'}`}>
-        <div className="flex-shrink-0 w-8 text-center font-bold text-lg text-gray-500">
+    <div className={`flex items-center p-3 rounded-lg transition-all duration-200 border ${isCurrentUser ? 'bg-lime-100 border-lime-300' : 'bg-gray-50 dark:bg-[#0A101F] border-gray-100'}`}>
+        <div className="flex-shrink-0 w-8 text-center font-bold text-lg text-gray-500 dark:text-[#A0ABC0]">
             {rank <= 3 ? (
                 <span className={rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-600'}>{rank}</span>
             ) : rank}
@@ -114,7 +114,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
   const renderList = () => {
       if(isLoading) return <LeaderboardSkeleton />;
       if(error) return <p className="text-center text-red-600">{error}</p>
-      if(data.length === 0) return <p className="text-center text-gray-500">The leaderboard is empty. Be the first to set a score!</p>;
+      if(data.length === 0) return <p className="text-center text-gray-500 dark:text-[#A0ABC0]">The leaderboard is empty. Be the first to set a score!</p>;
 
       return (
           <div className="space-y-3">
@@ -123,7 +123,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
               ))}
               {!isCurrentUserInTop && currentUserRank > 0 && (
                   <>
-                      <div className="text-center text-gray-500">...</div>
+                      <div className="text-center text-gray-500 dark:text-[#A0ABC0]">...</div>
                       <RankItem rank={currentUserRank} user={data[currentUserRank-1]} isCurrentUser={true} />
                   </>
               )}
@@ -132,7 +132,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+    <div className="flex-1 flex flex-col w-full bg-white dark:bg-[#121A2F] p-4 sm:p-6 rounded-xl border border-gray-200">
       <div className="flex-shrink-0 mb-4 bg-gray-100 p-1 rounded-lg flex">
         <button onClick={() => setActiveTab('overall')} className={`flex-1 p-2 rounded-md font-semibold transition-colors ${activeTab === 'overall' ? 'bg-lime-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
           Overall

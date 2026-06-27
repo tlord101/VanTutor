@@ -33,23 +33,23 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
     
     return (
         <div className="space-y-8 max-w-4xl">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/60 shadow-sm space-y-8">
+            <div className="bg-white dark:bg-[#121A2F] rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-white/10/60 shadow-sm space-y-8">
                 <div>
-                    <h3 className="font-black text-xl text-slate-900 mb-1 flex items-center gap-2">
+                    <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                         <HelpCircle className="w-6 h-6 text-indigo-500" />
                         <span>Past Questions Management</span>
                     </h3>
-                    <p className="text-sm text-slate-500">Automate extraction using AI, or manually input individual questions.</p>
+                    <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Automate extraction using AI, or manually input individual questions.</p>
                 </div>
 
                 {/* Common Target Configuration */}
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-[#0A101F] border border-slate-100 space-y-4">
                     <label className="text-xs font-black uppercase tracking-widest text-slate-400">Target Assignment</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <select 
                             value={uploadDepartmentId} 
                             onChange={e => setUploadDepartmentId(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Department</option>
                             {allDepartments.map(dept => (
@@ -59,7 +59,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <select 
                             value={uploadLevel} 
                             onChange={e => setUploadLevel(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Level</option>
                             {LEVELS.map(lvl => (
@@ -69,7 +69,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <select 
                             value={uploadCourseName} 
                             onChange={e => setUploadCourseName(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
                             <option value="">Select Course</option>
                             {availableCourses.map(({ course }) => (
@@ -81,7 +81,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <input 
                             type="text" placeholder="Year (e.g. 2023)" 
                             value={year} onChange={e => setYear(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         />
                     </div>
                 </div>
@@ -99,7 +99,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             </div>
                             <div>
                                 <p className="font-bold text-slate-800 text-sm">Upload Exam PDF</p>
-                                <p className="text-xs text-slate-500 max-w-[200px] mt-1">Our AI will automatically extract and format the questions and answers.</p>
+                                <p className="text-xs text-slate-500 dark:text-[#A0ABC0] max-w-[200px] mt-1">Our AI will automatically extract and format the questions and answers.</p>
                             </div>
                             
                             <div className="w-full space-y-3 pt-2">
@@ -107,12 +107,12 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                     type="file"
                                     accept="application/pdf"
                                     onChange={e => setPqFile(e.target.files?.[0] || null)}
-                                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                    className="w-full text-sm text-slate-500 dark:text-[#A0ABC0] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => handleGoogleDrivePick((files) => setPqFile(files[0] || null))}
-                                    className="w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition border border-slate-200 flex items-center justify-center gap-2 shadow-sm"
+                                    className="w-full py-2.5 rounded-xl bg-white dark:bg-[#121A2F] text-blue-600 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:bg-[#0A101F] transition border border-slate-200 dark:border-white/10 flex items-center justify-center gap-2 shadow-sm"
                                 >
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" className="w-4 h-4" />
                                     Import from Drive
@@ -120,7 +120,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             </div>
 
                             {isPQProcessing && (
-                                <div className="w-full p-3 bg-white rounded-xl border border-indigo-100 shadow-sm flex items-center justify-center gap-2 text-indigo-600 text-xs font-bold animate-pulse">
+                                <div className="w-full p-3 bg-white dark:bg-[#121A2F] rounded-xl border border-indigo-100 shadow-sm flex items-center justify-center gap-2 text-indigo-600 text-xs font-bold animate-pulse">
                                     <RefreshCw className="w-4 h-4 animate-spin" />
                                     <span>{extractionProgress}</span>
                                 </div>
@@ -147,7 +147,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                 placeholder="Question Content" 
                                 value={newQuestion.question || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, question: e.target.value})}
-                                className="w-full p-4 border border-slate-200 rounded-2xl h-28 bg-slate-50 focus:bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition resize-none text-sm"
+                                className="w-full p-4 border border-slate-200 dark:border-white/10 rounded-2xl h-28 bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] outline-none focus:ring-4 focus:ring-indigo-100 transition resize-none text-sm"
                             />
                             
                             <div className="grid grid-cols-2 gap-3">
@@ -159,7 +159,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                             opts[i] = e.target.value;
                                             setNewQuestion({...newQuestion, options: opts});
                                         }}
-                                        className="p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500"
+                                        className="p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-indigo-500"
                                     />
                                 ))}
                             </div>
@@ -168,14 +168,14 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                 type="text" placeholder="Correct Answer (Exact string match)" 
                                 value={newQuestion.correctAnswer || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, correctAnswer: e.target.value})}
-                                className="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 font-bold text-emerald-600 placeholder:text-slate-400 placeholder:font-normal"
+                                className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-indigo-500 font-bold text-emerald-600 placeholder:text-slate-400 placeholder:font-normal"
                             />
                             
                             <textarea 
                                 placeholder="Explanation (Optional)" 
                                 value={newQuestion.explanation || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, explanation: e.target.value})}
-                                className="w-full p-3 border border-slate-200 rounded-xl h-20 bg-slate-50 focus:bg-white outline-none focus:border-indigo-500 resize-none text-sm"
+                                className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl h-20 bg-slate-50 dark:bg-[#0A101F] focus:bg-white dark:bg-[#121A2F] outline-none focus:border-indigo-500 resize-none text-sm"
                             />
 
                             <button 

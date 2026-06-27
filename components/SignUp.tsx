@@ -138,7 +138,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="flex justify-center mb-6">
               <img src="/logo_full.png" alt="AVELUT Logo" className="h-16 object-contain" />
           </div>
@@ -162,7 +162,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                   required
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 dark:bg-[#0A101F] border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
 
@@ -178,7 +178,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 dark:bg-[#0A101F] border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
 
@@ -195,12 +195,12 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    className="w-full bg-gray-50 dark:bg-[#0A101F] border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-lime-500 rounded focus:outline-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-[#A0ABC0] hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-lime-500 rounded focus:outline-none"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     title={showPassword ? 'Hide password' : 'Show password'}
                   >
@@ -234,14 +234,14 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
 
           <div className="relative flex py-5 items-center">
               <div className="flex-grow border-t border-gray-200"></div>
-              <span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">Or continue with</span>
+              <span className="flex-shrink mx-4 text-gray-500 dark:text-[#A0ABC0] text-xs uppercase">Or continue with</span>
               <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
           <button
               onClick={handleGoogleSignIn}
               disabled={isSubmitting || isGoogleSubmitting}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-white dark:bg-[#121A2F] border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 dark:bg-[#0A101F] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
               {isGoogleSubmitting ? (
                   <>
@@ -263,7 +263,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
             </button>
           </p>
 
-          <div className="mt-6 text-center text-xs text-gray-500 space-x-2">
+          <div className="mt-6 text-center text-xs text-gray-500 dark:text-[#A0ABC0] space-x-2">
             <a href="/t&c" className="underline hover:text-gray-700">Terms & Conditions</a>
             <span>&middot;</span>
             <a href="/policy" className="underline hover:text-gray-700">Privacy Policy</a>

@@ -12,6 +12,7 @@ import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remov
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { useTheme } from '../contexts/ThemeContext';
+import { Trash2, Send, Mic, FileText, Image as ImageIcon, Sticker } from 'lucide-react';
 
 const REACTION_EMOJIS = ['🔥', '😂', '😍', '👏', '😮', '😭', '👍', '❤️'];
 
@@ -24,13 +25,13 @@ const DoubleCheckIcon = ({ color = "#8696a0" }) => (
 );
 
 const AttachmentIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 
 const CameraIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
     <circle cx="12" cy="13" r="4" />
   </svg>
@@ -52,7 +53,7 @@ const TrashIcon = () => (
 );
 
 const LockIcon = ({ locked }: { locked: boolean }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D]">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-[#A0ABC0]">
     {locked ? (
       <>
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -172,7 +173,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
         type="button"
         onClick={togglePlay}
         disabled={isUploading}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-[#F8F9FA] text-[#486380] hover:bg-[#E9ECEF]'
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white dark:bg-[#121A2F]/20 text-white hover:bg-white dark:bg-[#121A2F]/30' : 'bg-[#F8F9FA] dark:bg-[#0A101F] text-[#486380] hover:bg-[#E9ECEF]'
           } ${isUploading ? 'cursor-not-allowed' : ''}`}
       >
         {isUploading ? (
@@ -213,13 +214,13 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
           })}
         </div>
 
-        <div className={`flex justify-between items-center text-[11px] font-medium ${isMe ? 'text-white/80' : 'text-[#6C757D]'}`}>
+        <div className={`flex justify-between items-center text-[11px] font-medium ${isMe ? 'text-white/80' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>
           <span>{isUploading ? "Uploading..." : formatTime(isPlaying ? currentTime : duration)}</span>
           <button
             type="button"
             onClick={handleSpeedChange}
             disabled={isUploading}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white/10' : 'border-[#E9ECEF] hover:bg-neutral-100'
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white dark:bg-[#121A2F]/10' : 'border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-100'
               } ${isUploading ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {playbackRate}x
@@ -263,26 +264,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   disabled = false,
   onTyping
 }) => {
-  let appTheme = 'blue';
-  try {
-     const themeContext = useTheme();
-     if (themeContext) appTheme = themeContext.appTheme;
-  } catch (e) {
-     // fallback
-  }
-
-  const getThemeColor = (theme: string) => {
-    switch (theme) {
-      case 'emerald': return '#10B981';
-      case 'violet': return '#8B5CF6';
-      case 'rose': return '#F43F5E';
-      case 'amber': return '#F59E0B';
-      case 'blue': 
-      default: return '#009EE2';
-    }
-  };
-
-  const themeColor = getThemeColor(appTheme);
+  const themeColor = '#0A101F'; // navy blue
 
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
@@ -326,7 +308,6 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
     setCurrentX(clientX);
     setCurrentY(clientY);
 
@@ -344,9 +325,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const handleVoiceRelease = () => {
     if (!isSwiping || disabled) return;
     setIsSwiping(false);
-    if (!isLocked) {
-      stopRecording(true);
-    }
+    if (!isLocked) stopRecording(true);
   };
 
   const executeTextSend = () => {
@@ -368,16 +347,16 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   return (
-    <div className={`w-full relative select-none z-40 bg-[#F8F9FA] pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`w-full relative select-none z-40 bg-[#0A101F] pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
       <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
 
       {isRecording && !isLocked && (
         <div
-          className="absolute right-[19px] bottom-[70px] w-[46px] h-[130px] bg-white rounded-full flex flex-col items-center justify-start py-4 gap-3 shadow-md z-20"
+          className="absolute right-[19px] bottom-[70px] w-[46px] h-[130px] bg-white dark:bg-[#121A2F] rounded-full flex flex-col items-center justify-start py-4 gap-3 shadow-md z-20"
           style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.15)}px)` }}
         >
-          <div className="flex items-center justify-center text-slate-500" style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.5)}px)` }}>
+          <div className="flex items-center justify-center text-slate-500 dark:text-[#A0ABC0]" style={{ transform: `translateY(${Math.max(-40, swipeDeltaY * 0.5)}px)` }}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 10v-3.5a6.5 6.5 0 0 0-13 0V10H4v11h16V10h-2zm-10-3.5a4.5 4.5 0 0 1 9 0V10H8V6.5z"/></svg>
           </div>
           <div className="text-slate-400 mt-2 animate-bounce">
@@ -388,15 +367,15 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       <div className="w-full flex items-end gap-2 relative">
         {!isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-white border border-[#E9ECEF] rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
+          <div className="flex-1 h-[52px] bg-[#121A2F] border border-white/10 rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]">
             <div className="relative flex items-center h-full">
-              <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#6C757D]">
-                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"></path><path d="M15 3v6h6"></path><path d="M10 14a3.5 3.5 0 0 0 4 0"></path><path d="M9 10h.01"></path><path d="M15 10h.01"></path></svg>
+              <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
+                 <Sticker className="w-6 h-6" />
               </button>
               {showStickerPopup && (
-                <div className="absolute -top-10 left-2 bg-[#212529] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
+                <div className="absolute -top-10 left-2 bg-white text-black text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
                   Coming soon
-                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-[#212529] rotate-45"></div>
+                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-white rotate-45"></div>
                 </div>
               )}
             </div>
@@ -407,86 +386,75 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
                 onKeyDown={(e) => e.key === 'Enter' && executeTextSend()}
                 placeholder="Message"
-                className="w-full h-full bg-transparent text-[17px] text-[#212529] placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
+                className="w-full h-full bg-transparent text-[17px] text-white placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
               />
             </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#6C757D]">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="-rotate-45"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#A0ABC0]">
+              <FileText className="w-5 h-5" />
             </button>
-            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#6C757D]">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <button type="button" onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#A0ABC0]">
+              <ImageIcon className="w-5 h-5" />
             </button>
           </div>
         )}
 
         {isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-white rounded-full flex items-center shadow-sm relative overflow-hidden">
+          <div className="flex-1 h-[52px] bg-[#121A2F] rounded-full flex items-center shadow-sm relative overflow-hidden">
              <div className="flex items-center h-full w-full">
-                <div className="pl-5 w-20 text-[18px] text-[#212529] tabular-nums font-normal">
+                <div className="pl-5 w-20 text-[18px] text-white tabular-nums font-normal">
                    {formatTime(recordDuration)}
                 </div>
                 <div className="flex-1 flex items-center justify-end pr-14 z-10 transition-transform duration-75" style={{ transform: `translateX(${swipeDeltaX * 0.8}px)` }}>
-                  <span className="text-[15px] font-normal text-slate-500 flex items-center gap-1.5">
+                  <span className="text-[15px] font-normal text-[#A0ABC0] flex items-center gap-1.5">
                     <span className="inline-block font-bold text-lg text-slate-400">&lt;</span> Slide to cancel
                   </span>
                 </div>
              </div>
-             <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-white/40 to-transparent w-24 pointer-events-none" />
+             <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-[#121A2F]/40 to-transparent w-24 pointer-events-none" />
           </div>
         )}
 
         {isLocked && (
-            <div className="flex-1 bg-[#F5F6F6] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-[#E9ECEF]">
+            <div className="flex-1 bg-[#121A2F] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-white/10">
                <div className="flex items-center justify-between mb-4 px-3 w-full">
-                  <span className="text-[17px] text-[#212529] tabular-nums font-normal">{formatTime(recordDuration)}</span>
+                  <span className="text-[17px] text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
                   <div className="flex-1 mx-3 flex items-center gap-[3px]">
-                      {/* Live wave visualizer animation */}
                       {[...Array(24)].map((_, i) => (
-                          <div key={i} className="w-[3px] rounded-full bg-slate-400 animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
+                          <div key={i} className="w-[3px] rounded-full bg-[#009EE2] animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
                       ))}
                   </div>
-                  <button className="w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-400 text-slate-500 shrink-0">
-                      <span className="text-[10px] font-bold">1</span>
-                  </button>
                </div>
                <div className="flex items-center justify-between px-3 w-full">
-                  <button onClick={discardVoice} className="w-7 h-7 flex items-center justify-center text-slate-500 active:scale-90 transition-transform">
-                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <button onClick={discardVoice} className="w-7 h-7 flex items-center justify-center text-[#A0ABC0] active:scale-90 transition-transform">
+                     <Trash2 className="w-5 h-5" />
                   </button>
-                  <button className="w-8 h-8 flex items-center justify-center text-red-500">
-                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  <button onClick={() => stopRecording(true)} className="w-8 h-8 rounded-full bg-[#009EE2] text-white flex items-center justify-center hover:scale-105 transition-transform">
+                     <Send className="w-4 h-4 ml-1" />
                   </button>
-                  <div className="w-12"></div> {/* Spacer for the send button absolute alignment */}
                </div>
             </div>
         )}
 
-        <div className={`shrink-0 ${isLocked ? 'absolute bottom-2 right-2' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+        <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
           {hasText ? (
-            <button type="button" onClick={executeTextSend} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100" style={{ backgroundColor: themeColor }}>
-              <SendIcon />
-            </button>
-          ) : isLocked ? (
-            <button type="button" onClick={() => stopRecording(true)} className="w-[44px] h-[44px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 mb-0.5 mr-0.5" style={{ backgroundColor: themeColor }}>
-              <SendIcon />
+            <button type="button" onClick={executeTextSend} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
+              <Send className="w-5 h-5" />
             </button>
           ) : (
-            <div className="relative">
-              {isRecording && <div className="absolute -inset-2 rounded-full animate-ping pointer-events-none" style={{ backgroundColor: `${themeColor}33` }} />}
-              <button
-                type="button"
-                onMouseDown={handleVoicePress}
-                onMouseMove={handleVoiceMove}
-                onMouseUp={handleVoiceRelease}
-                onMouseLeave={handleVoiceRelease}
-                onTouchStart={handleVoicePress}
-                onTouchMove={handleVoiceMove}
-                onTouchEnd={handleVoiceRelease}
-                className={`w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all select-none touch-none hover:brightness-95 ${isRecording ? 'scale-125 brightness-90' : 'active:scale-95'}`} style={{ backgroundColor: themeColor }}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] text-white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
-              </button>
-            </div>
+            <button
+              type="button"
+              onMouseDown={handleVoicePress}
+              onTouchStart={handleVoicePress}
+              onMouseMove={handleVoiceMove}
+              onTouchMove={handleVoiceMove}
+              onMouseUp={handleVoiceRelease}
+              onMouseLeave={handleVoiceRelease}
+              onTouchEnd={handleVoiceRelease}
+              onTouchCancel={handleVoiceRelease}
+              className={`w-[50px] h-[50px] rounded-full flex items-center justify-center shadow-md transition-all duration-100 outline-none select-none ${isRecording ? 'bg-red-500 text-white scale-110' : 'bg-[#009EE2] text-white hover:brightness-95 active:scale-95'}`}
+            >
+              <Mic className="w-6 h-6" />
+            </button>
           )}
         </div>
       </div>
@@ -533,6 +501,31 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startYRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Listen to typing status for active chat
+  useEffect(() => {
+    if (!activeChat || !firebaseUser) return;
+    const typingRef = dbRef(db, `chat_meta_data/${activeChat.chatId}/typing`);
+    const unsub = onValue(typingRef, (snap) => {
+      if (snap.exists()) {
+        setTypingStatus(snap.val());
+      } else {
+        setTypingStatus({});
+      }
+    });
+    return () => unsub();
+  }, [activeChat, firebaseUser]);
+
+  const updateTypingStatus = (status: 'typing' | 'recording' | null) => {
+    if (!activeChat || !firebaseUser) return;
+    const typingRef = dbRef(db, `chat_meta_data/${activeChat.chatId}/typing/${firebaseUser.uid}`);
+    if (status) {
+      set(typingRef, status).catch(console.error);
+    } else {
+      remove(typingRef).catch(console.error);
+    }
+  };
+
   const messageActionMenuRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
@@ -1294,6 +1287,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   };
 
   const startRecording = async (e: any) => {
+    updateTypingStatus('recording');
+    setRecordingTime(0);
+    recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     if (!activeChat) return;
     if (e && 'preventDefault' in e) e.preventDefault();
     startYRef.current = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -1567,40 +1563,41 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     if (messageActionTarget) {
       setCustomHeaderConfig({
          title: (
-           <div className="flex items-center gap-4 text-xl font-medium text-[#212529]">
+           <div className="flex items-center gap-4 text-xl font-medium text-[#212529] dark:text-white">
              1
            </div>
          ),
          leftActions: (
-            <button onClick={closeMessageActions} className="p-3 -ml-2 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
+            <button onClick={closeMessageActions} className="p-3 -ml-2 text-[#212529] dark:text-white hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
          ),
          rightActions: (
-            <div className="flex items-center gap-1">
-               <button onClick={() => { setReplyingTo(messageActionTarget); closeMessageActions(); }} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+               <button onClick={(e) => { e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>
                </button>
-               <button className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
+               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
                </button>
                {messageActionTarget.senderId === firebaseUser?.uid && (
-               <button onClick={() => void deleteSelectedMessage()} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Delete">
+               <button onClick={(e) => { e.stopPropagation(); void deleteSelectedMessage(); }} className="p-3 text-red-500 hover:bg-red-50 rounded-full transition-colors" aria-label="Delete">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
                )}
-               <button onClick={() => void copyMessageContent()} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
+               <button onClick={(e) => { e.stopPropagation(); void copyMessageContent(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                </button>
-               <button onClick={() => {
+               <button onClick={(e) => {
+                      e.stopPropagation();
                       setForwardTargetContent(messageActionTarget.text || '');
                       setForwardTargetType(messageActionTarget.type || 'text');
                       setIsForwardModalOpen(true);
                       closeMessageActions();
-                    }} className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
+                    }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
                </button>
-               <button className="p-3 text-[#212529] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
+               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
                   <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
                </button>
             </div>
@@ -1614,12 +1611,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setCustomHeaderConfig({
         title: (
           <div onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
-            <h2 className="font-semibold text-[#212529] text-[16px] leading-tight truncate flex items-center gap-1.5 hover:underline">
+            <h2 className="font-semibold text-[#212529] dark:text-white text-[16px] leading-tight truncate flex items-center gap-1.5 hover:underline">
               <span className="truncate max-w-[120px]">{(activeChat.otherUser.display_name || 'User').split(' ')[0].substring(0, 5)}</span>
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
             </h2>
-            <p className="text-[12px] text-[#6C757D] font-normal mt-0.5 flex items-center">
+            <p className="text-[12px] text-[#6C757D] dark:text-[#A0ABC0] font-normal mt-0.5 flex items-center">
               {activeChat.otherUser.is_online ? (
                 <>
                   <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
@@ -1631,23 +1628,23 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         leftActions: (
           <>
-            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] hover:text-[#212529] transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
-              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF]" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
+              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
             </button>
           </>
         ),
         rightActions: (
           <div className="relative">
-             <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+             <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 dark:text-[#A0ABC0] hover:bg-slate-100 rounded-full transition-colors">
                 <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
              </button>
              {showUserOptions && (
-              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
+              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
                  <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
-                 <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-bold">Report User</button>
+                 <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:bg-[#0A101F] font-bold">Report User</button>
               </div>
              )}
           </div>
@@ -1665,13 +1662,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] font-sans antialiased text-[#212529]">
+    <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] dark:bg-[#0A101F] font-sans antialiased text-[#212529] dark:text-white">
       {/* Sidebar Pane */}
-      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white relative`}>
-        <div className="p-4 bg-[#F8F9FA] border-b border-[#E9ECEF] shrink-0">
+      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-white/10 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-[#121A2F] relative`}>
+        <div className="p-4 bg-[#F8F9FA] dark:bg-[#0A101F] border-b border-[#E9ECEF] dark:border-white/10 shrink-0">
           <div className="flex gap-1 bg-[#E9ECEF] p-1 rounded-xl text-sm shrink-0 mb-4">
-            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Chats</button>
-            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white text-[#212529] shadow-sm' : 'text-[#6C757D] hover:text-[#212529]'}`}>Study Mates</button>
+            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-[#121A2F] text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white'}`}>Chats</button>
+            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-[#121A2F] text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-[#A0ABC0] hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
           </div>
 
           {/* Search Bar */}
@@ -1682,16 +1679,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 placeholder="Search study mates..."
                 value={peopleSearchQuery}
                 onChange={(e) => setPeopleSearchQuery(e.target.value)}
-                className="w-full bg-white text-sm text-[#212529] placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
+                className="w-full bg-white dark:bg-[#121A2F] text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
               />
               {peopleSearchQuery && (
-                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] text-xs hover:text-[#212529]">✕</button>
+                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] dark:text-[#A0ABC0] text-xs hover:text-[#212529] dark:text-white">✕</button>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-[#121A2F]">
           {isLoading ? (
             <div className="p-4"><MessengerSkeleton /></div>
           ) : tab === 'chats' ?
@@ -1713,17 +1710,17 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   event.preventDefault();
                   void handleDeleteChatThread(c);
                 }}
-                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA]' : ''}`}
+                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-[#0A101F] cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-[#0A101F]' : ''}`}
               >
-                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
-                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
+                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
                       <span>{c.otherUser?.display_name}</span>
                       <VerificationBadge status={c.otherUser?.subscription_status} />
                       {c.otherUser && <StreakBadge userProfile={c.otherUser} size="sm" />}
                     </h3>
-                    <span className="text-[12px] text-[#6C757D]">10:16 AM</span>
+                    <span className="text-[12px] text-[#6C757D] dark:text-[#A0ABC0]">10:16 AM</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -1732,11 +1729,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       )}
                       
                       {c.isTyping ? (
-                          <span className="text-[#009EE2] font-semibold flex items-center gap-1 italic"><div className="flex gap-0.5"><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'0ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'150ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'300ms'}}></div></div> typing...</span>
+                          <span className="text-[#009EE2] dark:text-[#F8F9FA] font-semibold flex items-center gap-1 italic"><div className="flex gap-0.5"><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'0ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'150ms'}}></div><div className="w-1 h-1 rounded-full bg-[#009EE2] animate-bounce" style={{animationDelay:'300ms'}}></div></div> typing...</span>
                       ) : c.isRecording ? (
-                          <span className="text-[#009EE2] font-semibold flex items-center gap-1 italic">🎵 recording...</span>
+                          <span className="text-[#009EE2] dark:text-[#F8F9FA] font-semibold flex items-center gap-1 italic">🎵 recording...</span>
                       ) : (
-                          <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529]' : 'text-[#6C757D]'}`}>{getLastMessagePreview(c)}</p>
+                          <p className={`text-[14px] truncate ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>{getLastMessagePreview(c)}</p>
                       )}
 
                     </div>
@@ -1746,31 +1743,31 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] mt-1 text-[#6C757D] font-normal">
+                  <p className="text-[11px] mt-1 text-[#6C757D] dark:text-[#A0ABC0] font-normal">
                     {c.otherUser?.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(c.otherUser?.last_seen)}
                   </p>
                 </div>
               </div>
             )) : filteredPeople.length === 0 ? (
-              <div className="text-center py-12 px-6 bg-[#F8F9FA]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF]">
-                <span className="text-2xl block mb-2 font-black text-[#6C757D]">👥</span>
-                <p className="text-sm font-bold text-[#212529]">No study mates found</p>
-                <p className="text-xs text-[#6C757D] mt-1">
+              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-[#0A101F]/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-white/10">
+                <span className="text-2xl block mb-2 font-black text-[#6C757D] dark:text-[#A0ABC0]">👥</span>
+                <p className="text-sm font-bold text-[#212529] dark:text-white">No study mates found</p>
+                <p className="text-xs text-[#6C757D] dark:text-[#A0ABC0] mt-1">
                   {peopleSearchQuery ? "No matches for your search." : "Build your network to collaborate and share chats."}
                 </p>
               </div>
             ) : filteredPeople.map(u => {
               const unreadCount = getUnreadCountForUser(u.uid);
               return (
-                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] cursor-pointer border-b border-[#E9ECEF] transition">
-                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF]" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
+                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-[#0A101F] cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition">
+                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                   <div className="min-w-0 flex-1">
-                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529]' : 'font-medium text-[#212529]'}`}>
+                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
                       <span>{u.display_name}</span>
                       <VerificationBadge status={u.subscription_status} />
                       <StreakBadge userProfile={u} size="sm" />
                     </h3>
-                    <p className="text-[11px] text-[#6C757D] font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
+                    <p className="text-[11px] text-[#6C757D] dark:text-[#A0ABC0] font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
                   </div>
                   {unreadCount > 0 && (
                     <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
@@ -1796,20 +1793,20 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       </div>
 
       {/* Main Chat Viewport */}
-      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] dark:bg-[#0A101F] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] dark:bg-[#0A101F] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               {combinedMessageStream.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-4">
                   <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2] dark:text-[#F8F9FA]">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#212529] mb-2 text-center">Start a Conversation</h3>
-                  <p className="text-[#6C757D] text-center max-w-sm text-sm">
+                  <h3 className="text-xl font-bold text-[#212529] dark:text-white mb-2 text-center">Start a Conversation</h3>
+                  <p className="text-[#6C757D] dark:text-[#A0ABC0] text-center max-w-sm text-sm">
                     Say hello to {selectedChatUser.display_name}. Your first message will create the conversation.
                   </p>
                 </div>
@@ -1828,12 +1825,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   <div key={msg.id} className="my-4 space-y-1">
                     <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
-                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF]" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
+                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-white/10" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
-                      <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative select-text ${isMe
+                      <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[80%] md:max-w-[65%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
                           ? 'bg-[#0d1122] text-white rounded-2xl rounded-tr-sm border border-[#0d1122]/50'
-                          : 'bg-white text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF]'
+                          : 'bg-white dark:bg-[#121A2F] text-[#111B21] rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
                         }`}
                         onContextMenu={(event) => {
                           event.preventDefault();
@@ -1928,7 +1925,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-neutral-100 relative">
                             {msg.isUploading || !imageUrl ? (
                               <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
-                                <svg className="animate-spin h-6 w-6 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -1943,7 +1940,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             <ReactMarkdown
                               components={{
                                 p: ({ node, ...props }) => <p className="m-0 inline" {...props} />,
-                                a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
+                                a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
                               }}
                             >
                               {rawText}
@@ -1952,7 +1949,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         )}
 
                         {/* Meta Timestamp */}
-                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D]'}`}>
+                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-[#A0ABC0]'}`}>
                           <span className="uppercase font-normal tracking-tight">
                             {msg.isUploading ? 'Sending...' : '12:53 PM'}
                           </span>
@@ -1962,7 +1959,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         {sortedReactions.length > 0 && (
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
                             {sortedReactions.map(([emoji, count]) => (
-                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white/20 text-white' : 'bg-[#E9ECEF] text-[#212529]'}`}>
+                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white dark:bg-[#121A2F]/20 text-white' : 'bg-[#E9ECEF] text-[#212529] dark:text-white'}`}>
                                 {emoji} {count}
                               </span>
                             ))}
@@ -1971,7 +1968,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       </div>
                     </div>
                     {!isMe && (
-                      <div className="pl-[46px] text-[13px] text-[#6C757D] font-normal">
+                      <div className="pl-[46px] text-[13px] text-[#6C757D] dark:text-[#A0ABC0] font-normal">
                         {selectedChatUser.display_name}
                       </div>
                     )}
@@ -1982,11 +1979,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="p-3 border-t border-slate-200 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+            <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
                {replyingTo && (
                  <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
                    <div className="min-w-0">
-                     <p className="text-xs font-bold text-[#009EE2]">Replying to {replyingTo.senderId === firebaseUser?.uid ? 'You' : activeChat.otherUser.display_name}</p>
+                     <p className="text-xs font-bold text-[#009EE2] dark:text-[#F8F9FA]">Replying to {replyingTo.senderId === firebaseUser?.uid ? 'You' : activeChat.otherUser.display_name}</p>
                      <p className="text-xs text-neutral-600 truncate max-w-[200px] sm:max-w-[300px]">
                        {replyingTo.type === 'text' ? replyingTo.text : `[${replyingTo.type}]`}
                      </p>
@@ -2042,7 +2039,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <button
                           type="button"
                           onClick={() => declinePartnerRequest(selectedChatUser)}
-                          className="px-4 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                          className="px-4 py-2 bg-white dark:bg-[#121A2F] hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl transition-all select-none shadow-sm cursor-pointer"
                         >
                           Decline
                         </button>
@@ -2062,14 +2059,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {messageActionTarget && (
-              <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity flex items-center justify-center animate-fade-in" onClick={closeMessageActions}>
+              <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px] transition-opacity flex items-center justify-center animate-fade-in" onClick={closeMessageActions}>
                 <div 
                    ref={messageActionMenuRef}
                    className="flex flex-col gap-4 items-center"
                    onClick={(e) => e.stopPropagation()}
                 >
                    {/* WhatsApp-style Reaction Overlay */}
-                   <div className="bg-white rounded-[24px] px-3 py-2 shadow-xl flex items-center gap-1 sm:gap-2 animate-scale-in">
+                   <div className="bg-white dark:bg-[#121A2F] rounded-[24px] px-3 py-2 shadow-xl flex items-center gap-1 sm:gap-2 animate-scale-in">
                       {REACTION_EMOJIS.map((emoji) => (
                         <button
                           key={emoji}
@@ -2080,7 +2077,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           {emoji}
                         </button>
                       ))}
-                      <button className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#F0F2F5] hover:bg-[#E9ECEF] text-xl font-medium text-[#6C757D] ml-2 transition-colors">
+                      <button className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#F0F2F5] hover:bg-[#E9ECEF] text-xl font-medium text-[#6C757D] dark:text-[#A0ABC0] ml-2 transition-colors">
                         +
                       </button>
                    </div>
@@ -2091,11 +2088,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         ) : (
           <div className="mx-auto max-w-md px-6 text-center select-none">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white shadow-sm border border-[#E9ECEF]">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white dark:bg-[#121A2F] shadow-sm border border-[#E9ECEF] dark:border-white/10">
               <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
             </div>
-            <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529]">AVELUT</h2>
-            <p className="mt-2 text-sm leading-6 text-[#6C757D]">Pick a person to start a new chat and connect with them.</p>
+            <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529] dark:text-white">AVELUT</h2>
+            <p className="mt-2 text-sm leading-6 text-[#6C757D] dark:text-[#A0ABC0]">Pick a person to start a new chat and connect with them.</p>
           </div>
         )}
       </div>
@@ -2104,13 +2101,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       {/* Report User Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-slide-up">
-            <h3 className="text-xl font-black text-slate-900 mb-2">Report User</h3>
-            <p className="text-sm text-slate-500 mb-4 font-semibold">Why are you reporting this user?</p>
+          <div className="bg-white dark:bg-[#121A2F] rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-slide-up">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Report User</h3>
+            <p className="text-sm text-slate-500 dark:text-[#A0ABC0] mb-4 font-semibold">Why are you reporting this user?</p>
             <select 
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
-              className="w-full mb-4 p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 outline-none"
+              className="w-full mb-4 p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 dark:bg-[#0A101F] outline-none"
             >
               <option value="spam">Spam / Unsolicited Messages</option>
               <option value="harassment">Harassment / Bullying</option>
@@ -2195,45 +2192,45 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
   };
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] flex flex-col max-h-[75vh] animate-scale-in">
+      <div className="bg-white dark:bg-[#121A2F] w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] dark:border-white/10 flex flex-col max-h-[75vh] animate-scale-in">
         {/* Header */}
-        <div className="p-5 border-b border-[#E9ECEF] flex items-center justify-between">
+        <div className="p-5 border-b border-[#E9ECEF] dark:border-white/10 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-[#212529]">Forward Message</h2>
-            <p className="text-[11px] text-[#6C757D] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
+            <h2 className="text-base font-bold text-[#212529] dark:text-white">Forward Message</h2>
+            <p className="text-[11px] text-[#6C757D] dark:text-[#A0ABC0] font-medium mt-0.5">Select one or more study partners to send this message to.</p>
           </div>
           <button
             onClick={onClose}
             disabled={submitting}
-            className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition"
+            className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] dark:text-[#A0ABC0] text-xs font-bold transition"
           >
             ✕
           </button>
         </div>
 
         {/* Content preview */}
-        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] text-xs font-medium text-[#6C757D]">
-          <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] mb-1">Message Preview</span>
+        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] dark:border-white/10 text-xs font-medium text-[#6C757D] dark:text-[#A0ABC0]">
+          <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] dark:text-[#A0ABC0] mb-1">Message Preview</span>
           <p className="truncate max-w-full italic text-neutral-600">
             {messageType === 'voice' ? '🎵 Voice message' : messageType === 'image' ? '📷 Image file' : messageText}
           </p>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-[#E9ECEF]">
+        <div className="p-4 border-b border-[#E9ECEF] dark:border-white/10">
           <input
             type="text"
             placeholder="Search partners..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#F8F9FA] text-sm text-[#212529] px-4 py-2 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
+            className="w-full bg-[#F8F9FA] dark:bg-[#0A101F] text-sm text-[#212529] dark:text-white px-4 py-2 rounded-xl border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
           />
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {partnersList.length === 0 ? (
-            <p className="text-center text-xs font-medium text-[#6C757D] py-8 italic">No study partners found</p>
+            <p className="text-center text-xs font-medium text-[#6C757D] dark:text-[#A0ABC0] py-8 italic">No study partners found</p>
           ) : (
             partnersList.map(u => {
               const isChecked = selectedIds.includes(u.uid);
@@ -2241,13 +2238,13 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                 <div
                   key={u.uid}
                   onClick={() => handleToggleSelect(u.uid)}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white border-[#E9ECEF] hover:bg-neutral-50'}`}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white dark:bg-[#121A2F] border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-50'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-sm text-[#212529] truncate">{u.display_name}</h4>
-                      <p className="text-[10px] text-[#6C757D] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
+                      <h4 className="font-semibold text-sm text-[#212529] dark:text-white truncate">{u.display_name}</h4>
+                      <p className="text-[10px] text-[#6C757D] dark:text-[#A0ABC0] font-medium truncate mt-0.5">{u.department_id || 'No Department'}</p>
                     </div>
                   </div>
                   <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition ml-3" style={{
@@ -2267,11 +2264,11 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[#E9ECEF] bg-[#F8F9FA] flex gap-3 shrink-0">
+        <div className="p-4 border-t border-[#E9ECEF] dark:border-white/10 bg-[#F8F9FA] dark:bg-[#0A101F] flex gap-3 shrink-0">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="flex-1 bg-white hover:bg-neutral-100 border border-[#E9ECEF] text-[#6C757D] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
+            className="flex-1 bg-white dark:bg-[#121A2F] hover:bg-neutral-100 border border-[#E9ECEF] dark:border-white/10 text-[#6C757D] dark:text-[#A0ABC0] font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
           >
             Cancel
           </button>

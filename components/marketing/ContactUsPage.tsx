@@ -62,7 +62,7 @@ export const ContactUsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans selection:bg-brand-500 selection:text-white">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0A101F] font-sans selection:bg-brand-500 selection:text-white">
             <SEOHead 
                 title="Contact Us"
                 description="Get in touch with the Avelut team. We're here to help you succeed."
@@ -77,13 +77,13 @@ export const ContactUsPage: React.FC = () => {
                             window.dispatchEvent(new Event('popstate'));
                         }
                     }}
-                    className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition mb-12 font-semibold"
+                    className="flex items-center gap-2 text-slate-500 dark:text-[#A0ABC0] hover:text-slate-900 dark:text-white transition mb-12 font-semibold"
                 >
                     <ArrowLeft className="w-5 h-5" /> Back to Home
                 </button>
 
                 <div className="text-center max-w-3xl mx-auto space-y-6 mb-16">
-                    <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tight">Contact Us</h1>
+                    <h1 className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight">Contact Us</h1>
                     <p className="text-xl text-slate-600 leading-relaxed">
                         Have a question, feedback, or need support? Our team is always ready to help you out.
                     </p>
@@ -92,8 +92,8 @@ export const ContactUsPage: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                     {/* Contact Info */}
                     <div className="space-y-8 lg:col-span-1">
-                        <div className="bg-white rounded-[24px] p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
-                            <h3 className="text-2xl font-bold text-slate-900 mb-6">Get in Touch</h3>
+                        <div className="bg-white dark:bg-[#121A2F] rounded-[24px] p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Get in Touch</h3>
                             
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
@@ -101,8 +101,8 @@ export const ContactUsPage: React.FC = () => {
                                         <Mail className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Email</p>
-                                        <a href={`mailto:${supportEmail}`} className="text-lg font-medium text-slate-900 hover:text-brand-600 transition">{supportEmail}</a>
+                                        <p className="text-sm font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider mb-1">Email</p>
+                                        <a href={`mailto:${supportEmail}`} className="text-lg font-medium text-slate-900 dark:text-white hover:text-brand-600 transition">{supportEmail}</a>
                                     </div>
                                 </div>
                                 
@@ -111,8 +111,8 @@ export const ContactUsPage: React.FC = () => {
                                         <Phone className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Phone</p>
-                                        <p className="text-lg font-medium text-slate-900">{supportPhone}</p>
+                                        <p className="text-sm font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider mb-1">Phone</p>
+                                        <p className="text-lg font-medium text-slate-900 dark:text-white">{supportPhone}</p>
                                     </div>
                                 </div>
                                 
@@ -121,8 +121,8 @@ export const ContactUsPage: React.FC = () => {
                                         <MapPin className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Office</p>
-                                        <p className="text-lg font-medium text-slate-900">{supportAddress}</p>
+                                        <p className="text-sm font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider mb-1">Office</p>
+                                        <p className="text-lg font-medium text-slate-900 dark:text-white">{supportAddress}</p>
                                     </div>
                                 </div>
                             </div>
@@ -131,7 +131,7 @@ export const ContactUsPage: React.FC = () => {
 
                     {/* Contact Form */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100">
+                        <div className="bg-white dark:bg-[#121A2F] rounded-[32px] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100">
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -141,7 +141,7 @@ export const ContactUsPage: React.FC = () => {
                                             required
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                            className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                                             placeholder="John Doe"
                                         />
                                     </div>
@@ -152,7 +152,7 @@ export const ContactUsPage: React.FC = () => {
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                            className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                                             placeholder="john@example.com"
                                         />
                                     </div>
@@ -165,7 +165,7 @@ export const ContactUsPage: React.FC = () => {
                                         required
                                         value={subject}
                                         onChange={(e) => setSubject(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                                         placeholder="How can we help?"
                                     />
                                 </div>
@@ -177,7 +177,7 @@ export const ContactUsPage: React.FC = () => {
                                         rows={6}
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition resize-none"
+                                        className="w-full bg-slate-50 dark:bg-[#0A101F] border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition resize-none"
                                         placeholder="Type your message here..."
                                     />
                                 </div>

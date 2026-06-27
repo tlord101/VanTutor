@@ -53,7 +53,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
       aria-modal="true"
     >
       <div
-        className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative"
+        className="bg-white dark:bg-[#121A2F] border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md relative"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -93,7 +93,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 dark:bg-[#0A101F] border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
             </div>

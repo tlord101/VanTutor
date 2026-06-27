@@ -31,7 +31,7 @@ export const FAQs: React.FC = () => {
     return (
         <section className="py-24 px-6 max-w-4xl mx-auto" id="faqs">
             <div className="text-center mb-16 space-y-4">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900">Frequently Asked Questions</h2>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">Frequently Asked Questions</h2>
                 <p className="text-lg text-slate-600 font-medium">Everything you need to know about the product and billing.</p>
             </div>
 
@@ -42,16 +42,16 @@ export const FAQs: React.FC = () => {
                     return (
                         <div 
                             key={index} 
-                            className={`border ${isOpen ? 'border-brand-500 shadow-md' : 'border-slate-200'} rounded-2xl bg-white overflow-hidden transition-all duration-300`}
+                            className={`border ${isOpen ? 'border-brand-500 shadow-md' : 'border-slate-200 dark:border-white/10'} rounded-2xl bg-white dark:bg-[#121A2F] overflow-hidden transition-all duration-300`}
                         >
                             <button
                                 onClick={() => setOpenIndex(isOpen ? null : index)}
                                 className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
                             >
-                                <span className={`text-lg font-bold ${isOpen ? 'text-brand-600' : 'text-slate-900'}`}>
+                                <span className={`text-lg font-bold ${isOpen ? 'text-brand-600' : 'text-slate-900 dark:text-white'}`}>
                                     {faq.question}
                                 </span>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-brand-100 text-brand-600' : 'bg-slate-50 text-slate-400'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-brand-100 text-brand-600' : 'bg-slate-50 dark:bg-[#0A101F] text-slate-400'}`}>
                                     {isOpen ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                                 </div>
                             </button>

@@ -119,7 +119,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
     const renderConvoItem = (convo: ChatConversation, isMobile: boolean) => (
         <li key={convo.id} className="relative group px-2">
             {renamingId === convo.id ? (
-                <div className="p-2 bg-white rounded-2xl ring-2 ring-lime-500 shadow-sm">
+                <div className="p-2 bg-white dark:bg-[#121A2F] rounded-2xl ring-2 ring-lime-500 shadow-sm">
                     <input
                         type="text"
                         value={renameValue}
@@ -141,8 +141,8 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                     onTouchEnd={handleTouchEnd}
                     className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 cursor-pointer flex justify-between items-center group relative overflow-hidden ${
                       activeConversationId === convo.id
-                        ? 'bg-white shadow-sm ring-1 ring-lime-500/10 border border-lime-100'
-                        : 'text-gray-600 hover:bg-white/50 border border-transparent'
+                        ? 'bg-white dark:bg-[#121A2F] shadow-sm ring-1 ring-lime-500/10 border border-lime-100'
+                        : 'text-gray-600 hover:bg-white dark:bg-[#121A2F]/50 border border-transparent'
                     }`}
                   >
                   {activeConversationId === convo.id && (
@@ -169,7 +169,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
     );
 
     const content = (isMobile: boolean) => (
-    <div className="h-full bg-white flex flex-col p-4 animate-in fade-in duration-300">
+    <div className="h-full bg-white dark:bg-[#121A2F] flex flex-col p-4 animate-in fade-in duration-300">
       {/* Top User Profile & Close Action */}
       <div className="flex items-center justify-between mb-8">
           <div className="w-10 h-10 rounded-full bg-emerald flex items-center justify-center text-white font-bold text-lg">
@@ -177,7 +177,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
           </div>
           <button 
             onClick={onCloseMobilePanel}
-            className="p-2 text-charcoal hover:bg-off-white rounded-full transition-colors lg:hidden"
+            className="p-2 text-charcoal dark:text-off-white hover:bg-off-white dark:hover:bg-[#0A101F] rounded-full transition-colors lg:hidden"
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -210,7 +210,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                 {conversations.map((convo) => (
                     <li
                         key={convo.id}
-                        className={`group flex items-center justify-between gap-3 px-3 py-3 rounded-2xl border transition-colors cursor-pointer ${activeConversationId === convo.id ? 'bg-white border-lime-200 shadow-sm' : 'bg-transparent border-transparent hover:bg-white/60'}`}
+                        className={`group flex items-center justify-between gap-3 px-3 py-3 rounded-2xl border transition-colors cursor-pointer ${activeConversationId === convo.id ? 'bg-white dark:bg-[#121A2F] border-lime-200 shadow-sm' : 'bg-transparent border-transparent hover:bg-white dark:bg-[#121A2F]/60'}`}
                         onClick={() => isMobile ? handleMobileSelect(convo.id) : onSelectConversation(convo.id)}
                     >
                         <div className="flex-1 min-w-0">
@@ -249,10 +249,10 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
       </div>
 
       {/* Bottom Fixed/Sticky Area */}
-      <div className="mt-auto space-y-4 pt-4 border-t border-gray-100 bg-white">
+      <div className="mt-auto space-y-4 pt-4 border-t border-gray-100 bg-white dark:bg-[#121A2F]">
         <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 px-4 h-[48px] bg-off-white rounded-[24px] border border-gray-100">
-                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex-1 flex items-center gap-2 px-4 h-[48px] bg-off-white dark:bg-[#0A101F] rounded-[24px] border border-gray-100 dark:border-gray-800">
+                <svg className="w-5 h-5 text-gray-500 dark:text-[#A0ABC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input 
@@ -261,7 +261,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                     className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder-gray-500"
                 />
             </div>
-            <button className="p-3 text-emerald hover:bg-off-white rounded-full transition-colors">
+            <button className="p-3 text-emerald dark:text-[#F5F2EA] hover:bg-off-white dark:hover:bg-[#0A101F] rounded-full transition-colors">
                 <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <circle cx="12" cy="12" r="3" />
@@ -282,7 +282,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
       {/* Mobile Panel */}
       <div className={`fixed inset-0 z-[100] transform transition-transform duration-300 ease-in-out md:hidden ${isMobilePanelOpen ? 'translate-x-0' : '-translate-x-full'}`} >
           <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onCloseMobilePanel} aria-hidden="true" ></div>
-          <div className="relative w-[320px] h-full border-r border-gray-100 bg-white shadow-xl">
+          <div className="relative w-[320px] h-full border-r border-gray-100 bg-white dark:bg-[#121A2F] shadow-xl">
               {content(true)}
           </div>
       </div>

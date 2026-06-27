@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </h2>
                     {userProfile?.use_personal_token && userProfile?.personal_api_key && (
                         <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-lime-500 to-emerald-600 text-white text-[10px] font-black tracking-widest uppercase rounded-full shadow-sm shadow-lime-500/20 border border-lime-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-[#121A2F] animate-pulse" />
                             Google AI Token Active
                         </span>
                     )}
@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <>
                         <button 
                             onClick={onCalendarClick}
-                            className="relative text-blue-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                            className="relative text-blue-500 dark:text-[#F5F2EA] hover:text-blue-600 dark:hover:text-white p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
                             aria-label="Study Timetable"
                             title="Study Timetable"
                         >
@@ -92,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <button 
                             onClick={onMessengerClick}
                             data-tour-id="header-messenger"
-                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:hover:bg-slate-800 transition-all"
+                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:bg-[#121A2F] dark:hover:bg-slate-800 transition-all"
                             aria-label={`Messenger (${unreadMessagesCount} unread)`}
                         >
                             <MessengerIcon />
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                         <button 
                             onClick={onNotificationsClick}
-                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:hover:bg-slate-800 transition-all"
+                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:bg-[#121A2F] dark:hover:bg-slate-800 transition-all"
                             aria-label={`Notifications (${unreadCount} unread)`}
                         >
                             <NotificationBellIcon />
@@ -131,32 +131,32 @@ export const Header: React.FC<HeaderProps> = ({
                             </button>
 
                             {isAvatarMenuOpen && (
-                                <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-card rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                                <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-[#121A2F] dark:bg-card rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                                     <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800 mb-2">
                                         <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{userProfile?.display_name || 'User'}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{userProfile?.level || 'New'} Level</p>
+                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 dark:text-[#A0ABC0] uppercase tracking-widest">{userProfile?.level || 'New'} Level</p>
                                     </div>
                                     <button
                                         onClick={() => handleNavigation('user_profile')}
-                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-[#0A101F] dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         User Profile
                                     </button>
                                     <button
                                         onClick={() => handleNavigation('billing')}
-                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-[#0A101F] dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         Billing & Subscriptions
                                     </button>
                                     <button
                                         onClick={() => handleNavigation('settings')}
-                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-[#0A101F] dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         Account Settings
                                     </button>
                                     <button
                                         onClick={() => handleNavigation('help')}
-                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-[#0A101F] dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         Help & Support
                                     </button>

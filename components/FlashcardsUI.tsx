@@ -55,7 +55,7 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
         if (isFront) setIsFlipped(!isFlipped);
       }}
     >
-      <div className={`relative w-full h-full preserve-3d transition-transform duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#E2E8F0] rounded-[2rem] bg-white overflow-hidden ${isFront ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+      <div className={`relative w-full h-full preserve-3d transition-transform duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#E2E8F0] rounded-[2rem] bg-white dark:bg-[#121A2F] overflow-hidden ${isFront ? 'pointer-events-auto' : 'pointer-events-none'}`}>
         <motion.div
           animate={{ rotateY: isFlipped && isFront ? 180 : 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 20 }}
@@ -117,7 +117,7 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
   if (!flashcards.length) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 z-[100] bg-white dark:bg-[#121A2F] flex flex-col overflow-hidden font-sans select-none">
       {/* Premium Header */}
       <header className="flex justify-between items-center px-6 py-4 border-b border-[#E2E8F0] shrink-0">
         <div className="flex flex-col">
@@ -159,7 +159,7 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
           <button
             onClick={handlePrev}
             disabled={currentIndex === 0}
-            className="flex-1 h-14 flex items-center justify-center rounded-2xl bg-white border border-[#E2E8F0] text-[#1E293B] font-bold text-xs uppercase tracking-widest hover:bg-[#F8FAFC] active:scale-95 transition-all disabled:opacity-30"
+            className="flex-1 h-14 flex items-center justify-center rounded-2xl bg-white dark:bg-[#121A2F] border border-[#E2E8F0] text-[#1E293B] font-bold text-xs uppercase tracking-widest hover:bg-[#F8FAFC] active:scale-95 transition-all disabled:opacity-30"
           >
             Previous
           </button>

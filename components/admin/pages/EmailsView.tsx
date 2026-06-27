@@ -194,13 +194,13 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
     };
 
     return (
-        <div className="max-w-4xl bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-8">
+        <div className="max-w-4xl bg-white dark:bg-[#121A2F] rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
             <div>
-                <h3 className="font-black text-xl text-slate-900 mb-1 flex items-center gap-2">
+                <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                     <Mail className="w-5 h-5 text-indigo-500" />
                     SMTP Emails
                 </h3>
-                <p className="text-sm text-slate-500">Send beautifully formatted HTML emails via your configured SMTP server.</p>
+                <p className="text-sm text-slate-500 dark:text-[#A0ABC0]">Send beautifully formatted HTML emails via your configured SMTP server.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -212,7 +212,7 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                             className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
                                 recipientMode === 'all'
                                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] text-slate-600 hover:bg-slate-50 dark:bg-[#0A101F]'
                             }`}
                         >
                             <Users className="w-4 h-4" /> All Users
@@ -222,7 +222,7 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                             className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
                                 recipientMode === 'single'
                                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] text-slate-600 hover:bg-slate-50 dark:bg-[#0A101F]'
                             }`}
                         >
                             <UserCheck className="w-4 h-4" /> Single User
@@ -231,11 +231,11 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
 
                     {recipientMode === 'single' && (
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select User</label>
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Select User</label>
                             <select
                                 value={selectedRecipientId}
                                 onChange={(e) => setSelectedRecipientId(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                                className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white dark:bg-[#121A2F]"
                             >
                                 <option value="" disabled>Select a user...</option>
                                 {allUsersList.map(user => (
@@ -252,24 +252,24 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                     <h4 className="font-bold text-slate-800 text-sm">Email Content</h4>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Subject</label>
                         <input
                             type="text"
                             placeholder="e.g. Avelut Mid-term Update"
                             value={emailSubject}
                             onChange={(e) => setEmailSubject(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm"
+                            className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm"
                         />
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Body</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-wider">Body</label>
                         <textarea
                             rows={6}
                             placeholder="Type your email body here... It will be beautifully formatted inside the Avelut template."
                             value={emailBody}
                             onChange={(e) => setEmailBody(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
+                            className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
                         />
                     </div>
 

@@ -50,8 +50,6 @@ export interface UserProfile {
   };
   theme_preferences?: {
     mode: 'light' | 'dark';
-    app_theme: 'blue' | 'emerald' | 'violet' | 'rose' | 'amber';
-    messenger_theme: 'default' | 'neon' | 'sunset' | 'forest' | 'midnight';
   };
 }
 

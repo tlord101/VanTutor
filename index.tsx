@@ -9,13 +9,13 @@ declare var __firebase_config: any;
 // ... (SetupRequired component stays the same)
 const SetupRequired: React.FC = () => (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-2xl text-center bg-white p-8 rounded-2xl shadow-2xl border border-red-200">
+      <div className="w-full max-w-2xl text-center bg-white dark:bg-[#121A2F] p-8 rounded-2xl shadow-2xl border border-red-200">
         <img src="/logo_icon.png" alt="AVELUT" className="w-16 h-16 mx-auto mb-4 object-contain" />
         <h1 className="text-3xl font-bold text-red-600">Configuration Required</h1>
         <p className="mt-4 text-lg text-gray-700">
           Welcome to AVELUT! To get started, you need to connect the application to your Firebase project.
         </p>
-        <div className="mt-6 text-left bg-gray-50 p-6 rounded-lg border border-gray-200">
+        <div className="mt-6 text-left bg-gray-50 dark:bg-[#0A101F] p-6 rounded-lg border border-gray-200">
           <p className="font-semibold text-gray-800">Please follow these steps:</p>
           <ol className="list-decimal list-inside mt-2 space-y-2 text-gray-600">
             <li>Open the <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">index.html</code> file in your project.</li>
@@ -24,7 +24,7 @@ const SetupRequired: React.FC = () => (
               Search for <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">window.__firebase_config</code> and replace the placeholder fields with your actual Firebase project config.
             </li>
           </ol>
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-gray-500 dark:text-[#A0ABC0]">
             You can find these credentials in your Firebase Project Settings under <span className="font-semibold">General &gt; Your apps &gt; SDK setup and configuration</span>.
           </p>
         </div>

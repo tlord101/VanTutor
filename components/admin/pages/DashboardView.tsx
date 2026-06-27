@@ -117,7 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {cards.map((card, idx) => {
                     const Icon = card.icon;
                     return (
-                        <div key={idx} className="bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                        <div key={idx} className="bg-white dark:bg-[#121A2F] rounded-3xl p-6 border border-slate-200 dark:border-white/10/60 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-300">
                             <div className={`absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${card.color} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`} />
                             
                             <div className="flex items-center justify-between relative z-10">
@@ -126,15 +126,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 </div>
                                 <button 
                                     onClick={() => onNavigate(card.tab)}
-                                    className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                    className="w-8 h-8 rounded-full bg-slate-50 dark:bg-[#0A101F] border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                                 >
                                     <ArrowUpRight className="w-4 h-4" />
                                 </button>
                             </div>
                             
                             <div className="mt-6 relative z-10">
-                                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{card.value}</h3>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{card.title}</p>
+                                <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{card.value}</h3>
+                                <p className="text-xs font-bold text-slate-500 dark:text-[#A0ABC0] uppercase tracking-widest mt-1">{card.title}</p>
                             </div>
                         </div>
                     );
@@ -142,7 +142,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                <div className="bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
                     <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-blue-500" /> Revenue (Last 30 Days)
                     </h3>
@@ -162,7 +162,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                 </div>
                 
-                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                <div className="bg-white dark:bg-[#121A2F] border border-slate-200 dark:border-white/10/60 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
                     <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <Users className="w-5 h-5 text-amber-500" /> User Signups (Last 30 Days)
                     </h3>

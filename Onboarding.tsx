@@ -12,8 +12,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userProfile, appSettings
     return (
         <div className="w-full max-w-5xl mx-auto py-8">
             <div className="text-center mb-10">
-                <h2 className="text-3xl font-black text-slate-900 mb-4">Choose Your Path</h2>
-                <p className="text-slate-500 font-medium">Select the plan that best fits your academic goals.</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4">Choose Your Path</h2>
+                <p className="text-slate-500 dark:text-[#A0ABC0] font-medium">Select the plan that best fits your academic goals.</p>
             </div>
 
             <SubscriptionCards

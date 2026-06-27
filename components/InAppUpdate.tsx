@@ -91,7 +91,7 @@ export const InAppUpdate: React.FC = () => {
     if (!updateAvailable || !updateInfo) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-between font-sans selection:bg-sky-200 animate-fade-in pb-8">
+        <div className="fixed inset-0 z-[9999] bg-white dark:bg-[#121A2F] flex flex-col items-center justify-between font-sans selection:bg-sky-200 animate-fade-in pb-8">
             <div className="w-full flex-1 flex flex-col items-center max-w-md mx-auto relative px-6">
                 
                 {/* 3D Illustration Area */}
@@ -105,18 +105,18 @@ export const InAppUpdate: React.FC = () => {
 
                 {/* Text Content */}
                 <div className="text-center w-full mb-auto mt-4 px-2">
-                    <h1 className="text-[26px] font-black text-slate-900 tracking-tight leading-tight mb-3">
+                    <h1 className="text-[26px] font-black text-slate-900 dark:text-white tracking-tight leading-tight mb-3">
                         We have an app update for you
                     </h1>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-[280px] mx-auto">
+                    <p className="text-sm font-medium text-slate-500 dark:text-[#A0ABC0] leading-relaxed max-w-[280px] mx-auto">
                         We've made the app even better! Update now to enjoy a more seamless experience.
                     </p>
 
                     <div className="mt-8 mb-4">
-                        <p className="text-xs font-bold text-slate-900 mb-2 tracking-wide">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white mb-2 tracking-wide">
                             What's new in v{updateInfo.versionName}
                         </p>
-                        <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                        <p className="text-xs font-medium text-slate-500 dark:text-[#A0ABC0] leading-relaxed">
                             {updateInfo.releaseNotes}
                         </p>
                     </div>

@@ -127,7 +127,7 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
     }
 
     if (history.length === 0) {
-        return <p className="text-gray-500 text-center">You haven't completed any exams yet.</p>;
+        return <p className="text-gray-500 dark:text-[#A0ABC0] text-center">You haven't completed any exams yet.</p>;
     }
 
     return (
@@ -135,14 +135,14 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
             {history.map(exam => {
                 const percentage = Math.round((exam.score / exam.total_questions) * 100);
                 return (
-                <div key={exam.id} className="group bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-gray-200/50 flex justify-between items-center transition-all duration-300 hover:shadow-xl hover:bg-white hover:-translate-y-1">
+                <div key={exam.id} className="group bg-white dark:bg-[#121A2F]/60 backdrop-blur-md p-5 rounded-[2rem] border border-gray-200/50 flex justify-between items-center transition-all duration-300 hover:shadow-xl hover:bg-white dark:bg-[#121A2F] hover:-translate-y-1">
                     <div className="flex gap-4 items-center">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${percentage >= 80 ? 'bg-lime-100 text-lime-600' : percentage >= 50 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
                              <GraduationCapIcon className="w-6 h-6" />
                         </div>
                         <div>
                             <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{getCourseNameById(exam.department_id)}</p>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">
+                            <p className="text-[10px] font-bold text-gray-500 dark:text-[#A0ABC0] uppercase tracking-widest mt-0.5">
                                 {new Date(exam.timestamp).toLocaleDateString()}
                             </p>
                         </div>
@@ -154,7 +154,7 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
                         </div>
                         <button 
                             onClick={() => onReview(exam)} 
-                            className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:text-white hover:bg-gray-900 transition-all duration-300 active:scale-95"
+                            className="p-3 rounded-xl bg-gray-50 dark:bg-[#0A101F] text-gray-400 hover:text-white hover:bg-gray-900 transition-all duration-300 active:scale-95"
                         >
                             <ChevronDownIcon className="w-5 h-5 -rotate-90" />
                         </button>
@@ -192,7 +192,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   const [score, setScore] = useState(0);
   const [reviewExam, setReviewExam] = useState<ExamHistoryItem | null>(null);
   const [currentExamId, setCurrentExamId] = useState<string>('');
-  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
+
   
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
@@ -822,7 +822,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         if (!currentQuestion) return null;
         return (
           <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border border-gray-200/50 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-[#121A2F]/60 backdrop-blur-md p-6 rounded-[2rem] border border-gray-200/50 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 h-1.5 bg-gray-100 w-full">
                     <div 
                         className="h-full bg-gradient-to-r from-lime-400 to-lime-600 transition-all duration-500 ease-out"
@@ -852,7 +852,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 {examFormat === 'theory' ? (
                     <div className="w-full relative group">
                         <textarea
-                            className="w-full min-h-[180px] p-6 rounded-[2rem] border-2 border-gray-200/60 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white/50 backdrop-blur-sm shadow-inner text-base md:text-lg"
+                            className="w-full min-h-[180px] p-6 rounded-[2rem] border-2 border-gray-200/60 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white dark:bg-[#121A2F]/50 backdrop-blur-sm shadow-inner text-base md:text-lg"
                             placeholder="Construct your response here..."
                             value={selectedOption || ''}
                             onChange={(e) => !feedback && setSelectedOption(e.target.value)}
@@ -904,7 +904,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                         };
                         const isCorrect = checkIsCorrectDisplay(option, currentQuestion.correctAnswer);
                         
-                        let variantClasses = "bg-white/80 backdrop-blur-sm border-gray-200/60 hover:border-lime-300 hover:bg-lime-50/50 hover:shadow-md";
+                        let variantClasses = "bg-white dark:bg-[#121A2F]/80 backdrop-blur-sm border-gray-200/60 hover:border-lime-300 hover:bg-lime-50/50 hover:shadow-md";
                         let indicatorClasses = "bg-gray-100 text-gray-400 group-hover:bg-lime-200 group-hover:text-lime-700";
 
                         if (feedback) {
@@ -916,10 +916,10 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                 variantClasses = "bg-red-50 border-red-400 text-red-900 ring-4 ring-red-500/10 shadow-md";
                                 indicatorClasses = "bg-red-400 text-white";
                             }
-                            else variantClasses = "bg-white/50 border-gray-100 opacity-50 grayscale";
+                            else variantClasses = "bg-white dark:bg-[#121A2F]/50 border-gray-100 opacity-50 grayscale";
                         } else if (isSelected) {
                             variantClasses = "bg-gradient-to-r from-lime-600 to-lime-500 border-lime-500 text-white shadow-xl shadow-lime-500/30 scale-[1.02] z-10";
-                            indicatorClasses = "bg-white/20 text-white";
+                            indicatorClasses = "bg-white dark:bg-[#121A2F]/20 text-white";
                         }
 
                         return (
@@ -950,7 +950,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                             {feedback.isCorrect ? 'Brilliant!' : 'Not Quite...'}
                         </h4>
                     </div>
-                    <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-white">
+                    <div className="bg-white dark:bg-[#121A2F]/60 backdrop-blur-sm p-6 rounded-2xl border border-white">
                         <p className="text-sm font-bold leading-relaxed text-gray-700">{feedback.explanation}</p>
                     </div>
                 </div>
@@ -1038,7 +1038,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 <button onClick={resetExam} className="w-full bg-gradient-to-b from-gray-900 to-black text-white font-black py-5 rounded-2xl hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-gray-900/20 text-sm uppercase tracking-widest">
                     Start New Training
                 </button>
-                <button onClick={() => setExamState('history')} className="w-full bg-white text-gray-500 font-black py-5 rounded-2xl border-2 border-gray-100 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm uppercase tracking-widest">
+                <button onClick={() => setExamState('history')} className="w-full bg-white dark:bg-[#121A2F] text-gray-500 dark:text-[#A0ABC0] font-black py-5 rounded-2xl border-2 border-gray-100 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 dark:bg-[#0A101F] transition-all text-sm uppercase tracking-widest">
                     View Performance History
                 </button>
             </div>
@@ -1055,7 +1055,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                       </div>
                       <button 
                         onClick={resetExam} 
-                        className="p-4 rounded-2xl bg-white text-lime-600 border border-gray-100 shadow-sm hover:bg-lime-50 transition-all active:scale-95"
+                        className="p-4 rounded-2xl bg-white dark:bg-[#121A2F] text-lime-600 border border-gray-100 shadow-sm hover:bg-lime-50 transition-all active:scale-95"
                       >
                          <XIcon className="w-5 h-5" />
                       </button>
@@ -1069,18 +1069,18 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           return (
               <div className="max-w-3xl mx-auto space-y-10 py-8 animate-in slide-in-from-right-8 duration-500">
                   <div className="relative overflow-hidden flex justify-between items-center bg-gradient-to-r from-gray-900 to-black text-white p-8 rounded-[2.5rem] shadow-2xl">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white dark:bg-[#121A2F]/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
                       <div className="relative z-10">
                         <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em] mb-2">Performance Report</p>
                         <h3 className="text-3xl font-black tracking-tighter leading-none">{getCourseNameById(reviewExam.department_id)}</h3>
                         <div className="flex items-center gap-3 mt-4">
-                            <span className="px-3 py-1 bg-white/10 rounded-lg text-xs font-bold text-white/80 uppercase tracking-widest backdrop-blur-sm">{new Date(reviewExam.timestamp).toLocaleDateString()}</span>
+                            <span className="px-3 py-1 bg-white dark:bg-[#121A2F]/10 rounded-lg text-xs font-bold text-white/80 uppercase tracking-widest backdrop-blur-sm">{new Date(reviewExam.timestamp).toLocaleDateString()}</span>
                             <span className="px-3 py-1 bg-lime-500/20 text-lime-400 rounded-lg text-xs font-bold uppercase tracking-widest backdrop-blur-sm">Score: {reviewExam.score}/{reviewExam.total_questions}</span>
                         </div>
                       </div>
                       <button 
                         onClick={() => setExamState('history')} 
-                        className="relative z-10 bg-white/10 hover:bg-white text-white hover:text-gray-900 p-4 rounded-2xl transition-all duration-300 backdrop-blur-md"
+                        className="relative z-10 bg-white dark:bg-[#121A2F]/10 hover:bg-white dark:bg-[#121A2F] text-white hover:text-gray-900 p-4 rounded-2xl transition-all duration-300 backdrop-blur-md"
                       >
                         <XIcon className="w-5 h-5" />
                       </button>
@@ -1088,7 +1088,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
 
                   <div className="space-y-6">
                       {reviewExam.questions.map((q, index) => (
-                          <div key={index} className="group bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:bg-white hover:border-gray-300/50 transition-all duration-500">
+                          <div key={index} className="group bg-white dark:bg-[#121A2F]/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:bg-white dark:bg-[#121A2F] hover:border-gray-300/50 transition-all duration-500">
                               <div className="flex justify-between items-start mb-6">
                                   <div>
                                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Observation {index + 1}</p>
@@ -1106,15 +1106,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                           <p className={`text-base font-black ${q.isCorrect ? 'text-lime-800' : 'text-red-800'}`}>{q.userAnswer}</p>
                                       </div>
                                       {!q.isCorrect && (
-                                          <div className="p-6 rounded-[1.5rem] bg-gray-50 border border-gray-200/60 shadow-inner">
-                                              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Model Answer</p>
+                                          <div className="p-6 rounded-[1.5rem] bg-gray-50 dark:bg-[#0A101F] border border-gray-200/60 shadow-inner">
+                                              <p className="text-[10px] font-black text-gray-500 dark:text-[#A0ABC0] uppercase tracking-widest mb-3">Model Answer</p>
                                               <p className="text-base font-black text-gray-900">{q.correctAnswer}</p>
                                           </div>
                                       )}
                                   </div>
                                   
-                                  <div className="bg-gray-50/80 backdrop-blur-sm p-6 rounded-[1.5rem] border border-gray-200/50">
-                                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Analysis</p>
+                                  <div className="bg-gray-50 dark:bg-[#0A101F]/80 backdrop-blur-sm p-6 rounded-[1.5rem] border border-gray-200/50">
+                                      <p className="text-[10px] font-black text-gray-500 dark:text-[#A0ABC0] uppercase tracking-widest mb-3">Analysis</p>
                                       <p className="text-sm font-bold text-gray-700 leading-relaxed">{q.explanation}</p>
                                   </div>
                               </div>
@@ -1143,13 +1143,13 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start mb-8">
                 <div className="flex flex-wrap gap-2 md:gap-4 flex-1">
                     <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-full max-w-lg mx-auto">
-                <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('ai_exam')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'ai_exam' ? 'bg-white dark:bg-[#121A2F] text-lime-600 shadow-sm' : 'text-gray-500 dark:text-[#A0ABC0] hover:bg-gray-200/50'}`}>
                     AI Exam
                 </button>
-                <button onClick={() => setActiveTab('flashcards')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'flashcards' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('flashcards')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'flashcards' ? 'bg-white dark:bg-[#121A2F] text-lime-600 shadow-sm' : 'text-gray-500 dark:text-[#A0ABC0] hover:bg-gray-200/50'}`}>
                     Flash Cards
                 </button>
-                <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white text-lime-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200/50'}`}>
+                <button onClick={() => setActiveTab('past_qa')} className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${activeTab === 'past_qa' ? 'bg-white dark:bg-[#121A2F] text-lime-600 shadow-sm' : 'text-gray-500 dark:text-[#A0ABC0] hover:bg-gray-200/50'}`}>
                     Past Q&A
                 </button>
             </div>
@@ -1159,27 +1159,27 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             {/* Tab Contents */}
             <div className="mt-8">
               {activeTab === 'ai_exam' && (
-                  <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(132,204,22,0.12)] hover:border-lime-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
+                  <div className="group relative bg-white dark:bg-[#121A2F]/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(132,204,22,0.12)] hover:border-lime-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
                       <div className="relative z-10 text-center">
                           <div className="w-16 h-16 bg-gradient-to-br from-lime-100 to-lime-50 border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 mb-6 font-black text-2xl shadow-sm mx-auto">AI</div>
                           <h4 className="text-2xl font-black text-gray-900 tracking-tight">Custom Exam Generator</h4>
-                          <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">Generate a full 20-question exam for a specific course.</p>
+                          <p className="text-sm font-medium text-gray-500 dark:text-[#A0ABC0] mt-2 leading-relaxed">Generate a full 20-question exam for a specific course.</p>
                       </div>
 
                       <div className="mt-8 space-y-6 relative z-10 text-left">
                           <div>
                               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
-                              <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                              <select className="w-full p-4 bg-white dark:bg-[#121A2F]/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
                                   <option value="" disabled>Choose your subject...</option>
                                   {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                               </select>
                           </div>
                           <div>
                               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Exam Format</label>
-                              <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
-                                  <button onClick={() => setExamFormat('objective')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'objective' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Objective</button>
-                                  <button onClick={() => setExamFormat('theory')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'theory' ? 'bg-white text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Theory</button>
+                              <div className="flex gap-3 bg-gray-50 dark:bg-[#0A101F]/50 p-1.5 rounded-2xl border border-gray-100">
+                                  <button onClick={() => setExamFormat('objective')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'objective' ? 'bg-white dark:bg-[#121A2F] text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Objective</button>
+                                  <button onClick={() => setExamFormat('theory')} className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all ${examFormat === 'theory' ? 'bg-white dark:bg-[#121A2F] text-lime-700 shadow-sm border border-lime-100/50' : 'text-gray-400 hover:text-gray-600'}`}>Theory</button>
                               </div>
                           </div>
                           <button onClick={generateQuestions} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-gradient-to-b from-lime-500 to-lime-600 text-white font-black py-4 rounded-2xl hover:from-lime-400 shadow-lg shadow-lime-500/20 transition-all disabled:opacity-50 text-sm uppercase tracking-widest">
@@ -1190,18 +1190,18 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
               )}
 
               {activeTab === 'flashcards' && (
-                  <div className="group relative bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(56,189,248,0.12)] hover:border-sky-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
+                  <div className="group relative bg-white dark:bg-[#121A2F]/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-8 hover:shadow-[0_8px_30px_rgb(56,189,248,0.12)] hover:border-sky-200/60 transition-all duration-500 max-w-2xl mx-auto overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
                       <div className="relative z-10 text-center">
                           <div className="w-16 h-16 bg-gradient-to-br from-sky-100 to-sky-50 border border-sky-200/50 rounded-2xl flex items-center justify-center text-sky-600 mb-6 font-black shadow-sm mx-auto"><ListIcon className="w-8 h-8"/></div>
                           <h4 className="text-2xl font-black text-gray-900 tracking-tight">AI Flash Cards</h4>
-                          <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">Generate 10 rapid-fire flashcards to test your definitions.</p>
+                          <p className="text-sm font-medium text-gray-500 dark:text-[#A0ABC0] mt-2 leading-relaxed">Generate 10 rapid-fire flashcards to test your definitions.</p>
                       </div>
 
                       <div className="mt-8 space-y-6 relative z-10 text-left">
                           <div>
                               <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Select Course</label>
-                              <select className="w-full p-4 bg-white/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                              <select className="w-full p-4 bg-white dark:bg-[#121A2F]/60 backdrop-blur-md border border-gray-200/60 rounded-2xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
                                   <option value="" disabled>Choose your subject...</option>
                                   {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                               </select>
@@ -1222,7 +1222,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                               placeholder="Search for a course..." 
                               value={pqSearchTerm} 
                               onChange={(e) => setPqSearchTerm(e.target.value)}
-                              className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all"
+                              className="w-full pl-12 pr-4 py-4 bg-white dark:bg-[#121A2F] border border-gray-200 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all"
                           />
                       </div>
 
@@ -1243,7 +1243,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                           .map((pq, idx) => {
                                           const cName = availableCourses.find(c => c.course_id === pq.course_id)?.course_name || pq.course_id;
                                           return (
-                                          <button key={pq.course_id + pq.year + idx} onClick={() => startPQExam(pq.course_id, pq.year)} className="group bg-white border border-gray-200 rounded-3xl overflow-hidden hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 text-left flex flex-col active:scale-95">
+                                          <button key={pq.course_id + pq.year + idx} onClick={() => startPQExam(pq.course_id, pq.year)} className="group bg-white dark:bg-[#121A2F] border border-gray-200 rounded-3xl overflow-hidden hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 text-left flex flex-col active:scale-95">
                                               <div className="h-32 bg-purple-50 w-full relative overflow-hidden flex items-center justify-center border-b border-gray-100">
                                                   <GraduationCapIcon className="w-12 h-12 text-purple-200 absolute -bottom-2 -right-2 transform group-hover:scale-110 transition-transform" />
                                                   <span className="text-3xl font-black text-purple-300 tracking-tighter">{pq.year}</span>
@@ -1258,8 +1258,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                       })}
                                   </div>
                               ) : (
-                                  <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">
-                                      <p className="text-gray-500 font-medium">No past questions have been uploaded for this course yet.</p>
+                                  <div className="bg-gray-50 dark:bg-[#0A101F] border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">
+                                      <p className="text-gray-500 dark:text-[#A0ABC0] font-medium">No past questions have been uploaded for this course yet.</p>
                                   </div>
                               )}
                           </div>
@@ -1273,43 +1273,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+    <div className="flex-1 flex flex-col w-full bg-white dark:bg-[#121A2F] p-4 sm:p-6 rounded-xl border border-gray-200">
       {renderContent()}
 
-      
-      {/* History Sidebar */}
-      {showHistorySidebar && (
-          <div className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto border-r border-gray-100">
-               <div className="p-6 flex justify-between items-center border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
-                   <h3 className="text-xl font-black text-gray-900 tracking-tighter">Exam History</h3>
-                   <button onClick={() => setShowHistorySidebar(false)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-                       <XIcon className="w-5 h-5 text-gray-500" />
-                   </button>
-               </div>
-               <div className="p-4">
-                   <ExamHistory userProfile={userProfile} onReview={(exam) => { 
-                       if (exam.id.startsWith('offline_')) {
-                           const answeredCount = exam.questions.filter(q => q.userAnswer && q.userAnswer !== '' && q.userAnswer !== 'Unanswered').length;
-                           if (answeredCount < exam.questions.length) {
-                               setQuestions(exam.questions);
-                               setUserAnswers(exam.questions.map(q => q.userAnswer || '').filter(a => a !== ''));
-                               setCurrentQuestionIndex(answeredCount);
-                               setScore(exam.score);
-                               setCurrentExamId(exam.id);
-                               setExamFormat(exam.examType === 'theory' ? 'theory' : 'objective');
-                               setExamState('in_progress');
-                               setShowHistorySidebar(false);
-                               return;
-                           }
-                       }
-                       setReviewExam(exam); 
-                       setExamState('review'); 
-                       setShowHistorySidebar(false);
-                   }} />
-               </div>
-          </div>
-      )}
-      {showHistorySidebar && <div className="fixed inset-0 bg-black/20 z-40 backdrop-blur-sm transition-opacity" onClick={() => setShowHistorySidebar(false)} />}
 
       <LimitExceededModal
         isOpen={showLimitModal}

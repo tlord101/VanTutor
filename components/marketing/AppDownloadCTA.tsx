@@ -53,7 +53,7 @@ export const AppDownloadCTA: React.FC = () => {
                         <button 
                             onClick={handleDownload}
                             disabled={!downloadUrl}
-                            className={`flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-bold text-lg transition ${downloadUrl ? 'bg-brand-500 hover:bg-brand-400 text-white shadow-lg shadow-brand-500/25 hover:-translate-y-1' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                            className={`flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-bold text-lg transition ${downloadUrl ? 'bg-brand-500 hover:bg-brand-400 text-white shadow-lg shadow-brand-500/25 hover:-translate-y-1' : 'bg-slate-800 text-slate-500 dark:text-[#A0ABC0] cursor-not-allowed'}`}
                         >
                             <Download className="w-6 h-6" />
                             {downloadUrl ? `Download APK${versionName ? ` (v${versionName})` : ''}` : 'App Coming Soon'}

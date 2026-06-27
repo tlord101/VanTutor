@@ -23,7 +23,7 @@ const renderHighlightedText = (text: string, highlight?: string) => {
   return (
     <>
       {before}
-      <span className="font-semibold text-slate-900">{match}</span>
+      <span className="font-semibold text-slate-900 dark:text-white">{match}</span>
       {after}
     </>
   );
@@ -42,7 +42,7 @@ export function PromptSuggestion({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 hover:shadow-md',
+        'inline-flex items-center rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121A2F] px-4 py-2 text-sm text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 hover:shadow-md',
         className
       )}
       {...props}
