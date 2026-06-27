@@ -899,14 +899,14 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
               Create an uploader account to manage course materials across all schools, colleges, and departments securely.
             </p>
           </div>
-          <div className="rounded-[28px] border border-slate-200 dark:border-white/10 bg-white dark:bg-black p-6 md:p-8">
+          <div className="rounded-[28px] border border-slate-200 dark:border-transparent bg-white dark:bg-black p-6 md:p-8">
             <div className="flex gap-2 rounded-full bg-slate-100 p-1 text-sm font-semibold">
               <button onClick={() => setAuthMode('login')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'login' ? 'bg-white dark:bg-black text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-gray-400'}`}>Sign in</button>
               <button onClick={() => setAuthMode('signup')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'signup' ? 'bg-white dark:bg-black text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-gray-400'}`}>Sign up</button>
             </div>
             <form onSubmit={handleAuth} className="mt-6 space-y-4">
-              <input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black px-4 py-3 outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100" />
-              <input type="password" required placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black px-4 py-3 outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100" />
+              <input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-2xl border border-slate-200 dark:border-transparent bg-slate-50 dark:bg-black px-4 py-3 outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100" />
+              <input type="password" required placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-2xl border border-slate-200 dark:border-transparent bg-slate-50 dark:bg-black px-4 py-3 outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100" />
               <button type="submit" disabled={isSubmitting} className="w-full rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-sky-600 transition">{isSubmitting ? 'Please wait...' : authMode === 'signup' ? 'Create uploader account' : 'Sign in'}</button>
             </form>
           </div>
@@ -1045,7 +1045,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
       )}
 
       {/* Sidebar Navigation */}
-      <aside className={`w-64 border-r border-slate-200 dark:border-white/10 bg-white dark:bg-black flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      <aside className={`w-64 border-r border-slate-200 dark:border-transparent bg-white dark:bg-black flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         <div className="p-6 flex items-center justify-between">
           <div>
              <h1 className="text-xl font-black tracking-tight flex items-center gap-2 text-sky-600"><UploadCloud className="w-6 h-6" /> Upload Center</h1>
@@ -1070,7 +1070,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 md:ml-64 h-screen overflow-y-auto relative w-full">
         {/* Mobile Header */}
-        <div className="md:hidden sticky top-0 z-30 bg-white dark:bg-black/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
+        <div className="md:hidden sticky top-0 z-30 bg-white dark:bg-black/80 backdrop-blur-xl border-b border-slate-200 dark:border-transparent px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition">
                     <Menu className="w-6 h-6" />
@@ -1089,17 +1089,17 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           <div className="max-w-5xl space-y-6">
             <h2 className="text-3xl font-black tracking-tight">Overview</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm">
+              <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm">
                 <p className="text-xs font-black uppercase text-slate-400 tracking-wider">Your Uploads</p>
                 <p className="text-4xl font-black mt-2 text-sky-600">{uploads.length}</p>
               </div>
-              <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm">
+              <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm">
                 <p className="text-xs font-black uppercase text-slate-400 tracking-wider">Your Requests</p>
                 <p className="text-4xl font-black mt-2 text-amber-500">{requests.length}</p>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-black rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm p-6 mt-8">
+            <div className="bg-white dark:bg-black rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm p-6 mt-8">
               <h3 className="font-bold text-lg mb-4">Your Recent Uploads</h3>
               {uploads.length ? (
                 <div className="space-y-3">
@@ -1122,22 +1122,22 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           <div className="max-w-6xl space-y-6 animate-fade-in">
             <h2 className="text-3xl font-black tracking-tight">Unified Course Directory</h2>
             
-            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4"/> Global Search & Filter</h3>
               <div className="flex flex-col md:flex-row gap-4 mb-4">
-                <input type="text" placeholder="Search for MTH101 or Computer Science..." value={courseSearchQuery} onChange={e => setCourseSearchQuery(e.target.value)} className="flex-1 p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium" />
+                <input type="text" placeholder="Search for MTH101 or Computer Science..." value={courseSearchQuery} onChange={e => setCourseSearchQuery(e.target.value)} className="flex-1 p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   <option value="">Select School</option>
                   {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
                 </select>
                 
-                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
 
-                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -1153,7 +1153,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                   {schoolCourses.map((course: any) => {
                     const isUploaded = isTextbookUploaded(course);
                     return (
-                      <div key={course.course_id + course.level} className={`bg-white dark:bg-black border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200 dark:border-white/10'}`}>
+                      <div key={course.course_id + course.level} className={`bg-white dark:bg-black border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200 dark:border-transparent'}`}>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex flex-col items-start gap-2">
                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
@@ -1179,7 +1179,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     );
                   })}
                   {!schoolCourses.length && (
-                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-[24px]">
+                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-transparent rounded-[24px]">
                       No courses found matching your criteria.
                     </div>
                   )}
@@ -1193,10 +1193,10 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           <div className="max-w-6xl space-y-6">
             <h2 className="text-3xl font-black tracking-tight">Department Directories</h2>
             
-            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select School</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setSelectedDepartmentId(''); }} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setSelectedDepartmentId(''); }} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   <option value="">Select School</option>
                   {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
                 </select>
@@ -1208,7 +1208,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                  <h3 className="text-xl font-black">All Departments</h3>
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {schoolDepartments.map(dept => (
-                      <div key={dept.id} onClick={() => { setSelectedCollegeId(dept.collegeId); setSelectedDepartmentId(dept.id); }} className="bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-[24px] p-6 shadow-sm hover:shadow-md hover:border-sky-200 cursor-pointer transition-all">
+                      <div key={dept.id} onClick={() => { setSelectedCollegeId(dept.collegeId); setSelectedDepartmentId(dept.id); }} className="bg-white dark:bg-black border border-slate-200 dark:border-transparent rounded-[24px] p-6 shadow-sm hover:shadow-md hover:border-sky-200 cursor-pointer transition-all">
                           <div className="flex justify-between items-start mb-2">
                              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
                                 {dept.collegeName}
@@ -1221,7 +1221,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                       </div>
                     ))}
                     {!schoolDepartments.length && (
-                        <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-[24px]">
+                        <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-transparent rounded-[24px]">
                            No departments found.
                         </div>
                     )}
@@ -1240,16 +1240,16 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     </h3>
                 </div>
                 
-                <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm flex flex-wrap gap-4 items-end">
+                <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm flex flex-wrap gap-4 items-end">
                     <div className="flex-1 min-w-[200px]">
                         <label className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 mb-1 block">Level</label>
-                        <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="w-full p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                        <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="w-full p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                         {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                         </select>
                     </div>
                     <div className="flex-1 min-w-[200px]">
                         <label className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 mb-1 block">Semester</label>
-                        <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="w-full p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                        <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="w-full p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                         {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
@@ -1272,7 +1272,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           <h4 className="font-bold text-lg text-slate-800">Extracted Courses</h4>
                           <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
                             {extractedCourses.map((c, idx) => (
-                              <div key={idx} className="flex flex-col sm:flex-row gap-3 items-center p-3 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-black">
+                              <div key={idx} className="flex flex-col sm:flex-row gap-3 items-center p-3 border border-slate-200 dark:border-transparent rounded-xl bg-slate-50 dark:bg-black">
                                 <input type="checkbox" checked={c.selected} onChange={e => {
                                   const newCourses = [...extractedCourses];
                                   newCourses[idx].selected = e.target.checked;
@@ -1283,19 +1283,19 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                                   const newCourses = [...extractedCourses];
                                   newCourses[idx].course_code = e.target.value;
                                   setExtractedCourses(newCourses);
-                                }} className="w-full sm:w-28 p-2 text-sm border border-slate-200 dark:border-white/10 rounded outline-none focus:border-sky-400" placeholder="Code" />
+                                }} className="w-full sm:w-28 p-2 text-sm border border-slate-200 dark:border-transparent rounded outline-none focus:border-sky-400" placeholder="Code" />
 
                                 <input type="text" value={c.course_name} onChange={e => {
                                   const newCourses = [...extractedCourses];
                                   newCourses[idx].course_name = e.target.value;
                                   setExtractedCourses(newCourses);
-                                }} className="flex-1 w-full p-2 text-sm border border-slate-200 dark:border-white/10 rounded outline-none focus:border-sky-400" placeholder="Course Name" />
+                                }} className="flex-1 w-full p-2 text-sm border border-slate-200 dark:border-transparent rounded outline-none focus:border-sky-400" placeholder="Course Name" />
 
                                 <select value={c.type} onChange={e => {
                                   const newCourses = [...extractedCourses];
                                   newCourses[idx].type = e.target.value as 'private' | 'general';
                                   setExtractedCourses(newCourses);
-                                }} className="w-full sm:w-36 p-2 text-sm border border-slate-200 dark:border-white/10 rounded outline-none focus:border-sky-400 bg-white dark:bg-black">
+                                }} className="w-full sm:w-36 p-2 text-sm border border-slate-200 dark:border-transparent rounded outline-none focus:border-sky-400 bg-white dark:bg-black">
                                   <option value="private">Private</option>
                                   <option value="general">General</option>
                                 </select>
@@ -1326,7 +1326,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           </div>
 
                           <div className="relative">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-white/10"></div></div>
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-transparent"></div></div>
                             <div className="relative flex justify-center"><span className="bg-white dark:bg-black px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Or add manually</span></div>
                           </div>
 
@@ -1334,16 +1334,16 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           <div className="space-y-4">
                             <div>
                               <label className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 mb-1 block">Course Name</label>
-                              <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black" />
+                              <input type="text" placeholder="e.g. General Mathematics" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-transparent outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black" />
                             </div>
                             <div className="flex flex-col sm:flex-row gap-4">
                               <div className="flex-1">
                                 <label className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 mb-1 block">Course Code</label>
-                                <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black" />
+                                <input type="text" placeholder="e.g. MTH101" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-transparent outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black" />
                               </div>
                               <div className="flex-1">
                                 <label className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 mb-1 block">Course Type</label>
-                                <select value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black text-sm">
+                                <select value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-transparent outline-none focus:ring-2 ring-sky-200 bg-slate-50 dark:bg-black text-sm">
                                     <option value="private">Private (This Dept Only)</option>
                                     <option value="general">General (Shared across Depts)</option>
                                 </select>
@@ -1363,7 +1363,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     const isUploaded = isTextbookUploaded(course);
                     const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
                     return (
-                      <div key={course.course_id} className={`bg-white dark:bg-black border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200 dark:border-white/10'}`}>
+                      <div key={course.course_id} className={`bg-white dark:bg-black border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200 dark:border-transparent'}`}>
                         <div className="flex justify-between items-start mb-2">
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500 dark:text-gray-400'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                           <button onClick={() => handleDeleteCourse(course)} className="text-slate-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button>
@@ -1380,7 +1380,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     );
                   })}
                   {!departmentCourses.length && (
-                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-[24px]">
+                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-transparent rounded-[24px]">
                       No courses found in this department for {selectedLevel} - {selectedSemester}.
                     </div>
                   )}
@@ -1395,29 +1395,29 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
             <h2 className="text-3xl font-black tracking-tight">Upload Past Questions</h2>
             
             {/* Context Selector */}
-            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="bg-white dark:bg-black p-6 rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select Context</h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   <option value="">Select School</option>
                   {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
                 </select>
                 
-                <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
+                <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
                   <option value="">Select College</option>
                   {selectedSchoolId && schoolsData[selectedSchoolId]?.colleges && Object.keys(schoolsData[selectedSchoolId].colleges).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[k].name || k}</option>)}
                 </select>
                 
-                <select value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} disabled={!selectedCollegeId} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
+                <select value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} disabled={!selectedCollegeId} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
                   <option value="">Select Department</option>
                   {selectedCollegeId && schoolsData[selectedSchoolId]?.colleges[selectedCollegeId]?.departments && Object.keys(schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments[k].name || k}</option>)}
                 </select>
                 
-                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
 
-                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-white/10 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
+                <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value as any)} className="p-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-transparent text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -1435,7 +1435,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     const courseKey = getCourseMergeKey(course);
                     const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
                     return (
-                      <div key={course.course_id} className="bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-[24px] p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
+                      <div key={course.course_id} className="bg-white dark:bg-black border border-slate-200 dark:border-transparent rounded-[24px] p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
                         <div className="flex justify-between items-start mb-2">
                            {isPQUploaded(course, selectedDepartmentId, pqIndex) ? (
                                <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-green-100 text-green-700 border border-green-200">
@@ -1462,7 +1462,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     );
                   })}
                   {!departmentCourses.length && (
-                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-[24px]">
+                    <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-transparent rounded-[24px]">
                       No courses found in this department for {selectedLevel} - {selectedSemester}.
                     </div>
                   )}
@@ -1475,14 +1475,14 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
         {activeView === 'requests' && (
           <div className="max-w-5xl space-y-6">
              <h2 className="text-3xl font-black tracking-tight">Global Course Requests</h2>
-             <div className="bg-white dark:bg-black rounded-[24px] border border-slate-200 dark:border-white/10 shadow-sm p-6">
+             <div className="bg-white dark:bg-black rounded-[24px] border border-slate-200 dark:border-transparent shadow-sm p-6">
                 {requests.length ? (
                   <div className="space-y-4">
                     {requests.map(req => (
                       <div key={req.course_key + req.created_at} className="p-5 bg-slate-50 dark:bg-black border border-slate-100 rounded-[20px]">
                         <h4 className="font-bold text-lg">{req.course_name}</h4>
                         <p className="text-sm font-medium text-slate-500 dark:text-gray-400 mb-2">{req.level} - {req.semester}</p>
-                        <p className="text-sm bg-white dark:bg-black p-3 rounded-xl border border-slate-200 dark:border-white/10">{req.note}</p>
+                        <p className="text-sm bg-white dark:bg-black p-3 rounded-xl border border-slate-200 dark:border-transparent">{req.note}</p>
                         <button onClick={() => navigate('/upload-center/upload')} className="mt-4 text-sm font-bold text-sky-600 hover:text-sky-700 underline underline-offset-2">Go to Manage Courses</button>
                       </div>
                     ))}
@@ -1506,7 +1506,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
             <div className="space-y-4">
                 <div>
                     <label className="block text-xs font-black uppercase text-slate-400 tracking-widest mb-2">Material Type</label>
-                    <select className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold bg-slate-50 dark:bg-black" value={uploadType} onChange={e => setUploadType(e.target.value as any)}>
+                    <select className="w-full p-3 rounded-xl border border-slate-200 dark:border-transparent text-sm font-bold bg-slate-50 dark:bg-black" value={uploadType} onChange={e => setUploadType(e.target.value as any)}>
                         <option value="textbook">Textbook / Syllabus</option>
                         <option value="past_question">Past Question</option>
                     </select>
@@ -1514,7 +1514,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                 {uploadType === 'past_question' && (
                     <div>
                         <label className="block text-xs font-black uppercase text-slate-400 tracking-widest mb-2">Year</label>
-                        <input type="number" className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold bg-slate-50 dark:bg-black" value={pqYear} onChange={e => setPqYear(e.target.value)} />
+                        <input type="number" className="w-full p-3 rounded-xl border border-slate-200 dark:border-transparent text-sm font-bold bg-slate-50 dark:bg-black" value={pqYear} onChange={e => setPqYear(e.target.value)} />
                     </div>
                 )}
             </div>

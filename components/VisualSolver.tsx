@@ -51,7 +51,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 ),
                                 // Section headings - Steps, Analysis, etc.
                                 h2: ({node, ...props}) => (
-                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8 pt-4 border-t border-gray-200 flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />
+                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8 pt-4 border-t border-gray-200 dark:border-transparent flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />
                                 ),
                                 // Sub-sections
                                 h3: ({node, ...props}) => (
@@ -103,7 +103,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 // Tables with better styling
                                 table: ({node, ...props}) => (
                                     <div className="overflow-x-auto my-6 shadow-md rounded-lg">
-                                        <table className="min-w-full divide-y divide-gray-200 border border-gray-200" {...props} />
+                                        <table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent" {...props} />
                                     </div>
                                 ),
                                 thead: ({node, ...props}) => (
@@ -123,7 +123,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 ),
                                 // Horizontal rules
                                 hr: ({node, ...props}) => (
-                                    <hr className="my-8 border-t-2 border-gray-200" {...props} />
+                                    <hr className="my-8 border-t-2 border-gray-200 dark:border-transparent" {...props} />
                                 ),
                             }}
                         >
@@ -132,7 +132,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     </div>
                 </div>
             </div>
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 bg-white dark:bg-black/90 backdrop-blur-md shadow-lg">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 dark:border-transparent bg-white dark:bg-black/90 backdrop-blur-md shadow-lg">
                 <div className="max-w-4xl mx-auto">
                     <button 
                         onClick={onClose} 
@@ -809,7 +809,7 @@ ${retrievedContext}
 
     return (
         <div className="flex-1 flex flex-col w-full">
-            <div className="h-[calc(100vh-90px)] bg-gray-300 rounded-xl border border-gray-200 overflow-hidden relative">
+            <div className="h-[calc(100vh-90px)] bg-gray-300 rounded-xl border border-gray-200 dark:border-transparent overflow-hidden relative">
                 <canvas ref={canvasRef} className="hidden"></canvas>
                 {renderContent()}
             </div>

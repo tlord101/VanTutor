@@ -220,7 +220,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
             type="button"
             onClick={handleSpeedChange}
             disabled={isUploading}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white dark:bg-black/10' : 'border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-100'
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${isMe ? 'border-white/30 hover:bg-white dark:bg-black/10' : 'border-[#E9ECEF] dark:border-transparent hover:bg-neutral-100'
               } ${isUploading ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {playbackRate}x
@@ -367,7 +367,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       <div className="w-full flex items-end gap-2 relative">
         {!isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-transparent border border-gray-200 dark:border-white/5 rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
+          <div className="flex-1 h-[52px] bg-transparent border border-gray-200 dark:border-transparent rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
             <div className="relative flex items-center h-full">
               <button type="button" onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
                  <Sticker className="w-6 h-6" />
@@ -415,7 +415,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
 
         {isLocked && (
-            <div className="flex-1 bg-transparent rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-gray-200 dark:border-white/5">
+            <div className="flex-1 bg-transparent rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-gray-200 dark:border-transparent">
                <div className="flex items-center justify-between mb-4 px-3 w-full">
                   <span className="text-[17px] text-black dark:text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
                   <div className="flex-1 mx-3 flex items-center gap-[3px]">
@@ -1634,7 +1634,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
-              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
+              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
             </button>
           </>
         ),
@@ -1644,7 +1644,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
              </button>
              {showUserOptions && (
-              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
+              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-black border border-slate-200 dark:border-transparent rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
                  <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
                  <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:bg-black font-bold">Report User</button>
               </div>
@@ -1666,8 +1666,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] dark:bg-black font-sans antialiased text-[#212529] dark:text-white">
       {/* Sidebar Pane */}
-      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-white/10 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
-        <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-white/10 shrink-0">
+      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-transparent flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
+        <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-transparent shrink-0">
           <div className="flex gap-1 bg-[#E9ECEF] dark:bg-gray-900 p-1 rounded-xl text-sm shrink-0 mb-4">
             <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Chats</button>
             <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
@@ -1681,7 +1681,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 placeholder="Search study mates..."
                 value={peopleSearchQuery}
                 onChange={(e) => setPeopleSearchQuery(e.target.value)}
-                className="w-full bg-white dark:bg-black text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
+                className="w-full bg-white dark:bg-black text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-transparent focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
               />
               {peopleSearchQuery && (
                 <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] dark:text-gray-400 text-xs hover:text-[#212529] dark:text-white">✕</button>
@@ -1712,9 +1712,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   event.preventDefault();
                   void handleDeleteChatThread(c);
                 }}
-                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-black' : ''}`}
+                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-transparent transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-black' : ''}`}
               >
-                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
@@ -1751,7 +1751,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 </div>
               </div>
             )) : filteredPeople.length === 0 ? (
-              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-black/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-white/10">
+              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-black/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-transparent">
                 <span className="text-2xl block mb-2 font-black text-[#6C757D] dark:text-gray-400">👥</span>
                 <p className="text-sm font-bold text-[#212529] dark:text-white">No study mates found</p>
                 <p className="text-xs text-[#6C757D] dark:text-gray-400 mt-1">
@@ -1761,8 +1761,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             ) : filteredPeople.map(u => {
               const unreadCount = getUnreadCountForUser(u.uid);
               return (
-                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-white/10 transition">
-                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
+                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-transparent transition">
+                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
                   <div className="min-w-0 flex-1">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
                       <span>{u.display_name}</span>
@@ -1827,12 +1827,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   <div key={msg.id} className="my-4 space-y-1">
                     <div className={`flex items-end space-x-2.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
-                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-white/10" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
+                        <Avatar className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[85%] md:max-w-[70%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
-                          ? 'bg-black text-white rounded-2xl rounded-tr-sm border border-black dark:border-white/10'
-                          : 'bg-white text-black rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-white/10'
+                          ? 'bg-black text-white rounded-2xl rounded-tr-sm border border-black dark:border-transparent'
+                          : 'bg-white text-black rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-transparent'
                         }`}
                         onContextMenu={(event) => {
                           event.preventDefault();
@@ -1981,7 +1981,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-black shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+            <div className="p-3 border-t border-slate-200 dark:border-transparent bg-white dark:bg-black shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
                {replyingTo && (
                  <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
                    <div className="min-w-0">
@@ -2090,7 +2090,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         ) : (
           <div className="mx-auto max-w-md px-6 text-center select-none">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white dark:bg-black shadow-sm border border-[#E9ECEF] dark:border-white/10">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-white dark:bg-black shadow-sm border border-[#E9ECEF] dark:border-transparent">
               <img src="/logo_icon.png" alt="AVELUT" className="w-14 h-14 object-contain" />
             </div>
             <h2 className="mt-5 text-2xl font-black tracking-wide text-[#212529] dark:text-white">AVELUT</h2>
@@ -2109,7 +2109,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <select 
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
-              className="w-full mb-4 p-3 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-700 bg-slate-50 dark:bg-black outline-none"
+              className="w-full mb-4 p-3 border border-slate-200 dark:border-transparent rounded-xl text-sm font-bold text-slate-700 bg-slate-50 dark:bg-black outline-none"
             >
               <option value="spam">Spam / Unsolicited Messages</option>
               <option value="harassment">Harassment / Bullying</option>
@@ -2194,9 +2194,9 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
   };
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] dark:border-white/10 flex flex-col max-h-[75vh] animate-scale-in">
+      <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-[#E9ECEF] dark:border-transparent flex flex-col max-h-[75vh] animate-scale-in">
         {/* Header */}
-        <div className="p-5 border-b border-[#E9ECEF] dark:border-white/10 flex items-center justify-between">
+        <div className="p-5 border-b border-[#E9ECEF] dark:border-transparent flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-[#212529] dark:text-white">Forward Message</h2>
             <p className="text-[11px] text-[#6C757D] dark:text-gray-400 font-medium mt-0.5">Select one or more study partners to send this message to.</p>
@@ -2211,7 +2211,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
         </div>
 
         {/* Content preview */}
-        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] dark:border-white/10 text-xs font-medium text-[#6C757D] dark:text-gray-400">
+        <div className="px-5 py-3.5 bg-neutral-50 border-b border-[#E9ECEF] dark:border-transparent text-xs font-medium text-[#6C757D] dark:text-gray-400">
           <span className="font-bold uppercase tracking-wider block text-[10px] text-[#6C757D] dark:text-gray-400 mb-1">Message Preview</span>
           <p className="truncate max-w-full italic text-neutral-600">
             {messageType === 'voice' ? '🎵 Voice message' : messageType === 'image' ? '📷 Image file' : messageText}
@@ -2219,13 +2219,13 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-[#E9ECEF] dark:border-white/10">
+        <div className="p-4 border-b border-[#E9ECEF] dark:border-transparent">
           <input
             type="text"
             placeholder="Search partners..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#F8F9FA] dark:bg-black text-sm text-[#212529] dark:text-white px-4 py-2 rounded-xl border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
+            className="w-full bg-[#F8F9FA] dark:bg-black text-sm text-[#212529] dark:text-white px-4 py-2 rounded-xl border border-[#E9ECEF] dark:border-transparent focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition shadow-inner"
           />
         </div>
 
@@ -2240,7 +2240,7 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
                 <div
                   key={u.uid}
                   onClick={() => handleToggleSelect(u.uid)}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white dark:bg-black border-[#E9ECEF] dark:border-white/10 hover:bg-neutral-50'}`}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'bg-white dark:bg-black border-[#E9ECEF] dark:border-transparent hover:bg-neutral-50'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="w-9 h-9 rounded-full shrink-0 object-cover" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
@@ -2266,11 +2266,11 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[#E9ECEF] dark:border-white/10 bg-[#F8F9FA] dark:bg-black flex gap-3 shrink-0">
+        <div className="p-4 border-t border-[#E9ECEF] dark:border-transparent bg-[#F8F9FA] dark:bg-black flex gap-3 shrink-0">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="flex-1 bg-white dark:bg-black hover:bg-neutral-100 border border-[#E9ECEF] dark:border-white/10 text-[#6C757D] dark:text-gray-400 font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
+            className="flex-1 bg-white dark:bg-black hover:bg-neutral-100 border border-[#E9ECEF] dark:border-transparent text-[#6C757D] dark:text-gray-400 font-bold text-xs uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer select-none disabled:opacity-50"
           >
             Cancel
           </button>

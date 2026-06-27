@@ -35,9 +35,9 @@ const StatCard: React.FC<{ title: string; value: string | number; description: s
     };
 
     return (
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white dark:bg-black p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg">
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-transparent bg-white dark:bg-black p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-300 dark:border-transparent hover:shadow-lg">
                 <div className="flex items-start justify-between gap-4">
-                        <div className="rounded-2xl border border-gray-100 bg-gray-50 dark:bg-black p-3 text-gray-500 dark:text-gray-400">
+                        <div className="rounded-2xl border border-gray-100 dark:border-transparent bg-gray-50 dark:bg-black p-3 text-gray-500 dark:text-gray-400">
                                 {icon}
                         </div>
                         <div className="text-right">
@@ -51,7 +51,7 @@ const StatCard: React.FC<{ title: string; value: string | number; description: s
 };
 
 const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
-    <div className="group flex items-center gap-4 py-4 px-4 rounded-2xl hover:bg-gray-50 dark:bg-black transition-all border border-transparent hover:border-gray-100">
+    <div className="group flex items-center gap-4 py-4 px-4 rounded-2xl hover:bg-gray-50 dark:bg-black transition-all border border-transparent hover:border-gray-100 dark:border-transparent">
         <div className="w-10 h-10 rounded-xl bg-lime-50 flex items-center justify-center text-lime-600 font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
             {Math.round((exam.score / exam.total_questions) * 100)}%
         </div>
@@ -128,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                         Track your progress.
                     </p>
                 </div>
-                <div className="rounded-full border border-gray-200 bg-white dark:bg-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-gray-700 shadow-sm flex items-center gap-2">
+                <div className="rounded-full border border-gray-200 dark:border-transparent bg-white dark:bg-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-gray-700 shadow-sm flex items-center gap-2">
                     Daily Streak: <span className="text-orange-500 font-bold">{userProfile.current_streak} {userProfile.current_streak === 1 ? 'day' : 'days'}</span> 🔥
                 </div>
             </div>
@@ -184,7 +184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
             </div>
 
             {/* Live Statistics Graph */}
-            <div className="rounded-3xl border border-gray-200 bg-white dark:bg-black p-6 md:p-8">
+            <div className="rounded-3xl border border-gray-200 dark:border-transparent bg-white dark:bg-black p-6 md:p-8">
                 <div className="mb-6">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400 mb-1">Live Statistics</h3>
                     <h2 className="text-2xl font-bold text-gray-900">Exam Performance</h2>
@@ -227,14 +227,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 dark:bg-black p-10 text-center">
+                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-transparent bg-gray-50 dark:bg-black p-10 text-center">
                             <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Not enough data to graph</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="rounded-3xl border border-gray-200 bg-white dark:bg-black p-8">
+            <div className="rounded-3xl border border-gray-200 dark:border-transparent bg-white dark:bg-black p-8">
                 <h3 className="mb-6 text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">Recent Performance</h3>
                 {dashboardData && dashboardData.examHistory.length > 0 ? (
                     <div className="max-h-[420px] space-y-2 overflow-y-auto pr-2">
@@ -244,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                             .map(exam => <RecentActivityItem key={exam.id} exam={exam} />)}
                     </div>
                 ) : (
-                    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 dark:bg-black p-10 text-center">
+                    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-transparent bg-gray-50 dark:bg-black p-10 text-center">
                         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white dark:bg-black text-gray-200 shadow-sm">
                             <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         </div>
