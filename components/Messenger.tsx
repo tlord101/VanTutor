@@ -367,7 +367,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
       <div className="w-full flex items-end gap-2 relative">
         {!isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-transparent border border-gray-200 dark:border-transparent rounded-full flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
+          <div className="flex-1 min-h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
             <div className="relative flex items-center h-full">
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
@@ -399,7 +399,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
 
         {isRecording && !isLocked && (
-          <div className="flex-1 h-[52px] bg-[#121A2F] rounded-full flex items-center shadow-sm relative overflow-hidden">
+          <div className="flex-1 h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center shadow-sm relative overflow-hidden">
              <div className="flex items-center h-full w-full">
                 <div className="pl-5 w-20 text-[18px] text-white tabular-nums font-normal">
                    {formatTime(recordDuration)}
@@ -415,7 +415,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
 
         {isLocked && (
-            <div className="flex-1 bg-transparent rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative border border-gray-200 dark:border-transparent">
+            <div className="flex-1 bg-white dark:bg-[#202C33] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative">
                <div className="flex items-center justify-between mb-4 px-3 w-full">
                   <span className="text-[17px] text-black dark:text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
                   <div className="flex-1 mx-3 flex items-center gap-[3px]">
@@ -577,8 +577,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const isBlockingMe = activeChat && activeChat.otherUser.blocked_users?.[userProfile.uid];
 
   const closeMessageActions = () => {
-    setMessageActionTarget(null);
-    setMessageActionPosition(null);
+    setTimeout(() => {
+      setMessageActionTarget(null);
+      setMessageActionPosition(null);
+    }, 350); // Delay to prevent ghost clicks falling through to underlying elements on mobile
   };
 
   const handleBlockUser = async () => {
@@ -1570,64 +1572,36 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
            </div>
          ),
          leftActions: (
-            <button 
-                onClick={closeMessageActions} 
-                onTouchEnd={(e) => { e.preventDefault(); closeMessageActions(); }}
-                className="p-3 -ml-2 text-[#212529] dark:text-white hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
+            <button onClick={closeMessageActions} className="p-3 -ml-2 text-[#212529] dark:text-white hover:bg-neutral-100 rounded-full transition-colors flex items-center justify-center">
                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
          ),
          rightActions: (
-            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-               <button 
-                  onClick={(e) => { e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }}
-                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }}
-                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+               <button onClick={(e) => { e.stopPropagation(); setReplyingTo(messageActionTarget); closeMessageActions(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Reply">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" /></svg>
                </button>
-               <button 
-                  onClick={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
+               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Bookmark">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
                </button>
                {messageActionTarget.senderId === firebaseUser?.uid && (
-               <button 
-                  onClick={(e) => { e.stopPropagation(); void deleteSelectedMessage(); }}
-                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); void deleteSelectedMessage(); }}
-                  className="p-3 text-red-500 hover:bg-red-50 rounded-full transition-colors" aria-label="Delete">
+               <button onClick={(e) => { e.stopPropagation(); void deleteSelectedMessage(); }} className="p-3 text-red-500 hover:bg-red-50 rounded-full transition-colors" aria-label="Delete">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2-2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
                )}
-               <button 
-                  onClick={(e) => { e.stopPropagation(); void copyMessageContent(); }}
-                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); void copyMessageContent(); }}
-                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
+               <button onClick={(e) => { e.stopPropagation(); void copyMessageContent(); }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Copy">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                </button>
-               <button 
-                  onClick={(e) => {
-                     e.stopPropagation();
-                     setForwardTargetContent(messageActionTarget.text || '');
-                     setForwardTargetType(messageActionTarget.type || 'text');
-                     setIsForwardModalOpen(true);
-                     closeMessageActions();
-                  }}
-                  onTouchEnd={(e) => {
-                     e.preventDefault();
-                     e.stopPropagation();
-                     setForwardTargetContent(messageActionTarget.text || '');
-                     setForwardTargetType(messageActionTarget.type || 'text');
-                     setIsForwardModalOpen(true);
-                     closeMessageActions();
-                  }}
-                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
+               <button onClick={(e) => {
+                      e.stopPropagation();
+                      setForwardTargetContent(messageActionTarget.text || '');
+                      setForwardTargetType(messageActionTarget.type || 'text');
+                      setIsForwardModalOpen(true);
+                      closeMessageActions();
+                    }} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="Forward">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
                </button>
-               <button 
-                  onClick={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
+               <button onClick={(e) => e.stopPropagation()} className="p-3 text-[#009EE2] dark:text-[#F8F9FA] hover:bg-neutral-100 rounded-full transition-colors" aria-label="More">
                   <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
                </button>
             </div>
@@ -1823,11 +1797,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       </div>
 
       {/* Main Chat Viewport */}
-      <div className={`flex-1 flex flex-col h-full bg-[#F8F9FA] dark:bg-black relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-[#EFEAE2] dark:bg-[#0B141A] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#F8F9FA] dark:bg-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               {combinedMessageStream.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-4">
                   <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
@@ -1859,9 +1833,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       )}
 
                       <div className={`py-1.5 px-3 shadow-sm w-fit max-w-[85%] md:max-w-[70%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
-                          ? 'bg-black text-white rounded-2xl rounded-tr-sm border border-black dark:border-transparent'
-                          : 'bg-white text-black rounded-2xl rounded-tl-sm border border-[#E9ECEF] dark:border-transparent'
-                        }`}
+                          ? 'bg-[#009EE2] dark:bg-[#103661] text-white rounded-2xl rounded-tr-none'
+                          : 'bg-white dark:bg-[#202C33] text-black dark:text-white rounded-2xl rounded-tl-none border border-[#E9ECEF] dark:border-transparent'
+                        }`.trim()}
                         onContextMenu={(event) => {
                           event.preventDefault();
                           openMessageActions(msg, event.clientX, event.clientY);
@@ -1979,12 +1953,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         )}
 
                         {/* Meta Timestamp */}
-                        <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] select-none pointer-events-none ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-gray-400'}`}>
+                        <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] select-none pointer-events-none float-right relative top-1 ml-3 ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-gray-400'}`}>
                           <span className="uppercase font-normal tracking-tight">
                             {msg.isUploading ? 'Sending...' : '12:53 PM'}
                           </span>
-                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? "#009EE2" : "#8696a0"} />}
+                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? (document.documentElement.classList.contains('dark') ? '#4FB6EC' : '#009EE2') : (document.documentElement.classList.contains('dark') ? '#8696a0' : '#E9ECEF')} />}
                         </div>
+                        <div className="clear-both"></div>
 
                         {sortedReactions.length > 0 && (
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -2009,7 +1984,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="p-3 border-t border-slate-200 dark:border-transparent bg-white dark:bg-black shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10 shrink-0">
+            <div className="p-3 bg-[#EFEAE2] dark:bg-[#0B141A] z-10 shrink-0">
                {replyingTo && (
                  <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 rounded-lg border-l-4 border-[#009EE2]">
                    <div className="min-w-0">
