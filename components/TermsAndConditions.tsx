@@ -221,7 +221,7 @@ export default function TermsAndConditions() {
       <footer className="border-t border-neutral-800/60 bg-[#0d1122] py-8 text-center text-xs text-slate-500 dark:text-gray-400">
         <p>&copy; {new Date().getFullYear()} AVELUT AI. All rights reserved.</p>
         <div className="mt-2 flex justify-center gap-4">
-          <a href="/policy" className="hover:text-slate-300 hover:underline">Privacy Policy</a>
+          <a href="https://www.avelut.xyz/policy" className="hover:text-slate-300 hover:underline">Privacy Policy</a>
           <span>&middot;</span>
           <a href="/t&c" className="hover:text-slate-300 hover:underline">Terms & Conditions</a>
         </div>

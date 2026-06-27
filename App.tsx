@@ -511,6 +511,10 @@ const App: React.FC = () => {
                 if (!chatId) return;
                 setActiveItem('messenger');
                 setPendingMessengerChatId(chatId);
+                // Clear notifications when entering a specific chat
+                if (Capacitor.isNativePlatform()) {
+                    PushNotifications.removeAllDeliveredNotifications().catch(console.error);
+                }
         }, [setActiveItem]);
 
         useEffect(() => {
@@ -638,8 +642,17 @@ const App: React.FC = () => {
                 }
             }
         });
+
+        const appStateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+            if (isActive) {
+                // Clear all notifications when app comes to foreground (WhatsApp style)
+                PushNotifications.removeAllDeliveredNotifications().catch(console.error);
+            }
+        });
+
         return () => {
             urlListener.then(listener => listener.remove());
+            appStateListener.then(listener => listener.remove());
         };
     }, [user, addToast]);
 
@@ -761,37 +774,15 @@ const App: React.FC = () => {
                         sessionStorage.setItem('session_notifications_sent', 'true');
                         const today = new Date().toISOString().split('T')[0];
                         const lastLoginStr = localStorage.getItem('last_login_date');
-                        const currentAppVersion = "5.1.0"; // Current version from package.json
+                        const currentAppVersion = "5.1.0";
                         const lastSeenVersion = localStorage.getItem('last_seen_app_version');
 
-                        // Welcome Back Notification (Once a day)
                         if (lastLoginStr !== today) {
                             localStorage.setItem('last_login_date', today);
-                            const notifRef = dbRef(db, `notifications/${user.uid}`);
-                            push(notifRef, {
-                                type: 'welcome',
-                                title: 'Welcome Back!',
-                                message: 'Ready for another productive study session?',
-                                timestamp: Date.now(),
-                                is_read: false,
-                                action_buttons: [
-                                    { label: 'Open Study Guide', action: 'navigate', route: 'study_guide' },
-                                    { label: 'Check Messages', action: 'navigate', route: 'messenger' }
-                                ]
-                            });
                         }
 
-                        // App Update Notification
                         if (lastSeenVersion !== currentAppVersion) {
                             localStorage.setItem('last_seen_app_version', currentAppVersion);
-                            const notifRef = dbRef(db, `notifications/${user.uid}`);
-                            push(notifRef, {
-                                type: 'app_update',
-                                title: 'App Updated',
-                                message: `We've updated Avelut to version ${currentAppVersion}! Check out the new Notifications system and profile design.`,
-                                timestamp: Date.now(),
-                                is_read: false
-                            });
                         }
                     }
                     // -------------------------------

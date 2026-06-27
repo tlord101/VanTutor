@@ -514,13 +514,14 @@ exports.checkTimetableReminders = functions.pubsub.schedule('* * * * *').onRun(a
 // 6. Upload Image via HTTP Callable Function  
 exports.uploadImage = functions.https.onCall(async (data, context) => {  
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');  
-    const { imageBase64, path } = data;  
+    const { imageBase64, path, mimeType } = data;  
     if (!imageBase64 || !path) throw new functions.https.HttpsError('invalid-argument', 'Missing image or path.');  
     try {  
         const buffer = Buffer.from(imageBase64, 'base64');  
         const bucket = admin.storage().bucket();  
-        const file = bucket.file(path);  
-        await file.save(buffer, { metadata: { contentType: 'image/jpeg' } });  
+        const file = bucket.file(path);
+        const contentType = mimeType || 'image/jpeg';
+        await file.save(buffer, { metadata: { contentType: contentType } });  
         await file.makePublic();  
         return { url: file.publicUrl() };  
     } catch (err) {  

@@ -719,7 +719,7 @@ ${retrievedContext}
                                                 value={customPrompt}
                                                 onChange={(e) => setCustomPrompt(e.target.value)}
                                                 placeholder="Optional: Add custom instructions (e.g., 'Explain this step by step', 'Focus on the methodology', etc.)"
-                                                className="w-full bg-white dark:bg-black/20 backdrop-blur-sm border-2 border-white/50 text-white placeholder-white/70 rounded-xl p-2 sm:p-3 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400 transition-all"
+                                                className="w-full bg-white/20 dark:bg-black/40 backdrop-blur-sm border-2 border-white/50 text-white placeholder-white/70 rounded-xl p-2 sm:p-3 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400 transition-all"
                                                 rows={2}
                                             />
                                         </div>
@@ -734,7 +734,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleSolution} 
-                                            className="w-full bg-white/10 dark:bg-black/40 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/20 dark:hover:bg-black/60 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white/20 dark:bg-gray-800 border border-white/50 dark:border-gray-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/30 dark:hover:bg-gray-700 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -743,7 +743,7 @@ ${retrievedContext}
                                         </button>
                                         <button 
                                             onClick={handleQuickAnswer} 
-                                            className="w-full bg-white/10 dark:bg-black/40 border border-white/50 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/20 dark:hover:bg-black/60 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-white/20 dark:bg-gray-800 border border-white/50 dark:border-gray-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/30 dark:hover:bg-gray-700 transition-all text-lg flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

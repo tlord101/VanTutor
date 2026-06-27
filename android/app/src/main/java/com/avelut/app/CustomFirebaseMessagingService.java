@@ -19,6 +19,8 @@ import java.util.Random;
 public class CustomFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String CHANNEL_ID = "avelut_notifications";
+    private static final String GROUP_MESSAGES = "avelut_messages";
+    private static final int SUMMARY_ID = 999999;
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
@@ -91,6 +93,7 @@ public class CustomFirebaseMessagingService extends FirebaseMessagingService {
                 .setContentText(body)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setGroup(GROUP_MESSAGES)
                 .setContentIntent(pendingIntent);
 
         // Process up to 3 action buttons from data payload
@@ -147,6 +150,21 @@ public class CustomFirebaseMessagingService extends FirebaseMessagingService {
             }
         }
 
-        notificationManager.notify(new Random().nextInt(), notificationBuilder.build());
+        int notificationId = chatId != null ? chatId.hashCode() : new Random().nextInt();
+        notificationManager.notify(notificationId, notificationBuilder.build());
+
+        // Create summary notification for grouping (Android 7.0+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            NotificationCompat.Builder summaryBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setContentTitle("New messages")
+                    .setSmallIcon(R.drawable.ic_stat_name)
+                    .setStyle(new NotificationCompat.InboxStyle()
+                            .setSummaryText("Avelut Messages"))
+                    .setGroup(GROUP_MESSAGES)
+                    .setGroupSummary(true)
+                    .setAutoCancel(true);
+
+            notificationManager.notify(SUMMARY_ID, summaryBuilder.build());
+        }
     }
 }

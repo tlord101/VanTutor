@@ -183,7 +183,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
             </a>
             <a
-              href="/policy"
+              href="https://www.avelut.xyz/policy"
               className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black text-slate-800 font-bold hover:bg-slate-100 transition-colors"
             >
               <span>Privacy Policy</span>
