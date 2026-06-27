@@ -2582,7 +2582,7 @@ FORMAT:
     const activeNavItems = navigationItems.filter(item => visibleTabs.includes(item.id as any));
 
     if (isAppSettingsLoading || isInitialDataLoading) {
-        return <div className="flex h-screen items-center justify-center font-bold text-slate-500 dark:text-gray-400">Loading Admin Panel...</div>;
+        return <div className="flex h-screen items-center justify-center font-bold text-slate-500">Loading Admin Panel...</div>;
     }
 
     return (

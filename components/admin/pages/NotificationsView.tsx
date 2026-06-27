@@ -148,13 +148,13 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     };
 
     return (
-        <div className="max-w-4xl bg-white dark:bg-black rounded-3xl border border-slate-200 dark:border-white/10/60 shadow-sm p-6 sm:p-8 space-y-8">
+        <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
             <div>
-                <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                <h3 className="font-black text-xl text-slate-900 mb-1 flex items-center gap-2">
                     <Bell className="w-5 h-5 text-indigo-500" />
                     Push Notifications
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-gray-400">Send direct push notifications to user devices.</p>
+                <p className="text-sm text-slate-500">Send direct push notifications to user devices.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -166,7 +166,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                             className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
                                 recipientMode === 'all'
                                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black text-slate-600 hover:bg-slate-50 dark:bg-black'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                             <Users className="w-4 h-4" /> All Users
@@ -176,7 +176,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                             className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
                                 recipientMode === 'single'
                                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black text-slate-600 hover:bg-slate-50 dark:bg-black'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                             <UserCheck className="w-4 h-4" /> Single User
@@ -185,11 +185,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
 
                     {recipientMode === 'single' && (
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Select User</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select User</label>
                             <select
                                 value={selectedRecipientId}
                                 onChange={(e) => setSelectedRecipientId(e.target.value)}
-                                className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white dark:bg-black"
+                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
                             >
                                 <option value="" disabled>Select a user...</option>
                                 {allUsersList.map(user => (
@@ -206,11 +206,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     <h4 className="font-bold text-slate-800 text-sm">Notification Content</h4>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Notification Type</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notification Type</label>
                         <select
                             value={notificationType}
                             onChange={(e) => setNotificationType(e.target.value as any)}
-                            className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white dark:bg-black"
+                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
                         >
                             <option value="study_update">Study Update</option>
                             <option value="exam_reminder">Exam Reminder</option>
@@ -219,7 +219,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider flex justify-between">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between">
                             Title
                             <button onClick={handleSuggestAnnouncement} disabled={isSendingPush || !ai} className="text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-50">
                                 <Sparkles className="w-3 h-3" /> Auto-suggest
@@ -230,18 +230,18 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                             placeholder="e.g. Server Maintenance"
                             value={announcementTitle}
                             onChange={(e) => setAnnouncementTitle(e.target.value)}
-                            className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm"
+                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm"
                         />
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Message</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Message</label>
                         <textarea
                             rows={3}
                             placeholder="Enter notification content..."
                             value={announcementMessage}
                             onChange={(e) => setAnnouncementMessage(e.target.value)}
-                            className="w-full p-3 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
+                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
                         />
                     </div>
 
