@@ -71,16 +71,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 dark:text-white font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
       {/* Dynamic Background Elements */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white dark:bg-black">
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-100 rounded-full blur-[120px] mix-blend-multiply animate-pulse duration-10000" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-sky-100 rounded-full blur-[150px] mix-blend-multiply" />
         <div className="absolute top-[40%] left-[20%] w-[30%] h-[30%] bg-blue-50 rounded-full blur-[100px] mix-blend-multiply" />
       </div>
 
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white dark:bg-black/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white backdrop-blur-xl border-b border-slate-200 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center">
             <img src="/logo_full.png" alt="Avelut Logo" className="h-8 object-contain" />
@@ -117,7 +117,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <Sparkles className="w-3 h-3" />
               <span>Hyper-Personalized AI Tutoring</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900 dark:text-white">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900">
               The AI Tutor That Won't Rest Until Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">GPA Rises</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
@@ -133,16 +133,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <button onClick={() => {
                 onLogin();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="w-full sm:w-auto px-8 py-3.5 bg-white dark:bg-black hover:bg-slate-50 dark:bg-black text-slate-700 rounded-lg font-semibold text-base transition border border-slate-300">
+              }} className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-base transition border border-slate-300">
                 Sign In to Dashboard
               </button>
             </div>
-            <div className="flex items-center justify-center gap-4 pt-6 text-sm font-bold text-slate-500 dark:text-gray-400">
+            <div className="flex items-center justify-center gap-4 pt-6 text-sm font-bold text-slate-500">
               <div className="flex -space-x-3">
                 <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
                 <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-300 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
                 <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-400 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-50 dark:bg-black0 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-50 shadow-sm overflow-hidden"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Student" className="w-full h-full object-cover" /></div>
               </div>
               <p>Join 10,000+ students mastering their courses.</p>
             </div>
@@ -150,7 +150,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
         </section>
 
         {/* Mockup Section */}
-        <section className="bg-white dark:bg-black py-12 px-6 flex justify-center relative z-10 w-full overflow-hidden">
+        <section className="bg-white py-12 px-6 flex justify-center relative z-10 w-full overflow-hidden">
             <div className="w-full max-w-[400px] mx-auto">
                 <video 
                   autoPlay loop muted playsInline 
@@ -234,7 +234,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <button onClick={() => {
                 onSignUp();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="px-10 py-5 bg-white dark:bg-black text-brand-700 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl">
+              }} className="px-10 py-5 bg-white text-brand-700 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl">
                 Get Started Now
               </button>
             </div>
@@ -243,13 +243,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-black py-12 px-6 relative z-10">
+      <footer className="border-t border-slate-200 bg-white py-12 px-6 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <img src="/logo_icon.png" alt="Avelut" className="w-6 h-6 grayscale opacity-60" />
             <span className="text-slate-400 font-black tracking-widest text-sm">AVELUT INC.</span>
           </div>
-          <div className="flex gap-8 text-sm font-bold text-slate-500 dark:text-gray-400">
+          <div className="flex gap-8 text-sm font-bold text-slate-500">
             <a href="/privacy" className="hover:text-brand-600 transition">Privacy Policy</a>
             <a href="/terms" className="hover:text-brand-600 transition">Terms of Service</a>
             <a href="#" className="hover:text-brand-600 transition">Contact Support</a>
@@ -264,7 +264,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 w-full max-w-sm bg-white dark:bg-black rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden"
+            className="fixed bottom-6 right-6 z-50 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
           >
             <div className="relative p-6">
               <button onClick={closePopup} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition">
@@ -275,7 +275,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                   <Smartphone className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-1">Get the Avelut App</h3>
+                  <h3 className="font-bold text-slate-900 text-lg mb-1">Get the Avelut App</h3>
                   <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                     Scan math problems directly with your camera. Download now for iOS and Android.
                   </p>
@@ -283,7 +283,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                     <button onClick={handleIOSClick} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
                        <Apple className="w-4 h-4" /> iOS
                     </button>
-                    <button onClick={handleAndroidDownload} className={`flex-1 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 ${downloadUrl ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-50 dark:bg-black text-slate-400 cursor-not-allowed'}`}>
+                    <button onClick={handleAndroidDownload} className={`flex-1 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 ${downloadUrl ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}>
                        <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Play" className={`w-4 h-4 ${!downloadUrl && 'opacity-50 grayscale'}`} /> Android
                     </button>
                   </div>

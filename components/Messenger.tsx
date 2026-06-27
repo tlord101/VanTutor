@@ -173,7 +173,7 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
         type="button"
         onClick={togglePlay}
         disabled={isUploading}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-white dark:bg-black/20 text-white hover:bg-white dark:bg-black/30' : 'bg-[#F8F9FA] dark:bg-black text-[#486380] hover:bg-[#E9ECEF]'
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition shrink-0 ${isMe ? 'bg-black/20 text-white hover:bg-black/30' : 'bg-[#F8F9FA] dark:bg-[#0B141A] text-[#009EE2] dark:text-white hover:bg-[#E9ECEF] dark:hover:bg-white/10'
           } ${isUploading ? 'cursor-not-allowed' : ''}`}
       >
         {isUploading ? (
@@ -1957,7 +1957,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           <span className="uppercase font-normal tracking-tight">
                             {msg.isUploading ? 'Sending...' : '12:53 PM'}
                           </span>
-                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? (document.documentElement.classList.contains('dark') ? '#4FB6EC' : '#009EE2') : (document.documentElement.classList.contains('dark') ? '#8696a0' : '#E9ECEF')} />}
+                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#FFFFFF' : 'rgba(255,255,255,0.5)'} />}
                         </div>
                         <div className="clear-both"></div>
 
