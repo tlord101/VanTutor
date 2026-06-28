@@ -114,10 +114,10 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <div className="flex-1 w-full max-w-4xl mx-auto h-full overflow-hidden flex flex-col bg-gray-50 dark:bg-black/50 md:rounded-2xl md:my-4 md:border border-gray-200 md:shadow-sm">
+        <div className="flex-1 w-full max-w-4xl mx-auto h-full overflow-hidden flex flex-col bg-gray-50 dark:bg-black/50 md:rounded-2xl md:my-4 md:border border-gray-200 dark:border-gray-800 md:shadow-sm">
             {/* Header */}
-            <div className="flex-none p-4 md:p-6 bg-white dark:bg-black border-b border-gray-200 flex justify-between items-center z-10 sticky top-0">
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <div className="flex-none p-4 md:p-6 bg-white dark:bg-[#0b1120] border-b border-gray-200 dark:border-gray-800 flex justify-between items-center z-10 sticky top-0">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <NotificationBellIcon className="w-6 h-6 text-lime-600" />
                     Notifications
                 </h1>
@@ -140,8 +140,8 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                             onClick={() => handleNotificationClick(notification)}
                             className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-200 cursor-pointer
                                 ${notification.is_read 
-                                    ? 'bg-white dark:bg-black border-gray-100 hover:border-gray-200 hover:shadow-sm' 
-                                    : 'bg-lime-50/30 border-lime-200 shadow-sm ring-1 ring-lime-500/10'}`}
+                                    ? 'bg-white dark:bg-[#0b1120] border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm' 
+                                    : 'bg-lime-50/30 dark:bg-lime-900/10 border-lime-200 dark:border-lime-900 shadow-sm ring-1 ring-lime-500/10'}`}
                         >
                             {!notification.is_read && (
                                 <div className="absolute top-0 left-0 w-1 h-full bg-lime-500 rounded-l-xl"></div>
@@ -155,31 +155,16 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                                 
                                 <div className="flex-1 min-w-0 pt-1">
                                     <div className="flex justify-between items-start gap-2 mb-1">
-                                        <p className={`font-semibold text-base truncate ${notification.is_read ? 'text-gray-700' : 'text-gray-900'}`}>
+                                        <p className={`font-semibold text-base truncate ${notification.is_read ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
                                             {notification.title}
                                         </p>
                                         <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
                                             {timeAgo(notification.timestamp)}
                                         </span>
                                     </div>
-                                    <p className={`text-sm line-clamp-2 ${notification.is_read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700'}`}>
+                                    <p className={`text-sm line-clamp-2 ${notification.is_read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
                                         {notification.message}
                                     </p>
-
-                                    {/* Action Buttons */}
-                                    {notification.action_buttons && notification.action_buttons.length > 0 && (
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            {notification.action_buttons.map((btn, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={(e) => handleActionClick(notification, btn.action, e)}
-                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-lime-700 bg-lime-100 hover:bg-lime-200 transition-colors"
-                                                >
-                                                    {btn.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
 
                                     {/* Inline Reply Input */}
                                     {replyingTo === notification.id && (
@@ -215,7 +200,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <NotificationBellIcon className="w-10 h-10 text-gray-300" />
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">No notifications yet</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No notifications yet</h3>
                         <p className="text-gray-500 dark:text-gray-400 max-w-sm">When you receive new messages, partner requests, or study reminders, they will appear here.</p>
                     </div>
                 )}

@@ -40,8 +40,6 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const isConfigured = 
@@ -53,7 +51,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 if (isConfigured) {
-  root.render(
+  const appContent = (
     <React.StrictMode>
       <HelmetProvider>
         <ThemeProvider>
@@ -66,7 +64,15 @@ if (isConfigured) {
       </HelmetProvider>
     </React.StrictMode>
   );
+
+  if (rootElement.hasChildNodes()) {
+    ReactDOM.hydrateRoot(rootElement, appContent);
+  } else {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(appContent);
+  }
 } else {
+  const root = ReactDOM.createRoot(rootElement);
   root.render(<SetupRequired />);
 }
 

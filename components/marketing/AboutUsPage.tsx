@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { ref, get, query, orderByChild } from 'firebase/database';
 import { db } from '../../firebase';
 import { SEOHead } from '../SEOHead';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -21,10 +21,15 @@ export const AboutUsPage: React.FC = () => {
     useEffect(() => {
         const fetchFounders = async () => {
             try {
-                const q = query(collection(db, 'coFounders'), orderBy('order', 'asc'));
-                const snapshot = await getDocs(q);
-                const foundersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CoFounder));
-                setFounders(foundersData);
+                const foundersRef = query(ref(db, 'coFounders'), orderByChild('order'));
+                const snapshot = await get(foundersRef);
+                if (snapshot.exists()) {
+                    const foundersData: CoFounder[] = [];
+                    snapshot.forEach((childSnapshot) => {
+                        foundersData.push({ id: childSnapshot.key, ...childSnapshot.val() } as CoFounder);
+                    });
+                    setFounders(foundersData);
+                }
             } catch (error) {
                 console.error("Error fetching co-founders:", error);
             } finally {

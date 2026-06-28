@@ -401,11 +401,12 @@ const App: React.FC = () => {
             setAdminPath(nextPath);
             return;
         }
-        const pathname = getWindowPathname();
-        if (pathname === '/admin' && typeof window !== 'undefined') {
-            window.history.pushState(null, '', '/');
-        } else if (pathname.startsWith('/admin') && typeof window !== 'undefined') {
-            window.history.replaceState(null, '', '/');
+        
+        if (typeof window !== 'undefined') {
+            const expectedPath = newItem === 'dashboard' ? '/' : `/${newItem}`;
+            if (getWindowPathname() !== expectedPath) {
+                window.history.pushState(null, '', expectedPath);
+            }
         }
     }, []);
 
@@ -443,9 +444,6 @@ const App: React.FC = () => {
         if (item === 'admin') {
             setAdminPath(pathname.startsWith('/admin') ? pathname : '/admin');
             return;
-        }
-        if (pathname !== '/' && pathname !== '/dashboard' && typeof window !== 'undefined') {
-            window.history.replaceState(null, '', '/');
         }
     }, []);
 

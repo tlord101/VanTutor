@@ -1063,7 +1063,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           <button onClick={() => navigate('/upload-center/requests')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${activeView === 'requests' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50'}`}><List className="w-5 h-5" /> All Requests</button>
         </nav>
         <div className="p-4 border-t border-slate-100 mt-auto">
-          <button onClick={handleLogout} className="w-full py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition">Sign Out</button>
+          <button onClick={handleLogout} className="w-full py-2 text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-slate-200 transition">Sign Out</button>
         </div>
       </aside>
 
@@ -1269,7 +1269,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
 
                       {extractedCourses.length > 0 ? (
                         <div className="space-y-4">
-                          <h4 className="font-bold text-lg text-slate-800">Extracted Courses</h4>
+                          <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200">Extracted Courses</h4>
                           <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
                             {extractedCourses.map((c, idx) => (
                               <div key={idx} className="flex flex-col sm:flex-row gap-3 items-center p-3 border border-slate-200 rounded-xl bg-slate-50">

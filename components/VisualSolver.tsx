@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { db } from '../firebase';
-import { ref as dbRef, onValue } from 'firebase/database';
+import { db, storage } from '../firebase';
+import { ref as dbRef, onValue, push, set, update, get } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { createAvelutAI, getResponseText } from '../utils/inference';
@@ -12,6 +13,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useToast } from '../hooks/useToast';
+import html2canvas from 'html2canvas';
+
 // --- INLINE ICONS ---
 const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
      <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -30,101 +33,190 @@ interface TutorialDisplayProps {
     scannedImage: string;
     tutorialText: string;
     onClose: () => void;
+    userProfile: UserProfile;
 }
 
-const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose }) => {
+const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isSharing, setIsSharing] = useState(false);
+    const { addToast } = useToast();
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>({});
+    const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        if (!userProfile) return;
+        const partnersRef = dbRef(db, `study_partners/${userProfile.uid}`);
+        const usersRef = dbRef(db, 'users');
+
+        const unsubPartners = onValue(partnersRef, (snap) => setStudyPartners(snap.val() || {}));
+        const unsubUsers = onValue(usersRef, (snap) => {
+            const data = snap.val();
+            if (data) {
+                const list: UserProfile[] = Object.keys(data).map(key => ({
+                    uid: key,
+                    display_name: data[key].displayName || data[key].display_name || 'User',
+                    photo_url: data[key].photoURL || data[key].photo_url || '',
+                    ...data[key]
+                }));
+                setAllUsers(list);
+            }
+        });
+
+        return () => {
+            unsubPartners();
+            unsubUsers();
+        };
+    }, [userProfile]);
+
+    const captureImage = async (): Promise<Blob | null> => {
+        if (!containerRef.current) return null;
+        setIsSharing(true);
+        try {
+            // Provide specific configuration to html2canvas for better markdown support
+            const canvas = await html2canvas(containerRef.current, {
+                useCORS: true,
+                scale: 2,
+                windowWidth: containerRef.current.scrollWidth,
+                windowHeight: containerRef.current.scrollHeight
+            });
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/png');
+            });
+        } catch (err) {
+            console.error('Failed to capture image', err);
+            return null;
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
+    const handleShareNative = async () => {
+        const blob = await captureImage();
+        if (!blob) {
+            addToast('Failed to generate image.', 'error');
+            return;
+        }
+        const file = new File([blob], 'avelut_solution.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'Avelut Solution',
+                    text: 'Check out this solution from Avelut Visual Solver!',
+                    files: [file]
+                });
+            } catch (err) {
+                console.error('Error sharing', err);
+            }
+        } else {
+            // Fallback to download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'avelut_solution.png';
+            a.click();
+            URL.revokeObjectURL(url);
+            addToast('Image downloaded! You can now share it manually.', 'success');
+        }
+    };
+
+    const handleForwardToPartner = async () => {
+        if (selectedIds.length === 0) return;
+        setIsSending(true);
+        const blob = await captureImage();
+        if (!blob) {
+            addToast('Failed to generate image.', 'error');
+            setIsSending(false);
+            return;
+        }
+
+        try {
+            for (const recipientId of selectedIds) {
+                const chatId = [userProfile.uid, recipientId].sort().join('_');
+                const localTimestamp = Date.now();
+                const cloudPath = `chat_files/${chatId}/${localTimestamp}_solution.png`;
+                const fileBucketRef = storageRef(storage, cloudPath);
+                const snapshot = await uploadBytes(fileBucketRef, blob);
+                const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+
+                const text = `![Avelut Solution](${fileDownloadUrl})`;
+                const msgRef = push(dbRef(db, `messages/${chatId}`));
+                const data = { senderId: userProfile.uid, text, type: 'image', timestamp: localTimestamp, is_forwarded: true };
+                await set(msgRef, data);
+
+                const updates: any = {};
+                const participantIds = [userProfile.uid, recipientId];
+                participantIds.forEach((participantId) => {
+                    updates[`user_chats/${participantId}/${chatId}/last_message`] = {
+                        text: '📷 Solution Image',
+                        senderId: userProfile.uid,
+                        timestamp: localTimestamp,
+                        type: 'image',
+                    };
+                    updates[`user_chats/${participantId}/${chatId}/timestamp`] = localTimestamp;
+                    updates[`user_chats/${participantId}/${chatId}/otherUserId`] = participantId === userProfile.uid
+                        ? recipientId
+                        : userProfile.uid;
+                });
+                updates[`user_chats/${userProfile.uid}/${chatId}/unreadCount`] = 0;
+                // We use get() here to increment isn't strictly necessary if we rely on update logic, but we assume it's just +1
+                // Actually, increment(1) requires ServerValue.increment which we didn't import, so we fetch or just set to 1.
+                // We will just do a simple update since this is optimistic.
+                updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = 1; // Simplify
+
+                await update(dbRef(db), updates);
+            }
+            addToast('Forwarded successfully!', 'success');
+            setShowForwardModal(false);
+            setSelectedIds([]);
+        } catch (err: any) {
+            console.error('Failed to forward', err);
+            addToast('Failed to forward image.', 'error');
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const partnersList = allUsers.filter(u => studyPartners[u.uid] === true);
+    const filteredPartners = partnersList.filter(u => u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return (
-        <div className="w-full h-full flex flex-col bg-gradient-to-b from-gray-50 to-white">
-            <div className="flex-shrink-0 h-[33vh] bg-gradient-to-br from-indigo-50 to-blue-50 border-b-2 border-indigo-200 shadow-sm">
-                <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain p-2" />
-            </div>
-            <div className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-hidden min-h-0">
-                <div className="max-w-4xl mx-auto h-full">
-                    <div className="h-full overflow-y-auto pr-2 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_#f1f5f9] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-gray-400">
+        <div className="w-full h-full flex flex-col bg-gradient-to-b from-gray-50 to-white relative">
+            <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
+                <div className="flex-shrink-0 h-[33vh] bg-gradient-to-br from-indigo-50 to-blue-50 border-b-2 border-indigo-200 shadow-sm">
+                    <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain p-2" />
+                </div>
+                <div className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
                             components={{
-                                // Main headings - Problem Title
-                                h1: ({node, ...props}) => (
-                                    <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-6 pb-4 border-b-2 border-indigo-200 mt-2" {...props} />
-                                ),
-                                // Section headings - Steps, Analysis, etc.
-                                h2: ({node, ...props}) => (
-                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8 pt-4 border-t border-gray-200 dark:border-transparent flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />
-                                ),
-                                // Sub-sections
-                                h3: ({node, ...props}) => (
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-indigo-700 mb-3 mt-6 pl-4 border-l-4 border-indigo-400" {...props} />
-                                ),
-                                // Minor headings
-                                h4: ({node, ...props}) => (
-                                    <h4 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 mt-4" {...props} />
-                                ),
-                                // Paragraphs with better spacing and readability
-                                p: ({node, ...props}) => (
-                                    <p className="mb-5 text-base sm:text-lg leading-relaxed text-gray-700 tracking-wide" {...props} />
-                                ),
-                                // Bold text - for key concepts
-                                strong: ({node, ...props}) => (
-                                    <strong className="font-bold text-gray-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />
-                                ),
-                                // Italic text - for emphasis
-                                em: ({node, ...props}) => (
-                                    <em className="italic text-indigo-600 font-medium" {...props} />
-                                ),
-                                // Unordered lists with better styling
-                                ul: ({node, ...props}) => (
-                                    <ul className="list-none space-y-3 my-5 pl-1" {...props} />
-                                ),
-                                // List items with custom bullets
-                                li: ({node, ...props}) => (
-                                    <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />
-                                ),
-                                // Ordered lists for steps
-                                ol: ({node, ...props}) => (
-                                    <ol className="list-none space-y-4 my-6 counter-reset-[step]" {...props} />
-                                ),
-                                // Code blocks with syntax highlighting style
-                                code: ({node, inline, ...props}: any) => 
-                                    inline ? (
-                                        <code className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono text-sm border border-indigo-200" {...props} />
-                                    ) : (
-                                        <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 font-mono text-sm leading-relaxed border-l-4 border-indigo-500" {...props} />
-                                    ),
-                                // Pre blocks for code
-                                pre: ({node, ...props}) => (
-                                    <pre className="bg-gray-900 rounded-lg overflow-hidden my-5 shadow-lg" {...props} />
-                                ),
-                                // Blockquotes for important notes
-                                blockquote: ({node, ...props}) => (
-                                    <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-6 pr-4 py-4 my-5 rounded-r-lg shadow-sm" {...props} />
-                                ),
-                                // Tables with better styling
-                                table: ({node, ...props}) => (
-                                    <div className="overflow-x-auto my-6 shadow-md rounded-lg">
-                                        <table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent" {...props} />
-                                    </div>
-                                ),
-                                thead: ({node, ...props}) => (
-                                    <thead className="bg-indigo-600 text-white" {...props} />
-                                ),
-                                tbody: ({node, ...props}) => (
-                                    <tbody className="bg-white dark:bg-black divide-y divide-gray-200" {...props} />
-                                ),
-                                tr: ({node, ...props}) => (
-                                    <tr className="hover:bg-gray-50 dark:bg-black transition-colors" {...props} />
-                                ),
-                                th: ({node, ...props}) => (
-                                    <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />
-                                ),
-                                td: ({node, ...props}) => (
-                                    <td className="px-6 py-4 text-sm text-gray-700" {...props} />
-                                ),
-                                // Horizontal rules
-                                hr: ({node, ...props}) => (
-                                    <hr className="my-8 border-t-2 border-gray-200 dark:border-transparent" {...props} />
-                                ),
+                                h1: ({node, ...props}) => <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-6 pb-4 border-b-2 border-indigo-200 mt-2" {...props} />,
+                                h2: ({node, ...props}) => <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 mt-8 pt-4 border-t border-gray-200 dark:border-transparent flex items-center gap-3 before:content-['▸'] before:text-indigo-500" {...props} />,
+                                h3: ({node, ...props}) => <h3 className="text-xl sm:text-2xl font-semibold text-indigo-700 mb-3 mt-6 pl-4 border-l-4 border-indigo-400" {...props} />,
+                                h4: ({node, ...props}) => <h4 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-4" {...props} />,
+                                p: ({node, ...props}) => <p className="mb-5 text-base sm:text-lg leading-relaxed text-gray-700 tracking-wide" {...props} />,
+                                strong: ({node, ...props}) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />,
+                                em: ({node, ...props}) => <em className="italic text-indigo-600 font-medium" {...props} />,
+                                ul: ({node, ...props}) => <ul className="list-none space-y-3 my-5 pl-1" {...props} />,
+                                li: ({node, ...props}) => <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />,
+                                ol: ({node, ...props}) => <ol className="list-none space-y-4 my-6 counter-reset-[step]" {...props} />,
+                                code: ({node, inline, ...props}: any) => inline ? <code className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono text-sm border border-indigo-200" {...props} /> : <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 font-mono text-sm leading-relaxed border-l-4 border-indigo-500" {...props} />,
+                                pre: ({node, ...props}) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-5 shadow-lg" {...props} />,
+                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-6 pr-4 py-4 my-5 rounded-r-lg shadow-sm" {...props} />,
+                                table: ({node, ...props}) => <div className="overflow-x-auto my-6 shadow-md rounded-lg"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent" {...props} /></div>,
+                                thead: ({node, ...props}) => <thead className="bg-indigo-600 text-white" {...props} />,
+                                tbody: ({node, ...props}) => <tbody className="bg-white dark:bg-black divide-y divide-gray-200" {...props} />,
+                                tr: ({node, ...props}) => <tr className="hover:bg-gray-50 dark:bg-black transition-colors" {...props} />,
+                                th: ({node, ...props}) => <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />,
+                                td: ({node, ...props}) => <td className="px-6 py-4 text-sm text-gray-700" {...props} />,
+                                hr: ({node, ...props}) => <hr className="my-8 border-t-2 border-gray-200 dark:border-transparent" {...props} />,
                             }}
                         >
                             {tutorialText}
@@ -132,20 +224,65 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     </div>
                 </div>
             </div>
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 dark:border-transparent bg-white dark:bg-black/90 backdrop-blur-md shadow-lg">
-                <div className="max-w-4xl mx-auto">
-                    <button 
-                        onClick={onClose} 
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Scan Another Problem
-                    </button>
-                </div>
+            
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 dark:border-transparent bg-white dark:bg-black/90 backdrop-blur-md shadow-lg flex gap-3">
+                <button 
+                    onClick={onClose} 
+                    className="flex-1 bg-neutral-200 dark:bg-gray-800 hover:bg-neutral-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                    <ArrowLeftIcon className="w-5 h-5" />
+                    Back
+                </button>
+                <button 
+                    onClick={handleShareNative} 
+                    disabled={isSharing}
+                    className="flex-1 bg-[#009EE2] hover:bg-[#0070B8] text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                    Share
+                </button>
+                <button 
+                    onClick={() => setShowForwardModal(true)} 
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
+                    Forward
+                </button>
             </div>
+
+            {showForwardModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh]">
+                        <div className="p-5 border-b border-[#E9ECEF] dark:border-transparent flex items-center justify-between">
+                            <h2 className="text-base font-bold text-[#212529] dark:text-white">Forward Solution</h2>
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition">✕</button>
+                        </div>
+                        <div className="p-4 border-b border-[#E9ECEF]">
+                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#F8F9FA] dark:bg-black text-sm px-4 py-2 rounded-xl border focus:outline-none focus:border-[#009EE2]" />
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            {filteredPartners.length === 0 ? (
+                                <p className="text-center text-xs font-medium text-gray-500 py-8">No partners found</p>
+                            ) : (
+                                filteredPartners.map(u => (
+                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer ${selectedIds.includes(u.uid) ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'border-[#E9ECEF]'}`}>
+                                        <div className="font-semibold text-sm">{u.display_name}</div>
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedIds.includes(u.uid) ? 'border-[#009EE2] bg-[#009EE2]' : 'border-gray-300'}`}>
+                                            {selectedIds.includes(u.uid) && <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="p-4 border-t bg-[#F8F9FA] dark:bg-black flex gap-3">
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 bg-white border py-3.5 rounded-xl font-bold text-xs text-gray-500 uppercase">Cancel</button>
+                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] bg-[#009EE2] text-white py-3.5 rounded-xl font-bold text-xs uppercase disabled:opacity-50 flex justify-center items-center gap-2">
+                                {isSending ? 'Sending...' : `Send to ${selectedIds.length} partner${selectedIds.length !== 1 ? 's' : ''}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -624,10 +761,10 @@ ${retrievedContext}
                 return <div className="flex flex-col items-center justify-center h-full"><img src="/logo_icon.png" alt="AVELUT" className="w-12 h-12 object-contain animate-pulse" /><p className="mt-4 text-gray-700">Starting camera...</p></div>;
 
             case 'denied':
-                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-yellow-500 mb-4" /><h3 className="text-xl font-semibold">Camera Access Denied</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-yellow-500 mb-4" /><h3 className="text-xl font-semibold">Camera Access Denied</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
 
             case 'error':
-                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-500 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
+                return <div className="flex flex-col items-center justify-center h-full text-center p-4"><ErrorIcon className="w-12 h-12 text-red-500 mb-4" /><h3 className="text-xl font-semibold">Camera Error</h3><p className="text-gray-600 mt-2 max-w-sm">{error}</p><button onClick={initializeCamera} className="mt-6 bg-gray-200 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Retry</button></div>;
             
             case 'ready':
             case 'scanning':
@@ -698,7 +835,7 @@ ${retrievedContext}
                     <div className="relative w-full h-full flex flex-col items-center justify-center bg-gray-900">
                         {scannedImage && <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain" />}
                         {cameraState === 'analyzing' && (
-                            <div className="absolute inset-0 bg-white dark:bg-black/80 flex flex-col items-center justify-center text-gray-900">
+                            <div className="absolute inset-0 bg-white dark:bg-black/80 flex flex-col items-center justify-center text-gray-900 dark:text-white">
                                 <img src="/logo_icon.png" alt="AVELUT" className="w-12 h-12 object-contain animate-pulse" />
                                 <p className="mt-4 text-lg font-semibold">Analyzing...</p>
                                 <p className="text-gray-600">This may take a moment.</p>
@@ -763,6 +900,7 @@ ${retrievedContext}
                     scannedImage={scannedImage}
                     tutorialText={analysisResult}
                     onClose={handleRetake}
+                    userProfile={userProfile}
                 />;
 
             default:

@@ -141,7 +141,7 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
                              <GraduationCapIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{getCourseNameById(exam.department_id)}</p>
+                            <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{getCourseNameById(exam.department_id)}</p>
                             <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-0.5">
                                 {new Date(exam.timestamp).toLocaleDateString()}
                             </p>
@@ -800,7 +800,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                     <div className="absolute inset-0 bg-lime-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
                     <LoadingSpinner text="" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tighter mb-2">Assembling your Exam...</h3>
+                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter mb-2">Assembling your Exam...</h3>
                 <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse text-center max-w-xs">Gemini is selecting questions based on your mastery</p>
             </div>
         );
@@ -832,7 +832,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 <div className="flex justify-between items-center mt-2">
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Question</p>
-                        <p className="text-2xl font-black text-gray-900 tracking-tighter">
+                        <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
                             {currentQuestionIndex + 1} <span className="text-gray-300 mx-1 text-xl">/</span> <span className="text-gray-400 text-xl">{questions.length}</span>
                         </p>
                     </div>
@@ -847,12 +847,12 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             </div>
 
             <div className="space-y-6">
-                <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.25] tracking-tight">{currentQuestion.question}</h3>
+                <h3 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-[1.25] tracking-tight">{currentQuestion.question}</h3>
                 
                 {examFormat === 'theory' ? (
                     <div className="w-full relative group">
                         <textarea
-                            className="w-full min-h-[180px] p-6 rounded-[2rem] border-2 border-gray-200/60 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 bg-white dark:bg-black/50 backdrop-blur-sm shadow-inner text-base md:text-lg"
+                            className="w-full min-h-[180px] p-6 rounded-[2rem] border-2 border-gray-200/60 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10 transition-all resize-y text-gray-900 dark:text-white bg-white dark:bg-black/50 backdrop-blur-sm shadow-inner text-base md:text-lg"
                             placeholder="Construct your response here..."
                             value={selectedOption || ''}
                             onChange={(e) => !feedback && setSelectedOption(e.target.value)}
@@ -1016,7 +1016,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center inset-0 z-20">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Score</p>
-                    <p className="text-6xl font-black text-gray-900 tracking-tighter tabular-nums">{percentage}<span className="text-2xl text-gray-400">%</span></p>
+                    <p className="text-6xl font-black text-gray-900 dark:text-white tracking-tighter tabular-nums">{percentage}<span className="text-2xl text-gray-400">%</span></p>
                     <div className="h-px w-12 bg-gray-200 my-2"></div>
                     <p className={`text-xs font-black uppercase tracking-widest ${percentage >= 80 ? 'text-lime-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
                         {score} / {questions.length}
@@ -1025,7 +1025,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             </div>
 
             <div className="space-y-3">
-                <h3 className="text-4xl font-black text-gray-900 tracking-tighter">
+                <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">
                     {percentage >= 80 ? 'Masterfully Done.' : percentage >= 50 ? 'Solid Effort.' : 'Keep Training.'}
                 </h3>
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-50 rounded-full border border-amber-200 text-amber-700">
@@ -1038,7 +1038,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 <button onClick={resetExam} className="w-full bg-gradient-to-b from-gray-900 to-black text-white font-black py-5 rounded-2xl hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-gray-900/20 text-sm uppercase tracking-widest">
                     Start New Training
                 </button>
-                <button onClick={() => setExamState('history')} className="w-full bg-white dark:bg-black text-gray-500 dark:text-gray-400 font-black py-5 rounded-2xl border-2 border-gray-100 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 dark:bg-black transition-all text-sm uppercase tracking-widest">
+                <button onClick={() => setExamState('history')} className="w-full bg-white dark:bg-black text-gray-500 dark:text-gray-400 font-black py-5 rounded-2xl border-2 border-gray-100 hover:text-gray-900 dark:text-white hover:border-gray-300 hover:bg-gray-50 dark:bg-black transition-all text-sm uppercase tracking-widest">
                     View Performance History
                 </button>
             </div>
@@ -1050,7 +1050,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
               <div className="max-w-3xl mx-auto space-y-8 py-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center">
                       <div>
-                        <h3 className="text-3xl font-black text-gray-900 tracking-tighter leading-none mb-2">Exam History</h3>
+                        <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter leading-none mb-2">Exam History</h3>
                         <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Your previous performance</p>
                       </div>
                       <button 
@@ -1080,7 +1080,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                       </div>
                       <button 
                         onClick={() => setExamState('history')} 
-                        className="relative z-10 bg-white dark:bg-black/10 hover:bg-white dark:bg-black text-white hover:text-gray-900 p-4 rounded-2xl transition-all duration-300 backdrop-blur-md"
+                        className="relative z-10 bg-white dark:bg-black/10 hover:bg-white dark:bg-black text-white hover:text-gray-900 dark:text-white p-4 rounded-2xl transition-all duration-300 backdrop-blur-md"
                       >
                         <XIcon className="w-5 h-5" />
                       </button>
@@ -1092,7 +1092,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                               <div className="flex justify-between items-start mb-6">
                                   <div>
                                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Observation {index + 1}</p>
-                                      <h4 className="text-xl md:text-2xl font-black text-gray-900 leading-tight pr-8">{q.question}</h4>
+                                      <h4 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white leading-tight pr-8">{q.question}</h4>
                                   </div>
                                   <div className={`p-3 rounded-2xl shrink-0 shadow-sm ${q.isCorrect ? 'bg-lime-100 text-lime-600 border border-lime-200/50' : 'bg-red-100 text-red-600 border border-red-200/50'}`}>
                                       {q.isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
@@ -1108,7 +1108,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                       {!q.isCorrect && (
                                           <div className="p-6 rounded-[1.5rem] bg-gray-50 dark:bg-black border border-gray-200/60 shadow-inner">
                                               <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Model Answer</p>
-                                              <p className="text-base font-black text-gray-900">{q.correctAnswer}</p>
+                                              <p className="text-base font-black text-gray-900 dark:text-white">{q.correctAnswer}</p>
                                           </div>
                                       )}
                                   </div>
@@ -1163,7 +1163,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                       <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
                       <div className="relative z-10 text-center">
                           <div className="w-16 h-16 bg-gradient-to-br from-lime-100 to-lime-50 border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 mb-6 font-black text-2xl shadow-sm mx-auto">AI</div>
-                          <h4 className="text-2xl font-black text-gray-900 tracking-tight">Custom Exam Generator</h4>
+                          <h4 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Custom Exam Generator</h4>
                           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">Generate a full 20-question exam for a specific course.</p>
                       </div>
 
@@ -1194,7 +1194,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                       <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
                       <div className="relative z-10 text-center">
                           <div className="w-16 h-16 bg-gradient-to-br from-sky-100 to-sky-50 border border-sky-200/50 rounded-2xl flex items-center justify-center text-sky-600 mb-6 font-black shadow-sm mx-auto"><ListIcon className="w-8 h-8"/></div>
-                          <h4 className="text-2xl font-black text-gray-900 tracking-tight">AI Flash Cards</h4>
+                          <h4 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">AI Flash Cards</h4>
                           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">Generate 10 rapid-fire flashcards to test your definitions.</p>
                       </div>
 
@@ -1250,7 +1250,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                               </div>
                                               <div className="p-5">
                                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{pq.course_id}</p>
-                                                  <h4 className="text-lg font-black text-gray-900 leading-tight">{cName}</h4>
+                                                  <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight">{cName}</h4>
                                                   <p className="text-sm font-bold text-purple-600 mt-4 flex items-center gap-2 group-hover:text-purple-700">Start Mock Exam &rarr;</p>
                                               </div>
                                           </button>

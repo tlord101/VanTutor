@@ -20,6 +20,7 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { TypingIndicator } from './TypingIndicator';
 
 type AssistantSender = 'user' | 'assistant';
 
@@ -476,7 +477,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             </button>
             <div className="flex flex-col justify-center ml-1">
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600 hidden sm:block">AVELUT AI</p>
-              <h1 className="text-base sm:text-lg font-bold text-slate-800 truncate max-w-[150px] sm:max-w-[200px]">{conversationSummary}</h1>
+              <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px] sm:max-w-[200px]">{conversationSummary}</h1>
             </div>
           </div>
         ),
@@ -931,7 +932,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black hover:border-slate-300 hover:bg-slate-50 dark:bg-black'}`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-gray-400">Recent chat</p>
-                    <p className="mt-1 text-sm font-medium text-slate-800 truncate">{item.title}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{item.title}</p>
                   </button>
                   <button
                     type="button"
@@ -1009,7 +1010,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       className={`px-4 py-3 shadow-sm ${
                         message.sender === 'user'
                           ? 'max-w-[76%] rounded-3xl bg-emerald-600 text-white'
-                          : 'w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#1A1D21] text-slate-800 dark:text-slate-200'
+                          : 'w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200'
                       }`}
                     >
                       {message.attachments && message.attachments.length > 0 && (
@@ -1086,9 +1087,22 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   </div>
                 ); })}
 
+                {isSending && streamingBotText === null && (
+                  <div className="flex justify-start mt-2 mb-2">
+                    {uploadProgress ? (
+                      <div className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-sm sm:max-w-[75%] rounded-tl-sm flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                        <span>{uploadProgress}</span>
+                      </div>
+                    ) : (
+                      <TypingIndicator />
+                    )}
+                  </div>
+                )}
+
                 {streamingBotText !== null && (
                   <div className="flex justify-start">
-                    <div className="w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#1A1D21] text-slate-800 dark:text-slate-200 px-4 py-3 shadow-sm">
+                    <div className="w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 px-4 py-3 shadow-sm">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
@@ -1107,20 +1121,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   </div>
                 )}
 
-                {isSending && streamingBotText === null && (
-                  <div className="flex justify-start">
-                    <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 text-sm text-slate-500 dark:text-gray-400 shadow-sm">
-                      {uploadProgress ? (
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                          <span>{uploadProgress}</span>
-                        </div>
-                      ) : (
-                        "Thinking..."
-                      )}
-                    </div>
-                  </div>
-                )}
+
                 {/* Scroll anchor handled by container ref */}
               </div>
             )}
@@ -1130,12 +1131,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-slate-50 dark:bg-black pb-2 px-0 md:pb-4 md:px-4 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
             <div className="w-full max-w-6xl transition-all duration-300 mb-5 md:mb-[30px]">
               
-              {/* Status Indicator */}
-              <div className="mb-2 mx-auto flex items-center justify-center pointer-events-none">
-                <span className="inline-block rounded-full bg-emerald-50 border border-emerald-200/60 px-3 py-1 text-[10px] font-semibold text-emerald-600 sm:text-xs shadow-sm">
-                  {statusText}
-                </span>
-              </div>
+              {/* Status Indicator removed */}
               
               {/* Attachment Preview */}
               {attachments.length > 0 && (

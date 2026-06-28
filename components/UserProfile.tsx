@@ -330,7 +330,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                         </ReactCrop>
                     </div>
                     <div className="flex justify-end gap-3 mt-4 w-full">
-                        <button onClick={() => setCropImageSrc(null)} className="px-5 py-2 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300">Cancel</button>
+                        <button onClick={() => setCropImageSrc(null)} className="px-5 py-2 bg-gray-200 text-gray-800 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-300">Cancel</button>
                         <button onClick={handleConfirmCrop} disabled={isSaving} className="px-5 py-2 bg-[#009EE2] text-white rounded-xl font-bold hover:bg-[#0070B8] disabled:opacity-50">Confirm</button>
                     </div>
                 </div>

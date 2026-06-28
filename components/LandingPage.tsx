@@ -7,6 +7,7 @@ import { FAQs } from './marketing/FAQs';
 import { AppDownloadCTA } from './marketing/AppDownloadCTA';
 import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
+import { SEO } from './SEO';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -72,6 +73,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
+      <SEO />
       {/* Dynamic Background Elements */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-100 rounded-full blur-[120px] mix-blend-multiply animate-pulse duration-10000" />

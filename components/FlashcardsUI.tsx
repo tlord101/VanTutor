@@ -44,12 +44,12 @@ const FlashcardItem = ({ card, stackIndex, exitDirection, isFlipped, setIsFlippe
         opacity: stackIndex > 2 ? 0 : 1,
         zIndex: stackIndex === 0 ? 30 : stackIndex === 1 ? 20 : 10
       }}
-      exit={(dir: number) => ({
+      exit={((dir: number) => ({
         x: dir * 300,
         opacity: 0,
         rotate: dir * 45,
         transition: { duration: 0.3 }
-      })}
+      })) as any}
       className="absolute inset-0 cursor-grab active:cursor-grabbing"
       onClick={() => {
         if (isFront) setIsFlipped(!isFlipped);

@@ -6,7 +6,7 @@ import { ArrowLeft, Mail, Phone, MapPin, Send, Loader2 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 
 export const ContactUsPage: React.FC = () => {
-    const { showToast } = useToast();
+    const { addToast } = useToast();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [subject, setSubject] = useState('');
@@ -21,15 +21,16 @@ export const ContactUsPage: React.FC = () => {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const snapshot = await get(dbRef(db, 'app_settings'));
+                const settingsRef = dbRef(db, 'app_settings/global');
+                const snapshot = await get(settingsRef);
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     if (data.support_email) setSupportEmail(data.support_email);
                     if (data.support_phone) setSupportPhone(data.support_phone);
                     if (data.support_address) setSupportAddress(data.support_address);
                 }
-            } catch (error) {
-                console.error("Failed to load settings:", error);
+            } catch (e) {
+                console.error("Failed to load support settings:", e);
             }
         };
         fetchSettings();
@@ -37,25 +38,35 @@ export const ContactUsPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (!name || !email || !subject || !message) {
+            addToast('Please fill in all fields', 'error');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            const newTicketRef = push(dbRef(db, 'contact_tickets'));
+            const ticketsRef = dbRef(db, 'support_tickets');
+            const newTicketRef = push(ticketsRef);
             await set(newTicketRef, {
                 name,
                 email,
                 subject,
                 message,
-                status: 'unread',
-                createdAt: Date.now()
+                status: 'open',
+                timestamp: Date.now()
             });
-            showToast('Message sent successfully! We will get back to you soon.', 'success');
+
+            addToast('Your message has been sent successfully! We will get back to you soon.', 'success');
+            
+            // Clear form
             setName('');
             setEmail('');
             setSubject('');
             setMessage('');
-        } catch (error) {
-            console.error("Error submitting contact form:", error);
-            showToast('Failed to send message. Please try again.', 'error');
+        } catch (error: any) {
+            console.error("Error submitting ticket:", error);
+            addToast(`Failed to send message: ${error.message}`, 'error');
         } finally {
             setIsSubmitting(false);
         }

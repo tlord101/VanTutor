@@ -9,10 +9,11 @@ import { VerificationBadge } from './VerificationBadge';
 import { StreakBadge } from './StreakBadge';
 import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { useTheme } from '../contexts/ThemeContext';
 import { Trash2, Send, Mic, FileText, Image as ImageIcon, Sticker } from 'lucide-react';
+import { TypingIndicator } from './TypingIndicator';
 
 const REACTION_EMOJIS = ['🔥', '😂', '😍', '👏', '😮', '😭', '👍', '❤️'];
 
@@ -542,6 +543,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const [forwardTargetContent, setForwardTargetContent] = useState('');
   const [forwardTargetType, setForwardTargetType] = useState('text');
+  
+  // Image preview state
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
   // Realtime active chats statuses (typing, recording)
   const [chatStatuses, setChatStatuses] = useState<Record<string, { isTyping?: boolean; isRecording?: boolean }>>({});
@@ -1267,26 +1271,43 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const img = imgItem as any;
       const localTimestamp = Date.now();
       const tempId = `temp_img_${localTimestamp}`;
+      const localUrl = URL.createObjectURL(img);
 
       const pendingMessage = {
         id: tempId,
         senderId: firebaseUser.uid,
-        text: `![Captured Image]()`,
+        text: `![Captured Image](${localUrl})`,
         type: 'image',
         timestamp: localTimestamp,
-        isUploading: true
+        isUploading: true,
+        uploadProgress: 0
       };
       setOptimisticMessages(prev => [...prev, pendingMessage]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
       try {
         const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${img.name}`;
         const fileBucketRef = storageRef(storage, cloudPath);
-        const snapshot = await uploadBytes(fileBucketRef, img);
-        const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
+        
+        const uploadTask = uploadBytesResumable(fileBucketRef, img);
+        
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, uploadProgress: progress } : m));
+          },
+          (error) => {
+             addToast('Failed to upload image.', 'error');
+             setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+          },
+          async () => {
+             const fileDownloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+             setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+             await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
+          }
+        );
       } catch (err) {
-        addToast('Failed to upload visual layout media.', 'error');
+        addToast('Failed to start image upload.', 'error');
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
       }
     }
@@ -1913,7 +1934,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                            </div>
                         )}
                         {msg.replyTo && (
-                          <div className={`mb-1.5 p-2 rounded bg-black/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80'}`}>
+                          <div className={`mb-1.5 p-2 rounded bg-black/10 dark:bg-white/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80 dark:text-gray-200/90'}`}>
                             <div className="font-bold">{msg.replyTo.senderName}</div>
                             <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{msg.replyTo.text}</div>
                           </div>
@@ -1927,7 +1948,17 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           />
                         ) : msg.type === 'image' ? (
                           <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-neutral-100 relative">
-                            {msg.isUploading || !imageUrl ? (
+                            {msg.isUploading && (
+                                <div className="absolute inset-0 bg-black/50 z-10 flex flex-col items-center justify-center">
+                                    <div className="w-3/4 h-2 bg-white/30 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#009EE2] transition-all duration-300" style={{ width: `${msg.uploadProgress || 10}%` }}></div>
+                                    </div>
+                                    <span className="text-white text-xs font-bold mt-2">{Math.round(msg.uploadProgress || 0)}%</span>
+                                </div>
+                            )}
+                            {imageUrl ? (
+                              <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                            ) : (
                               <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
                                 <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1935,8 +1966,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 </svg>
                                 Processing Media...
                               </div>
-                            ) : (
-                              <img src={imageUrl} alt="Shared Layout Media" className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
                             )}
                           </div>
                         ) : (
@@ -1985,8 +2014,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   <div className="flex justify-start mb-6 w-full max-w-[85%] pr-14 group transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-end gap-2">
                       <div className="w-[38px] h-[38px] shrink-0 rounded-full overflow-hidden border border-neutral-100 dark:border-transparent shadow-sm select-none pointer-events-none">
-                        {activeChat.otherUser.profile_pic ? (
-                          <img src={activeChat.otherUser.profile_pic} alt={activeChat.otherUser.display_name} className="w-full h-full object-cover" />
+                        {activeChat.otherUser.photo_url ? (
+                          <img src={activeChat.otherUser.photo_url} alt={activeChat.otherUser.display_name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 font-bold uppercase text-sm">
                             {activeChat.otherUser.display_name?.charAt(0) || '?'}
@@ -1994,11 +2023,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         )}
                       </div>
                       <div>
-                        <div className="px-4 py-3 bg-white dark:bg-[#202C33] rounded-[20px] rounded-bl-sm border border-neutral-100 dark:border-transparent shadow-sm flex items-center gap-1.5 min-h-[44px]">
-                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                          <div className="w-2 h-2 bg-neutral-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                        </div>
+                        <TypingIndicator />
                       </div>
                     </div>
                   </div>
@@ -2170,6 +2195,26 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             setForwardTargetContent('');
           }}
         />
+      )}
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewImageUrl(null)}>
+            <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(null); }} 
+                    className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-md transition-colors"
+                >
+                    ✕
+                </button>
+                <img 
+                    src={previewImageUrl} 
+                    alt="Preview" 
+                    className="max-w-full max-h-full object-contain select-none"
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </div>
+        </div>
       )}
     </div>
   );

@@ -23,6 +23,7 @@ import { BookOpen, UploadCloud } from 'lucide-react';
 import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
+import { TypingIndicator } from './TypingIndicator';
 
 declare var __app_id: string;
 
@@ -1383,7 +1384,7 @@ Student: "${tempInput}"
                             
                             <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                 <div 
-                                    className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-black text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'}`}
+                                    className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'}`}
                                     onContextMenu={(e) => {
                                         e.preventDefault();
                                         setMessageActionTarget(message);
@@ -1509,7 +1510,7 @@ Student: "${tempInput}"
                                <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                             </div>
                             <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: 'flex-start' }}>
-                                <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-black text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent">
+                                <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent">
                                     <div className="text-sm sm:text-base prose prose-sm max-w-none">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkMath]}
@@ -1552,7 +1553,7 @@ Student: "${tempInput}"
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
                            <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                         </div>
-                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-black border border-gray-200 dark:border-transparent rounded-bl-none">
+                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-bl-none">
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
                                 <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
                                 <span>Creating visualization...</span>
@@ -1565,13 +1566,7 @@ Student: "${tempInput}"
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
                            <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                         </div>
-                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-black border border-gray-200 dark:border-transparent rounded-bl-none shadow-sm">
-                            <div className="flex items-center space-x-2">
-                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            </div>
-                        </div>
+                        <TypingIndicator />
                     </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -1923,33 +1918,65 @@ const CourseHeader: React.FC<{
     course: Course, 
     isExpanded?: boolean, 
     onClick: () => void,
-    userProgress?: any
-}> = ({ course, isExpanded, onClick, userProgress }) => {
+    userProgress?: any,
+    onUpload?: (files: FileList | File[]) => void,
+    isUploading?: boolean,
+    uploadProgress?: { status: string; percent: number } | null
+}> = ({ course, isExpanded, onClick, userProgress, onUpload, isUploading, uploadProgress }) => {
     const courseLabel = course.course_code || course.course_id || course.course_name;
     const timeSpent = userProgress?.course_time_spent?.[course.course_id] || 0;
 
     return (
         <div className="w-full max-w-4xl mx-auto py-2">
-            <div className={`w-full flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-black dark:to-black border border-blue-100 dark:border-transparent rounded-xl hover:shadow-md transition-all cursor-pointer`} onClick={onClick}>
-                <div className="flex-1 flex items-center gap-4">
+            <div className={`w-full flex flex-row items-center justify-between p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-[#0b1120] dark:to-[#0b1120] border border-blue-100 dark:border-transparent rounded-xl hover:shadow-md transition-all cursor-pointer gap-2`} onClick={onClick}>
+                <div className="flex-1 flex items-center gap-3 min-w-0">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-inner shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                     </div>
-                    <div className="flex flex-col">
-                        <div className="text-base font-black text-gray-800 dark:text-gray-200 tracking-tight">{courseLabel}</div>
-                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 line-clamp-1">{course.course_name}</div>
+                    <div className="flex flex-col min-w-0">
+                        <div className="text-base font-black text-gray-800 dark:text-gray-200 tracking-tight truncate">{courseLabel}</div>
+                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 truncate">{course.course_name}</div>
                     </div>
                 </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
                 {timeSpent > 0 && (
-                    <div className="mt-3 sm:mt-0 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1A2235] rounded-full border border-gray-100 dark:border-transparent text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm shrink-0">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1A2235] rounded-full border border-gray-100 dark:border-transparent text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                         </svg>
                         {formatDuration(timeSpent)} spent
                     </div>
                 )}
+                {onUpload && (
+                    <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                        {isUploading ? (
+                            <div className="flex flex-col gap-1 w-32 ml-4">
+                                <div className="text-[10px] text-indigo-500 font-bold truncate" title={uploadProgress?.status}>{uploadProgress?.status || 'Uploading...'}</div>
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                                    <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress?.percent || 0}%` }}></div>
+                                </div>
+                            </div>
+                        ) : (
+                            <label className="cursor-pointer p-3 rounded-full hover:bg-white/50 dark:hover:bg-gray-800 transition-colors shrink-0 shadow-sm border border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1A2235]" title="Upload Textbook">
+                                <UploadCloud className="w-6 h-6 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300" />
+                                <input 
+                                    type="file" 
+                                    accept="application/pdf" 
+                                    className="hidden" 
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files.length > 0) {
+                                            onUpload(e.target.files);
+                                        }
+                                        e.target.value = ''; // Reset for consecutive uploads
+                                    }} 
+                                />
+                            </label>
+                        )}
+                    </div>
+                )}
+                </div>
             </div>
         </div>
     );
@@ -1982,6 +2009,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     semester: (userProfile.default_semester_tab || 'second') as 'all' | 'first' | 'second'
   }));
   const { addToast } = useToast();
+  const { uploadTextbook, uploadProgress, isUploadingCourseKey } = useSharedTextbookUpload();
 
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
@@ -2118,10 +2146,10 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                            <SearchIcon className="w-5 h-5" />
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-black p-1 rounded-xl flex border border-gray-200 dark:border-transparent">
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>1st Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>2nd Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>All</button>
+                    <div className="bg-white dark:bg-black p-1 rounded-xl flex border border-gray-200 dark:border-gray-800">
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>1st Sem</button>
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>2nd Sem</button>
+                        <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>All</button>
                     </div>
                 </div>
             </div>
@@ -2140,6 +2168,9 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                     isExpanded={false}
                                     onClick={() => setSelectedCourse(course)}
                                     userProgress={userProgress}
+                                    onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
+                                    isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
+                                    uploadProgress={uploadProgress}
                                 />
                             </div>
                         ))}

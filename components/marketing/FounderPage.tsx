@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { ref, get } from 'firebase/database';
 import { db } from '../../firebase';
 import { SEOHead } from '../SEOHead';
 import { ArrowLeft } from 'lucide-react';
@@ -20,10 +20,10 @@ export const FounderPage: React.FC<{ founderId: string }> = ({ founderId }) => {
     useEffect(() => {
         const fetchFounder = async () => {
             try {
-                const docRef = doc(db, 'coFounders', founderId);
-                const docSnap = await getDoc(docRef);
+                const docRef = ref(db, `coFounders/${founderId}`);
+                const docSnap = await get(docRef);
                 if (docSnap.exists()) {
-                    setFounder({ id: docSnap.id, ...docSnap.data() } as CoFounder);
+                    setFounder({ id: docSnap.key, ...docSnap.val() } as CoFounder);
                 }
             } catch (error) {
                 console.error("Error fetching founder:", error);

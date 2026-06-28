@@ -1,13 +1,12 @@
 import React from 'react';
 
 export const ChatsIcon: React.FC<{ active?: boolean; className?: string }> = ({ active, className = 'w-6 h-6' }) => {
-  const color = active ? '#0052FF' : '#002D62';
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
       viewBox="0 0 24 24" 
-      fill={active ? '#0052FF' : 'none'} 
-      stroke={color} 
+      fill={active ? "currentColor" : "none"} 
+      stroke="currentColor" 
       strokeWidth={2.2} 
       strokeLinecap="round" 
       strokeLinejoin="round" 
@@ -18,7 +17,8 @@ export const ChatsIcon: React.FC<{ active?: boolean; className?: string }> = ({ 
       {/* Lightning bolt inside */}
       <path 
         d="M13.5 8.5L9.5 13h3l-.8 3.5 4-4.5h-3l.8-3.5z" 
-        fill={active ? '#FFFFFF' : color} 
+        className={active ? "text-white dark:text-black" : ""}
+        fill="currentColor" 
         stroke="none" 
       />
     </svg>

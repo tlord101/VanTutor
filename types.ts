@@ -254,6 +254,7 @@ export interface UsageSettings {
 
 export interface AppSettings {
   primary_gemini_model?: string;
+  gemini_api_key?: string;
   upload_center_uploads_enabled?: boolean;
   coming_soon_enabled?: boolean;
   paystack_public_key: string;
