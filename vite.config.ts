@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => {
       plugins: [
         react(),
         Sitemap({
-          hostname: 'https://avelut.com', // Change this to your actual domain
+          hostname: 'https://www.avelut.xyz', // Change this to your actual domain
           dynamicRoutes: [
             '/',
             '/about',
