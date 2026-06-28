@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import Sitemap from 'vite-plugin-sitemap';
 
 export default defineConfig(({ command }) => {
     return {
@@ -11,7 +12,21 @@ export default defineConfig(({ command }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react()],
+      plugins: [
+        react(),
+        Sitemap({
+          hostname: 'https://avelut.com', // Change this to your actual domain
+          dynamicRoutes: [
+            '/',
+            '/about',
+            '/contact',
+            '/t&c',
+            '/policy',
+            '/admin',
+            '/upload-center'
+          ]
+        })
+      ],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
