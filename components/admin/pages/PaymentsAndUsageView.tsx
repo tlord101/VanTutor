@@ -18,7 +18,10 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
         log.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const totalRevenue = paymentLogs.reduce((acc, log) => acc + (Number(log.amount) || 0), 0);
+    const totalRevenue = paymentLogs.reduce((acc, log) => {
+        const isSuccess = log.status === 'success' || log.status === 'successful' || !log.status; // Assume old logs without status are successful
+        return isSuccess ? acc + (Number(log.amount) || 0) : acc;
+    }, 0);
 
     // AI Query Volume Data (Area Chart)
     const queryVolumeData = useMemo(() => {
@@ -151,9 +154,15 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                             <td className="px-6 py-4 font-bold text-slate-900">₦{(Number(log.amount) || 0).toLocaleString()}</td>
                                             <td className="px-6 py-4 uppercase text-xs font-black text-emerald-600">{log.tier_id}</td>
                                             <td className="px-6 py-4">
-                                                <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-black uppercase">
-                                                    <CheckCircle className="w-3 h-3" /> Success
-                                                </span>
+                                                {(!log.status || log.status === 'success' || log.status === 'successful') ? (
+                                                    <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-black uppercase w-max">
+                                                        <CheckCircle className="w-3 h-3" /> Success
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-md text-[10px] font-black uppercase w-max">
+                                                        <div className="w-3 h-3 rounded-full border-2 border-red-500 flex items-center justify-center text-[8px] font-bold">!</div> Failed
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right text-slate-500 font-medium">
                                                 {new Date(log.timestamp).toLocaleString()}

@@ -2179,6 +2179,73 @@ FORMAT:
         }
     };
 
+    const handleCourseCSVImport = async (parsedCourses: Course[]) => {
+        const selectedDepartmentIds = courseImportTargetMode === 'all'
+            ? allDepartments.map((dept) => dept.id)
+            : getUniqueIds(courseImportDepartmentIds);
+        if (!selectedDepartmentIds.length) {
+            addToast("Please select at least one target department", "error");
+            return;
+        }
+
+        setIsCourseImporting(true);
+        setCourseImportProgress("Applying imported CSV courses to selected departments...");
+
+        try {
+            let normalizedImportedCourses: Course[] = [];
+            
+            const normalizedCourses = parsedCourses
+                .map((course: any, index: number) => sanitizeCourseFromRegistrationForm(
+                    course,
+                    index,
+                    course.level || courseImportLevelOverride || "100lvl",
+                    courseImportSessionOverride || "2024/2025",
+                    courseImportLevelOverride,
+                    courseImportSessionOverride
+                ))
+                .filter((course: Course) => Boolean(course.course_id && course.course_name));
+
+            normalizedCourses.forEach((course: Course) => {
+                normalizedImportedCourses = upsertCourseInList(normalizedImportedCourses, course);
+            });
+
+            if (!normalizedImportedCourses.length) {
+                throw new Error("No valid courses found in the CSV. Please check the format.");
+            }
+
+            const updates: Record<string, Course[]> = {};
+
+            for (const targetDepartmentId of selectedDepartmentIds) {
+                const targetDepartmentRef = dbRef(db, `departments_data/${targetDepartmentId}`);
+                const targetDepartmentSnapshot = await get(targetDepartmentRef);
+                const existingCourses = normalizeCourseList(targetDepartmentSnapshot.val()?.course_list);
+                const mergedCourses = mergeCourseListsIntoTarget(existingCourses, normalizedImportedCourses);
+                updates[`departments_data/${targetDepartmentId}/course_list`] = mergedCourses;
+            }
+
+            await update(dbRef(db), updates);
+            await fetchDepartments();
+
+            if (selectedDepartmentIds.includes(departmentId)) {
+                await loadDepartmentCourses(departmentId);
+            }
+
+            const importedList = normalizeCourseList(normalizedImportedCourses);
+            setCoursesList(prevCourses => mergeCourseListsIntoTarget(prevCourses, importedList));
+
+            addToast(
+                `Successfully imported ${importedList.length} CSV course(s) to ${selectedDepartmentIds.length} department(s).`,
+                "success"
+            );
+        } catch (error: any) {
+            console.error("Error importing course CSV:", error);
+            addToast(error?.message || "Failed to import course CSV.", "error");
+        } finally {
+            setIsCourseImporting(false);
+            setCourseImportProgress('');
+        }
+    };
+
     const handleTextbookUpload = async (
         courseId: string,
         files: File[],
@@ -2543,7 +2610,11 @@ FORMAT:
         setInternalPathname(fullPath);
     }, [onNavigate]);
 
-    if (!userProfile.is_admin) {
+    const isSuperAdmin = userProfile.role === 'superadmin' || userProfile.is_admin;
+    const isDeptAdmin = userProfile.role === 'deptadmin';
+    const hasAdminAccess = isSuperAdmin || isDeptAdmin;
+
+    if (!hasAdminAccess) {
         return (
             <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
                 <div className="bg-slate-800 border border-slate-700/50 p-8 rounded-3xl max-w-md w-full shadow-2xl flex flex-col items-center gap-4">
@@ -2579,7 +2650,22 @@ FORMAT:
         { id: 'purchase-logs', label: 'Purchase Logs', icon: CreditCard, path: '/admin/purchase-logs' },
     ];
 
-    const activeNavItems = navigationItems.filter(item => visibleTabs.includes(item.id as any));
+    const activeNavItems = navigationItems.filter(item => {
+        if (!visibleTabs.includes(item.id as any)) return false;
+        if (isDeptAdmin) {
+            // Dept Admins can only see Dashboard, Courses, Questions, Users, Notifications
+            return ['dashboard', 'courses', 'questions', 'users', 'notifications'].includes(item.id);
+        }
+        return true;
+    });
+
+    const scopedDepartments = isSuperAdmin 
+        ? allDepartments 
+        : allDepartments.filter(d => (userProfile.admin_department_ids || []).includes(d.id));
+
+    const scopedUsersList = isSuperAdmin 
+        ? allUsersList 
+        : allUsersList.filter(u => u.department_id && (userProfile.admin_department_ids || []).includes(u.department_id));
 
     if (isAppSettingsLoading || isInitialDataLoading) {
         return <div className="flex h-screen items-center justify-center font-bold text-slate-500">Loading Admin Panel...</div>;
@@ -2595,7 +2681,7 @@ FORMAT:
                 <DashboardView 
                     paymentLogs={paymentLogs} 
                     aiRequestLogs={aiRequestLogs} 
-                    allUsersList={allUsersList} 
+                    allUsersList={scopedUsersList} 
                     onNavigate={handleCourseTabNavigate}
                 />
             )}
@@ -2610,7 +2696,7 @@ FORMAT:
                     handleCourseTabNavigate={handleCourseTabNavigate}
                     globalSearchQuery={globalSearchQuery}
                     setGlobalSearchQuery={setGlobalSearchQuery}
-                    allDepartments={allDepartments}
+                    allDepartments={scopedDepartments}
                     LEVELS={LEVELS as any}
                     filteredGlobalCourses={filteredGlobalCourses}
                     buildCourseManagerPath={buildCourseManagerPath}
@@ -2634,6 +2720,7 @@ FORMAT:
                     setCourseRegistrationFiles={setCourseRegistrationFiles as any}
                     handleGoogleDrivePick={handleGoogleDrivePick}
                     handleCourseRegistrationImport={handleCourseRegistrationImport}
+                    handleCourseCSVImport={handleCourseCSVImport}
                     isCourseImportDisabled={isCourseImportDisabled}
                     isCourseImporting={isCourseImporting}
                     courseImportProgress={courseImportProgress}
@@ -2656,7 +2743,7 @@ FORMAT:
 
             {activeTab === 'questions' && (
                 <PastQuestionsView 
-                    allDepartments={allDepartments}
+                    allDepartments={scopedDepartments}
                     LEVELS={LEVELS as any}
                     uploadDepartmentId={uploadDepartmentId}
                     setUploadDepartmentId={setUploadDepartmentId}
@@ -2681,9 +2768,11 @@ FORMAT:
 
             {activeTab === 'users' && (
                 <UserControlView 
-                    allUsersList={allUsersList}
+                    allUsersList={scopedUsersList}
                     isUsersLoading={isUsersLoading}
                     refreshUsers={fetchUsers}
+                    currentUserProfile={userProfile}
+                    allDepartments={allDepartments}
                 />
             )}
 
@@ -2695,7 +2784,7 @@ FORMAT:
                 <PaymentsAndUsageView 
                     paymentLogs={paymentLogs}
                     aiRequestLogs={aiRequestLogs}
-                    allUsersList={allUsersList}
+                    allUsersList={scopedUsersList}
                 />
             )}
 
@@ -2709,7 +2798,7 @@ FORMAT:
 
             {activeTab === 'notifications' && (
                 <NotificationsView
-                    allUsersList={allUsersList}
+                    allUsersList={scopedUsersList}
                     geminiApiKey={geminiApiKey}
                     geminiModel={geminiModel}
                     refreshSentNotifications={fetchSentNotifications}

@@ -9,9 +9,11 @@ interface UserControlViewProps {
     allUsersList: UserProfile[];
     refreshUsers: () => void;
     isUsersLoading?: boolean;
+    currentUserProfile?: UserProfile;
+    allDepartments?: any[];
 }
 
-export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, refreshUsers, isUsersLoading }) => {
+export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, refreshUsers, isUsersLoading, currentUserProfile, allDepartments = [] }) => {
     const { addToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'premium' | 'suspended'>('all');
@@ -21,7 +23,8 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
     // Edit State
     const [editXp, setEditXp] = useState<number>(0);
     const [editSub, setEditSub] = useState<string>('free');
-    const [editAdmin, setEditAdmin] = useState<boolean>(false);
+    const [editRole, setEditRole] = useState<'superadmin' | 'deptadmin' | 'user'>('user');
+    const [editAdminDepts, setEditAdminDepts] = useState<string[]>([]);
     const [editStatus, setEditStatus] = useState<string>('active');
 
     const filteredUsers = allUsersList.filter(user => {
@@ -37,7 +40,8 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         setEditingUserId(user.uid);
         setEditXp(user.xp || 0);
         setEditSub(user.subscription_status || 'free');
-        setEditAdmin(!!user.is_admin);
+        setEditRole(user.role || (user.is_admin ? 'superadmin' : 'user'));
+        setEditAdminDepts(user.admin_department_ids || []);
         setEditStatus(user.status || 'active');
     };
 
@@ -47,7 +51,9 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
             await update(dbRef(db, `users/${editingUserId}`), {
                 xp: Number(editXp),
                 subscription_status: editSub,
-                is_admin: editAdmin,
+                role: editRole,
+                is_admin: editRole === 'superadmin', // Keep legacy flag synced
+                admin_department_ids: editRole === 'deptadmin' ? editAdminDepts : null,
                 status: editStatus
             });
             addToast("User updated successfully!", "success");
@@ -113,6 +119,18 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         }
     };
 
+    // Pagination Logic
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 20;
+
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter]);
+
+    const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+    const startIndex = (currentPage - 1) * usersPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
+
     return (
         <div className="space-y-6">
             {/* Header & Controls */}
@@ -123,7 +141,13 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                     </div>
                     <div>
                         <h3 className="font-black text-xl text-slate-900 leading-tight">User Control</h3>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
+                        <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
+                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                {allUsersList.filter(u => u.is_online || (u.last_seen && Date.now() - u.last_seen < 5 * 60 * 1000)).length} Active Now
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -176,6 +200,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                 <th className="px-6 py-4">User</th>
                                 <th className="px-6 py-4">Subscription</th>
                                 <th className="px-6 py-4">XP Points</th>
+                                <th className="px-6 py-4">Metrics</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
@@ -189,7 +214,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                     </td>
                                 </tr>
                             ) : (
-                                filteredUsers.map(user => (
+                                paginatedUsers.map(user => (
                                     <tr key={user.uid} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <input 
@@ -209,7 +234,8 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                 <div>
                                                     <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                                                         {user.display_name || 'Anonymous User'}
-                                                        {user.is_admin && <span title="Admin"><Shield className="w-3.5 h-3.5 text-indigo-500" /></span>}
+                                                        {(user.role === 'superadmin' || user.is_admin) && <span title="Super Admin"><Shield className="w-3.5 h-3.5 text-indigo-500" /></span>}
+                                                        {user.role === 'deptadmin' && <span title="Department Admin"><Shield className="w-3.5 h-3.5 text-blue-400" /></span>}
                                                     </p>
                                                     <p className="text-xs font-semibold text-slate-500">{user.email || 'No email provided'}</p>
                                                 </div>
@@ -250,6 +276,12 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1 text-[10px] uppercase font-bold tracking-wider">
+                                                <span className="text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-max">Tokens: {(user.total_tokens_used || 0).toLocaleString()}</span>
+                                                <span className="text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded w-max">Time: {Math.floor((user.time_spent_in_app || 0) / 60)} min</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
                                             {editingUserId === user.uid ? (
                                                 <div className="flex flex-col gap-2">
                                                     <select 
@@ -260,15 +292,38 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                         <option value="active">Active</option>
                                                         <option value="suspended">Suspended</option>
                                                     </select>
-                                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={editAdmin} 
-                                                            onChange={e => setEditAdmin(e.target.checked)}
-                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                                        />
-                                                        Is Admin?
-                                                    </label>
+                                                    {(currentUserProfile?.role === 'superadmin' || currentUserProfile?.is_admin) && (
+                                                        <div className="flex flex-col gap-2 mt-2 border-t border-slate-100 pt-2">
+                                                            <select 
+                                                                value={editRole} 
+                                                                onChange={e => setEditRole(e.target.value as any)}
+                                                                className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                            >
+                                                                <option value="user">User</option>
+                                                                <option value="deptadmin">Department Admin</option>
+                                                                <option value="superadmin">Super Admin</option>
+                                                            </select>
+                                                            {editRole === 'deptadmin' && (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Manageable Departments</label>
+                                                                    <select
+                                                                        multiple
+                                                                        value={editAdminDepts}
+                                                                        onChange={e => {
+                                                                            const options = Array.from(e.target.selectedOptions, option => option.value);
+                                                                            setEditAdminDepts(options);
+                                                                        }}
+                                                                        className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 h-24"
+                                                                    >
+                                                                        {allDepartments?.map(dept => (
+                                                                            <option key={dept.id} value={dept.id}>{dept.departmentName || dept.name || dept.id}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <p className="text-[10px] text-slate-400">Hold Ctrl/Cmd to select multiple</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${
@@ -326,6 +381,32 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                         </tbody>
                     </table>
                 </div>
+                {totalPages > 1 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                            Showing {startIndex + 1} to {Math.min(startIndex + usersPerPage, filteredUsers.length)} of {filteredUsers.length}
+                        </span>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                            >
+                                Previous
+                            </button>
+                            <span className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

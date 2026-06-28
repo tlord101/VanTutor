@@ -372,7 +372,7 @@ const TextChat: React.FC<{
                                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-lime-500 to-teal-500 text-white shadow-lg shadow-lime-500/20">
                                             <ChatBubbleIcon className="w-7 h-7" />
                                         </div>
-                                        <h3 className="text-2xl font-black text-gray-900">Start a conversation</h3>
+                                        <h3 className="text-2xl font-black text-gray-900 dark:text-white">Start a conversation</h3>
                                         <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
                                             Ask for explanations, solve problems, or study with the course context already available to you.
                                         </p>

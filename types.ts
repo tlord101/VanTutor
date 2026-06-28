@@ -21,7 +21,9 @@ export interface UserProfile {
   last_streak_date?: string; // ISO date string 'YYYY-MM-DD' of the last day a streak was awarded
   last_activity_date: number; // Store as timestamp
   notifications_enabled: boolean;
-  is_admin?: boolean; // New property for admin access
+  is_admin?: boolean; // Legacy property, migrating to role
+  role?: 'superadmin' | 'deptadmin' | 'user';
+  admin_department_ids?: string[]; // Array of dept IDs they can manage if deptadmin
   is_online?: boolean;
   last_seen?: number;
   privacy_consent?: {
@@ -42,6 +44,8 @@ export interface UserProfile {
   cover_photo?: string;
   bio?: string;
   contact_details?: string;
+  total_tokens_used?: number;
+  time_spent_in_app?: number;
   privacy_settings?: {
     public_contact: boolean;
     public_school: boolean;

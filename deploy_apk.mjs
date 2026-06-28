@@ -38,8 +38,8 @@ async function deploy() {
 
         console.log("Updating Realtime Database at app_updates/latest...");
         await set(dbRef(db, "app_updates/latest"), {
-            versionName: "8.1.2",
-            versionCode: 103,
+            versionName: "8.1.3",
+            versionCode: 105,
             downloadUrl: downloadUrl,
             releaseDate: new Date().toISOString()
         });

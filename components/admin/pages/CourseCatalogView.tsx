@@ -33,6 +33,7 @@ interface CourseCatalogViewProps {
     setCourseRegistrationFiles: (files: File[]) => void;
     handleGoogleDrivePick: (callback: (files: File[]) => void) => void;
     handleCourseRegistrationImport: () => void;
+    handleCourseCSVImport?: (parsedCourses: Course[]) => Promise<void>;
     isCourseImportDisabled: boolean;
     isCourseImporting: boolean;
     courseImportProgress: string;
@@ -62,7 +63,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     setCourseImportTargetMode, courseImportLevelOverride, setCourseImportLevelOverride,
     courseImportDepartmentIds, toggleCourseImportDepartment, courseImportSessionOverride,
     setCourseImportSessionOverride, setCourseRegistrationFiles, handleGoogleDrivePick,
-    handleCourseRegistrationImport, isCourseImportDisabled, isCourseImporting,
+    handleCourseRegistrationImport, handleCourseCSVImport, isCourseImportDisabled, isCourseImporting,
     courseImportProgress, managerCoursesForLevel, getCourseRouteKey,
     normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, selectedManagerDepartment,
     selectedManagerCourse, setCourseDetailFiles, courseDetailFiles,
@@ -72,7 +73,93 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     const { addToast } = useToast();
     const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
 
+    // CSV Parse State
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+
+    const parseAndImportCSV = async () => {
+        if (!csvFile || !handleCourseCSVImport) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target?.result as string;
+            if (!text) return;
+            try {
+                const lines = text.split('\n');
+                const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+                
+                const codeIdx = headers.indexOf('course_code');
+                const titleIdx = headers.indexOf('course_name') > -1 ? headers.indexOf('course_name') : headers.indexOf('title');
+                const unitIdx = headers.indexOf('course_unit') > -1 ? headers.indexOf('course_unit') : headers.indexOf('unit');
+                const statusIdx = headers.indexOf('course_status') > -1 ? headers.indexOf('course_status') : headers.indexOf('status');
+                const semIdx = headers.indexOf('semester');
+                const levelIdx = headers.indexOf('level');
+
+                if (codeIdx === -1 || titleIdx === -1) {
+                    addToast("CSV must contain 'course_code' and 'course_name' columns.", "error");
+                    return;
+                }
+
+                const courses: Course[] = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    // Simple CSV row parser to handle quoted strings
+                    const cols: string[] = [];
+                    let inQuotes = false;
+                    let curCol = '';
+                    for (let j = 0; j < line.length; j++) {
+                        const char = line[j];
+                        if (char === '"') inQuotes = !inQuotes;
+                        else if (char === ',' && !inQuotes) {
+                            cols.push(curCol);
+                            curCol = '';
+                        } else curCol += char;
+                    }
+                    cols.push(curCol);
+
+                    const code = cols[codeIdx]?.replace(/^"|"$/g, '').trim();
+                    const name = cols[titleIdx]?.replace(/^"|"$/g, '').trim();
+                    
+                    if (!code || !name) continue;
+
+                    courses.push({
+                        course_id: code.toLowerCase().replace(/\s+/g, '_'),
+                        course_code: code,
+                        course_name: name,
+                        course_unit: unitIdx > -1 && cols[unitIdx] ? parseInt(cols[unitIdx].replace(/^"|"$/g, '').trim(), 10) : undefined,
+                        course_status: statusIdx > -1 && cols[statusIdx] ? cols[statusIdx].replace(/^"|"$/g, '').trim() : undefined,
+                        semester: semIdx > -1 && cols[semIdx] && cols[semIdx].toLowerCase().includes('second') ? 'second' : 'first',
+                        level: levelIdx > -1 && cols[levelIdx] ? cols[levelIdx].replace(/^"|"$/g, '').trim() : undefined,
+                    } as Course);
+                }
+
+                if (courses.length === 0) {
+                    addToast("No valid courses found in CSV.", "error");
+                    return;
+                }
+
+                await handleCourseCSVImport(courses);
+                setCsvFile(null); // Clear after successful import
+            } catch (err: any) {
+                addToast("Error parsing CSV: " + err.message, "error");
+            }
+        };
+        reader.readAsText(csvFile);
+    };
+
     const isGlobalSearch = globalSearchQuery.length > 0;
+
+    // Pagination for Global Search
+    const [globalCurrentPage, setGlobalCurrentPage] = useState(1);
+    const globalCoursesPerPage = 20;
+
+    React.useEffect(() => {
+        setGlobalCurrentPage(1);
+    }, [globalSearchQuery]);
+
+    const globalTotalPages = Math.ceil(filteredGlobalCourses.length / globalCoursesPerPage);
+    const globalStartIndex = (globalCurrentPage - 1) * globalCoursesPerPage;
+    const paginatedGlobalCourses = filteredGlobalCourses.slice(globalStartIndex, globalStartIndex + globalCoursesPerPage);
 
     return (
         <div className="space-y-6">
@@ -140,7 +227,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         </button>
                                     )}
                                 </div>
-                                {filteredGlobalCourses.map(({ course, deptId, deptName, level }) => {
+                                {paginatedGlobalCourses.map(({ course, deptId, deptName, level }) => {
                                     const courseRouteIdentifier = getCourseRouteKey(course);
                                     const courseKey = course.course_id || course.course_name || '';
                                     return (
@@ -175,6 +262,32 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         </div>
                                     );
                                 })}
+                                {globalTotalPages > 1 && (
+                                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                                        <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                                            Showing {globalStartIndex + 1} to {Math.min(globalStartIndex + globalCoursesPerPage, filteredGlobalCourses.length)} of {filteredGlobalCourses.length}
+                                        </span>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setGlobalCurrentPage(p => Math.max(1, p - 1))}
+                                                disabled={globalCurrentPage === 1}
+                                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg">
+                                                Page {globalCurrentPage} of {globalTotalPages}
+                                            </span>
+                                            <button 
+                                                onClick={() => setGlobalCurrentPage(p => Math.min(globalTotalPages, p + 1))}
+                                                disabled={globalCurrentPage === globalTotalPages}
+                                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -509,16 +622,38 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         </div>
                     </div>
 
-                    <div className="pt-2">
-                        <button
-                            onClick={handleCourseRegistrationImport}
-                            disabled={isCourseImportDisabled}
-                            className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition disabled:opacity-50 shadow-xl shadow-indigo-600/20"
-                        >
-                            {isCourseImporting ? 'Processing AI Extraction...' : 'Extract & Register Courses'}
-                        </button>
-                        {isCourseImporting && <p className="text-sm font-bold text-indigo-600 mt-4 text-center animate-pulse">{courseImportProgress}</p>}
+                    <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                            <button
+                                onClick={handleCourseRegistrationImport}
+                                disabled={isCourseImportDisabled}
+                                className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition disabled:opacity-50 shadow-xl shadow-indigo-600/20"
+                            >
+                                {isCourseImporting ? 'Processing AI...' : 'Extract from PDFs'}
+                            </button>
+                            <p className="text-[10px] text-slate-400 text-center uppercase font-bold tracking-widest">Powered by Gemini AI</p>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <input
+                                    type="file" accept=".csv"
+                                    onChange={e => setCsvFile(e.target.files ? e.target.files[0] : null)}
+                                    className="flex-1 text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer border border-emerald-100 rounded-2xl p-0.5"
+                                />
+                                <button
+                                    onClick={parseAndImportCSV}
+                                    disabled={!csvFile || isCourseImportDisabled}
+                                    className="px-6 py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition disabled:opacity-50 shadow-xl shadow-emerald-600/20 whitespace-nowrap"
+                                >
+                                    Import CSV
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400 text-center font-bold tracking-widest">
+                                Required Columns: course_code, course_name
+                            </p>
+                        </div>
                     </div>
+                    {isCourseImporting && <p className="text-sm font-bold text-indigo-600 mt-4 text-center animate-pulse">{courseImportProgress}</p>}
                 </div>
             )}
 
@@ -532,6 +667,34 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             </p>
                             <h3 className="text-3xl font-black text-slate-900 mt-1">{courseAdminView.level} Courses</h3>
                         </div>
+                        {managerCoursesForLevel.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    const headers = ["course_code", "course_name", "course_unit", "course_status", "semester", "level"];
+                                    const rows = managerCoursesForLevel.map(c => {
+                                        const code = c.course_code || "";
+                                        const name = `"${(c.course_name || "").replace(/"/g, '""')}"`;
+                                        const unit = c.course_unit || "";
+                                        const status = c.course_status || "";
+                                        const semester = c.semester || "";
+                                        const level = c.level || courseAdminView.level || "";
+                                        return [code, name, unit, status, semester, level].join(",");
+                                    });
+                                    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.join("\n");
+                                    const encodedUri = encodeURI(csvContent);
+                                    const link = document.createElement("a");
+                                    link.setAttribute("href", encodedUri);
+                                    link.setAttribute("download", `${selectedManagerDepartment?.department_name || 'department'}_${courseAdminView.level}_courses.csv`);
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 font-bold text-sm rounded-xl hover:bg-green-100 transition-colors shrink-0"
+                            >
+                                <Database className="w-4 h-4" />
+                                Export CSV
+                            </button>
+                        )}
                         {selectedCourses.size > 0 && (
                             <button
                                 onClick={() => {
