@@ -30,7 +30,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
     <>
       {/* Toggle Billing Period */}
       <div className="flex justify-center mb-8">
-        <div className="bg-gray-100 p-1 rounded-full inline-flex border border-gray-200">
+        <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-full inline-flex border border-gray-200 dark:border-gray-700">
           <button
             type="button"
             onClick={() => setBillingInterval('monthly')}
@@ -78,7 +78,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.free?.display_name || 'Forever Free'}
             </h4>
-            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800 dark:prose-strong:text-white">
               <ReactMarkdown>{tiers?.free?.description || "Perfect if you're just getting started with your study promotion."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
@@ -94,13 +94,13 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               <button
                 onClick={() => onSelectPlan('free')}
                 disabled={isVerifyingKey}
-                className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
+                className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:hover:bg-gray-900 border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 dark:text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
               >
                 Select Free
               </button>
             )}
 
-            <ul className="text-xs text-slate-600 space-y-3 font-semibold text-left">
+            <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-3 font-semibold text-left">
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
@@ -123,7 +123,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
         <div className={`w-[85vw] max-w-[300px] shrink-0 snap-center rounded-[24px] border-2 flex flex-col justify-between transition-all relative overflow-hidden p-6 pt-12 hover:-translate-y-1 ${
           showCurrentPlan && userProfile.subscription_status === 'basic'
             ? 'border-blue-650 bg-white dark:bg-black shadow-xl'
-            : 'border-blue-600 bg-white dark:bg-black hover:shadow-2xl'
+            : 'border-blue-600 dark:border-blue-500 bg-white dark:bg-black hover:shadow-2xl'
         }`}>
           <div className="absolute top-0 left-0 right-0 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest text-center py-2">
             Most Popular
@@ -139,7 +139,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.basic?.display_name || 'Student Plan'}
             </h4>
-            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800 dark:prose-strong:text-white">
               <ReactMarkdown>{tiers?.basic?.description || "Take your study promotion to the next level."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
@@ -150,7 +150,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             </div>
 
             {showCurrentPlan && userProfile.subscription_status === 'basic' ? (
-              <span className="w-full text-center py-3 bg-blue-50 text-blue-600 text-sm font-bold rounded-xl block border border-blue-200 mb-6">Current Plan</span>
+              <span className="w-full text-center py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-bold rounded-xl block border border-blue-200 dark:border-blue-500/30 mb-6">Current Plan</span>
             ) : (
               <button
                 onClick={() => onSelectPlan('basic')}
@@ -161,7 +161,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               </button>
             )}
 
-            <ul className="text-xs text-slate-600 space-y-3 font-semibold text-left">
+            <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-3 font-semibold text-left">
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
@@ -197,7 +197,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
             <h4 className="font-extrabold text-xl text-slate-900 dark:text-white leading-tight">
               {tiers?.premium?.display_name || 'Pro Plan'}
             </h4>
-            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800">
+            <div className="text-sm text-slate-500 dark:text-gray-400 mt-2 font-semibold leading-snug min-h-[40px] prose prose-sm prose-slate prose-p:my-0 prose-strong:text-slate-800 dark:prose-strong:text-white">
               <ReactMarkdown>{tiers?.premium?.description || "Completely automate your learning progress with maximum options."}</ReactMarkdown>
             </div>
             <div className="flex items-baseline gap-1.5 mt-5 mb-5">
@@ -213,13 +213,13 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
               <button
                 onClick={() => onSelectPlan('premium')}
                 disabled={isVerifyingKey}
-                className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
+                className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:hover:bg-gray-900 border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 dark:text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] mb-6"
               >
                 Select Pro
               </button>
             )}
 
-            <ul className="text-xs text-slate-600 space-y-3 font-semibold text-left">
+            <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-3 font-semibold text-left">
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
@@ -269,7 +269,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                       placeholder="Paste Gemini API key"
                       value={personalApiKey}
                       onChange={(e) => setPersonalApiKey(e.target.value)}
-                      className="w-full bg-white dark:bg-black border border-slate-200 dark:border-white/10 focus:border-blue-500 rounded-lg py-2 px-3 pr-10 text-slate-800 font-medium focus:outline-none transition-all font-mono text-[11px] shadow-sm"
+                      className="w-full bg-white dark:bg-black border border-slate-200 dark:border-white/10 focus:border-blue-500 rounded-lg py-2 px-3 pr-10 text-slate-800 dark:text-white font-medium focus:outline-none transition-all font-mono text-[11px] shadow-sm"
                     />
                     <button
                       type="button"
@@ -282,7 +282,7 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                   <button
                     onClick={() => onSelectPlan('personal_token', { apiKey: personalApiKey })}
                     disabled={isVerifyingKey || !personalApiKey.trim()}
-                    className="w-full py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                    className="w-full py-2 bg-slate-900 hover:bg-black dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   >
                     {isVerifyingKey ? 'Saving...' : 'Save Token'}
                   </button>
@@ -294,14 +294,14 @@ export const SubscriptionCards: React.FC<SubscriptionCardsProps> = ({
                 <button
                   onClick={() => setUsePersonalToken(true)}
                   disabled={isVerifyingKey}
-                  className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-sm mb-6"
+                  className="w-full py-3 bg-white dark:bg-black hover:bg-slate-50 dark:hover:bg-gray-900 border border-slate-200 dark:border-white/10 hover:border-slate-300 text-slate-800 dark:text-white text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-sm mb-6"
                 >
                   Configure Personal Token
                 </button>
               )}
             </div>
 
-            <ul className="text-xs text-slate-600 space-y-3 font-semibold text-left">
+            <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-3 font-semibold text-left">
               <li className="flex items-start gap-2.5">
                 <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
