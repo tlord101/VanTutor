@@ -1974,15 +1974,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             isUploading={msg.isUploading}
                           />
                         ) : msg.type === 'image' ? (
-                          <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-neutral-100 relative">
-                            {msg.isUploading && (
-                                <div className="absolute inset-0 bg-black/50 z-10 flex flex-col items-center justify-center">
-                                    <div className="w-3/4 h-2 bg-white/30 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#009EE2] transition-all duration-300" style={{ width: `${msg.uploadProgress || 10}%` }}></div>
+                          <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                            <div className="relative">
+                                {msg.isUploading && (
+                                    <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
                                     </div>
-                                    <span className="text-white text-xs font-bold mt-2">{Math.round(msg.uploadProgress || 0)}%</span>
-                                </div>
-                            )}
+                                )}
                             {imageUrl ? (
                               <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
                             ) : (
@@ -1994,6 +1995,23 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 Processing Media...
                               </div>
                             )}
+                            </div>
+                            {(() => {
+                              const extractedCaption = rawText.replace(/!\[.*?\]\(.*?\)/, '').trim();
+                              if (!extractedCaption) return null;
+                              return (
+                                <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans text-[15px] mt-2 px-2 pb-2">
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ node, ...props }) => <p className="m-0 inline" {...props} />,
+                                      a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
+                                    }}
+                                  >
+                                    {extractedCaption}
+                                  </ReactMarkdown>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans">
