@@ -260,6 +260,11 @@ export const createAvelutAI = (
       generateContentStream: async (params: any) => {
         const processed = await prepareParams(params);
         return await rawClient.models.generateContentStream(processed);
+      },
+      generateImages: async (params: any) => {
+        // Image generation doesn't need context compaction, but we can pass it through prepareParams to rate limit
+        const processed = await prepareParams(params);
+        return await rawClient.models.generateImages(processed);
       }
     }
   };

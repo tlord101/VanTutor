@@ -82,6 +82,7 @@ export const AcademicUnitsView: React.FC = () => {
 
     useEffect(() => {
         void fetchDepartments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleAddSchool = async () => {

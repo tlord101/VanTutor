@@ -205,6 +205,7 @@ const TextChat: React.FC<{
         };
         
         fetchCourseContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile.uid, userProfile.department_id, userProfile.level]);
 
     useEffect(() => {

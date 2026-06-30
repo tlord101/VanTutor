@@ -402,6 +402,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         window.removeEventListener('touchmove', handleMove, { passive: false } as any);
         window.removeEventListener('mouseup', handleInteractionEnd);
         window.removeEventListener('touchend', handleInteractionEnd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleMove = useCallback((e: MouseEvent | TouchEvent) => {

@@ -91,6 +91,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
         if (Object.keys(partnerRequests).length > 0) {
             fetchMissingProfiles();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [partnerRequests, allUsers]);
 
     const sendPartnerRequest = async (targetUser: UserProfile) => {

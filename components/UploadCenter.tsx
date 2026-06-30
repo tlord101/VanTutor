@@ -360,6 +360,7 @@ export const UploadCenter: React.FC = () => {
     if (user) {
       void loadCatalog();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {

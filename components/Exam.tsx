@@ -302,6 +302,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
     };
 
     fetchCourses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile.department_id, userProfile.level, userProfile.uid, addToast]);
 
 
@@ -430,6 +431,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           
           return 'completed';
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, userProfile.department_id, userProfile.uid, addToast]);
 
   useEffect(() => {

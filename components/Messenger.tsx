@@ -1263,10 +1263,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const localTimestamp = Date.now();
       const tempId = `temp_file_${localTimestamp}`;
       const fileType = file.type.startsWith('image/') ? 'image' : 'file';
+      const localUrl = URL.createObjectURL(file);
       const pendingMessage = {
         id: tempId,
         senderId: firebaseUser.uid,
-        text: `[📄 ${file.name}]()`,
+        text: fileType === 'image' ? `![${file.name}](${localUrl})` : `[📄 ${file.name}]()`,
         type: fileType,
         timestamp: localTimestamp,
         isUploading: true
@@ -1274,7 +1275,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setOptimisticMessages(prev => [...prev, pendingMessage]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       try {
-        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${file.name}`;
+        const safeFileName = file.name ? file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') : 'file';
+        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${safeFileName}`;
         const fileBucketRef = storageRef(storage, cloudPath);
         const snapshot = await uploadBytes(fileBucketRef, file);
         const fileDownloadUrl = await getDownloadURL(snapshot.ref);
@@ -1865,7 +1867,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               ) : combinedMessageStream.map((msg) => {
                 const isMe = msg.senderId === firebaseUser?.uid;
                 const rawText = typeof msg.text === 'string' ? msg.text : '';
-                const imageUrl = msg.type === 'image' ? (rawText.match(/\((.*?)\)/)?.[1] || rawText) : '';
+                let imageUrl = '';
+                if (msg.type === 'image') {
+                  const urlMatch = rawText.match(/(https?:\/\/[^\s]+|blob:[^\s]+)/);
+                  if (urlMatch) {
+                    imageUrl = urlMatch[1];
+                    if (imageUrl.endsWith(')')) imageUrl = imageUrl.slice(0, -1);
+                  } else {
+                    imageUrl = rawText;
+                  }
+                }
                 const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
                 const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
                   acc[reactionEmoji] = (acc[reactionEmoji] || 0) + 1;
@@ -1997,7 +2008,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             )}
                             </div>
                             {(() => {
-                              const extractedCaption = rawText.replace(/!\[.*?\]\(.*?\)/, '').trim();
+                              const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
                               if (!extractedCaption) return null;
                               return (
                                 <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans text-[15px] mt-2 px-2 pb-2">

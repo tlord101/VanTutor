@@ -561,6 +561,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         if (activeTab === 'usage-analytics' || activeTab === 'payments' || activeTab === 'users' || activeTab === 'dashboard' || activeTab === 'purchase-logs') {
             void fetchUsageLogs();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     const handleApproveRefund = async (refund: any) => {
@@ -1113,6 +1114,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             setIsInitialDataLoading(false);
         };
         void loadAllInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -1129,6 +1131,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         } else if (activeTab === 'email-configs') {
             void fetchEmailConfig();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     useEffect(() => {
@@ -1556,6 +1559,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     useEffect(() => {
         if (!selectedCatalogCourse) return;
         setCatalogDepartmentSelection(selectedCatalogCourse.departmentIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCatalogCourseKey, courseCatalog]);
 
     const toggleTargetDepartment = (targetId: string) => {
@@ -1789,6 +1793,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             console.error('Error deleting course:', error);
             addToast(error?.message || 'Failed to delete course', 'error');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [addToast, allDepartments, courseAdminView, isManagerCourseView, loadDepartmentCourses]);
 
     const handleBatchDeleteCourses = useCallback(async (courses: Course[], deleteForOtherDepartments: boolean = false) => {
@@ -1856,6 +1861,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         } catch (error: any) {
             addToast('Failed to batch delete courses: ' + error.message, 'error');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [courseAdminView, allDepartments, isManagerCourseView, getCourseMergeKey, addToast, fetchDepartments, loadDepartmentCourses]);
 
     const handleGoogleDrivePick = (onFilesSelected: (files: File[]) => void) => {

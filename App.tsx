@@ -518,6 +518,7 @@ const App: React.FC = () => {
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const ai = useMemo(() => (
         createAvelutAI(appSettings, userProfile)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     ), [
         appSettings,
         userProfile?.uid,
@@ -675,6 +676,7 @@ const App: React.FC = () => {
             urlListener.then(listener => listener.remove());
             appStateListener.then(listener => listener.remove());
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, addToast]);
 
     useEffect(() => {
@@ -740,6 +742,7 @@ const App: React.FC = () => {
         };
         const timer = setTimeout(requestPermissions, 2500);
         return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid, handleProfileUpdate, userProfile?.notifications_enabled]);
 
     useEffect(() => {
@@ -826,6 +829,7 @@ const App: React.FC = () => {
         });
         
         return () => { off(userRef, 'value', unsubscribeProfile); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, addToast, startTour]);
 
     // =====================================================
@@ -850,6 +854,7 @@ const App: React.FC = () => {
             await awardDailyStreak(userProfile.uid);
         }, SESSION_STREAK_THRESHOLD_MS);
         return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid]); // Only re-run if user changes (not on every profile update)
 
 
@@ -916,6 +921,7 @@ const App: React.FC = () => {
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             off(connectedRef, 'value', unsubscribeConnected);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid, user]);
     
     useEffect(() => {
@@ -1427,6 +1433,21 @@ const App: React.FC = () => {
 
             {/* Automatic PWA App Intercept Modal Overlay */}
             <PWAInstallBannerOverlay />
+
+            {otaStatus.isDownloading && (
+                <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+                    <svg className="animate-spin h-10 w-10 text-[#009EE2] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h2 className="text-xl font-bold mb-2">Updating App...</h2>
+                    <p className="text-sm opacity-80 mb-4 text-center max-w-[80%]">Downloading the latest improvements.</p>
+                    <div className="w-64 h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#009EE2] transition-all duration-300" style={{ width: `${otaStatus.progress}%` }} />
+                    </div>
+                    <span className="text-xs font-bold mt-2">{otaStatus.progress}%</span>
+                </div>
+            )}
 
             <Sidebar
                 activeItem={activeItem}

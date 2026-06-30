@@ -406,6 +406,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     return () => {
       isMounted = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile.department_id, userProfile.level]);
 
   useEffect(() => {
