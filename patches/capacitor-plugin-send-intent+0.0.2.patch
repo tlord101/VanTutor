@@ -1,0 +1,12 @@
+diff --git a/node_modules/capacitor-plugin-send-intent/android/build.gradle b/node_modules/capacitor-plugin-send-intent/android/build.gradle
+index 35ab45d..cca4f98 100644
+--- a/node_modules/capacitor-plugin-send-intent/android/build.gradle
++++ b/node_modules/capacitor-plugin-send-intent/android/build.gradle
+@@ -17,6 +17,7 @@ buildscript {
+ apply plugin: 'com.android.library'
+ 
+ android {
++    namespace "com.gustavosanjose.capacitorpluginsendintent"
+     compileSdkVersion project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 29
+     defaultConfig {
+         minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 21

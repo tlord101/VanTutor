@@ -26,6 +26,12 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="avelut" android:host="action" />
         </intent-filter>
+        <!-- Receive Shared Images Intent -->
+        <intent-filter>
+            <action android:name="android.intent.action.SEND" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:mimeType="image/*" />
+        </intent-filter>
         </activity>
 
         <service android:name=".CustomFirebaseMessagingService" android:exported="false">

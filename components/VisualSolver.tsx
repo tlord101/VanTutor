@@ -14,6 +14,9 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useToast } from '../hooks/useToast';
 import html2canvas from 'html2canvas';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 
 // --- INLINE ICONS ---
 const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
@@ -102,26 +105,58 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
             addToast('Failed to generate image.', 'error');
             return;
         }
-        const file = new File([blob], 'avelut_solution.png', { type: 'image/png' });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+
+        if (Capacitor.isNativePlatform()) {
             try {
-                await navigator.share({
-                    title: 'Avelut Solution',
-                    text: 'Check out this solution from Avelut Visual Solver!',
-                    files: [file]
+                const base64Data = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const b64 = (reader.result as string).split(',')[1];
+                        resolve(b64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
                 });
+
+                const fileName = `avelut_solution_${Date.now()}.png`;
+                const savedFile = await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64Data,
+                    directory: Directory.Cache
+                });
+
+                await FileOpener.openFile({
+                    path: savedFile.uri,
+                    mimeType: 'image/png'
+                });
+                
+                addToast('Image saved! Use the menu to share.', 'success');
             } catch (err) {
-                console.error('Error sharing', err);
+                console.error('Native share error:', err);
+                addToast('Failed to open image for sharing.', 'error');
             }
         } else {
-            // Fallback to download
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'avelut_solution.png';
-            a.click();
-            URL.revokeObjectURL(url);
-            addToast('Image downloaded! You can now share it manually.', 'success');
+            const file = new File([blob], 'avelut_solution.png', { type: 'image/png' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Avelut Solution',
+                        text: 'Check out this solution from Avelut Visual Solver!',
+                        files: [file]
+                    });
+                } catch (err) {
+                    console.error('Error sharing', err);
+                }
+            } else {
+                // Fallback to download
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'avelut_solution.png';
+                a.click();
+                URL.revokeObjectURL(url);
+                addToast('Image downloaded! You can now share it manually.', 'success');
+            }
         }
     };
 
@@ -309,10 +344,32 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
     const [error, setError] = useState<string>('');
     const [cropBox, setCropBox] = useState<CropBox>({ x: 0.05, y: 0.125, width: 0.9, height: 0.75 });
     const [customPrompt, setCustomPrompt] = useState<string>('');
-
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
     
+    const { addToast } = useToast();
+
+    useEffect(() => {
+        const sharedImage = localStorage.getItem('shared_image_intent');
+        if (sharedImage) {
+            localStorage.removeItem('shared_image_intent');
+            const loadSharedImage = async () => {
+                try {
+                    let imageUri = sharedImage;
+                    if (sharedImage.startsWith('content://') || sharedImage.startsWith('file://')) {
+                        const fileData = await Filesystem.readFile({ path: sharedImage });
+                        imageUri = `data:image/jpeg;base64,${fileData.data}`;
+                    }
+                    setScannedImage(imageUri);
+                    setCameraState('preview');
+                } catch (err) {
+                    console.error("Failed to load shared image intent:", err);
+                    addToast("Failed to load shared image.", "error");
+                }
+            };
+            loadSharedImage();
+        }
+    }, [addToast]);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -327,7 +384,6 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
     const { settings: appSettings } = useAppSettings();
     const geminiModel = getFeatureModel('visual_solve', appSettings);
     const aiClient = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
-    const { addToast } = useToast();
 
     const cleanupCamera = useCallback(() => {
         if (streamRef.current) {

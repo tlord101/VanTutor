@@ -34,6 +34,7 @@ const History = lazy(() => import('./components/History').then(module => ({ defa
 const StudyPartners = lazy(() => import('./components/StudyPartners').then(module => ({ default: module.StudyPartners })));
 const PublicProfile = lazy(() => import('./components/PublicProfile').then(module => ({ default: module.PublicProfile })));
 const Notifications = lazy(() => import('./components/Notifications').then(module => ({ default: module.Notifications })));
+const Feedback = lazy(() => import('./components/Feedback').then(module => ({ default: module.Feedback })));
 
 // Per-route skeleton fallbacks — each matches the shape of its real UI
 const skeletonMap: Record<string, React.ReactNode> = {
@@ -45,6 +46,7 @@ const skeletonMap: Record<string, React.ReactNode> = {
     settings:       <SettingsSkeleton />,
     history:        <div className="max-w-7xl mx-auto px-4 py-8"><HistorySkeleton /></div>,
     messenger:      <MessengerSkeleton />,
+    feedback:       <PageSkeleton />,
 };
 
 const getSkeletonFallback = (activeItem: string): React.ReactNode => {
@@ -134,6 +136,12 @@ export const MainContent: React.FC<MainContentProps> = ({
 
                     case 'help':
                         return <Help onStartTour={startTour} />;
+                    case 'feedback':
+                        return (
+                            <ErrorBoundary>
+                                <Feedback userProfile={userProfile} />
+                            </ErrorBoundary>
+                        );
                     case 'messenger':
                         return (
                             <ErrorBoundary>

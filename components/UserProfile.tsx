@@ -3,7 +3,7 @@ import type { UserProfile } from '../types';
 import { auth, storage, db, functions, type FirebaseUser } from '../firebase';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
-import { ref as dbRef, get } from 'firebase/database';
+import { ref as dbRef, get, query, orderByChild, equalTo, update } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
@@ -33,6 +33,9 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const [isDepartmentLoading, setIsDepartmentLoading] = useState(true);
   const [levels, setLevels] = useState<string[]>([]);
   const [isLevelsLoading, setIsLevelsLoading] = useState(true);
+  
+  const [referralCodeInput, setReferralCodeInput] = useState('');
+  const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
 
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +46,13 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (user && !userProfile.referral_code) {
+      const newCode = user.uid.substring(0, 8).toUpperCase();
+      onProfileUpdate({ referral_code: newCode, referrals_count: 0 });
+    }
+  }, [user, userProfile.referral_code, onProfileUpdate]);
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
@@ -131,6 +141,46 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const handleCancelEdit = () => {
     setIsEditingName(false);
     setNewDisplayName(userProfile.display_name);
+  };
+
+  const handleSubmitReferral = async () => {
+    if (!referralCodeInput.trim()) return addToast('Please enter a referral code.', 'error');
+    if (referralCodeInput.trim().toUpperCase() === userProfile.referral_code) return addToast('You cannot use your own referral code.', 'error');
+    if (userProfile.referred_by) return addToast('You have already used a referral code.', 'error');
+
+    setIsSubmittingReferral(true);
+    try {
+      const usersRef = dbRef(db, 'users');
+      const q = query(usersRef, orderByChild('referral_code'), equalTo(referralCodeInput.trim().toUpperCase()));
+      const snapshot = await get(q);
+
+      if (snapshot.exists()) {
+        const referrerData = snapshot.val();
+        const referrerUid = Object.keys(referrerData)[0];
+        const referrerProfile = referrerData[referrerUid];
+
+        const updates: Record<string, any> = {};
+        
+        // Update current user
+        updates[`users/${userProfile.uid}/referred_by`] = referrerUid;
+        updates[`users/${userProfile.uid}/ai_credits_balance`] = (userProfile.ai_credits_balance || 0) + 500;
+        
+        // Update referrer
+        updates[`users/${referrerUid}/referrals_count`] = (referrerProfile.referrals_count || 0) + 1;
+        updates[`users/${referrerUid}/ai_credits_balance`] = (referrerProfile.ai_credits_balance || 0) + 500;
+
+        await update(dbRef(db), updates);
+        
+        addToast('Referral successful! You both received 500 AI credits.', 'success');
+        onProfileUpdate({ referred_by: referrerUid, ai_credits_balance: (userProfile.ai_credits_balance || 0) + 500 });
+      } else {
+        addToast('Invalid referral code.', 'error');
+      }
+    } catch (error) {
+      console.error("Referral error", error);
+      addToast('An error occurred. Please try again.', 'error');
+    }
+    setIsSubmittingReferral(false);
   };
 
   const handleLevelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -574,6 +624,63 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                     <span className={`absolute top-1 left-1 bg-white dark:bg-black w-4 h-4 rounded-full transition-transform ${privacySettings.public_level ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-black p-6 rounded-3xl border border-[#E9ECEF] dark:border-transparent shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+                                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M6 20V10M18 20V4" /></svg>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-[#212529] dark:text-white">Referrals & Rewards</h3>
+                                <p className="text-[10px] font-bold text-[#ADB5BD] uppercase tracking-wider">Earn 500 AI credits</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="bg-slate-50 dark:bg-[#111] p-4 rounded-2xl border border-slate-100 dark:border-transparent text-center">
+                                <p className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Your Referral Code</p>
+                                <div className="flex items-center justify-center gap-2">
+                                    <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 tracking-widest">{userProfile.referral_code || '---'}</span>
+                                    {userProfile.referral_code && (
+                                        <button onClick={() => {
+                                            navigator.clipboard.writeText(userProfile.referral_code!);
+                                            addToast('Referral code copied!', 'success');
+                                        }} className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2 font-medium">Friends referred: {userProfile.referrals_count || 0}</p>
+                            </div>
+
+                            {!userProfile.referred_by && (
+                                <div className="pt-4 border-t border-[#E9ECEF] dark:border-white/10">
+                                    <p className="text-xs font-bold text-slate-700 dark:text-white mb-2">Were you referred by a friend?</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={referralCodeInput}
+                                            onChange={(e) => setReferralCodeInput(e.target.value)}
+                                            placeholder="Enter their code"
+                                            className="flex-1 bg-[#F8F9FA] dark:bg-[#111] border border-[#E9ECEF] dark:border-transparent rounded-xl px-4 text-sm font-bold text-[#212529] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#009EE2]/30 uppercase"
+                                        />
+                                        <button
+                                            onClick={handleSubmitReferral}
+                                            disabled={isSubmittingReferral || !referralCodeInput.trim()}
+                                            className="px-4 py-2 bg-[#009EE2] text-white rounded-xl text-sm font-black shadow-md hover:bg-blue-600 transition disabled:opacity-50 whitespace-nowrap"
+                                        >
+                                            {isSubmittingReferral ? '...' : 'Claim'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {userProfile.referred_by && (
+                                <div className="pt-4 border-t border-[#E9ECEF] dark:border-white/10 text-center">
+                                    <p className="text-xs font-bold text-green-600">You've claimed a referral reward!</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

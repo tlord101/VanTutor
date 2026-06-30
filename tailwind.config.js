@@ -13,6 +13,15 @@ export default {
         sans: ['Nunito', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         serif: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        typing: {
+          '0%, 100%': { transform: 'translateY(0)', opacity: '0.5' },
+          '50%': { transform: 'translateY(-4px)', opacity: '1' },
+        }
+      },
+      animation: {
+        typing: 'typing 1.5s infinite ease-in-out',
+      },
       colors: {
         brand: {
           50: '#EEF8FD',

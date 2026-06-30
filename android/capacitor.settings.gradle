@@ -34,3 +34,6 @@ project(':capawesome-team-capacitor-file-opener').projectDir = new File('../node
 
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../node_modules/@revenuecat/purchases-capacitor/android')
+
+include ':capacitor-plugin-send-intent'
+project(':capacitor-plugin-send-intent').projectDir = new File('../node_modules/capacitor-plugin-send-intent/android')

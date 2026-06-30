@@ -1,7 +1,7 @@
 {
   "name": "avelut",
   "private": true,
-  "version": "8.1.3",
+  "version": "8.1.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "cap:android": "npx cap open android",
     "cap:add:android": "npx cap add android",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "postbuild": "node -e \"if(process.env.VERCEL) { console.log('Skipping react-snap on Vercel'); } else { require('child_process').execSync('react-snap', {stdio: 'inherit'}); }\""
+    "postbuild": "node -e \"if(process.env.VERCEL) { console.log('Skipping react-snap on Vercel'); } else { require('child_process').execSync('react-snap', {stdio: 'inherit'}); }\"",
+    "postinstall": "patch-package"
   },
   "reactSnap": {
     "include": [
@@ -48,6 +49,7 @@
     "@pinecone-database/pinecone": "^7.2.0",
     "@revenuecat/purchases-capacitor": "^13.2.0",
     "ai": "^6.0.191",
+    "capacitor-plugin-send-intent": "^0.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.5.0",
@@ -88,6 +90,7 @@
     "autoprefixer": "^10.4.23",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.6",
     "react-snap": "^1.23.0",
     "tailwindcss": "^3.4.19",

@@ -13,9 +13,11 @@ import { UploadCenter } from './components/UploadCenter';
 import { Onboarding } from './components/Onboarding';
 
 import { createAvelutAI } from './utils/inference';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { App as CapacitorApp } from '@capacitor/app';
+
+const SendIntent = registerPlugin<any>('SendIntent');
 
 
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
@@ -319,6 +321,7 @@ const App: React.FC = () => {
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
+
     const [userProgress, setUserProgress] = useState<UserProgress>({});
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [notifications, setNotifications] = useState<NotificationType[]>([]);
@@ -383,9 +386,7 @@ const App: React.FC = () => {
         activeItemRef.current = activeItem;
     }, [activeItem]);
     
-    // Maintain a simple navigation history stack for back buttons
     const [navHistory, setNavHistory] = useState<string[]>([]);
-    
     const setActiveItem = useCallback((newItem: string) => {
         setNavHistory(prev => {
             if (prev[prev.length - 1] === newItem) return prev;
@@ -398,17 +399,37 @@ const App: React.FC = () => {
             if (pathname !== nextPath && typeof window !== 'undefined') {
                 window.history.pushState(null, '', nextPath);
             }
-            setAdminPath(nextPath);
-            return;
-        }
-        
-        if (typeof window !== 'undefined') {
-            const expectedPath = newItem === 'dashboard' ? '/' : `/${newItem}`;
-            if (getWindowPathname() !== expectedPath) {
-                window.history.pushState(null, '', expectedPath);
+        } else {
+            const newPath = newItem === 'dashboard' ? '/' : `/${newItem.replace(/_/g, '-')}`;
+            if (getWindowPathname() !== newPath && typeof window !== 'undefined') {
+                window.history.pushState(null, '', newPath);
             }
         }
     }, []);
+
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            const intentListener = SendIntent.addListener('appSendActionIntent', (data: any) => {
+                if (data && data.extras && data.extras['android.intent.extra.STREAM']) {
+                    const streamUri = data.extras['android.intent.extra.STREAM'];
+                    localStorage.setItem('shared_image_intent', streamUri);
+                    // Force navigation to the solver
+                    window.dispatchEvent(new Event('shared_image_received'));
+                }
+            });
+            return () => { 
+                intentListener.then((handle: any) => handle.remove()).catch(() => {});
+            };
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleSharedImage = () => {
+            setActiveItem('visual_solver');
+        };
+        window.addEventListener('shared_image_received', handleSharedImage);
+        return () => window.removeEventListener('shared_image_received', handleSharedImage);
+    }, [setActiveItem]);
 
     useEffect(() => {
         const handleGoBack = () => {

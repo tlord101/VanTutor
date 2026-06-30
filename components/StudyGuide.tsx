@@ -1216,19 +1216,23 @@ Student: "${tempInput}"
             const result = await attemptApiCall(async () => {
                 const prompt = `Create an educational visualization for this study guide explanation:\n\n${promptText}`;
 
-                // Using the specific implementation pattern requested:
-                const interaction = await (ai as any).interactions.create({
-                    model: "gemini-3-pro-image",
-                    input: prompt,
+                // Using the correct Imagen 3 API from @google/genai
+                const response = await ai.models.generateImages({
+                    model: 'gemini-3-pro-image',
+                    prompt: prompt,
+                    config: {
+                        numberOfImages: 1,
+                        outputMimeType: 'image/png'
+                    }
                 });
-                const generatedImage = interaction.output_image;
+                const generatedImage = response.generatedImages?.[0];
 
                 const imageUrls: string[] = [];
 
-                if (generatedImage) {
+                if (generatedImage && generatedImage.image?.imageBytes) {
                     const mimeType = 'image/png';
                     const fileExtension = 'png';
-                    const imageBlob = base64ToBlob(generatedImage.data, mimeType);
+                    const imageBlob = base64ToBlob(generatedImage.image.imageBytes, mimeType);
                     const uniqueImageId = createUniqueId();
                     const storageRefObj = storageRef(storage, `${userProfile.uid}/study-guide-illustrations/${course.course_id}/${uniqueImageId}.${fileExtension}`);
                     const uploadResult = await uploadBytes(storageRefObj, imageBlob);

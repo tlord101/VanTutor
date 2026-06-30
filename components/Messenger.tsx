@@ -2010,7 +2010,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 );
               })}
 
-              {activeChat && chatStatuses[activeChat.chatId]?.[activeChat.otherUser.uid] === 'typing' && (
+              {activeChat && chats.find(c => c.chatId === activeChat.chatId)?.isTyping && (
                   <div className="flex justify-start mb-6 w-full max-w-[85%] pr-14 group transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-end gap-2">
                       <div className="w-[38px] h-[38px] shrink-0 rounded-full overflow-hidden border border-neutral-100 dark:border-transparent shadow-sm select-none pointer-events-none">

@@ -119,7 +119,7 @@ export default function PrivacyPolicy() {
                 </p>
                 <ul className="list-disc pl-5 space-y-3 text-slate-300">
                   <li><strong>Firebase Services:</strong> User account registration is verified via Google Firebase Auth. All text prompts, notes, active profiles, and database logs are stored in Google Firebase Realtime Database. Uploaded files are hosted in Google Firebase Storage.</li>
-                  <li><strong>Large Language Model Processing:</strong> When you send a prompt or file, it is processed via the Google Gemini API (including models like `gemini-1.5-pro` or preview versions configured by administrators). The contents of these prompts and files are transmitted securely via SSL and are only used to generate the immediate text or audio response. Google Gemini API terms confirm that user data processed through their developer APIs is not used to train base AI models.</li>
+                  <li><strong>Large Language Model Processing:</strong> When you send a prompt or file, it is processed via the Google Gemini API (including models like `gemini-3.1-flash-lite` or preview versions configured by administrators). The contents of these prompts and files are transmitted securely via SSL and are only used to generate the immediate text or audio response. Google Gemini API terms confirm that user data processed through their developer APIs is not used to train base AI models.</li>
                 </ul>
               </section>
 

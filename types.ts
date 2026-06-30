@@ -55,6 +55,18 @@ export interface UserProfile {
   theme_preferences?: {
     mode: 'light' | 'dark';
   };
+  referral_code?: string;
+  referred_by?: string;
+  referrals_count?: number;
+}
+
+export interface Feedback {
+  id: string;
+  uid: string;
+  type: 'suggestion' | 'complaint' | 'bug';
+  content: string;
+  timestamp: number;
+  status: 'pending' | 'reviewed' | 'resolved';
 }
 
 export interface Report {

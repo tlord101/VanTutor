@@ -29,7 +29,7 @@ async function deploy() {
         const apkBuffer = fs.readFileSync("android/app/build/outputs/apk/release/app-release.apk");
 
         console.log("Uploading to Firebase Storage...");
-        const sRef = storageRef(storage, "app_releases/avelut-v4.17.6.apk");
+        const sRef = storageRef(storage, "app_releases/avelut-v8.1.4.apk");
         await uploadBytes(sRef, new Uint8Array(apkBuffer), { contentType: "application/vnd.android.package-archive" });
         console.log("Upload complete.");
 
@@ -38,8 +38,8 @@ async function deploy() {
 
         console.log("Updating Realtime Database at app_updates/latest...");
         await set(dbRef(db, "app_updates/latest"), {
-            versionName: "8.1.3",
-            versionCode: 105,
+            versionName: "8.1.4",
+            versionCode: 106,
             downloadUrl: downloadUrl,
             releaseDate: new Date().toISOString()
         });

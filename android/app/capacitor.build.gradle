@@ -20,6 +20,7 @@ dependencies {
     implementation project(':capacitor-toast')
     implementation project(':capawesome-team-capacitor-file-opener')
     implementation project(':revenuecat-purchases-capacitor')
+    implementation project(':capacitor-plugin-send-intent')
 
 }
 

@@ -61,6 +61,16 @@
       transform: translateY(0);
     }
   }
+  @keyframes typing {
+    0%, 100% {
+      transform: translateY(0px);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
   .animate-fade-in-up {
     animation: fade-in-up 0.4s ease-out forwards;
   }
