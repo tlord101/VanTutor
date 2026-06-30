@@ -1218,7 +1218,7 @@ Student: "${tempInput}"
 
                 // Using the correct Imagen 3 API from @google/genai
                 const response = await ai.models.generateImages({
-                    model: 'imagen-3.0-generate-001',
+                    model: 'gemini-3.1-pro-image',
                     prompt: prompt,
                     config: {
                         numberOfImages: 1,

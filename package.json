@@ -1,7 +1,7 @@
 {
   "name": "avelut",
   "private": true,
-  "version": "8.1.9",
+  "version": "5.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
