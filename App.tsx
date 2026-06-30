@@ -47,7 +47,7 @@ import { SharedChatView } from './components/SharedChatView';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import { initNativeNotifications, cleanupNativeNotifications } from './utils/nativeNotifications';
-import { InAppUpdate } from './components/InAppUpdate';
+
 import { Skeleton, PageSkeleton } from './components/Skeleton';
 import { useOTAUpdater } from './hooks/useOTAUpdater';
 
@@ -1519,8 +1519,7 @@ const App: React.FC = () => {
                 isOpen={isTourOpen}
                 onClose={handleTourClose}
             />
-            <InAppUpdate />
-            
+
             {/* Global OTA Update Banner/Modal */}
             {otaStatus.isDownloading && (
                 <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-start pt-20 p-6 text-white animate-fade-in">
