@@ -4,6 +4,21 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ToastProvider } from './hooks/useToast';
 
+// Automatically reload the page if a dynamically imported module fails to load.
+// This typically happens when the user has an old version of the app open and
+// we push an OTA update, causing the old chunk hashes to become invalid.
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
+
+// We also add a generic unhandledrejection listener just in case a regular dynamic import() fails
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && event.reason.message.includes('Failed to fetch dynamically imported module')) {
+    window.location.reload();
+  }
+});
+
+
 declare var __firebase_config: any;
 
 // ... (SetupRequired component stays the same)
