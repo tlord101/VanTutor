@@ -49,6 +49,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import { initNativeNotifications, cleanupNativeNotifications } from './utils/nativeNotifications';
 import { InAppUpdate } from './components/InAppUpdate';
 import { Skeleton, PageSkeleton } from './components/Skeleton';
+import { useOTAUpdater } from './hooks/useOTAUpdater';
 
 declare var __app_id: string;
 
@@ -308,6 +309,7 @@ const playAlarmSound = () => {
 // CORE APP CONTEXT ENGINE INITIALIZATION
 // ==========================================
 const App: React.FC = () => {
+    const otaStatus = useOTAUpdater();
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
@@ -1519,6 +1521,36 @@ const App: React.FC = () => {
             />
             <InAppUpdate />
             
+            {/* Global OTA Update Banner/Modal */}
+            {otaStatus.isDownloading && (
+                <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-start pt-20 p-6 text-white animate-fade-in">
+                    <div className="bg-[#002D62] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden animate-slide-down">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-[#009EE2]/20 to-transparent"></div>
+                        <div className="relative z-10">
+                            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/20 shadow-inner">
+                                <svg className="w-8 h-8 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </div>
+                            <h2 className="text-2xl font-black mb-2 tracking-tight">Installing Update...</h2>
+                            <p className="text-white/70 text-sm mb-8 font-medium px-4">
+                                Please wait while we apply the latest features and improvements to AVELUT.
+                            </p>
+                            
+                            <div className="w-full h-3 bg-black/30 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-[#009EE2] to-[#00f2fe] rounded-full transition-all duration-300 ease-out relative"
+                                    style={{ width: `${otaStatus.progress}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-white/30 animate-pulse"></div>
+                                </div>
+                            </div>
+                            <p className="text-xs font-bold text-[#009EE2] mt-3 tracking-widest">{otaStatus.progress}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Global Offline/Online Banner */}
             {(isOffline || showOnlineRestored) && (
                 <div 
