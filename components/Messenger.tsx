@@ -246,7 +246,7 @@ interface AvelutInputProps {
   setIsLocked: (locked: boolean) => void;
   recordDuration: number;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onImageSendWithCaption?: (file: File, caption: string) => void;
   disabled?: boolean;
   onTyping?: () => void;
 }
@@ -261,11 +261,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   setIsLocked,
   recordDuration,
   onFileSelect,
-  onImageSelect,
+  onImageSendWithCaption,
   disabled = false,
   onTyping
 }) => {
   const themeColor = '#0A101F'; // navy blue
+
+  const [attachedImage, setAttachedImage] = useState<{ file: File, previewUrl: string } | null>(null);
 
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
@@ -330,8 +332,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const executeTextSend = () => {
-    if (message.trim() && !disabled) {
-      onSend(message);
+    if ((message.trim() || attachedImage) && !disabled) {
+      if (attachedImage && onImageSendWithCaption) {
+        onImageSendWithCaption(attachedImage.file, message.trim());
+        setAttachedImage(null);
+      } else if (message.trim()) {
+        onSend(message);
+      }
       setMessage("");
     }
   };
@@ -347,10 +354,18 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaY = isSwiping ? Math.min(0, Math.max(-100, currentY - startY)) : 0;
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
+  const handleInternalImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachedImage({ file, previewUrl: URL.createObjectURL(file) });
+    }
+    if (e.target) e.target.value = '';
+  };
+
   return (
     <div className={`w-full relative select-none z-40 bg-transparent pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
-      <input type="file" ref={imageInputRef} onChange={onImageSelect} className="hidden" multiple accept="image/*" />
+      <input type="file" ref={imageInputRef} onChange={handleInternalImageSelect} className="hidden" accept="image/*" />
 
       {isRecording && !isLocked && (
         <div
@@ -366,9 +381,20 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         </div>
       )}
 
-      <div className="w-full flex items-end gap-2 relative">
-        {!isRecording && !isLocked && (
-          <div className="flex-1 min-h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
+      <div className="w-full flex flex-col gap-2 relative">
+        {attachedImage && (
+          <div className="mx-2 mb-1 bg-white dark:bg-[#202C33] rounded-2xl p-2 flex items-start justify-between shadow-sm border border-slate-100 dark:border-white/5 relative">
+            <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/5 relative">
+              <img src={attachedImage.previewUrl} alt="Attachment" className="w-full h-full object-cover" />
+            </div>
+            <button onClick={() => setAttachedImage(null)} className="absolute top-1 right-1 w-7 h-7 bg-white dark:bg-slate-800 text-slate-500 rounded-full flex items-center justify-center shadow-md hover:bg-slate-100 z-10 transition">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        )}
+        <div className="w-full flex items-end gap-2 relative">
+          {!isRecording && !isLocked && (
+            <div className="flex-1 min-h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
             <div className="relative flex items-center h-full">
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
@@ -437,7 +463,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
 
         <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
-          {hasText ? (
+          {hasText || attachedImage ? (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
@@ -457,6 +483,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
               <Mic className="w-6 h-6" />
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>
@@ -1264,52 +1291,52 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
-  const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
-    const selectedImages = Array.from(e.target.files);
-    for (const imgItem of selectedImages) {
-      const img = imgItem as any;
-      const localTimestamp = Date.now();
-      const tempId = `temp_img_${localTimestamp}`;
-      const localUrl = URL.createObjectURL(img);
+  const handleImageSendWithCaption = async (file: File, caption: string) => {
+    if (!activeChat || !firebaseUser) return;
+    
+    const localTimestamp = Date.now();
+    const tempId = `temp_img_${localTimestamp}`;
+    const localUrl = URL.createObjectURL(file);
 
-      const pendingMessage = {
-        id: tempId,
-        senderId: firebaseUser.uid,
-        text: `![Captured Image](${localUrl})`,
-        type: 'image',
-        timestamp: localTimestamp,
-        isUploading: true,
-        uploadProgress: 0
-      };
-      setOptimisticMessages(prev => [...prev, pendingMessage]);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    const fullText = caption ? `![Captured Image](${localUrl})\n\n${caption}` : `![Captured Image](${localUrl})`;
 
-      try {
-        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${img.name}`;
-        const fileBucketRef = storageRef(storage, cloudPath);
-        
-        const uploadTask = uploadBytesResumable(fileBucketRef, img);
-        
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, uploadProgress: progress } : m));
-          },
-          (error) => {
-             addToast('Failed to upload image.', 'error');
-             setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-          },
-          async () => {
-             const fileDownloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-             setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-             await sendMsg(`![Captured Image](${fileDownloadUrl})`, 'image');
-          }
-        );
-      } catch (err) {
-        addToast('Failed to start image upload.', 'error');
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-      }
+    const pendingMessage = {
+      id: tempId,
+      senderId: firebaseUser.uid,
+      text: fullText,
+      type: 'image',
+      timestamp: localTimestamp,
+      isUploading: true,
+      uploadProgress: 0
+    };
+    
+    setOptimisticMessages(prev => [...prev, pendingMessage]);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    try {
+      const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${file.name}`;
+      const fileBucketRef = storageRef(storage, cloudPath);
+      const uploadTask = uploadBytesResumable(fileBucketRef, file);
+      
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, uploadProgress: progress } : m));
+        },
+        (error) => {
+           addToast('Failed to upload image.', 'error');
+           setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        },
+        async () => {
+           const fileDownloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+           setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+           const finalFullText = caption ? `![Captured Image](${fileDownloadUrl})\n\n${caption}` : `![Captured Image](${fileDownloadUrl})`;
+           await sendMsg(finalFullText, 'image');
+        }
+      );
+    } catch (err) {
+      addToast('Failed to start image upload.', 'error');
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
     }
   };
 
@@ -2062,7 +2089,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   setIsLocked={setIsLocked}
                   recordDuration={recordDuration}
                   onFileSelect={handleFileSelection}
-                  onImageSelect={handleImageSelection}
+                  onImageSendWithCaption={handleImageSendWithCaption}
                   onTyping={() => handleTypingStatus('typing')}
                 />
               ) : (

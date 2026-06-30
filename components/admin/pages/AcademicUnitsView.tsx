@@ -49,7 +49,9 @@ export const AcademicUnitsView: React.FC = () => {
                                     flatDepts.push({
                                         id: dId,
                                         schoolId: sId,
+                                        schoolName: school.name || sId,
                                         collegeId: cId,
+                                        collegeName: college.name || cId,
                                         department_name: dept.name,
                                         levels: Array.isArray(dept.levels) ? dept.levels : Object.keys(dept.levels || {})
                                     });

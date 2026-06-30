@@ -72,6 +72,31 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 }) => {
     const { addToast } = useToast();
     const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
+    
+    // Filters
+    const [selectedFilterSchoolId, setSelectedFilterSchoolId] = useState<string>('');
+    const [selectedFilterCollegeId, setSelectedFilterCollegeId] = useState<string>('');
+
+    // Derived unique lists for filters
+    const uniqueSchools = Array.from(new Set(allDepartments.map(d => d.schoolId))).map(sId => {
+        const d = allDepartments.find(dept => dept.schoolId === sId);
+        return { id: sId, name: d?.schoolName || sId };
+    });
+
+    const uniqueColleges = Array.from(new Set(
+        allDepartments
+            .filter(d => !selectedFilterSchoolId || d.schoolId === selectedFilterSchoolId)
+            .map(d => d.collegeId)
+    )).map(cId => {
+        const d = allDepartments.find(dept => dept.collegeId === cId);
+        return { id: cId, name: d?.collegeName || cId };
+    });
+
+    const filteredDepartments = allDepartments.filter(dept => {
+        if (selectedFilterSchoolId && dept.schoolId !== selectedFilterSchoolId) return false;
+        if (selectedFilterCollegeId && dept.collegeId !== selectedFilterCollegeId) return false;
+        return true;
+    });
 
     // CSV Parse State
     const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -506,12 +531,42 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                         <select
+                            value={selectedFilterSchoolId}
+                            onChange={e => {
+                                setSelectedFilterSchoolId(e.target.value);
+                                setSelectedFilterCollegeId('');
+                                setManagerSelectionDepartmentId('');
+                            }}
+                            className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
+                        >
+                            <option value="">All Schools</option>
+                            {uniqueSchools.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={selectedFilterCollegeId}
+                            onChange={e => {
+                                setSelectedFilterCollegeId(e.target.value);
+                                setManagerSelectionDepartmentId('');
+                            }}
+                            className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
+                            disabled={!selectedFilterSchoolId && uniqueColleges.length > 50}
+                        >
+                            <option value="">All Colleges</option>
+                            {uniqueColleges.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                        <select
                             value={managerSelectionDepartmentId}
                             onChange={e => setManagerSelectionDepartmentId(e.target.value)}
                             className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
                         >
-                            <option value="">Select Department</option>
-                            {allDepartments.map(dept => (
+                            <option value="">Select Department ({filteredDepartments.length})</option>
+                            {filteredDepartments.map(dept => (
                                 <option key={dept.id} value={dept.id}>{dept.department_name}</option>
                             ))}
                         </select>
@@ -585,10 +640,42 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         </div>
 
                         {courseImportTargetMode === 'selected' && (
-                            <div className="space-y-3">
-                                <label className="text-xs font-black uppercase tracking-widest text-indigo-400">Select Departments</label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                    {allDepartments.map((dept) => (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-indigo-100/50 p-4 rounded-xl border border-indigo-100">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-indigo-500">Filter by School</label>
+                                        <select
+                                            value={selectedFilterSchoolId}
+                                            onChange={e => {
+                                                setSelectedFilterSchoolId(e.target.value);
+                                                setSelectedFilterCollegeId('');
+                                            }}
+                                            className="w-full p-3 border border-indigo-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-300 text-sm"
+                                        >
+                                            <option value="">All Schools</option>
+                                            {uniqueSchools.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-indigo-500">Filter by College</label>
+                                        <select
+                                            value={selectedFilterCollegeId}
+                                            onChange={e => setSelectedFilterCollegeId(e.target.value)}
+                                            className="w-full p-3 border border-indigo-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-300 text-sm"
+                                            disabled={!selectedFilterSchoolId && uniqueColleges.length > 50}
+                                        >
+                                            <option value="">All Colleges</option>
+                                            {uniqueColleges.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <label className="text-xs font-black uppercase tracking-widest text-indigo-400">Select Departments ({filteredDepartments.length})</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
+                                    {filteredDepartments.map((dept) => (
                                         <label key={dept.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-white cursor-pointer hover:bg-indigo-50 transition shadow-sm">
                                             <input
                                                 type="checkbox"
@@ -596,7 +683,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                                 onChange={() => toggleCourseImportDepartment(dept.id)}
                                                 className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
                                             />
-                                            <span className="text-sm font-bold text-slate-700 truncate">{dept.department_name}</span>
+                                            <span className="text-sm font-bold text-slate-700 truncate" title={dept.department_name}>{dept.department_name}</span>
                                         </label>
                                     ))}
                                 </div>
