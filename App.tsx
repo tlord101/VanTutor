@@ -706,10 +706,10 @@ const App: React.FC = () => {
         }
     }, [user]);
 
-    const handleConsent = async (granted: boolean) => {
+    const handleConsent = useCallback(async (granted: boolean) => {
         setShowPrivacyModal(false);
         await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
-    };
+    }, [handleProfileUpdate]);
 
     useEffect(() => {
         if (!userProfile) return;
@@ -1118,16 +1118,16 @@ const App: React.FC = () => {
 
 
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await firebaseSignOut(firebaseAuth);
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
             addToast(error.message || "Failed to log out.", "error");
         }
-    };
+    }, [addToast]);
 
-    const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
+    const handleOnboardingComplete = useCallback(async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
         const displayName = user.displayName || 'AVELITE';
@@ -1170,9 +1170,9 @@ const App: React.FC = () => {
             console.error("Failed to complete onboarding:", error.message || error);
             addToast(error.message || "Could not save your profile.", "error");
         }
-    };
+    }, [user, addToast, setActiveItem]);
 
-    const handleMarkNotificationRead = async (id: string) => {
+    const handleMarkNotificationRead = useCallback(async (id: string) => {
         if (!user) return;
         const notificationRef = dbRef(db, `notifications/${user.uid}/${id}`);
         try {
@@ -1181,9 +1181,9 @@ const App: React.FC = () => {
             console.error("Error marking notification read:", err);
             addToast("Could not update notification.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleMarkAllNotificationsRead = async () => {
+    const handleMarkAllNotificationsRead = useCallback(async () => {
         if (!user) return;
         const notificationsRef = dbRef(db, `notifications/${user.uid}`);
         try {
@@ -1201,9 +1201,9 @@ const App: React.FC = () => {
             console.error("Error clearing notifications:", error);
             addToast("Could not clear notifications.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+    const handleAccountDeletion = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
             if (user) {
                 await update(dbRef(db, `users/${user.uid}`), { is_deleted: true });
@@ -1216,9 +1216,9 @@ const App: React.FC = () => {
             console.error("Error deleting account:", error.message || error);
             return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
-    };
+    }, [user, addToast]);
     
-    const handleTourClose = async (completed: boolean) => {
+    const handleTourClose = useCallback(async (completed: boolean) => {
         if (completed && userProfile && !userProfile.has_completed_tour) {
             const result = await handleProfileUpdate({ has_completed_tour: true });
             if (!result.success) {
@@ -1226,7 +1226,24 @@ const App: React.FC = () => {
             }
         }
         setIsTourOpen(false);
-    };
+    }, [userProfile, handleProfileUpdate, addToast]);
+
+    const handleCloseMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
+    const handleHeaderNotificationsClick = useCallback(() => setActiveItem('notifications'), [setActiveItem]);
+    const handleMenuClick = useCallback(() => setIsMobileSidebarOpen(true), []);
+    const handleMessengerClick = useCallback(() => setActiveItem('messenger'), [setActiveItem]);
+    const handleCalendarClick = useCallback(() => setIsCalendarOpen(true), []);
+    const handleBottomNavItemClick = useCallback((id: string) => {
+        if (id === 'mobile_menu') {
+            setIsMobileSidebarOpen(true);
+        } else {
+            setActiveItem(id);
+        }
+    }, [setActiveItem]);
+
+    const handleAllowConsent = useCallback(() => handleConsent(true), [handleConsent]);
+    const handleDenyConsent = useCallback(() => handleConsent(false), [handleConsent]);
+    const handleCloseCalendar = useCallback(() => setIsCalendarOpen(false), []);
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -1455,7 +1472,7 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
-                onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+                onCloseMobileSidebar={handleCloseMobileSidebar}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
             />
@@ -1463,10 +1480,10 @@ const App: React.FC = () => {
                 <Header 
                     currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
-                    onNotificationsClick={() => setActiveItem('notifications')}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
-                    onMessengerClick={() => setActiveItem('messenger')}
-                    onCalendarClick={() => setIsCalendarOpen(true)}
+                    onNotificationsClick={handleHeaderNotificationsClick}
+                    onMenuClick={handleMenuClick}
+                    onMessengerClick={handleMessengerClick}
+                    onCalendarClick={handleCalendarClick}
                     unreadMessagesCount={unreadMessagesCount}
                     userProfile={userProfile}
                     leftActions={customHeaderConfig?.leftActions}
@@ -1508,23 +1525,17 @@ const App: React.FC = () => {
                     )}
                 </div>
             </main>
-            {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}
+            {showPrivacyModal && <PrivacyConsentModal onAllow={handleAllowConsent} onDeny={handleDenyConsent} />}
             {userProfile && (
                 <CalendarModal
                     isOpen={isCalendarOpen}
-                    onClose={() => setIsCalendarOpen(false)}
+                    onClose={handleCloseCalendar}
                     userProfile={userProfile}
                 />
             )}
             <BottomNavBar
               activeItem={activeItem}
-              onItemClick={(id) => {
-                if (id === 'mobile_menu') {
-                    setIsMobileSidebarOpen(true);
-                } else {
-                    setActiveItem(id);
-                }
-              }}
+              onItemClick={handleBottomNavItemClick}
               onCenterActionClick={() => {
                   if (activeItem === 'visual_solver') {
                       triggerScanRef.current?.();

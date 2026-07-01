@@ -309,7 +309,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const { addToast } = useToast();
   const geminiModel = getFeatureModel('chat_interaction', appSettings);
 
-  const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [
+    appSettings,
+    userProfile?.uid,
+    userProfile?.use_personal_token,
+    userProfile?.personal_api_key,
+    userProfile?.subscription_status
+  ]);
   
   // Custom Input Bar States: 1 (Default), 2 (Typing)
   const [inputState, setInputState] = useState<number>(1);

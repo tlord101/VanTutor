@@ -77,7 +77,7 @@ interface MainContentProps {
 
 
 
-export const MainContent: React.FC<MainContentProps> = ({
+const MainContentComponent: React.FC<MainContentProps> = ({
     activeItem,
     user,
     userProfile,
@@ -194,3 +194,6 @@ export const MainContent: React.FC<MainContentProps> = ({
         </Suspense>
     );
 };
+
+export const MainContent = React.memo(MainContentComponent);
+MainContent.displayName = 'MainContent';

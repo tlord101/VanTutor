@@ -83,7 +83,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userProfile }) => {
                 data.push({ user_id: child.key, ...child.val() });
             });
             // Firebase sorts ascending by child, so we reverse for descending leaderboard
-            const sortedData = data.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+            const sortedData = data.reverse();
             
             writeCachedJson(cacheKey, sortedData);
             if (activeTab === 'overall') {
