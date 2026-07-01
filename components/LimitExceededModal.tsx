@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { UserProfile, AppSettings } from '../types';
-import { triggerPaystackPurchase } from '../utils/usage';
-import { db } from '../firebase';
-import { ref as dbRef, runTransaction } from 'firebase/database';
+import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
-import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 
 interface LimitExceededModalProps {
   isOpen: boolean;
@@ -13,172 +10,59 @@ interface LimitExceededModalProps {
   appSettings: AppSettings;
   cost: number;
   balance: number;
-  addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  addToast: (msg: string, type: 'success'|'error') => void;
   onSuccessPurchase: () => void;
 }
 
 export const LimitExceededModal: React.FC<LimitExceededModalProps> = ({
   isOpen,
   onClose,
-  userProfile,
-  appSettings,
   cost,
   balance,
-  addToast,
-  onSuccessPurchase,
 }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
-
   if (!isOpen) return null;
 
-  const refillAmount = 20; // 20 credits per refill
-  const refillPrice = 500; // 500 NGN per 20 credits
-
   const handlePurchase = async () => {
-    setIsProcessing(true);
+    onClose();
+    
+    // Redirect to the web billing page
+    const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
+    const billingUrl = `${baseUrl}/billing`;
 
-    if (isNative() && appSettings.revenuecat_api_key_android) {
-      try {
-        await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
-        await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
-        await Purchases.logIn({ appUserID: userProfile.uid });
-        const currentOfferings = await Purchases.getOfferings();
-        if (!currentOfferings.current) {
-          throw new Error("Could not load packages.");
-        }
-
-        const pkgToBuy = currentOfferings.current.availablePackages.find((p: any) => p.identifier.toLowerCase().includes('refill'));
-        if (!pkgToBuy) {
-          throw new Error("Refill package is not available on Android.");
-        }
-
-        await Purchases.purchasePackage({ aPackage: pkgToBuy });
-        
-        const userRef = dbRef(db, `users/${userProfile.uid}`);
-        await runTransaction(userRef, (profile) => {
-          if (profile) {
-            const currentBalance = profile.ai_credits_balance ?? 0;
-            profile.ai_credits_balance = currentBalance + refillAmount;
-          }
-          return profile;
-        });
-
-        addToast(`Refill successful! +${refillAmount} AI Credits added.`, 'success');
-        onSuccessPurchase();
-        onClose();
-        setIsProcessing(false);
-        return; // Success, exit
-      } catch (e: any) {
-        console.error("RevenueCat Purchase Error:", e);
-        if (e.userCancelled) {
-          setIsProcessing(false);
-          return; // User cancelled, exit
-        }
-        // If not user cancelled, we will swallow the error and fallback to paystack
-        console.warn("Falling back to Paystack due to RevenueCat error.");
-      }
+    if (isNative()) {
+      await Browser.open({ url: billingUrl });
+    } else {
+      window.location.href = billingUrl;
     }
-
-    const publicKey = appSettings.paystack_public_key?.trim();
-    const email = userProfile.email || `${userProfile.uid}@avelut.com`;
-
-    await triggerPaystackPurchase({
-      publicKey,
-      email,
-      amount: refillPrice,
-      userId: userProfile.uid,
-      purchaseType: 'additional_credits',
-      metadata: { 
-        refill_amount: refillAmount,
-        cost_of_action: cost
-      },
-      addToast,
-      onSuccess: async (reference) => {
-        try {
-          const userRef = dbRef(db, `users/${userProfile.uid}`);
-          await runTransaction(userRef, (profile) => {
-            if (profile) {
-              const currentBalance = profile.ai_credits_balance ?? 0;
-              profile.ai_credits_balance = currentBalance + refillAmount;
-            }
-            return profile;
-          });
-
-          addToast(`Refill successful! +${refillAmount} AI Credits added.`, 'success');
-          onSuccessPurchase();
-          onClose();
-        } catch (e: any) {
-          console.error(e);
-          addToast('Payment received but credits failed to update. Contact support.', 'error');
-        } finally {
-          setIsProcessing(false);
-        }
-      },
-      onCancel: () => {
-        setIsProcessing(false);
-      },
-      onError: (err) => {
-        console.error(err);
-        setIsProcessing(false);
-      }
-    });
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Dark Blur Overlay */}
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      {/* Dialog Body */}
-      <div className="relative w-full max-w-md bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-[28px] p-6 shadow-2xl animate-in scale-in duration-200">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-center text-blue-600 mb-4 animate-pulse">
-            ⚡
-          </div>
-          <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-            Out of AI Credits
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-1 font-semibold">
-            Top-up your balance to continue using AI features.
-          </p>
+      <div className="bg-white dark:bg-[#1e1e1e] rounded-3xl w-full max-w-md relative z-10 overflow-hidden shadow-2xl border border-slate-200 dark:border-white/10">
+        <div className="bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-950/30 dark:to-orange-950/30 p-8 text-center border-b border-rose-100 dark:border-rose-900/50">
+           <div className="w-16 h-16 bg-white dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <svg className="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+           </div>
+           <h3 className="text-2xl font-black text-rose-900 dark:text-rose-100 mb-2">Insufficient Credits</h3>
+           <p className="text-rose-700/80 dark:text-rose-300 font-medium">This action requires {cost} credits, but you only have {balance}.</p>
         </div>
 
-        <div className="my-6 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-2 text-xs font-semibold text-slate-700">
-          <div className="flex justify-between">
-            <span>Your Current Balance:</span>
-            <span className="font-extrabold text-slate-900 dark:text-white">{balance} Credits</span>
-          </div>
-          <div className="flex justify-between border-t border-slate-100 pt-2">
-            <span>Action Cost:</span>
-            <span className="font-extrabold text-red-600">{cost} Credits</span>
-          </div>
-        </div>
-
-        <div className="mb-6 bg-blue-50/50 border border-blue-200 rounded-2xl p-4 text-center">
-          <span className="text-[9px] uppercase font-black tracking-widest text-blue-600 block mb-1">Instant Refill</span>
-          <p className="text-xs text-slate-700 font-extrabold mb-3">
-            Add {refillAmount} AI Credits to your balance.
-          </p>
-          <span className="text-2xl font-black text-slate-900 dark:text-white">
-            ₦{refillPrice.toLocaleString()}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={onClose}
-            disabled={isProcessing}
-            className="py-3 text-slate-500 dark:text-gray-400 hover:text-slate-800 text-xs font-black uppercase tracking-wider rounded-xl transition-all border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:bg-black disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handlePurchase}
-            disabled={isProcessing}
-            className="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
-          >
-            {isProcessing ? 'Processing...' : 'Refill Now'}
-          </button>
+        <div className="p-6 space-y-4">
+           <button
+              onClick={handlePurchase}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-md active:scale-[0.98]"
+           >
+              Buy Credits on Web Portal
+           </button>
+           
+           <button
+              onClick={onClose}
+              className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-[#2a2a2a] dark:hover:bg-[#333] text-slate-700 dark:text-slate-300 font-bold py-4 px-6 rounded-xl transition-all active:scale-[0.98]"
+           >
+              Maybe Later
+           </button>
         </div>
       </div>
     </div>

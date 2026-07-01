@@ -594,3 +594,152 @@ exports.deleteAuthUser = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'Unable to delete user data from RTDB.');
     }
 });
+
+const crypto = require('crypto');
+
+// 18. Initialize Paystack Transaction
+exports.createPaystackTransaction = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+    }
+
+    const { amount, planKey, type } = data;
+    const uid = context.auth.uid;
+
+    if (!amount || amount < 100) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid amount. Minimum is ₦100.');
+    }
+
+    const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || functions.config().paystack?.secret;
+    if (!PAYSTACK_SECRET_KEY) {
+        console.error('PAYSTACK_SECRET_KEY is not configured in Firebase environment.');
+        throw new functions.https.HttpsError('internal', 'Payment gateway configuration error.');
+    }
+
+    // Determine return URL
+    const callback_url = 'https://avelut.xyz/payment-success';
+
+    // Build the request payload
+    const email = `${uid}@avelut.com`;
+    const payload = {
+        email,
+        amount: amount * 100, // Paystack uses kobo
+        callback_url,
+        metadata: {
+            custom_fields: [
+                { display_name: "User ID", variable_name: "user_id", value: uid },
+                { display_name: "Purchase Type", variable_name: "purchase_type", value: type },
+                { display_name: "Plan Key", variable_name: "plan_key", value: planKey || 'none' }
+            ]
+        }
+    };
+
+    try {
+        const response = await fetch('https://api.paystack.co/transaction/initialize', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const json = await response.json();
+
+        if (!json.status) {
+            console.error('Paystack API Error:', json);
+            throw new functions.https.HttpsError('internal', json.message || 'Failed to initialize payment with provider.');
+        }
+
+        return {
+            authorization_url: json.data.authorization_url,
+            reference: json.data.reference
+        };
+    } catch (err) {
+        console.error('Error in createPaystackTransaction:', err);
+        throw new functions.https.HttpsError('internal', 'Error connecting to payment provider.');
+    }
+});
+
+// 19. Paystack Webhook Handler
+exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
+    // Only accept POST requests
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
+
+    const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || functions.config().paystack?.secret;
+    if (!PAYSTACK_SECRET_KEY) {
+        console.error('PAYSTACK_SECRET_KEY is not configured in Firebase environment.');
+        res.status(500).send('Configuration Error');
+        return;
+    }
+
+    // Validate Signature
+    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
+    if (hash !== req.headers['x-paystack-signature']) {
+        console.warn('Invalid Paystack signature');
+        res.status(401).send('Unauthorized');
+        return;
+    }
+
+    const event = req.body;
+
+    if (event.event === 'charge.success') {
+        const data = event.data;
+        const reference = data.reference;
+        const metadata = data.metadata || {};
+        const customFields = metadata.custom_fields || [];
+        
+        const uidField = customFields.find(f => f.variable_name === 'user_id');
+        const typeField = customFields.find(f => f.variable_name === 'purchase_type');
+        const planField = customFields.find(f => f.variable_name === 'plan_key');
+
+        if (!uidField || !uidField.value) {
+            console.error('Webhook payload missing user_id in metadata');
+            res.status(200).send('OK'); // Return 200 so Paystack stops retrying
+            return;
+        }
+
+        const uid = uidField.value;
+        const type = typeField?.value;
+        const planKey = planField?.value;
+
+        try {
+            const userRef = admin.database().ref(`/users/${uid}`);
+            
+            if (type === 'subscription' && planKey && planKey !== 'none') {
+                // Update subscription status
+                await userRef.update({
+                    subscription_status: planKey,
+                    is_activated: true,
+                    last_payment_reference: reference
+                });
+                console.log(`Successfully upgraded user ${uid} to plan ${planKey}`);
+            } else {
+                // Default to credits refill
+                // Amount is in kobo, convert back to Naira, and maybe 1 NGN = 1 Credit
+                const creditsPurchased = data.amount / 100;
+                
+                await userRef.child('ai_credits_balance').transaction((currentBalance) => {
+                    return (currentBalance || 0) + creditsPurchased;
+                });
+                
+                await userRef.update({
+                    is_activated: true,
+                    last_payment_reference: reference
+                });
+                console.log(`Successfully added ${creditsPurchased} credits to user ${uid}`);
+            }
+        } catch (err) {
+            console.error('Error updating Realtime Database from webhook:', err);
+            // Return 500 so Paystack might retry
+            res.status(500).send('Database Error');
+            return;
+        }
+    }
+
+    // Always return 200 OK for other events or successful processing
+    res.status(200).send('OK');
+});

@@ -20,6 +20,7 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { Flag } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
 
 type AssistantSender = 'user' | 'assistant';
@@ -1078,6 +1079,31 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             >
                               <CopyIcon className="h-3.5 w-3.5" />
                               Copy
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const reportsRef = dbRef(db, 'reported_content');
+                                  await push(reportsRef, {
+                                    userId: userProfile.uid,
+                                    messageText: message.text,
+                                    messageId: message.id,
+                                    timestamp: serverTimestamp(),
+                                    type: 'ai_chat_response'
+                                  });
+                                  addToast('Response reported to moderators', 'success');
+                                } catch (err) {
+                                  console.error('Failed to report:', err);
+                                  addToast('Failed to report response', 'error');
+                                }
+                              }}
+                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-red-400 active:scale-95 ml-2"
+                              aria-label="Report message"
+                              title="Report inappropriate content"
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                              Report
                             </button>
                           </div>
                         </>

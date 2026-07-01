@@ -3,6 +3,7 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { db } from '../firebase';
 import { ref as dbRef, onValue } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 
 interface OTAUpdateStatus {
     isDownloading: boolean;
@@ -57,8 +58,24 @@ export function useOTAUpdater() {
 
                     // Small delay so user sees 100%
                     setTimeout(async () => {
-                        // Apply the update! This reloads the WebView instantly.
+                        window.alert('A new update has been installed! The app will now clear its caches and close. Please reopen the app manually to enjoy the latest features.');
+                        
+                        // We must save the current_ota_version so we don't redownload, but clear everything else
+                        const currentVersion = localStorage.getItem('current_ota_version');
+                        
+                        // Erase caches
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        
+                        if (currentVersion) {
+                            localStorage.setItem('current_ota_version', currentVersion);
+                        }
+
+                        // Apply the update to Capgo (so it loads on next launch)
                         await CapacitorUpdater.set({ id: versionInfo.id });
+                        
+                        // Force close the app
+                        await App.exitApp();
                     }, 500);
                 }
             } catch (error) {

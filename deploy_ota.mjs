@@ -59,7 +59,9 @@ async function deployOTA() {
         console.log("OTA Database updated successfully.");
         
         // Cleanup
-        fs.unlinkSync("./dist.zip");
+        if (fs.existsSync("./dist.zip")) {
+            fs.unlinkSync("./dist.zip");
+        }
         process.exit(0);
     } catch (e) {
         console.error("Error during OTA deployment:", e);

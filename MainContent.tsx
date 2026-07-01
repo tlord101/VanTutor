@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import type { FirebaseUser } from './firebase';
 import type { UserProfile, UserProgress, DashboardData, AppSettings } from './types';
-import ErrorBoundary from './components/ErrorBoundary';
 import {
     DashboardSkeleton,
     LeaderboardSkeleton,
@@ -105,11 +104,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                 switch (activeItem) {
                     case 'onboarding':
                         return (
-                            <ErrorBoundary>
                                 <div className="p-4 sm:p-6 md:p-10 max-w-7xl mx-auto min-h-[calc(100vh-140px)] flex items-center justify-center">
                                     <Onboarding user={user!} onOnboardingComplete={handleOnboardingComplete!} />
                                 </div>
-                            </ErrorBoundary>
                         );
                     case 'dashboard':
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
@@ -119,9 +116,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':
                         return (
-                            <ErrorBoundary>
                                 <VisualSolver userProfile={userProfile} onStartChat={() => { /* No-op, handled by navigation */ }} triggerScanRef={triggerScanRef} />
-                            </ErrorBoundary>
                         );
                     case 'exam':
                         return <Exam userProfile={userProfile} userProgress={userProgress} />;
@@ -138,54 +133,40 @@ export const MainContent: React.FC<MainContentProps> = ({
                         return <Help onStartTour={startTour} />;
                     case 'feedback':
                         return (
-                            <ErrorBoundary>
                                 <Feedback userProfile={userProfile} />
-                            </ErrorBoundary>
                         );
                     case 'messenger':
                         return (
-                            <ErrorBoundary>
                                 <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
-                            </ErrorBoundary>
                         );
                     case 'chat':
                         return (
-                            <ErrorBoundary>
                                 <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
-                            </ErrorBoundary>
                         );
                     case 'admin':
                         return userProfile.is_admin
                             ? (
-                                    <ErrorBoundary>
                                         <AdminPanel userProfile={userProfile} />
-                                    </ErrorBoundary>
                                 )
                             : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'notifications':
                         return (
-                            <ErrorBoundary>
                                 <Notifications 
                                     notifications={notifications} 
                                     onMarkAsRead={onMarkAsRead || (() => {})} 
                                     onMarkAllAsRead={onMarkAllAsRead || (() => {})} 
                                     onNavigate={onNavigate!} 
                                 />
-                            </ErrorBoundary>
                         );
                     case 'study_partners':
                         return (
-                            <ErrorBoundary>
                                 <StudyPartners userProfile={userProfile} onNavigate={onNavigate!} />
-                            </ErrorBoundary>
                         );
                     default:
                         if (activeItem.startsWith('public_profile_')) {
                             const targetUid = activeItem.replace('public_profile_', '');
                             return (
-                                <ErrorBoundary>
                                     <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />
-                                </ErrorBoundary>
                             );
                         }
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;

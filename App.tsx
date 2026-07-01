@@ -25,6 +25,9 @@ const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ d
 const AboutUsPage = lazy(() => import('./components/marketing/AboutUsPage').then(m => ({ default: m.AboutUsPage })));
 const ContactUsPage = lazy(() => import('./components/marketing/ContactUsPage').then(m => ({ default: m.ContactUsPage })));
 const FounderPage = lazy(() => import('./components/marketing/FounderPage').then(m => ({ default: m.FounderPage })));
+const DeleteAccountWeb = lazy(() => import('./components/marketing/DeleteAccountWeb').then(m => ({ default: m.DeleteAccountWeb })));
+const BillingWeb = lazy(() => import('./components/marketing/BillingWeb').then(m => ({ default: m.BillingWeb })));
+const PaymentSuccessWeb = lazy(() => import('./components/marketing/PaymentSuccessWeb').then(m => ({ default: m.PaymentSuccessWeb })));
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { NativePullToRefresh } from './components/NativePullToRefresh';
@@ -40,7 +43,6 @@ import { navigationItems, adminNavigationItems } from './constants';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import GuidedTour, { TourStep } from './components/GuidedTour';
 import { getWindowPathname } from './utils/pathname';
-import ErrorBoundary from './components/ErrorBoundary';
 import { MenuIcon } from './components/icons/MenuIcon';
 import { ComingSoonScreen } from './components/ComingSoonScreen';
 import { SharedChatView } from './components/SharedChatView';
@@ -458,8 +460,11 @@ const App: React.FC = () => {
     const syncItemFromPath = useCallback((pathname: string) => {
         const isTermsRoute = pathname === '/t&c' || pathname === '/tc' || pathname === '/terms-and-conditions' || pathname === '/terms';
         const isPolicyRoute = pathname === '/policy' || pathname === '/privacy-policy' || pathname === '/privacy';
+        const isDeleteRoute = pathname === '/delete-account';
+        const isBillingRoute = pathname === '/billing';
+        const isPaymentSuccessRoute = pathname === '/payment-success';
         
-        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute) {
+        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute || isDeleteRoute || isBillingRoute || isPaymentSuccessRoute) {
             return;
         }
         const item = resolveActiveItemFromPath(pathname);
@@ -618,6 +623,12 @@ const App: React.FC = () => {
         if (!Capacitor.isNativePlatform()) return;
         const urlListener = CapacitorApp.addListener('appUrlOpen', async (event) => {
             const url = new URL(event.url);
+            if (url.protocol.replace(':', '') === 'avelut' && url.host === 'payment-success') {
+                addToast('Payment Successful! Refreshing profile...', 'success');
+                setActiveItem('dashboard'); // Optionally navigate to dashboard or billing
+                // You could also fetch latest user profile here if needed
+                return;
+            }
             if (url.protocol.replace(':', '') === 'avelut' && url.host === 'action') {
                 const actionId = url.searchParams.get('id');
                 const replyText = url.searchParams.get('replyText');
@@ -1252,28 +1263,49 @@ const App: React.FC = () => {
 
     if (isSharedChatRoute && shareId) {
         return (
-            <ErrorBoundary>
                 <SharedChatView shareId={shareId} user={user} />
-            </ErrorBoundary>
         );
     }
 
     const isTermsRoute = currentPath === '/t&c' || currentPath === '/tc' || currentPath === '/terms-and-conditions' || currentPath === '/terms';
     const isPolicyRoute = currentPath === '/policy' || currentPath === '/privacy-policy' || currentPath === '/privacy';
+    const isDeleteRoute = currentPath === '/delete-account';
+    const isBillingRoute = currentPath === '/billing';
+    const isPaymentSuccessRoute = currentPath === '/payment-success';
+
+    if (isBillingRoute) {
+        return (
+            <Suspense fallback={<AppLoader />}>
+                <BillingWeb appSettings={settings} userProfile={user} />
+            </Suspense>
+        );
+    }
+
+    if (isPaymentSuccessRoute) {
+        return (
+            <Suspense fallback={<AppLoader />}>
+                <PaymentSuccessWeb />
+            </Suspense>
+        );
+    }
+
+    if (isDeleteRoute) {
+        return (
+                <Suspense fallback={<AppLoader />}>
+                    <DeleteAccountWeb />
+                </Suspense>
+        );
+    }
 
     if (isTermsRoute) {
         return (
-            <ErrorBoundary>
                 <TermsAndConditions />
-            </ErrorBoundary>
         );
     }
 
     if (isPolicyRoute) {
         return (
-            <ErrorBoundary>
                 <PrivacyPolicy />
-            </ErrorBoundary>
         );
     }
 
@@ -1294,7 +1326,6 @@ const App: React.FC = () => {
         } as UserProfile;
 
         return (
-            <ErrorBoundary>
                 <Suspense fallback={<AppLoader />}>
                     <AdminPanel
                         userProfile={mockAdminProfile}
@@ -1308,7 +1339,6 @@ const App: React.FC = () => {
                         }}
                     />
                 </Suspense>
-            </ErrorBoundary>
         );
     }
     
@@ -1323,30 +1353,24 @@ const App: React.FC = () => {
             );
         }
         return (
-            <ErrorBoundary>
                 <UploadCenter />
-            </ErrorBoundary>
         );
     }
 
     if (!user) {
         if (currentPath === '/about') {
             return (
-                <ErrorBoundary>
                     <Suspense fallback={<AppLoader />}>
                         <AboutUsPage />
                     </Suspense>
-                </ErrorBoundary>
             );
         }
         
         if (currentPath === '/contact') {
             return (
-                <ErrorBoundary>
                     <Suspense fallback={<AppLoader />}>
                         <ContactUsPage />
                     </Suspense>
-                </ErrorBoundary>
             );
         }
         
@@ -1354,11 +1378,9 @@ const App: React.FC = () => {
             const founderId = currentPath.substring('/founder/'.length).split('/')[0];
             if (founderId) {
                 return (
-                    <ErrorBoundary>
                         <Suspense fallback={<AppLoader />}>
                             <FounderPage founderId={founderId} />
                         </Suspense>
-                    </ErrorBoundary>
                 );
             }
         }
@@ -1374,7 +1396,6 @@ const App: React.FC = () => {
                 );
             }
             return (
-                <ErrorBoundary>
                     <LandingPage 
                         onLogin={() => {
                             setAuthView('login');
@@ -1385,7 +1406,6 @@ const App: React.FC = () => {
                             if (typeof window !== 'undefined') window.history.pushState(null, '', '/signup');
                         }}
                     />
-                </ErrorBoundary>
             );
         }
         return (

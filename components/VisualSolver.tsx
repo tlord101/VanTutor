@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { db, storage } from '../firebase';
-import { ref as dbRef, onValue, push, set, update, get } from 'firebase/database';
+import { ref as dbRef, onValue, push, set, update, get, serverTimestamp } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
@@ -17,7 +17,7 @@ import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
-
+import { Flag } from 'lucide-react';
 // --- INLINE ICONS ---
 const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
      <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -283,6 +283,28 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
                     Forward
                 </button>
+                <button
+                    onClick={async () => {
+                        try {
+                            const reportsRef = dbRef(db, 'reported_content');
+                            await push(reportsRef, {
+                                userId: userProfile.uid,
+                                messageText: tutorialText,
+                                timestamp: serverTimestamp(),
+                                type: 'visual_solver_response'
+                            });
+                            addToast('Content reported to moderators', 'success');
+                        } catch (err) {
+                            console.error('Failed to report:', err);
+                            addToast('Failed to report content', 'error');
+                        }
+                    }}
+                    className="flex-1 bg-red-600/10 hover:bg-red-600/20 text-red-600 font-bold py-4 px-2 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-1.5"
+                    title="Report inappropriate AI content"
+                >
+                    <Flag className="w-5 h-5" />
+                    Report
+                </button>
             </div>
 
             {showForwardModal && (
@@ -496,7 +518,10 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
     }, [cameraState]);
 
     useEffect(() => {
-        initializeCamera();
+        const sharedImage = localStorage.getItem('shared_image_intent');
+        if (!sharedImage) {
+            initializeCamera();
+        }
         return cleanupCamera;
     }, [initializeCamera, cleanupCamera]);
 

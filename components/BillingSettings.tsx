@@ -1,13 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { UserProfile, AppSettings } from '../types';
-import { SubscriptionCards } from './SubscriptionCards';
-import { LimitExceededModal } from './LimitExceededModal';
-import { useToast } from '../hooks/useToast';
 import { VerificationBadge } from './VerificationBadge';
-import { isNative } from '../utils/capacitorUtils';
-import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
-import { triggerPaystackPurchase } from '../utils/usage';
 import { DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
+import { Browser } from '@capacitor/browser';
+import { isNative } from '../utils/capacitorUtils';
 
 interface BillingSettingsProps {
   userProfile: UserProfile;
@@ -15,144 +11,19 @@ interface BillingSettingsProps {
   onProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
 }
 
-export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProfile, appSettings, onProfileUpdate }) => {
-  const [isRefillModalOpen, setIsRefillModalOpen] = useState(false);
-  const [isVerifyingKey, setIsVerifyingKey] = useState(false);
-  const { addToast } = useToast();
-  
+export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProfile, appSettings }) => {
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
 
-  const handleSwitchToFreePlan = async () => {
-    setIsVerifyingKey(true);
-    try {
-      const result = await onProfileUpdate({
-        is_activated: true,
-        subscription_status: 'free',
-        use_personal_token: false,
-      });
-      if (result.success) {
-        addToast('Switched to Free Plan successfully!', 'success');
-      } else {
-        addToast('Failed to switch plan.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      addToast('Error switching plan.', 'error');
-    } finally {
-      setIsVerifyingKey(false);
-    }
-  };
+  const handleManageBilling = async () => {
+    // Determine the base URL. Use the current origin if on web, or a fixed domain if native.
+    const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
+    const billingUrl = `${baseUrl}/billing`;
 
-  const handleUpgradePlan = async (planKey: any) => {
-    const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-    const activePlan = tiers[effectivePlanKey];
-    const amount = activePlan.price_ngn;
-
-    setIsVerifyingKey(true);
-
-    if (isNative() && appSettings.revenuecat_api_key_android) {
-      try {
-        await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
-        await Purchases.configure({ apiKey: appSettings.revenuecat_api_key_android });
-        await Purchases.logIn({ appUserID: userProfile.uid });
-        const currentOfferings = await Purchases.getOfferings();
-        
-        if (!currentOfferings.current) {
-          throw new Error("Could not load packages.");
-        }
-
-        const pkgToBuy = currentOfferings.current.availablePackages.find((p: any) => p.identifier.toLowerCase().includes(effectivePlanKey));
-        if (!pkgToBuy) {
-          throw new Error("This plan is not available on Android.");
-        }
-
-        const purchaseResult = await Purchases.purchasePackage({ aPackage: pkgToBuy });
-        
-        if (typeof purchaseResult.customerInfo.entitlements.active !== "undefined" && Object.keys(purchaseResult.customerInfo.entitlements.active).length > 0) {
-          const result = await onProfileUpdate({
-            is_activated: true,
-            subscription_status: planKey,
-            use_personal_token: false,
-            paystack_reference: 'google-play-' + purchaseResult.transaction.transactionIdentifier,
-          });
-          if (result.success) {
-            addToast(`AVELUT ${activePlan.name || activePlan.display_name} activated successfully!`, 'success');
-          } else {
-            addToast('Purchase successful but activation failed. Contact support.', 'error');
-          }
-        }
-        setIsVerifyingKey(false);
-        return; // Success, exit
-      } catch (e: any) {
-        console.error("RevenueCat Purchase Error:", e);
-        if (e.userCancelled) {
-          setIsVerifyingKey(false);
-          return; // User cancelled, exit
-        }
-        // If not user cancelled, swallow error and fallback to paystack
-        console.warn("Falling back to Paystack due to RevenueCat error.");
-      }
-    }
-
-    const publicKey = appSettings.paystack_public_key?.trim();
-    const email = `${userProfile.uid}@avelut.com`;
-
-    await triggerPaystackPurchase({
-      publicKey,
-      email,
-      amount,
-      userId: userProfile.uid,
-      purchaseType: 'subscription',
-      metadata: { plan_tier: planKey, upgrade: true },
-      addToast,
-      onSuccess: async (reference) => {
-        const result = await onProfileUpdate({
-          is_activated: true,
-          subscription_status: planKey,
-          use_personal_token: false,
-          paystack_reference: reference,
-        });
-        if (result.success) {
-          addToast(`AVELUT ${activePlan.name || activePlan.display_name} activated successfully!`, 'success');
-        } else {
-          addToast('Payment received but upgrade failed. Contact support.', 'error');
-        }
-        setIsVerifyingKey(false);
-      },
-      onCancel: () => {
-        setIsVerifyingKey(false);
-      },
-      onError: (err) => {
-        console.error(err);
-        setIsVerifyingKey(false);
-      }
-    });
-  };
-
-  const handlePlanSelection = async (planKey: string, extraData?: { apiKey: string }) => {
-    if (planKey === 'free') {
-      handleSwitchToFreePlan();
-    } else if (planKey === 'personal_token') {
-      // Handled internally or needs a dedicated function, assuming it's done via SubscriptionCards state usually
-      // For now we will invoke onProfileUpdate directly for token logic
-      if (extraData?.apiKey) {
-        setIsVerifyingKey(true);
-        const result = await onProfileUpdate({
-          is_activated: true,
-          subscription_status: 'personal_token',
-          use_personal_token: true,
-          personal_api_key: extraData.apiKey,
-        });
-        if (result.success) {
-          addToast('Personal Google Token activated successfully!', 'success');
-        } else {
-          addToast('Failed to save token.', 'error');
-        }
-        setIsVerifyingKey(false);
-      }
+    if (isNative()) {
+      await Browser.open({ url: billingUrl });
     } else {
-      handleUpgradePlan(planKey);
+      window.location.href = billingUrl;
     }
   };
 
@@ -173,7 +44,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
           </div>
           <div className="flex flex-col gap-3 w-full md:w-auto">
             <button
-              onClick={() => setIsRefillModalOpen(true)}
+              onClick={handleManageBilling}
               className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98] w-full md:w-auto border border-blue-500"
             >
               Refill Credits
@@ -203,32 +74,20 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
         </div>
       </div>
 
-      {/* Subscription Plans Slider */}
-      <div>
-        <div className="mb-6 px-2">
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Upgrade Your Plan</h3>
-            <p className="text-sm text-slate-500 dark:text-gray-400 font-semibold mt-1">Swipe to view all available tiers. Cancel anytime.</p>
+      {/* Manage Billing & Upgrades */}
+      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-900/20 p-8 sm:p-10 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div>
+            <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-100 tracking-tight">Manage Billing</h3>
+            <p className="text-sm text-indigo-700/80 dark:text-indigo-300 font-medium mt-2 max-w-md">Upgrade your plan, view available tiers, and securely manage your payment methods on our web portal.</p>
         </div>
-        
-        <SubscriptionCards
-          userProfile={userProfile}
-          appSettings={appSettings}
-          onSelectPlan={handlePlanSelection}
-          isVerifyingKey={isVerifyingKey}
-          showCurrentPlan={true}
-        />
+        <button
+          onClick={handleManageBilling}
+          className="shrink-0 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/30 active:scale-[0.98] w-full md:w-auto"
+        >
+          View Plans & Upgrade
+        </button>
       </div>
 
-      <LimitExceededModal
-        isOpen={isRefillModalOpen}
-        onClose={() => setIsRefillModalOpen(false)}
-        userProfile={userProfile}
-        appSettings={appSettings}
-        cost={0}
-        balance={userProfile.ai_credits_balance ?? 0}
-        addToast={addToast}
-        onSuccessPurchase={() => {}}
-      />
     </div>
   );
 };

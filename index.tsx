@@ -55,7 +55,7 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-import { ErrorBoundary } from './components/ErrorBoundary';
+
 
 const isConfigured = 
   (import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_API_KEY !== 'YOUR_FIREBASE_API_KEY') ||
@@ -71,9 +71,7 @@ if (isConfigured) {
       <HelmetProvider>
         <ThemeProvider>
           <ToastProvider>
-            <ErrorBoundary>
               <App />
-            </ErrorBoundary>
           </ToastProvider>
         </ThemeProvider>
       </HelmetProvider>
