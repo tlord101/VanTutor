@@ -39,42 +39,42 @@ export const DeleteAccountWeb: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-black font-sans text-slate-900 dark:text-white flex flex-col">
+        <div className="min-h-screen bg-slate-50  font-sans text-slate-900  flex flex-col">
             <SEOHead 
                 title="Delete Account | AVELUT" 
                 description="Request to delete your AVELUT account and associated data."
             />
             
-            <header className="bg-white dark:bg-black border-b border-slate-200 dark:border-white/10 p-4 sm:p-6 sticky top-0 z-50">
+            <header className="bg-white  border-b border-slate-200  p-4 sm:p-6 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <a href="/" className="flex items-center gap-2 sm:gap-3 transition-transform hover:scale-[1.02] active:scale-95">
                         <img src="/logo_icon.png" alt="AVELUT Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
-                        <span className="font-black text-xl sm:text-2xl tracking-tighter text-slate-900 dark:text-white">AVELUT</span>
+                        <span className="font-black text-xl sm:text-2xl tracking-tighter text-slate-900 
                     </a>
                 </div>
             </header>
 
             <main className="flex-1 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-sm">
+                <div className="max-w-md w-full bg-white  border border-slate-200  rounded-3xl p-6 sm:p-8 shadow-sm">
                     <h1 className="text-2xl sm:text-3xl font-black mb-2 tracking-tight text-center">Delete Account</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 text-center font-medium">
+                    <p className="text-sm text-slate-500  mb-8 text-center font-medium">
                         Submit a request to permanently delete your account and all associated data.
                     </p>
 
                     {isSubmitted ? (
-                        <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-6 text-center animate-fade-in">
-                            <div className="w-12 h-12 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="bg-green-50  border border-green-200  rounded-2xl p-6 text-center animate-fade-in">
+                            <div className="w-12 h-12 bg-green-100  text-green-600  rounded-full flex items-center justify-center mx-auto mb-4">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
                             </div>
-                            <h3 className="text-lg font-bold text-green-900 dark:text-green-400 mb-2">Request Received</h3>
-                            <p className="text-sm text-green-800 dark:text-green-500/80 font-medium">
+                            <h3 className="text-lg font-bold text-green-900  mb-2">Request Received</h3>
+                            <p className="text-sm text-green-800  font-medium">
                                 We will process your account deletion request within 7-14 business days. You will receive an email confirmation once completed.
                             </p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
+                                <label htmlFor="email" className="block text-sm font-bold text-slate-700  mb-1.5 ml-1">
                                     Account Email <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -84,12 +84,12 @@ export const DeleteAccountWeb: React.FC = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="your@email.com"
-                                    className="w-full px-4 py-3.5 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400"
+                                    className="w-full px-4 py-3.5 bg-slate-50  border border-slate-200  rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="reason" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
+                                <label htmlFor="reason" className="block text-sm font-bold text-slate-700  mb-1.5 ml-1">
                                     Reason for deletion (Optional)
                                 </label>
                                 <textarea
@@ -98,7 +98,7 @@ export const DeleteAccountWeb: React.FC = () => {
                                     value={reason}
                                     onChange={(e) => setReason(e.target.value)}
                                     placeholder="Why are you leaving us?"
-                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400 resize-none"
+                                    className="w-full px-4 py-3 bg-slate-50  border border-slate-200  rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400 resize-none"
                                 />
                             </div>
 
@@ -110,7 +110,7 @@ export const DeleteAccountWeb: React.FC = () => {
                                 {isSubmitting ? 'Submitting...' : 'Request Deletion'}
                             </button>
                             
-                            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-4">
+                            <p className="text-xs text-center text-slate-500  mt-4">
                                 Note: This action is irreversible. All your study progress, credits, and chat history will be permanently erased.
                             </p>
                         </form>
