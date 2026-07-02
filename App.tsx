@@ -26,7 +26,8 @@ const AboutUsPage = lazy(() => import('./components/marketing/AboutUsPage').then
 const ContactUsPage = lazy(() => import('./components/marketing/ContactUsPage').then(m => ({ default: m.ContactUsPage })));
 const FounderPage = lazy(() => import('./components/marketing/FounderPage').then(m => ({ default: m.FounderPage })));
 const DeleteAccountWeb = lazy(() => import('./components/marketing/DeleteAccountWeb').then(m => ({ default: m.DeleteAccountWeb })));
-const BillingWeb = lazy(() => import('./components/marketing/BillingWeb').then(m => ({ default: m.BillingWeb })));
+const RefillCreditsWeb = lazy(() => import('./components/marketing/RefillCreditsWeb').then(m => ({ default: m.RefillCreditsWeb })));
+const PlansWeb = lazy(() => import('./components/marketing/PlansWeb').then(m => ({ default: m.PlansWeb })));
 const PaymentSuccessWeb = lazy(() => import('./components/marketing/PaymentSuccessWeb').then(m => ({ default: m.PaymentSuccessWeb })));
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -458,13 +459,15 @@ const App: React.FC = () => {
     });
 
     const syncItemFromPath = useCallback((pathname: string) => {
-        const isTermsRoute = pathname === '/t&c' || pathname === '/tc' || pathname === '/terms-and-conditions' || pathname === '/terms';
-        const isPolicyRoute = pathname === '/policy' || pathname === '/privacy-policy' || pathname === '/privacy';
-        const isDeleteRoute = pathname === '/delete-account' || pathname.startsWith('/delete-account/');
-        const isBillingRoute = pathname === '/billing' || pathname.startsWith('/billing/');
-        const isPaymentSuccessRoute = pathname === '/payment-success';
+        const currentPathname = pathname.split('?')[0];
+        const isTermsRoute = currentPathname === '/t&c' || currentPathname === '/tc' || currentPathname === '/terms-and-conditions' || currentPathname === '/terms';
+        const isPolicyRoute = currentPathname === '/policy' || currentPathname === '/privacy-policy' || currentPathname === '/privacy';
+        const isDeleteRoute = currentPathname === '/delete-account' || currentPathname.startsWith('/delete-account/');
+        const isRefillCreditsRoute = currentPathname === '/refill-credits' || currentPathname.startsWith('/refill-credits/');
+        const isPlansRoute = currentPathname === '/plans' || currentPathname.startsWith('/plans/');
+        const isPaymentSuccessRoute = currentPathname === '/payment-success';
         
-        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute || isDeleteRoute || isBillingRoute || isPaymentSuccessRoute) {
+        if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute || isDeleteRoute || isRefillCreditsRoute || isPlansRoute || isPaymentSuccessRoute) {
             return;
         }
         const item = resolveActiveItemFromPath(pathname);
@@ -625,7 +628,7 @@ const App: React.FC = () => {
             const url = new URL(event.url);
 
             if (url.protocol.startsWith('http')) {
-                if (url.pathname.startsWith('/billing') || url.pathname.startsWith('/delete-account')) {
+                if (url.pathname.startsWith('/refill-credits') || url.pathname.startsWith('/plans') || url.pathname.startsWith('/delete-account')) {
                     setCurrentPath(url.pathname + url.search);
                     return;
                 }
@@ -1275,16 +1278,26 @@ const App: React.FC = () => {
         );
     }
 
-    const isTermsRoute = currentPath === '/t&c' || currentPath === '/tc' || currentPath === '/terms-and-conditions' || currentPath === '/terms';
-    const isPolicyRoute = currentPath === '/policy' || currentPath === '/privacy-policy' || currentPath === '/privacy';
-    const isDeleteRoute = currentPath === '/delete-account' || currentPath.startsWith('/delete-account/');
-    const isBillingRoute = currentPath === '/billing' || currentPath.startsWith('/billing/');
-    const isPaymentSuccessRoute = currentPath === '/payment-success' || currentPath.startsWith('/payment-success/');
+    const currentPathname = currentPath.split('?')[0];
+    const isTermsRoute = currentPathname === '/t&c' || currentPathname === '/tc' || currentPathname === '/terms-and-conditions' || currentPathname === '/terms';
+    const isPolicyRoute = currentPathname === '/policy' || currentPathname === '/privacy-policy' || currentPathname === '/privacy';
+    const isDeleteRoute = currentPathname === '/delete-account' || currentPathname.startsWith('/delete-account/');
+    const isRefillCreditsRoute = currentPathname === '/refill-credits' || currentPathname.startsWith('/refill-credits/');
+    const isPlansRoute = currentPathname === '/plans' || currentPathname.startsWith('/plans/');
+    const isPaymentSuccessRoute = currentPathname === '/payment-success' || currentPathname.startsWith('/payment-success/');
 
-    if (isBillingRoute) {
+    if (isRefillCreditsRoute) {
         return (
             <Suspense fallback={<AppLoader />}>
-                <BillingWeb appSettings={appSettings} userProfile={userProfile || undefined} />
+                <RefillCreditsWeb appSettings={appSettings} userProfile={userProfile || undefined} />
+            </Suspense>
+        );
+    }
+
+    if (isPlansRoute) {
+        return (
+            <Suspense fallback={<AppLoader />}>
+                <PlansWeb appSettings={appSettings} userProfile={userProfile || undefined} />
             </Suspense>
         );
     }

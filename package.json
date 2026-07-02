@@ -24,7 +24,8 @@
       "/contact",
       "/policy",
       "/terms",
-      "/billing",
+      "/refill-credits",
+      "/plans",
       "/delete-account"
     ],
     "puppeteerArgs": [

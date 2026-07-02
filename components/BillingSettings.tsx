@@ -46,7 +46,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
 
   const handleManageBilling = async () => {
     const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
-    const billingUrl = `${baseUrl}/billing?uid=${userProfile.uid}`;
+    const billingUrl = `${baseUrl}/refill-credits?uid=${userProfile.uid}`;
 
     if (isNative()) {
       await Browser.open({ url: billingUrl });

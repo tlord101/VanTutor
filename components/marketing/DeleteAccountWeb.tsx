@@ -49,7 +49,7 @@ export const DeleteAccountWeb: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <a href="/" className="flex items-center gap-2 sm:gap-3 transition-transform hover:scale-[1.02] active:scale-95">
                         <img src="/logo_icon.png" alt="AVELUT Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
-                        <span className="font-black text-xl sm:text-2xl tracking-tighter text-slate-900 
+                        <span className="font-black text-xl sm:text-2xl tracking-tighter text-slate-900">AVELUT</span>
                     </a>
                 </div>
             </header>
