@@ -5,6 +5,8 @@ import { getDatabase, ref as dbRef, set } from "firebase/database";
 import fs from "fs";
 import AdmZip from "adm-zip";
 import { execSync } from "child_process";
+import dns from "node:dns";
+dns.setDefaultResultOrder('ipv4first');
 
 const __firebase_config = {
     apiKey: "AIzaSyA2oJ1vB5TDQWr2-Gz72jpCl7pX8rmKmE8",

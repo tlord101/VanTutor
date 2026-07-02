@@ -460,8 +460,8 @@ const App: React.FC = () => {
     const syncItemFromPath = useCallback((pathname: string) => {
         const isTermsRoute = pathname === '/t&c' || pathname === '/tc' || pathname === '/terms-and-conditions' || pathname === '/terms';
         const isPolicyRoute = pathname === '/policy' || pathname === '/privacy-policy' || pathname === '/privacy';
-        const isDeleteRoute = pathname === '/delete-account';
-        const isBillingRoute = pathname === '/billing';
+        const isDeleteRoute = pathname === '/delete-account' || pathname.startsWith('/delete-account/');
+        const isBillingRoute = pathname === '/billing' || pathname.startsWith('/billing/');
         const isPaymentSuccessRoute = pathname === '/payment-success';
         
         if (pathname.startsWith('/upload-center') || pathname.startsWith('/shared-chat') || isTermsRoute || isPolicyRoute || isDeleteRoute || isBillingRoute || isPaymentSuccessRoute) {
@@ -1269,9 +1269,9 @@ const App: React.FC = () => {
 
     const isTermsRoute = currentPath === '/t&c' || currentPath === '/tc' || currentPath === '/terms-and-conditions' || currentPath === '/terms';
     const isPolicyRoute = currentPath === '/policy' || currentPath === '/privacy-policy' || currentPath === '/privacy';
-    const isDeleteRoute = currentPath === '/delete-account';
-    const isBillingRoute = currentPath === '/billing';
-    const isPaymentSuccessRoute = currentPath === '/payment-success';
+    const isDeleteRoute = currentPath === '/delete-account' || currentPath.startsWith('/delete-account/');
+    const isBillingRoute = currentPath === '/billing' || currentPath.startsWith('/billing/');
+    const isPaymentSuccessRoute = currentPath === '/payment-success' || currentPath.startsWith('/payment-success/');
 
     if (isBillingRoute) {
         return (

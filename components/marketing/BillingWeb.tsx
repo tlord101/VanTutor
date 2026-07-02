@@ -17,7 +17,9 @@ export const BillingWeb: React.FC<BillingWebProps> = ({ appSettings, userProfile
     const quickAmounts = [500, 1000, 5000];
 
     const handlePurchaseCredits = async (amount: number) => {
-        if (!userProfile?.uid) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const targetUid = userProfile?.uid || searchParams.get('uid');
+        if (!targetUid) {
             alert("Please log in to purchase credits.");
             return;
         }
@@ -41,7 +43,9 @@ export const BillingWeb: React.FC<BillingWebProps> = ({ appSettings, userProfile
     };
 
     const handlePurchasePlan = async (planKey: string) => {
-        if (!userProfile?.uid) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const targetUid = userProfile?.uid || searchParams.get('uid');
+        if (!targetUid) {
             alert("Please log in to purchase a plan.");
             return;
         }
