@@ -49,7 +49,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
     const billingUrl = `${baseUrl}/billing?uid=${userProfile.uid}`;
 
     if (isNative()) {
-      window.open(billingUrl, '_system');
+      await Browser.open({ url: billingUrl });
     } else {
       window.open(billingUrl, '_blank');
     }

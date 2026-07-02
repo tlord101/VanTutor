@@ -17,10 +17,15 @@
     "postinstall": "patch-package"
   },
   "reactSnap": {
+    "source": "dist",
     "include": [
       "/",
       "/about",
-      "/contact"
+      "/contact",
+      "/policy",
+      "/terms",
+      "/billing",
+      "/delete-account"
     ],
     "puppeteerArgs": [
       "--no-sandbox",

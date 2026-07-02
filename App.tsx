@@ -623,6 +623,14 @@ const App: React.FC = () => {
         if (!Capacitor.isNativePlatform()) return;
         const urlListener = CapacitorApp.addListener('appUrlOpen', async (event) => {
             const url = new URL(event.url);
+
+            if (url.protocol.startsWith('http')) {
+                if (url.pathname.startsWith('/billing') || url.pathname.startsWith('/delete-account')) {
+                    setCurrentPath(url.pathname + url.search);
+                    return;
+                }
+            }
+            
             if (url.protocol.replace(':', '') === 'avelut' && url.host === 'payment-success') {
                 addToast('Payment Successful! Refreshing profile...', 'success');
                 setActiveItem('dashboard'); // Optionally navigate to dashboard or billing
@@ -1276,7 +1284,7 @@ const App: React.FC = () => {
     if (isBillingRoute) {
         return (
             <Suspense fallback={<AppLoader />}>
-                <BillingWeb appSettings={settings} userProfile={user} />
+                <BillingWeb appSettings={appSettings} userProfile={userProfile || undefined} />
             </Suspense>
         );
     }
