@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { get, onValue, push, ref as dbRef, serverTimestamp, set, update, remove } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { triggerHaptic } from '../utils/capacitorUtils';
 // @ts-ignore: Allow importing third-party CSS without type declarations
 import 'katex/dist/katex.min.css';
 import { db, storage } from '../firebase';
@@ -465,7 +466,15 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setCustomHeaderConfig({
         leftActions: (
           <div className="flex items-center">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 dark:bg-black mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
+            <button
+              onClick={() => {
+                void triggerHaptic();
+                onNavigate ? onNavigate('dashboard') : window.history.back();
+              }}
+              className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black p-2.5 sm:p-3 text-slate-600 transition-all duration-200 hover:bg-slate-50 dark:bg-black mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95"
+              aria-label="Go back"
+              title="Go back"
+            >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button
@@ -1062,6 +1071,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             <button
                               type="button"
                               onClick={async () => {
+                                void triggerHaptic();
                                 try {
                                   if (navigator.clipboard && navigator.clipboard.writeText) {
                                     await navigator.clipboard.writeText(message.text);
@@ -1073,7 +1083,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   addToast('Copied to clipboard', 'success');
                                 }
                               }}
-                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
+                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition-all duration-200 hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
                               aria-label="Copy message"
                               title="Copy message"
                             >
@@ -1268,12 +1278,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       type="button"
                       onClick={() => {
                         if ((inputValue.trim() || attachments.length > 0) && !isSending) {
+                          void triggerHaptic();
                           void handleSend();
                         }
                       }}
-                      className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition active:scale-95 ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all duration-200 ${
                         (inputValue.trim() || attachments.length > 0)
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white active:scale-95'
                           : 'bg-[#27282b]/80 hover:bg-[#2e3034] text-white cursor-default'
                       } ${isSending ? 'opacity-50 cursor-not-allowed' : ''}`}
                       aria-label={(inputValue.trim() || attachments.length > 0) ? "Send message" : "Voice input"}
