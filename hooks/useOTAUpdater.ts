@@ -9,6 +9,9 @@ interface OTAUpdateStatus {
     isDownloading: boolean;
     progress: number;
     error: string | null;
+    needsRestart: boolean;
+    performRestart: () => Promise<void>;
+    performSkip: () => Promise<void>;
 }
 
 export function useOTAUpdater() {
@@ -16,6 +19,9 @@ export function useOTAUpdater() {
         isDownloading: false,
         progress: 0,
         error: null,
+        needsRestart: false,
+        performRestart: async () => {},
+        performSkip: async () => {},
     });
 
     useEffect(() => {
@@ -38,7 +44,7 @@ export function useOTAUpdater() {
                 if (data.version !== currentOtaVersion) {
                     console.log('New OTA Update found:', data.version);
                     
-                    setStatus({ isDownloading: true, progress: 0, error: null });
+                    setStatus(prev => ({ ...prev, isDownloading: true, progress: 0, error: null, needsRestart: false }));
 
                     // Add progress listener
                     CapacitorUpdater.addListener('download', (info: any) => {
@@ -54,13 +60,7 @@ export function useOTAUpdater() {
                     // Update local storage so we don't try to download it again
                     localStorage.setItem('current_ota_version', data.version);
 
-                    setStatus({ isDownloading: true, progress: 100, error: null });
-
-                    // Small delay so user sees 100%
-                    setTimeout(async () => {
-                        window.alert('A new update has been installed! The app will now clear its caches and close. Please reopen the app manually to enjoy the latest features.');
-                        
-                        // We must save the current_ota_version so we don't redownload, but clear everything else
+                    const finishUpdate = async (isSkip: boolean) => {
                         const currentVersion = localStorage.getItem('current_ota_version');
                         
                         // Erase caches
@@ -74,9 +74,24 @@ export function useOTAUpdater() {
                         // Apply the update to Capgo (so it loads on next launch)
                         await CapacitorUpdater.set({ id: versionInfo.id });
                         
-                        // Force close the app
-                        await App.exitApp();
-                    }, 500);
+                        if (isSkip) {
+                            // Hard refresh
+                            window.location.reload();
+                        } else {
+                            // Force close the app
+                            await App.exitApp();
+                        }
+                    };
+
+                    setStatus(prev => ({ 
+                        ...prev, 
+                        isDownloading: false, 
+                        progress: 100, 
+                        error: null,
+                        needsRestart: true,
+                        performRestart: () => finishUpdate(false),
+                        performSkip: () => finishUpdate(true)
+                    }));
                 }
             } catch (error) {
                 console.error("OTA Update Error:", error);

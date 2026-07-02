@@ -25,7 +25,14 @@ const db = getDatabase(app);
 async function deployOTA() {
     try {
         console.log("Building web project...");
-        execSync("npm run build --ignore-scripts", { stdio: "inherit" });
+        try {
+            execSync("npm run build", { stdio: "inherit" });
+        } catch (err) {
+            console.log("npm run build returned non-zero, likely due to react-snap postbuild. Checking for dist...");
+            if (!fs.existsSync("./dist")) {
+                throw err;
+            }
+        }
 
         const pkg = JSON.parse(fs.readFileSync("package.json", "utf-8"));
         const baseVersion = pkg.version;

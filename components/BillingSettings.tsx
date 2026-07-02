@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { UserProfile, AppSettings } from '../types';
 import { VerificationBadge } from './VerificationBadge';
 import { DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
 import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
+import { db } from '../firebase';
+import { ref as dbRef, query, orderByChild, equalTo, get } from 'firebase/database';
+import { CheckCircle, Clock } from 'lucide-react';
 
 interface BillingSettingsProps {
   userProfile: UserProfile;
@@ -14,6 +17,32 @@ interface BillingSettingsProps {
 export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProfile, appSettings }) => {
   const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoadingTx, setIsLoadingTx] = useState(true);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!userProfile.email) {
+        setIsLoadingTx(false);
+        return;
+      }
+      try {
+        const q = query(dbRef(db, 'usage_logs/payments'), orderByChild('user_email'), equalTo(userProfile.email));
+        const snap = await get(q);
+        if (snap.exists()) {
+          const data = snap.val();
+          const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+          list.sort((a: any, b: any) => b.timestamp - a.timestamp);
+          setTransactions(list);
+        }
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+      } finally {
+        setIsLoadingTx(false);
+      }
+    };
+    fetchTransactions();
+  }, [userProfile.email]);
 
   const handleManageBilling = async () => {
     // Determine the base URL. Use the current origin if on web, or a fixed domain if native.
@@ -21,9 +50,13 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
     const billingUrl = `${baseUrl}/billing`;
 
     if (isNative()) {
-      await Browser.open({ url: billingUrl });
+      try {
+        await Browser.open({ url: billingUrl });
+      } catch (err) {
+        window.open(billingUrl, '_system');
+      }
     } else {
-      window.location.href = billingUrl;
+      window.open(billingUrl, '_blank');
     }
   };
 
@@ -45,7 +78,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
           <div className="flex flex-col gap-3 w-full md:w-auto">
             <button
               onClick={handleManageBilling}
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98] w-full md:w-auto border border-blue-500"
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors w-full md:w-auto"
             >
               Refill Credits
             </button>
@@ -74,18 +107,62 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
         </div>
       </div>
 
-      {/* Manage Billing & Upgrades */}
-      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-900/20 p-8 sm:p-10 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-8">
+      {/* Recent Transactions */}
+      <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm flex flex-col gap-6">
         <div>
-            <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-100 tracking-tight">Manage Billing</h3>
-            <p className="text-sm text-indigo-700/80 dark:text-indigo-300 font-medium mt-2 max-w-md">Upgrade your plan, view available tiers, and securely manage your payment methods on our web portal.</p>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Recent Transactions</h3>
+          <p className="text-sm text-slate-500 font-medium mt-1">Your recent payments and credit refills.</p>
         </div>
-        <button
-          onClick={handleManageBilling}
-          className="shrink-0 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/30 active:scale-[0.98] w-full md:w-auto"
-        >
-          View Plans & Upgrade
-        </button>
+        
+        {isLoadingTx ? (
+           <div className="py-8 text-center text-sm text-slate-500">Loading transactions...</div>
+        ) : transactions.length === 0 ? (
+           <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5">
+             <Clock className="w-8 h-8 text-slate-300 mb-3" />
+             <p className="text-sm font-bold text-slate-600 dark:text-slate-400">No transactions yet</p>
+           </div>
+        ) : (
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+               <thead>
+                 <tr className="border-b border-slate-100 dark:border-white/10">
+                   <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-400">Date</th>
+                   <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-400">Reference</th>
+                   <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-400">Tier</th>
+                   <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-400 text-right">Amount</th>
+                   <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                 {transactions.slice(0, 10).map((tx) => (
+                   <tr key={tx.id} className="text-sm hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                     <td className="py-4 px-4 text-slate-600 dark:text-slate-400 font-medium">
+                       {new Date(tx.timestamp).toLocaleDateString()}
+                     </td>
+                     <td className="py-4 px-4 font-mono text-xs text-slate-500">{tx.reference || 'N/A'}</td>
+                     <td className="py-4 px-4 font-bold text-slate-700 dark:text-slate-300 uppercase text-xs">{tx.tier_id}</td>
+                     <td className="py-4 px-4 text-right font-black text-slate-900 dark:text-white">
+                       ₦{(Number(tx.amount) || 0).toLocaleString()}
+                     </td>
+                     <td className="py-4 px-4">
+                        <div className="flex justify-center">
+                          {(!tx.status || tx.status === 'success' || tx.status === 'successful') ? (
+                              <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md text-[10px] font-black uppercase">
+                                  <CheckCircle className="w-3 h-3" /> Success
+                              </span>
+                          ) : (
+                              <span className="flex items-center gap-1 text-red-600 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-md text-[10px] font-black uppercase">
+                                  Failed
+                              </span>
+                          )}
+                        </div>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        )}
       </div>
 
     </div>

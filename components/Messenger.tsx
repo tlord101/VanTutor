@@ -1267,7 +1267,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const pendingMessage = {
         id: tempId,
         senderId: firebaseUser.uid,
-        text: fileType === 'image' ? `![${file.name}](${localUrl})` : `[📄 ${file.name}]()`,
+        text: fileType === 'image' ? `![Image](${localUrl})` : `[📄 ${file.name}]()`,
         type: fileType,
         timestamp: localTimestamp,
         isUploading: true
@@ -1275,14 +1275,15 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setOptimisticMessages(prev => [...prev, pendingMessage]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       try {
-        const safeFileName = file.name ? file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') : 'file';
+        const ext = file.name ? file.name.split('.').pop() : 'jpg';
+        const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
         const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${safeFileName}`;
         const fileBucketRef = storageRef(storage, cloudPath);
         const snapshot = await uploadBytes(fileBucketRef, file);
         const fileDownloadUrl = await getDownloadURL(snapshot.ref);
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         if (file.type.startsWith('image/')) {
-          await sendMsg(`![${file.name}](${fileDownloadUrl})`, 'image');
+          await sendMsg(`![Image](${fileDownloadUrl})`, 'image');
         } else {
           await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
         }
@@ -1320,8 +1321,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      // 3. Sanitize the filename exactly like handleFileSelection to prevent Firebase ref crashes
-      const safeFileName = file.name ? file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') : `camera_${localTimestamp}.jpg`;
+      // 3. Rename filename to a random number to prevent Firebase and markdown crashes
+      const ext = file.name ? file.name.split('.').pop() : 'jpg';
+      const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
       const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
       const fileBucketRef = storageRef(storage, cloudPath);
 
@@ -1874,12 +1876,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const rawText = typeof msg.text === 'string' ? msg.text : '';
                 let imageUrl = '';
                 if (msg.type === 'image') {
-                  const urlMatch = rawText.match(/(https?:\/\/[^\s]+|blob:[^\s]+)/);
-                  if (urlMatch) {
-                    imageUrl = urlMatch[1];
-                    if (imageUrl.endsWith(')')) imageUrl = imageUrl.slice(0, -1);
+                  const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
+                  if (markdownMatch) {
+                    imageUrl = markdownMatch[1];
                   } else {
-                    imageUrl = rawText;
+                    const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+)/);
+                    if (urlMatch) {
+                      imageUrl = urlMatch[1];
+                    } else {
+                      imageUrl = rawText;
+                    }
                   }
                 }
                 const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
