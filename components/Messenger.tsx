@@ -359,13 +359,12 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
     if (file) {
       setAttachedImage({ file, previewUrl: URL.createObjectURL(file) });
     }
-    if (e.target) e.target.value = '';
   };
 
   return (
     <div className={`w-full relative select-none z-40 bg-transparent pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
-      <input type="file" ref={imageInputRef} onChange={handleInternalImageSelect} className="hidden" accept="image/*" />
+      <input type="file" ref={fileInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
+      <input type="file" ref={imageInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={handleInternalImageSelect} className="hidden" accept="image/*" />
 
       {isRecording && !isLocked && (
         <div

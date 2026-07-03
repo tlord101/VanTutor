@@ -506,7 +506,6 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setAttachments(files);
       setInputState(1);
     }
-    e.target.value = '';
   };
 
   const startNewChat = () => {
@@ -1299,6 +1298,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         type="file" 
         className="hidden" 
         ref={attachmentInputRef} 
+        onClick={(e: any) => { e.target.value = null; }}
         onChange={handleAttachmentFileSelect} 
         multiple 
       />
