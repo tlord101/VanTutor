@@ -92,6 +92,12 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                     <p className="text-lg text-slate-600">
                         Purchase credits on-demand to continue using AVELUT's powerful visual solver and AI tutor. Securely processed by Paystack.
                     </p>
+                    {userProfile && userProfile.ai_credits_balance !== undefined && (
+                        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full font-semibold border border-blue-100">
+                            <span>Current Balance:</span>
+                            <span className="text-blue-900">{userProfile.ai_credits_balance.toLocaleString()} Credits</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Credit Refill Section */}

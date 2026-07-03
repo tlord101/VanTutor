@@ -4,6 +4,8 @@ import { MenuIcon } from './icons/MenuIcon';
 import { MessengerIcon } from './icons/MessengerIcon';
 import { Avatar } from './Avatar';
 import type { UserProfile } from '../types';
+import { Browser } from '@capacitor/browser';
+import { isNative } from '../utils/capacitorUtils';
 
 interface HeaderProps {
   currentPageLabel: string;
@@ -147,6 +149,22 @@ export const Header: React.FC<HeaderProps> = ({
                                         className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:bg-black dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         Billing & Subscriptions
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            setIsAvatarMenuOpen(false);
+                                            const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
+                                            const plansUrl = `${baseUrl}/plans?uid=${userProfile?.uid || ''}&plan=premium`;
+                                            if (isNative()) {
+                                                await Browser.open({ url: plansUrl });
+                                            } else {
+                                                window.location.href = plansUrl;
+                                            }
+                                        }}
+                                        className="w-full flex items-center justify-between text-left px-4 py-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                    >
+                                        <span>Upgrade to Pro</span>
+                                        <span className="flex h-2 w-2 rounded-full bg-blue-600"></span>
                                     </button>
                                     <button
                                         onClick={() => handleNavigation('settings')}

@@ -203,20 +203,20 @@ export const SharedChatView: React.FC<SharedChatViewProps> = ({ shareId, user })
                                             remarkPlugins={[remarkGfm, remarkMath]}
                                             rehypePlugins={[rehypeKatex]}
                                             components={{
-                                                h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mb-2 mt-1" {...props} />,
-                                                h2: ({node, ...props}) => <h2 className="text-base font-bold text-white mb-1.5 mt-2" {...props} />,
-                                                p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
-                                                strong: ({node, ...props}) => <strong className="font-bold text-white bg-slate-800 px-1 py-0.5 rounded" {...props} />,
+                                                h1: ({node, ...props}: any) => <h1 className="text-lg font-bold text-white mb-2 mt-1" {...props} />,
+                                                h2: ({node, ...props}: any) => <h2 className="text-base font-bold text-white mb-1.5 mt-2" {...props} />,
+                                                p: ({node, ...props}: any) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                                                strong: ({node, ...props}: any) => <strong className="font-bold text-white bg-slate-800 px-1 py-0.5 rounded" {...props} />,
                                                 code: ({node, inline, ...props}: any) => 
                                                     inline ? (
                                                         <code className="bg-slate-800 text-slate-100 px-1 py-0.5 rounded text-xs" {...props} />
                                                     ) : (
                                                         <code className="block bg-slate-950 text-slate-200 p-3 rounded-lg overflow-x-auto my-2 text-xs font-mono" {...props} />
                                                     ),
-                                                pre: ({node, ...props}) => <pre className="bg-slate-950 rounded-lg overflow-hidden my-2" {...props} />,
-                                                ul: ({node, ...props}) => <ul className="list-disc list-outside space-y-1 my-2 pl-4" {...props} />,
-                                                ol: ({node, ...props}) => <ol className="list-decimal list-outside space-y-1 my-2 pl-4" {...props} />,
-                                                li: ({node, ...props}) => <li className="pl-0.5 text-slate-300" {...props} />,
+                                                pre: ({node, ...props}: any) => <pre className="bg-slate-950 rounded-lg overflow-hidden my-2" {...props} />,
+                                                ul: ({node, ...props}: any) => <ul className="list-disc list-outside space-y-1 my-2 pl-4" {...props} />,
+                                                ol: ({node, ...props}: any) => <ol className="list-decimal list-outside space-y-1 my-2 pl-4" {...props} />,
+                                                li: ({node, ...props}: any) => <li className="pl-0.5 text-slate-300" {...props} />,
                                             }}
                                         >
                                             {message.text || ''}
