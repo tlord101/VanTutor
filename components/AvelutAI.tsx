@@ -1047,12 +1047,12 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
                             components={{
-                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                              ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                              ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                              li: ({ node, ...props }) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                              strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                              pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
+                              p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                              ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                              ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                              li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                              strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
+                              pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
                             }}
                           >
                             {message.text}
@@ -1133,12 +1133,12 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
-                          p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                          ul: ({ node, ...props }) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                          ol: ({ node, ...props }) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                          li: ({ node, ...props }) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                          strong: ({ node, ...props }) => <strong className="font-semibold text-emerald-400" {...props} />,
-                          pre: ({ node, ...props }) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
+                          p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                          ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                          li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                          strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
+                          pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
                         }}
                       >
                         {streamingBotText}
