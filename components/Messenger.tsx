@@ -2024,8 +2024,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans text-[15px] mt-2 px-2 pb-2">
                                   <ReactMarkdown
                                     components={{
-                                      p: ({ node, ...props }) => <p className="m-0 inline" {...props} />,
-                                      a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
+                                      p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                      a: ({ node, ...props }: any) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
                                     }}
                                   >
                                     {extractedCaption}
@@ -2038,8 +2038,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans">
                             <ReactMarkdown
                               components={{
-                                p: ({ node, ...props }) => <p className="m-0 inline" {...props} />,
-                                a: ({ node, ...props }) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
+                                p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                a: ({ node, ...props }: any) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
                               }}
                             >
                               {rawText}
