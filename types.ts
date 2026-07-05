@@ -269,6 +269,8 @@ export interface UsageSettings {
 }
 
 export interface AppSettings {
+  show_playstore_modal?: boolean;
+  playstore_modal_collect_emails?: boolean;
   primary_gemini_model?: string;
   gemini_api_key?: string;
   upload_center_uploads_enabled?: boolean;

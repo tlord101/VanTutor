@@ -372,27 +372,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
     
     const { addToast } = useToast();
 
-    useEffect(() => {
-        const sharedImage = localStorage.getItem('shared_image_intent');
-        if (sharedImage) {
-            localStorage.removeItem('shared_image_intent');
-            const loadSharedImage = async () => {
-                try {
-                    let imageUri = sharedImage;
-                    if (sharedImage.startsWith('content://') || sharedImage.startsWith('file://')) {
-                        const fileData = await Filesystem.readFile({ path: sharedImage });
-                        imageUri = `data:image/jpeg;base64,${fileData.data}`;
-                    }
-                    setScannedImage(imageUri);
-                    setCameraState('preview');
-                } catch (err) {
-                    console.error("Failed to load shared image intent:", err);
-                    addToast("Failed to load shared image.", "error");
-                }
-            };
-            loadSharedImage();
-        }
-    }, [addToast]);
+    // Merged shared image intent logic with initializeCamera useEffect below
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -520,11 +500,29 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
 
     useEffect(() => {
         const sharedImage = localStorage.getItem('shared_image_intent');
-        if (!sharedImage) {
+        if (sharedImage) {
+            localStorage.removeItem('shared_image_intent');
+            const loadSharedImage = async () => {
+                try {
+                    let imageUri = sharedImage;
+                    if (sharedImage.startsWith('content://') || sharedImage.startsWith('file://')) {
+                        const fileData = await Filesystem.readFile({ path: sharedImage });
+                        imageUri = `data:image/jpeg;base64,${fileData.data}`;
+                    }
+                    setScannedImage(imageUri);
+                    setCameraState('preview');
+                } catch (err) {
+                    console.error("Failed to load shared image intent:", err);
+                    addToast("Failed to load shared image.", "error");
+                    initializeCamera();
+                }
+            };
+            loadSharedImage();
+        } else {
             initializeCamera();
         }
         return cleanupCamera;
-    }, [initializeCamera, cleanupCamera]);
+    }, [initializeCamera, cleanupCamera, addToast]);
 
     const handleScan = useCallback(() => {
         const video = videoRef.current;

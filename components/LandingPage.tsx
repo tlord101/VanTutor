@@ -8,6 +8,8 @@ import { AppDownloadCTA } from './marketing/AppDownloadCTA';
 import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 import { SEO } from './SEO';
+import { PlaystoreEarlyAccessModal } from './marketing/PlaystoreEarlyAccessModal';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -16,8 +18,8 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) => {
   const [scrolled, setScrolled] = useState(false);
-  const [showAppPopup, setShowAppPopup] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const { settings } = useAppSettings();
+  const [showPlaystoreModal, setShowPlaystoreModal] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,47 +30,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
   }, []);
 
   useEffect(() => {
-    // Fetch latest Android APK URL
-    const updatesRef = ref(db, 'app_updates/latest');
-    const unsubscribe = onValue(updatesRef, (snapshot) => {
-        if (snapshot.exists() && snapshot.val().downloadUrl) {
-            setDownloadUrl(snapshot.val().downloadUrl);
-        }
-    });
-
-    // Show the popup after 5 seconds if they haven't closed it this session
-    const hasClosed = sessionStorage.getItem('avelut_closed_app_popup');
-    if (!hasClosed) {
+    const hasClosed = sessionStorage.getItem('avelut_closed_playstore_modal');
+    if (!hasClosed && settings.show_playstore_modal !== false) {
       const timer = setTimeout(() => {
-        setShowAppPopup(true);
+        setShowPlaystoreModal(true);
       }, 5000);
-      return () => {
-        clearTimeout(timer);
-        unsubscribe();
-      };
+      return () => clearTimeout(timer);
     }
-    return () => unsubscribe();
-  }, []);
+  }, [settings.show_playstore_modal]);
 
-  const closePopup = () => {
-    setShowAppPopup(false);
-    sessionStorage.setItem('avelut_closed_app_popup', 'true');
-  };
-
-  const handleAndroidDownload = () => {
-    if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
-        closePopup();
-    } else {
-        alert("The latest Android app is still being prepared. Please check back later!");
-    }
-  };
-
-  const handleIOSClick = () => {
-    alert("Avelut is not yet available as a native iOS app. Please use our mobile-friendly web app!");
-    closePopup();
-    onLogin();
-    window.dispatchEvent(new Event('popstate'));
+  const closePlaystoreModal = () => {
+    setShowPlaystoreModal(false);
+    sessionStorage.setItem('avelut_closed_playstore_modal', 'true');
   };
 
   return (
@@ -259,40 +232,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
         </div>
       </footer>
 
-      {/* Download App Popup */}
+      {/* Play Store Early Access Modal */}
       <AnimatePresence>
-        {showAppPopup && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
-          >
-            <div className="relative p-6">
-              <button onClick={closePopup} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition">
-                <X className="w-4 h-4" />
-              </button>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-brand-500 flex items-center justify-center shrink-0 shadow-inner">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-lg mb-1">Get the Avelut App</h3>
-                  <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                    Scan math problems directly with your camera. Download now for iOS and Android.
-                  </p>
-                  <div className="flex gap-2">
-                    <button onClick={handleIOSClick} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2">
-                       <Apple className="w-4 h-4" /> iOS
-                    </button>
-                    <button onClick={handleAndroidDownload} className={`flex-1 text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 ${downloadUrl ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}>
-                       <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Play" className={`w-4 h-4 ${!downloadUrl && 'opacity-50 grayscale'}`} /> Android
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+        {showPlaystoreModal && (
+          <PlaystoreEarlyAccessModal onClose={closePlaystoreModal} />
         )}
       </AnimatePresence>
     </div>

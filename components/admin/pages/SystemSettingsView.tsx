@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, Key, Shield, HardDrive, Database, CreditCard, Layers } from 'lucide-react';
+import { Settings, Mail, Key, Shield, HardDrive, Database, CreditCard, Layers, Smartphone } from 'lucide-react';
 import { db } from '../../../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
@@ -239,6 +239,38 @@ export const SystemSettingsView: React.FC = () => {
                                 type="checkbox" 
                                 checked={appSettings.coming_soon_enabled || false}
                                 onChange={e => setAppSettings({...appSettings, coming_soon_enabled: e.target.checked})}
+                                className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                            />
+                        </label>
+
+                        <label className="flex items-center justify-between p-4 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 transition">
+                            <div className="flex items-center gap-3">
+                                <Smartphone className="w-5 h-5 text-emerald-500" />
+                                <div>
+                                    <p className="font-bold text-slate-900">Play Store Early Access Modal</p>
+                                    <p className="text-xs text-slate-500">Show popup prompting users to download Android App.</p>
+                                </div>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                checked={appSettings.show_playstore_modal ?? true}
+                                onChange={e => setAppSettings({...appSettings, show_playstore_modal: e.target.checked})}
+                                className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                            />
+                        </label>
+
+                        <label className="flex items-center justify-between p-4 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 transition">
+                            <div className="flex items-center gap-3">
+                                <Mail className="w-5 h-5 text-blue-500" />
+                                <div>
+                                    <p className="font-bold text-slate-900">Collect Emails in Play Store Modal</p>
+                                    <p className="text-xs text-slate-500">Require email before redirecting (Disable for direct link).</p>
+                                </div>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                checked={appSettings.playstore_modal_collect_emails ?? true}
+                                onChange={e => setAppSettings({...appSettings, playstore_modal_collect_emails: e.target.checked})}
                                 className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
                             />
                         </label>
