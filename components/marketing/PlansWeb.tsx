@@ -3,6 +3,8 @@ import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
+import { ref as dbRef, update } from 'firebase/database';
+import { db } from '../../firebase';
 
 interface PlansWebProps {
     appSettings: AppSettings;
@@ -22,7 +24,6 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
         const selectedPlan = searchParams.get('plan');
         
         if (selectedPlan) {
-            // Give a slight delay to allow rendering, then scroll to the selected plan on mobile
             setTimeout(() => {
                 const el = document.getElementById(`plan-${selectedPlan}`);
                 if (el) {
@@ -67,7 +68,17 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 purchaseType: 'subscription',
                 addToast,
                 onSuccess: async (reference) => {
-                    addToast('Payment successful! Your plan will be updated shortly.', 'success');
+                    try {
+                        const userRef = dbRef(db, `users/${targetUid}`);
+                        await update(userRef, {
+                            subscription_status: effectivePlanKey,
+                            ai_credits_balance: activePlan.credit_allocation
+                        });
+                        addToast('Payment successful! Your plan and credits have been updated.', 'success');
+                    } catch (e) {
+                        console.error('Failed to update plan', e);
+                        addToast('Payment successful, but failed to update plan. Please contact support.', 'error');
+                    }
                     setIsProcessing(false);
                 },
                 onCancel: () => {
@@ -87,8 +98,19 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
         }
     };
 
+    const getFeatures = (tier: any) => {
+        if (!tier) return [];
+        return [
+            { text: `${tier.credit_allocation} AI credits allocation`, included: true },
+            { text: tier.max_saved_courses === -1 ? 'Unlimited saved courses' : `Up to ${tier.max_saved_courses} saved courses`, included: true },
+            { text: tier.description?.split('.')[0] || 'Standard study tools', included: true },
+            { text: 'Unlimited study time', included: tier.tier_id === 'premium' },
+            { text: 'Verification badge', included: tier.has_verification_badge }
+        ];
+    };
+
     return (
-        <div className="min-h-screen bg-white text-slate-900 font-sans pb-24 overflow-x-hidden">
+        <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-24 overflow-x-hidden">
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-50">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
@@ -99,16 +121,14 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
                 
                 {/* Hero Section */}
                 <div className="text-center max-w-2xl mx-auto space-y-4">
-                    <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-black">
-                        Price List Side for Different Subscription Plan
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-widest text-slate-700 uppercase">
+                        Pricing Table Design
                     </h1>
                 </div>
-
-                <div className="border-t border-dashed border-slate-300 w-full mb-8"></div>
 
                 <div className="max-w-md mx-auto mb-12">
                     <input 
@@ -116,77 +136,70 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter email address for receipt"
-                        className="bg-white border-2 border-slate-200 text-slate-900 text-center font-medium text-base rounded-full focus:ring-[#009EE2] focus:border-[#009EE2] block w-full py-4 px-6 shadow-sm outline-none"
+                        className="bg-white border border-slate-200 text-slate-900 text-center font-medium text-base rounded-full focus:ring-[#009EE2] focus:border-[#009EE2] block w-full py-3 px-6 shadow-sm outline-none"
                     />
                 </div>
 
                 {/* Plans Section */}
                 <section>
-                    <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-8 max-w-5xl mx-auto pt-8">
+                    <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-8 max-w-5xl mx-auto pt-4">
                         
-                        {/* Free / Basic Plan Wrapper */}
-                        <div id="plan-free" className="w-full max-w-[320px]">
+                        {/* Basic Plan Wrapper */}
+                        <div id="plan-free" className="w-full max-w-[300px]">
                             <PricingCard 
-                                plan="Basic"
+                                plan="BASIC"
                                 displayPrice="Free"
-                                color="#02BFA6"
+                                theme={{
+                                    tab: '#2dd4bf', // Teal 400
+                                    glow: '#2dd4bf',
+                                    buttonBg: '#ccfbf1', // Teal 50
+                                    buttonText: '#0f766e' // Teal 700
+                                }}
                                 isCurrentPlan={!userProfile?.subscription_status || userProfile.subscription_status === 'free' || userProfile.subscription_status === 'none'}
-                                features={[
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable."
-                                ]}
+                                features={getFeatures(tiers?.free)}
                                 onPurchase={() => handlePurchasePlan('free')}
                                 disabled={true}
-                                buttonIcon={<ClipboardIcon />}
                             />
                         </div>
 
-                        {/* Student / Standard Plan Wrapper */}
-                        <div id="plan-basic" className="w-full max-w-[320px]">
+                        {/* Business Plan Wrapper */}
+                        <div id="plan-basic" className="w-full max-w-[300px]">
                             <PricingCard 
-                                plan="Standard"
-                                displayPrice={`$${(tiers?.basic?.price_ngn / 1000)?.toFixed(2) || '13.99'}`}
-                                color="#009EE2"
+                                plan="BUSINESS"
+                                displayPrice={`$${(tiers?.basic?.price_ngn / 1000)?.toFixed(2) || '1.00'}`}
+                                theme={{
+                                    tab: '#818cf8', // Indigo 400
+                                    glow: '#6366f1',
+                                    buttonBg: '#e0e7ff', // Indigo 100
+                                    buttonText: '#4338ca' // Indigo 700
+                                }}
                                 isCurrentPlan={userProfile?.subscription_status === 'basic'}
-                                features={[
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable."
-                                ]}
+                                features={getFeatures(tiers?.basic)}
                                 onPurchase={() => handlePurchasePlan('basic')}
                                 disabled={isProcessing || !email}
-                                buttonIcon={<HandshakeIcon />}
                             />
                         </div>
 
                         {/* Premium Plan Wrapper */}
-                        <div id="plan-premium" className="w-full max-w-[320px]">
+                        <div id="plan-premium" className="w-full max-w-[300px]">
                             <PricingCard 
-                                plan="Premium"
-                                displayPrice={`$${(tiers?.premium?.price_ngn / 1000)?.toFixed(2) || '23.99'}`}
-                                color="#2B4C65"
+                                plan="PREMIUM"
+                                displayPrice={`$${(tiers?.premium?.price_ngn / 1000)?.toFixed(2) || '3.00'}`}
+                                theme={{
+                                    tab: '#c084fc', // Purple 400
+                                    glow: '#a855f7',
+                                    buttonBg: '#f3e8ff', // Purple 100
+                                    buttonText: '#7e22ce' // Purple 700
+                                }}
                                 isCurrentPlan={userProfile?.subscription_status === 'premium' || userProfile?.subscription_status === 'pro'}
-                                features={[
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable.",
-                                    "This slide is 100% editable."
-                                ]}
+                                features={getFeatures(tiers?.premium)}
                                 onPurchase={() => handlePurchasePlan('premium')}
                                 disabled={isProcessing || !email}
-                                buttonIcon={<MoneyBagIcon />}
                             />
                         </div>
 
                     </div>
                 </section>
-
-                <div className="border-b border-dashed border-slate-300 w-full mt-20 mb-8"></div>
-
-                <div className="text-center text-sm text-slate-400 font-medium italic mt-4">
-                    This slide is 100% editable. Adapt it to your needs and capture your audience's attention.
-                </div>
-
             </main>
         </div>
     );
@@ -194,125 +207,93 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
 
 // --- Custom Components ---
 
+interface PricingFeature {
+    text: string;
+    included: boolean;
+}
+
+interface PricingCardTheme {
+    tab: string;
+    glow: string;
+    buttonBg: string;
+    buttonText: string;
+}
+
 interface PricingCardProps {
     plan: string;
     displayPrice: string;
-    color: string;
+    theme: PricingCardTheme;
     isCurrentPlan?: boolean;
-    features: string[];
+    features: PricingFeature[];
     onPurchase: () => void;
     disabled: boolean;
-    buttonIcon: React.ReactNode;
+    buttonText?: string;
 }
 
 const PricingCard: React.FC<PricingCardProps> = ({ 
     plan, 
     displayPrice, 
-    color, 
+    theme, 
     isCurrentPlan,
     features, 
     onPurchase, 
     disabled, 
-    buttonIcon 
+    buttonText 
 }) => {
     return (
-        <div className="relative w-full mx-auto min-h-[460px] pb-12">
-            {/* The colored background shape (folder-like) */}
+        <div className="relative w-full mx-auto pt-6 pb-4">
+            {/* The Tab at the top */}
             <div 
-                className="absolute top-0 bottom-8 left-0 right-[-10px] sm:right-[-15px]" 
-                style={{ 
-                    backgroundColor: color,
-                    borderTopLeftRadius: '2.5rem',
-                    borderTopRightRadius: '2.5rem',
-                    borderBottomLeftRadius: '1.5rem',
-                    borderBottomRightRadius: '10rem'
-                }} 
-            />
+                className="absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2.5 rounded-t-2xl text-white font-bold text-xs tracking-wider shadow-sm z-10" 
+                style={{ backgroundColor: theme.tab, minWidth: '140px', textAlign: 'center' }}
+            >
+                {plan}
+            </div>
             
             {/* The white inner card */}
-            <div className="absolute top-2 left-4 right-0 bottom-24 bg-white rounded-t-[2.2rem] rounded-b-[2.2rem] flex flex-col p-6 shadow-[0px_10px_30px_rgba(0,0,0,0.08)]">
-                <div className="text-center mt-6 mb-8">
-                    <span className="text-[2.5rem] leading-none font-bold" style={{ color }}>{displayPrice}</span>
+            <div className="relative bg-white rounded-3xl px-6 pb-8 pt-12 shadow-lg flex flex-col items-center overflow-hidden">
+                
+                {/* The Glow Effect */}
+                <div 
+                    className="absolute -top-16 left-1/2 -translate-x-1/2 w-[160%] h-48 rounded-[100%] blur-[30px] opacity-90 pointer-events-none"
+                    style={{ backgroundColor: theme.glow }}
+                ></div>
+
+                {/* Price */}
+                <div className="relative z-10 text-center mb-10 mt-2">
+                    <div className="text-4xl font-extrabold text-white mb-1 drop-shadow-md">{displayPrice}</div>
+                    {displayPrice !== 'Free' && <div className="text-white/90 text-[11px] font-semibold uppercase tracking-wider">per month</div>}
+                    {displayPrice === 'Free' && <div className="text-white/90 text-[11px] font-semibold uppercase tracking-wider">forever</div>}
                 </div>
                 
-                <div className="border-t border-dashed border-slate-300 w-[80%] mx-auto mb-4"></div>
-                
-                <ul className="space-y-4 flex-1 px-4 text-[13px] text-slate-500 font-medium text-center">
+                {/* Features */}
+                <ul className="space-y-4 w-full mb-10 relative z-10 px-2">
                     {features.map((feature, i) => (
-                        <li key={i} className="flex flex-col items-center">
-                            <span className="flex items-center justify-center gap-1">
-                                <svg className="w-3 h-3 shrink-0" style={{ color: '#4b5563' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                {feature}
-                            </span>
-                            {i < features.length - 1 && (
-                                <div className="border-b border-dashed border-slate-300 w-full mt-4"></div>
+                        <li key={i} className="flex items-start text-[13px] font-medium leading-relaxed">
+                            {feature.included ? (
+                                <svg className="w-4 h-4 mt-0.5 mr-3 shrink-0" style={{ color: '#10b981' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                            ) : (
+                                <svg className="w-4 h-4 mt-0.5 mr-3 shrink-0" style={{ color: '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
                             )}
+                            <span className={feature.included ? 'text-slate-600' : 'text-slate-400'}>{feature.text}</span>
                         </li>
                     ))}
                 </ul>
 
-                <div className="border-b border-dashed border-slate-300 w-[80%] mx-auto mt-4 mb-8"></div>
-
-                {/* Floating circular button OR Current Plan label */}
-                {isCurrentPlan ? (
-                    <div 
-                        className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full flex items-center justify-center text-white font-bold shadow-xl border-4 border-white"
-                        style={{ backgroundColor: color }}
-                    >
-                        Current Plan
-                    </div>
-                ) : (
-                    <button 
-                        onClick={onPurchase}
-                        disabled={disabled}
-                        className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                        style={{ backgroundColor: color }}
-                    >
-                        {buttonIcon}
-                    </button>
-                )}
-            </div>
-
-            {/* Bottom-left Plan Label */}
-            <div className="absolute bottom-16 left-0 bg-white px-6 py-2.5 font-bold text-[15px] rounded-r-sm shadow-md z-10" style={{ color }}>
-                {plan}
+                {/* Button */}
+                <button 
+                    onClick={onPurchase}
+                    disabled={disabled}
+                    className="relative z-10 w-[80%] py-3 rounded-full font-bold transition-all text-sm tracking-wide disabled:opacity-50 hover:opacity-90 active:scale-95"
+                    style={{ 
+                        backgroundColor: isCurrentPlan ? '#f1f5f9' : theme.buttonBg,
+                        color: isCurrentPlan ? '#94a3b8' : theme.buttonText 
+                    }}
+                >
+                    {isCurrentPlan ? 'Current Plan' : (buttonText || 'Get Started')}
+                </button>
             </div>
         </div>
     );
 }
 
-// --- Icons ---
-
-const ClipboardIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-        <path d="M9 14h6"></path>
-        <path d="M9 18h6"></path>
-        <path d="M9 10h.01"></path>
-    </svg>
-);
-
-const HandshakeIcon = () => (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 12l-3-3"></path>
-        <path d="M14 14l-4-4"></path>
-        <path d="M16 16l-5-5"></path>
-        <path d="M15 15l-3-3"></path>
-        <path d="M14 14l-2-2"></path>
-        <path d="M13 13l-1-1"></path>
-        <path d="M22 12A10 10 0 0 1 12 22 10 10 0 0 1 2 12 10 10 0 0 1 12 2 10 10 0 0 1 22 12z"></path>
-        <path d="M11 11l-2-2"></path>
-        <path d="M9 9l-1-1"></path>
-        <path d="M10 10l-1-1"></path>
-    </svg>
-);
-
-const MoneyBagIcon = () => (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 21h8a4 4 0 0 0 4-4V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a4 4 0 0 0 4 4z"></path>
-        <path d="M12 11v6"></path>
-        <path d="M12 11a3 3 0 0 0 0-6 3 3 0 0 0 0 6z"></path>
-        <path d="M10 14h4"></path>
-    </svg>
-);

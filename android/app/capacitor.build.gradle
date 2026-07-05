@@ -11,6 +11,7 @@ apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':capacitor-firebase-authentication')
     implementation project(':capacitor-app')
+    implementation project(':capacitor-browser')
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-keyboard')
@@ -20,7 +21,6 @@ dependencies {
     implementation project(':capacitor-toast')
     implementation project(':capawesome-team-capacitor-file-opener')
     implementation project(':capgo-capacitor-updater')
-    implementation project(':revenuecat-purchases-capacitor')
     implementation project(':capacitor-plugin-send-intent')
 
 }

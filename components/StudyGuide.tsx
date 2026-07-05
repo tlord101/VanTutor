@@ -35,7 +35,7 @@ const CheckCircleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-
 );
 const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
     </svg>
 );
 const FileIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
@@ -256,9 +256,9 @@ const fetchRealYoutubeVideo = async (searchQuery: string, predictedVideoId: stri
                 const data = await response.json();
                 const firstVideo = data.items?.[0];
                 if (firstVideo && firstVideo.id) {
-                    const thumb = firstVideo.snippet?.thumbnails?.medium?.url || 
-                                  firstVideo.snippet?.thumbnails?.default?.url || 
-                                  `https://img.youtube.com/vi/${predictedVideoId}/mqdefault.jpg`;
+                    const thumb = firstVideo.snippet?.thumbnails?.medium?.url ||
+                        firstVideo.snippet?.thumbnails?.default?.url ||
+                        `https://img.youtube.com/vi/${predictedVideoId}/mqdefault.jpg`;
                     return {
                         videoId: predictedVideoId,
                         thumbnailUrl: thumb
@@ -282,9 +282,9 @@ const fetchRealYoutubeVideo = async (searchQuery: string, predictedVideoId: stri
             const data = await response.json();
             const firstVideo = data.items?.[0];
             if (firstVideo && firstVideo.id?.videoId) {
-                const thumb = firstVideo.snippet?.thumbnails?.medium?.url || 
-                              firstVideo.snippet?.thumbnails?.default?.url || 
-                              `https://img.youtube.com/vi/${firstVideo.id.videoId}/mqdefault.jpg`;
+                const thumb = firstVideo.snippet?.thumbnails?.medium?.url ||
+                    firstVideo.snippet?.thumbnails?.default?.url ||
+                    `https://img.youtube.com/vi/${firstVideo.id.videoId}/mqdefault.jpg`;
                 return {
                     videoId: firstVideo.id.videoId,
                     thumbnailUrl: thumb
@@ -305,23 +305,23 @@ const fetchRealYoutubeVideo = async (searchQuery: string, predictedVideoId: stri
 
 const parseMessageSuggestions = (text: string): { cleanText: string; suggestions: string[] } => {
     if (!text) return { cleanText: '', suggestions: [] };
-    
+
     // Match suggestions pattern like [Suggestions: Option 1 | Option 2]
     const regex = /\[Suggestions:\s*(.*?)\]/i;
     const match = text.match(regex);
-    
+
     if (match) {
         const rawOptions = match[1] || '';
         const suggestions = rawOptions
             .split('|')
             .map(opt => opt.trim())
             .filter(Boolean);
-            
+
         // Remove suggestions from the rendered text
         const cleanText = text.replace(regex, '').trim();
         return { cleanText, suggestions };
     }
-    
+
     // For streaming rendering, hide partial suggestions syntax to prevent flashing
     const lowerText = text.toLowerCase();
     const partialIndex = lowerText.indexOf('[suggestions:');
@@ -329,7 +329,7 @@ const parseMessageSuggestions = (text: string): { cleanText: string; suggestions
         const cleanText = text.substring(0, partialIndex).trim();
         return { cleanText, suggestions: [] };
     }
-    
+
     const lastBracketIndex = text.lastIndexOf('[');
     if (lastBracketIndex !== -1 && lastBracketIndex > text.length - 15) {
         const potential = text.substring(lastBracketIndex).toLowerCase();
@@ -338,7 +338,7 @@ const parseMessageSuggestions = (text: string): { cleanText: string; suggestions
             return { cleanText, suggestions: [] };
         }
     }
-    
+
     return { cleanText: text, suggestions: [] };
 };
 
@@ -510,7 +510,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
                 if (type === 'voice') summaryText = '🎵 Voice message';
                 else if (type === 'image') summaryText = '📷 Image file';
                 else if (type === 'file') summaryText = '📄 Document file';
-                
+
                 const participantIds = Array.from(new Set([userProfile.uid, recipientId]));
                 participantIds.forEach((participantId) => {
                     updates[`user_chats/${participantId}/${chatId}/last_message`] = {
@@ -625,8 +625,8 @@ Return valid JSON as a list of objects with keys: title, description, searchQuer
                                 ...item,
                                 videoId: item.predictedVideoId || 'dQw4w9WgXcQ',
                                 thumbnailUrl: item.predictedVideoId
-                                  ? `https://img.youtube.com/vi/${item.predictedVideoId}/mqdefault.jpg`
-                                  : `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500`
+                                    ? `https://img.youtube.com/vi/${item.predictedVideoId}/mqdefault.jpg`
+                                    : `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500`
                             };
                         }
                     }));
@@ -956,7 +956,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
 
     useEffect(() => {
         const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
-        
+
         setIsHistoryLoading(true);
         const unsubscribe = onValue(messagesRef, (snapshot) => {
             const data = snapshot.val();
@@ -972,7 +972,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
                     sender: msg.sender as 'user' | 'bot',
                     timestamp: msg.timestamp,
                     image_url: msg.image_url,
-                })).sort((a,b) => a.timestamp - b.timestamp);
+                })).sort((a, b) => a.timestamp - b.timestamp);
                 setMessages(fetchedMessages);
                 setIsHistoryLoading(false);
             }
@@ -1001,20 +1001,25 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
             setFile(selectedFile);
+            const previewUrl = URL.createObjectURL(selectedFile);
+            setFileData(previewUrl);
             const reader = new FileReader();
-            reader.onloadend = () => setFileData(reader.result as string);
+            reader.onloadend = () => {
+                setFileData(reader.result as string);
+                URL.revokeObjectURL(previewUrl);
+            };
             reader.readAsDataURL(selectedFile);
         }
     };
-    
+
     const handleSend = async (messageText?: string) => {
         const textToSend = messageText || input;
-        
+
         if (isThinking || isIllustrating) {
             addToast("Please wait for the AI to finish its current response.", "info");
             return;
         }
-        
+
         if (!textToSend.trim() && !file) return;
 
         if (!ai) {
@@ -1035,7 +1040,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
             setIsThinking(false);
             return;
         }
-        
+
         const tempInput = textToSend;
         const tempFile = file;
         const tempFileData = fileData;
@@ -1051,7 +1056,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
         });
         setFile(null);
         setFileData(null);
-        
+
         // Create optimistic user message with temporary ID
         const optimisticUserMessage: Message = {
             id: `temp-${Date.now()}`,
@@ -1060,7 +1065,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
             timestamp: Date.now(),
             image_url: undefined,
         };
-        
+
         // Show user message immediately
         setMessages(prev => [...prev, optimisticUserMessage]);
         setIsThinking(true);
@@ -1091,9 +1096,9 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
                 userMessageData.image_url = imageUrl;
             }
             set(newUserMsgRef, userMessageData).catch(console.error);
-            
+
             // Update the optimistic message with real data from database
-            setMessages(prev => prev.map(m => 
+            setMessages(prev => prev.map(m =>
                 m.id === optimisticUserMessage.id
                     ? {
                         id: newUserMsgRef.key!,
@@ -1104,7 +1109,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
                     }
                     : m
             ));
-            
+
             // Get updated messages for API call
             const updatedMessages = [...messages, {
                 id: newUserMsgRef.key!,
@@ -1121,17 +1126,17 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
                 // 💡 RAG: Retrieve relevant textbook context from Pinecone
                 let retrievedContext = "";
                 try {
-                  const { searchPinecone } = await import('../utils/pinecone');
-                  const searchResult = await searchPinecone(tempInput, course.course_id || course.course_id, 3, appSettings);
-                  
-                  if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
-                    retrievedContext = "\n\nRELEVANT TEXTBOOK EXCERPTS:\n" +
-                      searchResult.results.map((r: any) => r.text).join('\n\n');
-                  }
+                    const { searchPinecone } = await import('../utils/pinecone');
+                    const searchResult = await searchPinecone(tempInput, course.course_id || course.course_id, 3, appSettings);
+
+                    if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
+                        retrievedContext = "\n\nRELEVANT TEXTBOOK EXCERPTS:\n" +
+                            searchResult.results.map((r: any) => r.text).join('\n\n');
+                    }
                 } catch (searchErr) {
-                  console.warn("RAG retrieval failed:", searchErr);
+                    console.warn("RAG retrieval failed:", searchErr);
                 }
-                
+
                 const prompt = `
 Context:
 Department: ${userProfile.department_id}
@@ -1174,7 +1179,7 @@ Student: "${tempInput}"
                 }
 
                 const botResponseText = responseText.trim();
-                
+
                 const newBotMsgRef = push(messagesRef);
                 const botMessageData = {
                     sender: 'bot',
@@ -1216,23 +1221,20 @@ Student: "${tempInput}"
             const result = await attemptApiCall(async () => {
                 const prompt = `Create an educational visualization for this study guide explanation:\n\n${promptText}`;
 
-                // Using the correct Imagen 3 API from @google/genai
-                const response = await ai.models.generateImages({
-                    model: 'gemini-3.1-pro-image',
-                    prompt: prompt,
-                    config: {
-                        numberOfImages: 1,
-                        outputMimeType: 'image/png'
-                    }
+                // Using the interaction API for image generation with flash-image
+                const interaction = await ai.interactions.create({
+                    model: 'gemini-3.1-flash-image',
+                    input: prompt
                 });
-                const generatedImage = response.generatedImages?.[0];
+                
+                const generatedImage = interaction.output_image;
 
                 const imageUrls: string[] = [];
 
-                if (generatedImage && generatedImage.image?.imageBytes) {
+                if (generatedImage && generatedImage.data) {
                     const mimeType = 'image/png';
                     const fileExtension = 'png';
-                    const imageBlob = base64ToBlob(generatedImage.image.imageBytes, mimeType);
+                    const imageBlob = base64ToBlob(generatedImage.data, mimeType);
                     const uniqueImageId = createUniqueId();
                     const storageRefObj = storageRef(storage, `${userProfile.uid}/study-guide-illustrations/${course.course_id}/${uniqueImageId}.${fileExtension}`);
                     const uploadResult = await uploadBytes(storageRefObj, imageBlob);
@@ -1267,7 +1269,7 @@ Student: "${tempInput}"
             setIsIllustrating(false);
         }
     };
-    
+
     const lastBotMessageIndex = messages.map(m => m.sender).lastIndexOf('bot');
 
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1287,10 +1289,10 @@ Student: "${tempInput}"
                 <div className="flex items-center gap-2">
                     {!course.topics?.length && (
                         <div className="relative">
-                            <input 
-                                type="file" 
-                                id={`upload-textbook-${course.course_id}`} 
-                                className="hidden" 
+                            <input
+                                type="file"
+                                id={`upload-textbook-${course.course_id}`}
+                                className="hidden"
                                 accept="application/pdf"
                                 onChange={async (e) => {
                                     if (!e.target.files?.length) return;
@@ -1299,7 +1301,7 @@ Student: "${tempInput}"
                                     e.target.value = '';
                                 }}
                             />
-                            <label 
+                            <label
                                 htmlFor={`upload-textbook-${course.course_id}`}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald/10 hover:bg-emerald/20 text-emerald rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                                 title="Contribute a textbook for this course"
@@ -1309,7 +1311,7 @@ Student: "${tempInput}"
                             </label>
                         </div>
                     )}
-                    <button 
+                    <button
                         onClick={() => {
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
@@ -1318,17 +1320,17 @@ Student: "${tempInput}"
                     >
                         Video Tutorial
                     </button>
-                    
+
                     <div className="relative">
-                        <button 
+                        <button
                             onClick={() => setShowShareDropdown(!showShareDropdown)}
                             className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
                             title="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="1.5"/>
-                                <circle cx="12" cy="5" r="1.5"/>
-                                <circle cx="12" cy="19" r="1.5"/>
+                                <circle cx="12" cy="12" r="1.5" />
+                                <circle cx="12" cy="5" r="1.5" />
+                                <circle cx="12" cy="19" r="1.5" />
                             </svg>
                         </button>
                         {showShareDropdown && (
@@ -1374,223 +1376,223 @@ Student: "${tempInput}"
                         </div>
                     </div>
                 ) : (
-                <>
-                {messages.map((message) => {
-                    const { cleanText, suggestions } = parseMessageSuggestions(message.text || '');
+                    <>
+                        {messages.map((message) => {
+                            const { cleanText, suggestions } = parseMessageSuggestions(message.text || '');
 
-                    return (
-                        <div key={message.id} className={`flex items-start gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end items-end' : 'justify-start'}`}>
-                            {message.sender === 'bot' && 
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                                   <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                                </div>
-                            }
-                            
-                            <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                                <div 
-                                    className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'}`}
-                                    onContextMenu={(e) => {
-                                        e.preventDefault();
-                                        setMessageActionTarget(message);
-                                        setMessageActionPosition({ x: e.clientX, y: e.clientY });
-                                    }}
-                                    onTouchStart={(e) => {
-                                        if (!e.touches[0]) return;
-                                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-                                        const touch = e.touches[0];
-                                        longPressTimerRef.current = setTimeout(() => {
-                                            setMessageActionTarget(message);
-                                            setMessageActionPosition({ x: touch.clientX, y: touch.clientY });
-                                        }, 800);
-                                    }}
-                                    onTouchEnd={() => {
-                                        if (longPressTimerRef.current) {
-                                            clearTimeout(longPressTimerRef.current);
-                                            longPressTimerRef.current = null;
-                                        }
-                                    }}
-                                    onTouchMove={() => {
-                                        if (longPressTimerRef.current) {
-                                            clearTimeout(longPressTimerRef.current);
-                                            longPressTimerRef.current = null;
-                                        }
-                                    }}
-                                    onTouchCancel={() => {
-                                        if (longPressTimerRef.current) {
-                                            clearTimeout(longPressTimerRef.current);
-                                            longPressTimerRef.current = null;
-                                        }
-                                    }}
-                                >
-                                    {message.image_url && (
-                                        <div className="mb-2">
-                                            <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
+                            return (
+                                <div key={message.id} className={`flex items-start gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end items-end' : 'justify-start'}`}>
+                                    {message.sender === 'bot' &&
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                                            <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                                         </div>
-                                    )}
-                                    {message.sender === 'user' ? (
-                                        <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
-                                    ) : (
-                                        cleanText &&
-                                        <div className="text-sm sm:text-base prose prose-sm max-w-none">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm, remarkMath]}
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{
-                                                    // Headings
-                                                    h1: ({node, ...props}: any) => <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-3 mt-2" {...props} />,
-                                                    h2: ({node, ...props}: any) => <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 mt-3" {...props} />,
-                                                    h3: ({node, ...props}: any) => <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-2" {...props} />,
-                                                    // Paragraphs with better spacing
-                                                    p: ({node, ...props}: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
-                                                    // Bold - highlighted key concepts
-                                                    strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
-                                                    // Italics for emphasis
-                                                    em: ({node, ...props}: any) => <em className="italic text-lime-700 font-medium" {...props} />,
-                                                    // Lists with better styling
-                                                    ul: ({node, ...props}: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                    ol: ({node, ...props}: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                    li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
-                                                    // Links
-                                                    a: ({node, ...props}: any) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                                    // Code blocks
-                                                    code: ({node, inline, ...props}: any) => 
-                                                        inline ? (
-                                                            <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
-                                                        ) : (
-                                                            <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
-                                                        ),
-                                                    pre: ({node, ...props}: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
-                                                    // Blockquotes for notes
-                                                    blockquote: ({node, ...props}: any) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
-                                                    // Tables
-                                                    table: ({node, ...props}: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent text-xs" {...props} /></div>,
-                                                    th: ({node, ...props}: any) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900 dark:text-white" {...props} />,
-                                                    td: ({node, ...props}: any) => <td className="px-3 py-2 border-t border-gray-200 dark:border-transparent" {...props} />,
-                                                    // Horizontal rules
-                                                    hr: ({node, ...props}: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
-                                                }}
-                                            >
-                                                {cleanText}
-                                            </ReactMarkdown>
-                                        </div>
-                                    )}
-                                </div>
-                                {message.sender === 'bot' && suggestions.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-2 max-w-full relative z-40">
-                                        {suggestions.map((suggestion, sIdx) => (
-                                            <button
-                                                key={sIdx}
-                                                type="button"
-                                                onClick={() => {
-                                                    handleSend(suggestion);
-                                                }}
-                                                className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation"
-                                            >
-                                                {suggestion}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                    }
 
-                            {message.sender === 'user' && 
-                               <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
-                                   {userProfile.display_name.charAt(0).toUpperCase()}
-                               </div>
-                            }
-                        </div>
-                    )
-                })}
-                {streamingBotText !== null && (() => {
-                    const lastMsg = messages[messages.length - 1];
-                    // Safeguard against double rendering when DB syncs before streaming text is cleared
-                    if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text && lastMsg.text.length >= streamingBotText.length) {
-                        return null;
-                    }
-                    const { cleanText: cleanStreamingText } = parseMessageSuggestions(streamingBotText);
-                    return (
-                        <div className="flex items-start gap-3 w-full animate-fade-in-up justify-start">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
-                               <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                            </div>
-                            <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: 'flex-start' }}>
-                                <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent">
-                                    <div className="text-sm sm:text-base prose prose-sm max-w-none">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm, remarkMath]}
-                                            rehypePlugins={[rehypeKatex]}
-                                            components={{
-                                                h1: ({node, ...props}: any) => <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-3 mt-2" {...props} />,
-                                                h2: ({node, ...props}: any) => <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 mt-3" {...props} />,
-                                                h3: ({node, ...props}: any) => <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-2" {...props} />,
-                                                p: ({node, ...props}: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
-                                                strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
-                                                em: ({node, ...props}: any) => <em className="italic text-lime-700 font-medium" {...props} />,
-                                                ul: ({node, ...props}: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                ol: ({node, ...props}: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
-                                                li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
-                                                a: ({node, ...props}: any) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                                code: ({node, inline, ...props}: any) => 
-                                                    inline ? (
-                                                        <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
-                                                    ) : (
-                                                        <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
-                                                    ),
-                                                pre: ({node, ...props}: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
-                                                blockquote: ({node, ...props}: any) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
-                                                table: ({node, ...props}: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent text-xs" {...props} /></div>,
-                                                th: ({node, ...props}: any) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900 dark:text-white" {...props} />,
-                                                td: ({node, ...props}: any) => <td className="px-3 py-2 border-t border-gray-200 dark:border-transparent" {...props} />,
-                                                hr: ({node, ...props}: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
+                                    <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                                        <div
+                                            className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'}`}
+                                            onContextMenu={(e) => {
+                                                e.preventDefault();
+                                                setMessageActionTarget(message);
+                                                setMessageActionPosition({ x: e.clientX, y: e.clientY });
+                                            }}
+                                            onTouchStart={(e) => {
+                                                if (!e.touches[0]) return;
+                                                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                                                const touch = e.touches[0];
+                                                longPressTimerRef.current = setTimeout(() => {
+                                                    setMessageActionTarget(message);
+                                                    setMessageActionPosition({ x: touch.clientX, y: touch.clientY });
+                                                }, 800);
+                                            }}
+                                            onTouchEnd={() => {
+                                                if (longPressTimerRef.current) {
+                                                    clearTimeout(longPressTimerRef.current);
+                                                    longPressTimerRef.current = null;
+                                                }
+                                            }}
+                                            onTouchMove={() => {
+                                                if (longPressTimerRef.current) {
+                                                    clearTimeout(longPressTimerRef.current);
+                                                    longPressTimerRef.current = null;
+                                                }
+                                            }}
+                                            onTouchCancel={() => {
+                                                if (longPressTimerRef.current) {
+                                                    clearTimeout(longPressTimerRef.current);
+                                                    longPressTimerRef.current = null;
+                                                }
                                             }}
                                         >
-                                            {cleanStreamingText}
-                                        </ReactMarkdown>
+                                            {message.image_url && (
+                                                <div className="mb-2">
+                                                    <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
+                                                </div>
+                                            )}
+                                            {message.sender === 'user' ? (
+                                                <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
+                                            ) : (
+                                                cleanText &&
+                                                <div className="text-sm sm:text-base prose prose-sm max-w-none">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                                        rehypePlugins={[rehypeKatex]}
+                                                        components={{
+                                                            // Headings
+                                                            h1: ({ node, ...props }: any) => <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-3 mt-2" {...props} />,
+                                                            h2: ({ node, ...props }: any) => <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 mt-3" {...props} />,
+                                                            h3: ({ node, ...props }: any) => <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-2" {...props} />,
+                                                            // Paragraphs with better spacing
+                                                            p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
+                                                            // Bold - highlighted key concepts
+                                                            strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
+                                                            // Italics for emphasis
+                                                            em: ({ node, ...props }: any) => <em className="italic text-lime-700 font-medium" {...props} />,
+                                                            // Lists with better styling
+                                                            ul: ({ node, ...props }: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
+                                                            ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
+                                                            li: ({ node, ...props }: any) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
+                                                            // Links
+                                                            a: ({ node, ...props }: any) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                            // Code blocks
+                                                            code: ({ node, inline, ...props }: any) =>
+                                                                inline ? (
+                                                                    <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
+                                                                ) : (
+                                                                    <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
+                                                                ),
+                                                            pre: ({ node, ...props }: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
+                                                            // Blockquotes for notes
+                                                            blockquote: ({ node, ...props }: any) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
+                                                            // Tables
+                                                            table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent text-xs" {...props} /></div>,
+                                                            th: ({ node, ...props }: any) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900 dark:text-white" {...props} />,
+                                                            td: ({ node, ...props }: any) => <td className="px-3 py-2 border-t border-gray-200 dark:border-transparent" {...props} />,
+                                                            // Horizontal rules
+                                                            hr: ({ node, ...props }: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
+                                                        }}
+                                                    >
+                                                        {cleanText}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {message.sender === 'bot' && suggestions.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-2 max-w-full relative z-40">
+                                                {suggestions.map((suggestion, sIdx) => (
+                                                    <button
+                                                        key={sIdx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            handleSend(suggestion);
+                                                        }}
+                                                        className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation"
+                                                    >
+                                                        {suggestion}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {message.sender === 'user' &&
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-bold flex-shrink-0 items-center justify-center flex self-start">
+                                            {userProfile.display_name.charAt(0).toUpperCase()}
+                                        </div>
+                                    }
+                                </div>
+                            )
+                        })}
+                        {streamingBotText !== null && (() => {
+                            const lastMsg = messages[messages.length - 1];
+                            // Safeguard against double rendering when DB syncs before streaming text is cleared
+                            if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text && lastMsg.text.length >= streamingBotText.length) {
+                                return null;
+                            }
+                            const { cleanText: cleanStreamingText } = parseMessageSuggestions(streamingBotText);
+                            return (
+                                <div className="flex items-start gap-3 w-full animate-fade-in-up justify-start">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
+                                        <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                                    </div>
+                                    <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: 'flex-start' }}>
+                                        <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent">
+                                            <div className="text-sm sm:text-base prose prose-sm max-w-none">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                                    rehypePlugins={[rehypeKatex]}
+                                                    components={{
+                                                        h1: ({ node, ...props }: any) => <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-3 mt-2" {...props} />,
+                                                        h2: ({ node, ...props }: any) => <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 mt-3" {...props} />,
+                                                        h3: ({ node, ...props }: any) => <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-2" {...props} />,
+                                                        p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
+                                                        strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
+                                                        em: ({ node, ...props }: any) => <em className="italic text-lime-700 font-medium" {...props} />,
+                                                        ul: ({ node, ...props }: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
+                                                        ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
+                                                        li: ({ node, ...props }: any) => <li className="text-gray-700 leading-relaxed pl-1" {...props} />,
+                                                        a: ({ node, ...props }: any) => <a className="text-lime-600 hover:text-lime-700 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                        code: ({ node, inline, ...props }: any) =>
+                                                            inline ? (
+                                                                <code className="bg-lime-50 text-lime-800 px-1.5 py-0.5 rounded text-xs font-mono border border-lime-200" {...props} />
+                                                            ) : (
+                                                                <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-3 text-xs font-mono" {...props} />
+                                                            ),
+                                                        pre: ({ node, ...props }: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-3" {...props} />,
+                                                        blockquote: ({ node, ...props }: any) => <blockquote className="border-l-3 border-lime-500 bg-lime-50 pl-4 pr-3 py-2 my-3 rounded-r italic" {...props} />,
+                                                        table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent text-xs" {...props} /></div>,
+                                                        th: ({ node, ...props }: any) => <th className="px-3 py-2 bg-lime-100 text-left font-semibold text-gray-900 dark:text-white" {...props} />,
+                                                        td: ({ node, ...props }: any) => <td className="px-3 py-2 border-t border-gray-200 dark:border-transparent" {...props} />,
+                                                        hr: ({ node, ...props }: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
+                                                    }}
+                                                >
+                                                    {cleanStreamingText}
+                                                </ReactMarkdown>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                        {isIllustrating &&
+                            <div className="flex items-start gap-3 animate-fade-in-up">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
+                                    <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                                </div>
+                                <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-bl-none">
+                                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                        <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
+                                        <span>Creating visualization...</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })()}
-                 {isIllustrating &&
-                    <div className="flex items-start gap-3 animate-fade-in-up">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                           <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                        </div>
-                        <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-bl-none">
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
-                                <span>Creating visualization...</span>
+                        }
+                        {isThinking && streamingBotText === null && (
+                            <div className="flex items-start gap-3 animate-fade-in-up">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
+                                    <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
+                                </div>
+                                <TypingIndicator />
                             </div>
-                        </div>
-                    </div>
-                }
-                {isThinking && streamingBotText === null && (
-                    <div className="flex items-start gap-3 animate-fade-in-up">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                           <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                        </div>
-                        <TypingIndicator />
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
-                </>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </>
                 )}
             </div>
-            
+
             {/* Fixed Input Area */}
             <footer className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 dark:border-transparent bg-white dark:bg-black/80 backdrop-blur-lg">
                 <div className="relative flex items-center">
-                    <textarea 
-                        value={input} 
+                    <textarea
+                        value={input}
                         onChange={handleTextChange}
-                        onKeyDown={(e) => { 
-                            if (e.key === 'Enter' && !e.shiftKey) { 
-                                e.preventDefault(); 
-                                handleSend(); 
-                            } 
-                        }} 
-                        placeholder="Ask a question..." 
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
+                        placeholder="Ask a question..."
                         className="w-full bg-white dark:bg-black border border-gray-300 dark:border-transparent rounded-[24px] py-3.5 pl-12 pr-14 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500 focus:outline-none resize-none overflow-y-auto max-h-[180px] transition-all"
                         rows={1}
                         disabled={isThinking || isIllustrating}
@@ -1602,11 +1604,11 @@ Student: "${tempInput}"
                         <PaperclipIcon className="w-9 h-9" />
                         <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
                     </label>
-                    <button 
+                    <button
                         onClick={(e) => {
                             e.preventDefault();
                             handleSend();
-                        }} 
+                        }}
                         disabled={isThinking || isIllustrating || (!input.trim() && !file)}
                         className="absolute right-3 bg-lime-600 rounded-full p-2.5 text-white hover:bg-lime-700 active:bg-lime-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-lime-600 shadow-md"
                     >
@@ -1614,7 +1616,7 @@ Student: "${tempInput}"
                     </button>
                 </div>
                 {file && <div className="text-xs text-gray-600 mt-2 flex items-center gap-2 bg-gray-200 p-1 px-2 rounded-md w-fit"><FileIcon /><span>{file.name}</span><button onClick={() => { setFile(null); setFileData(null); }} className="text-red-500 hover:text-red-400">&times;</button></div>}
-                
+
             </footer>
 
             <LimitExceededModal
@@ -1625,7 +1627,7 @@ Student: "${tempInput}"
                 cost={limitModalData.cost}
                 balance={limitModalData.balance}
                 addToast={addToast}
-                onSuccessPurchase={() => {}}
+                onSuccessPurchase={() => { }}
             />
 
             {/* Video Tutorials bottom drawer */}
@@ -1683,10 +1685,10 @@ Student: "${tempInput}"
                                     {/* Video Thumbnail */}
                                     <div className="w-28 h-16 bg-gray-100 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm relative overflow-hidden group-hover:scale-105 transition-transform">
                                         {video.thumbnailUrl && !brokenThumbnails[video.thumbnailUrl] ? (
-                                            <img 
-                                                src={video.thumbnailUrl} 
-                                                alt={video.title} 
-                                                className="absolute inset-0 w-full h-full object-cover" 
+                                            <img
+                                                src={video.thumbnailUrl}
+                                                alt={video.title}
+                                                className="absolute inset-0 w-full h-full object-cover"
                                                 onError={() => {
                                                     if (video.thumbnailUrl) {
                                                         setBrokenThumbnails(prev => ({ ...prev, [video.thumbnailUrl!]: true }));
@@ -1713,7 +1715,7 @@ Student: "${tempInput}"
 
             {/* Backdrop for Drawers */}
             {isTutorialsOpen && (
-                <div 
+                <div
                     onClick={() => { setIsTutorialsOpen(false); }}
                     className="fixed inset-0 bg-black/20 z-30 backdrop-blur-xs transition-opacity"
                 />
@@ -1721,15 +1723,15 @@ Student: "${tempInput}"
 
             {/* Custom Video Player Overlay */}
             {activeVideo && (
-                <CustomVideoPlayer 
-                    video={activeVideo} 
-                    onClose={() => setActiveVideo(null)} 
+                <CustomVideoPlayer
+                    video={activeVideo}
+                    onClose={() => setActiveVideo(null)}
                 />
             )}
 
             {/* Message Action Context Menu */}
             {messageActionTarget && messageActionPosition && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 bg-black/10"
                     onClick={() => { setMessageActionTarget(null); setMessageActionPosition(null); }}
                 >
@@ -1918,9 +1920,9 @@ Student: "${tempInput}"
     );
 };
 
-const CourseHeader: React.FC<{ 
-    course: Course, 
-    isExpanded?: boolean, 
+const CourseHeader: React.FC<{
+    course: Course,
+    isExpanded?: boolean,
     onClick: () => void,
     userProgress?: any,
     onUpload?: (files: FileList | File[]) => void,
@@ -1945,41 +1947,41 @@ const CourseHeader: React.FC<{
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                {timeSpent > 0 && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1A2235] rounded-full border border-gray-100 dark:border-transparent text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                        </svg>
-                        {formatDuration(timeSpent)} spent
-                    </div>
-                )}
-                {onUpload && (
-                    <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                        {isUploading ? (
-                            <div className="flex flex-col gap-1 w-32 ml-4">
-                                <div className="text-[10px] text-indigo-500 font-bold truncate" title={uploadProgress?.status}>{uploadProgress?.status || 'Uploading...'}</div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                                    <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress?.percent || 0}%` }}></div>
+                    {timeSpent > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1A2235] rounded-full border border-gray-100 dark:border-transparent text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                            </svg>
+                            {formatDuration(timeSpent)} spent
+                        </div>
+                    )}
+                    {onUpload && (
+                        <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                            {isUploading ? (
+                                <div className="flex flex-col gap-1 w-32 ml-4">
+                                    <div className="text-[10px] text-indigo-500 font-bold truncate" title={uploadProgress?.status}>{uploadProgress?.status || 'Uploading...'}</div>
+                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                                        <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress?.percent || 0}%` }}></div>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <label className="cursor-pointer p-3 rounded-full hover:bg-white/50 dark:hover:bg-gray-800 transition-colors shrink-0 shadow-sm border border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1A2235]" title="Upload Textbook">
-                                <UploadCloud className="w-6 h-6 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300" />
-                                <input 
-                                    type="file" 
-                                    accept="application/pdf" 
-                                    className="hidden" 
-                                    onChange={(e) => {
-                                        if (e.target.files && e.target.files.length > 0) {
-                                            onUpload(e.target.files);
-                                        }
-                                        e.target.value = ''; // Reset for consecutive uploads
-                                    }} 
-                                />
-                            </label>
-                        )}
-                    </div>
-                )}
+                            ) : (
+                                <label className="cursor-pointer p-3 rounded-full hover:bg-white/50 dark:hover:bg-gray-800 transition-colors shrink-0 shadow-sm border border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1A2235]" title="Upload Textbook">
+                                    <UploadCloud className="w-6 h-6 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300" />
+                                    <input
+                                        type="file"
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                                onUpload(e.target.files);
+                                            }
+                                            e.target.value = ''; // Reset for consecutive uploads
+                                        }}
+                                    />
+                                </label>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1998,211 +2000,211 @@ const formatDuration = (seconds: number): string => {
 
 // --- MAIN STUDY GUIDE COMPONENT ---
 interface StudyGuideProps {
-  userProfile: UserProfile;
-  userProgress: UserProgress;
+    userProfile: UserProfile;
+    userProgress: UserProgress;
 }
 export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
-  const [courses, setCourses] = useState<Course[]>(() => {
-    return readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
-  });
-
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState(() => ({
-    searchTerm: '',
-    semester: (userProfile.default_semester_tab || 'second') as 'all' | 'first' | 'second'
-  }));
-  const { addToast } = useToast();
-  const { uploadTextbook, uploadProgress, isUploadingCourseKey } = useSharedTextbookUpload();
-
-  const [showLimitModal, setShowLimitModal] = useState(false);
-  const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
-  const { settings: appSettings } = useAppSettings();
-
-  const isUserExempt = !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
-
-  useEffect(() => {
-    const fetchCourses = async () => {
-      const cached = readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
-      if (cached && cached.length > 0) {
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
-      }
-      try {
-        const normalizedUserDepartment = normalizeDepartmentValue(userProfile.department_id);
-        const normalizedUserLevel = normalizeLevelValue(userProfile.level);
-
-        if (!normalizedUserDepartment) {
-            setCourses([]);
-            setIsLoading(false);
-            return;
-        }
-
-        let resolvedDepartmentData: any = null;
-
-        // Always fetch courses from departments_data — this is the canonical course store.
-        // schools_data only contains dept name/levels metadata, NOT the course_list.
-        const deptCoursesSnap = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
-        if (deptCoursesSnap.exists()) {
-            resolvedDepartmentData = deptCoursesSnap.val();
-        }
-
-        const allDepartmentCourses: any[] = resolvedDepartmentData?.course_list
-            ? (Array.isArray(resolvedDepartmentData.course_list)
-                ? resolvedDepartmentData.course_list
-                : Object.values(resolvedDepartmentData.course_list))
-            : [];
-        const coursesForLevel = allDepartmentCourses.filter((course) => (
-            normalizeLevelValue(course.level) === normalizedUserLevel
-        ));
-
-        // Enrich each course with syllabus/topics from shared canonical path if available
-        const enrichedCourses: Course[] = await Promise.all(
-            coursesForLevel.map(async (course) => {
-                try {
-                    if (course.textbook_shared_key) {
-                        const sharedRef = dbRef(db, `textbook_contexts/shared/${course.textbook_shared_key}`);
-                        const sharedSnap = await get(sharedRef);
-                        if (sharedSnap.exists()) {
-                            const sharedVal = sharedSnap.val();
-                            const syllabus = Array.isArray(sharedVal.syllabus) ? sharedVal.syllabus.map((t, i) => sanitizeTopicMetadata(t, i)) : [];
-                            return { ...course, topics: syllabus };
-                        }
-                    }
-
-                    // Fallback: per-department textbook context
-                    const perDeptRef = dbRef(db, `textbook_contexts/${userProfile.department_id}/${course.level}/${course.course_name}`);
-                    const perDeptSnap = await get(perDeptRef);
-                    if (perDeptSnap.exists()) {
-                        const val = perDeptSnap.val();
-                        const syllabus = Array.isArray(val.syllabus) ? val.syllabus.map((t, i) => sanitizeTopicMetadata(t, i)) : [];
-                        return { ...course, topics: syllabus };
-                    }
-
-                    return course;
-                } catch (e) {
-                    console.error('Error enriching course with textbook syllabus:', e);
-                    return course;
-                }
-            })
-        );
-
-        setCourses(enrichedCourses);
-        writeCachedJson(`avelut_courses_${userProfile.uid}`, enrichedCourses);
-      } catch (err) {
-        console.error("Error fetching courses:", err);
-        addToast("Could not load study materials.", 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCourses();
-  }, [userProfile.department_id, userProfile.level, addToast, userProfile.uid]);
-
-
-  const filteredCourses = courses
-    .filter(course => {
-        if (filter.semester !== 'all' && course.semester !== filter.semester) {
-            return false;
-        }
-
-        const searchTerm = filter.searchTerm.trim().toLowerCase();
-        if (!searchTerm) {
-            return true;
-        }
-
-        return [course.course_name, course.course_code, course.course_id]
-            .filter(Boolean)
-            .some(value => value!.toLowerCase().includes(searchTerm));
+    const [courses, setCourses] = useState<Course[]>(() => {
+        return readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
     });
 
-  if (selectedCourse) {
-    return (
-      <LearningInterface
-        userProfile={userProfile}
-        course={selectedCourse}
-        onClose={() => setSelectedCourse(null)}
-      />
-    );
-  }
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [filter, setFilter] = useState(() => ({
+        searchTerm: '',
+        semester: (userProfile.default_semester_tab || 'second') as 'all' | 'first' | 'second'
+    }));
+    const { addToast } = useToast();
+    const { uploadTextbook, uploadProgress, isUploadingCourseKey } = useSharedTextbookUpload();
 
-  return (
-    <div className="flex-1 flex flex-col w-full bg-white dark:bg-black border border-gray-200 dark:border-transparent overflow-hidden rounded-2xl">
-        <div className="flex-shrink-0 px-8 py-10 bg-gray-50 dark:bg-black border-b border-gray-200 dark:border-transparent">
-            <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald/10 text-emerald text-[10px] font-bold uppercase tracking-widest mb-4">
-                    Your Learning Path
-                </div>
-                <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">Knowledge Roadmap</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-lg max-w-lg">Master your curriculum topic by topic with personalized AI guidance.</p>
-                
-                <div className="mt-8 w-full flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 relative group">
-                        <input 
-                            type="text" 
-                            placeholder="Find a topic..."
-                            value={filter.searchTerm}
-                            onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
-                            className="w-full bg-white dark:bg-black border border-gray-200 dark:border-transparent rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-emerald focus:border-emerald focus:outline-none transition-all"
-                        />
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-emerald transition-colors">
-                           <SearchIcon className="w-5 h-5" />
-                        </div>
+    const [showLimitModal, setShowLimitModal] = useState(false);
+    const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
+    const { settings: appSettings } = useAppSettings();
+
+    const isUserExempt = !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
+
+    useEffect(() => {
+        const fetchCourses = async () => {
+            const cached = readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
+            if (cached && cached.length > 0) {
+                setIsLoading(false);
+            } else {
+                setIsLoading(true);
+            }
+            try {
+                const normalizedUserDepartment = normalizeDepartmentValue(userProfile.department_id);
+                const normalizedUserLevel = normalizeLevelValue(userProfile.level);
+
+                if (!normalizedUserDepartment) {
+                    setCourses([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                let resolvedDepartmentData: any = null;
+
+                // Always fetch courses from departments_data — this is the canonical course store.
+                // schools_data only contains dept name/levels metadata, NOT the course_list.
+                const deptCoursesSnap = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
+                if (deptCoursesSnap.exists()) {
+                    resolvedDepartmentData = deptCoursesSnap.val();
+                }
+
+                const allDepartmentCourses: any[] = resolvedDepartmentData?.course_list
+                    ? (Array.isArray(resolvedDepartmentData.course_list)
+                        ? resolvedDepartmentData.course_list
+                        : Object.values(resolvedDepartmentData.course_list))
+                    : [];
+                const coursesForLevel = allDepartmentCourses.filter((course) => (
+                    normalizeLevelValue(course.level) === normalizedUserLevel
+                ));
+
+                // Enrich each course with syllabus/topics from shared canonical path if available
+                const enrichedCourses: Course[] = await Promise.all(
+                    coursesForLevel.map(async (course) => {
+                        try {
+                            if (course.textbook_shared_key) {
+                                const sharedRef = dbRef(db, `textbook_contexts/shared/${course.textbook_shared_key}`);
+                                const sharedSnap = await get(sharedRef);
+                                if (sharedSnap.exists()) {
+                                    const sharedVal = sharedSnap.val();
+                                    const syllabus = Array.isArray(sharedVal.syllabus) ? sharedVal.syllabus.map((t, i) => sanitizeTopicMetadata(t, i)) : [];
+                                    return { ...course, topics: syllabus };
+                                }
+                            }
+
+                            // Fallback: per-department textbook context
+                            const perDeptRef = dbRef(db, `textbook_contexts/${userProfile.department_id}/${course.level}/${course.course_name}`);
+                            const perDeptSnap = await get(perDeptRef);
+                            if (perDeptSnap.exists()) {
+                                const val = perDeptSnap.val();
+                                const syllabus = Array.isArray(val.syllabus) ? val.syllabus.map((t, i) => sanitizeTopicMetadata(t, i)) : [];
+                                return { ...course, topics: syllabus };
+                            }
+
+                            return course;
+                        } catch (e) {
+                            console.error('Error enriching course with textbook syllabus:', e);
+                            return course;
+                        }
+                    })
+                );
+
+                setCourses(enrichedCourses);
+                writeCachedJson(`avelut_courses_${userProfile.uid}`, enrichedCourses);
+            } catch (err) {
+                console.error("Error fetching courses:", err);
+                addToast("Could not load study materials.", 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchCourses();
+    }, [userProfile.department_id, userProfile.level, addToast, userProfile.uid]);
+
+
+    const filteredCourses = courses
+        .filter(course => {
+            if (filter.semester !== 'all' && course.semester !== filter.semester) {
+                return false;
+            }
+
+            const searchTerm = filter.searchTerm.trim().toLowerCase();
+            if (!searchTerm) {
+                return true;
+            }
+
+            return [course.course_name, course.course_code, course.course_id]
+                .filter(Boolean)
+                .some(value => value!.toLowerCase().includes(searchTerm));
+        });
+
+    if (selectedCourse) {
+        return (
+            <LearningInterface
+                userProfile={userProfile}
+                course={selectedCourse}
+                onClose={() => setSelectedCourse(null)}
+            />
+        );
+    }
+
+    return (
+        <div className="flex-1 flex flex-col w-full bg-white dark:bg-black border border-gray-200 dark:border-transparent overflow-hidden rounded-2xl">
+            <div className="flex-shrink-0 px-8 py-10 bg-gray-50 dark:bg-black border-b border-gray-200 dark:border-transparent">
+                <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald/10 text-emerald text-[10px] font-bold uppercase tracking-widest mb-4">
+                        Your Learning Path
                     </div>
-                    <div className="bg-white dark:bg-black p-1 rounded-xl flex border border-gray-200 dark:border-gray-800">
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>1st Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>2nd Sem</button>
-                        <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>All</button>
+                    <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">Knowledge Roadmap</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-lg max-w-lg">Master your curriculum topic by topic with personalized AI guidance.</p>
+
+                    <div className="mt-8 w-full flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1 relative group">
+                            <input
+                                type="text"
+                                placeholder="Find a topic..."
+                                value={filter.searchTerm}
+                                onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
+                                className="w-full bg-white dark:bg-black border border-gray-200 dark:border-transparent rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-emerald focus:border-emerald focus:outline-none transition-all"
+                            />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-emerald transition-colors">
+                                <SearchIcon className="w-5 h-5" />
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-black p-1 rounded-xl flex border border-gray-200 dark:border-gray-800">
+                            <button onClick={() => setFilter(f => ({ ...f, semester: 'first' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'first' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>1st Sem</button>
+                            <button onClick={() => setFilter(f => ({ ...f, semester: 'second' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'second' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>2nd Sem</button>
+                            <button onClick={() => setFilter(f => ({ ...f, semester: 'all' }))} className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${filter.semester === 'all' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:bg-gray-900 dark:text-gray-300 hover:text-gray-700'}`}>All</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12">
-            {isLoading ? (
-                <StudyGuideSkeleton />
-            ) : (
-                filteredCourses.length > 0 ? (
-                    <div className="max-w-4xl mx-auto space-y-4">
-                        {filteredCourses.map(course => (
-                            <div key={course.course_id} className="relative">
-                                <CourseHeader
-                                    course={course}
-                                    isExpanded={false}
-                                    onClick={() => setSelectedCourse(course)}
-                                    userProgress={userProgress}
-                                    onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
-                                    isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
-                                    uploadProgress={uploadProgress}
-                                />
-                            </div>
-                        ))}
-                    </div>
+            <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12">
+                {isLoading ? (
+                    <StudyGuideSkeleton />
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-20 text-center">
-                        <div className="w-16 h-16 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-4 text-gray-300">
-                            <SearchIcon className="w-8 h-8" />
+                    filteredCourses.length > 0 ? (
+                        <div className="max-w-4xl mx-auto space-y-4">
+                            {filteredCourses.map(course => (
+                                <div key={course.course_id} className="relative">
+                                    <CourseHeader
+                                        course={course}
+                                        isExpanded={false}
+                                        onClick={() => setSelectedCourse(course)}
+                                        userProgress={userProgress}
+                                        onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
+                                        isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
+                                        uploadProgress={uploadProgress}
+                                    />
+                                </div>
+                            ))}
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">No topics found</h3>
-                        <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or search term.</p>
-                    </div>
-                )
-            )}
-        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-20 text-center">
+                            <div className="w-16 h-16 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-4 text-gray-300">
+                                <SearchIcon className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">No topics found</h3>
+                            <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or search term.</p>
+                        </div>
+                    )
+                )}
+            </div>
 
-        <LimitExceededModal
-            isOpen={showLimitModal}
-            onClose={() => setShowLimitModal(false)}
-            userProfile={userProfile}
-            appSettings={appSettings}
-            cost={limitModalData.cost}
-            balance={limitModalData.balance}
-            addToast={addToast}
-            onSuccessPurchase={() => {}}
-        />
-    </div>
-  );
+            <LimitExceededModal
+                isOpen={showLimitModal}
+                onClose={() => setShowLimitModal(false)}
+                userProfile={userProfile}
+                appSettings={appSettings}
+                cost={limitModalData.cost}
+                balance={limitModalData.balance}
+                addToast={addToast}
+                onSuccessPurchase={() => { }}
+            />
+        </div>
+    );
 };
 
 // --- VIDEO TUTORIALS ICONS & CUSTOM PLAYER ---
@@ -2262,7 +2264,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
     const [volume, setVolume] = useState(50);
     const [isReady, setIsReady] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    
+
     const playerRef = useRef<any>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
     const playerId = useMemo(() => `yt-player-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -2274,7 +2276,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
             tag.src = 'https://www.youtube.com/iframe_api';
             const firstScriptTag = document.getElementsByTagName('script')[0];
             firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-            
+
             (window as any).onYouTubeIframeAPIReady = () => {
                 initializePlayer();
             };
@@ -2445,14 +2447,14 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
 
     return (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4 md:p-8 animate-fade-in">
-            <div 
-                ref={playerContainerRef} 
+            <div
+                ref={playerContainerRef}
                 className="relative w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col group/player aspect-video"
             >
                 {/* Header Overlay */}
                 <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 inset-x-0 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300">
                     <span className="text-white text-sm font-black tracking-wide truncate pr-4">{video.title}</span>
-                    <button 
+                    <button
                         onClick={handleClose}
                         className="text-white/80 hover:text-white bg-black/40 hover:bg-black/60 p-2 rounded-full backdrop-blur-sm transition-all"
                     >
@@ -2465,7 +2467,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                 {/* Video Frame Area */}
                 <div className="w-full h-full bg-black flex items-center justify-center relative select-none">
                     <div id={playerId} className="w-full h-full pointer-events-none absolute inset-0 z-0"></div>
-                    
+
                     {/* Cover div to completely block iframe interaction */}
                     <div className="absolute inset-0 bg-transparent z-10 pointer-events-auto" onClick={togglePlay} />
 
@@ -2483,7 +2485,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                     {/* Time Progress Line & Seek Slider */}
                     <div className="flex items-center gap-3 w-full">
                         <span className="text-xs font-mono text-slate-300">{formatTime(currentTime)}</span>
-                        <input 
+                        <input
                             type="range"
                             min={0}
                             max={duration || 100}
@@ -2498,7 +2500,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             {/* Play/Pause */}
-                            <button 
+                            <button
                                 onClick={togglePlay}
                                 className="text-white hover:text-blue-400 transition-colors p-1"
                             >
@@ -2507,13 +2509,13 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
 
                             {/* Volume & Mute */}
                             <div className="flex items-center gap-2 group/volume">
-                                <button 
+                                <button
                                     onClick={toggleMute}
                                     className="text-white hover:text-blue-400 transition-colors p-1"
                                 >
                                     {isMuted || volume === 0 ? <MuteIcon className="w-5 h-5" /> : <VolumeHighIcon className="w-5 h-5" />}
                                 </button>
-                                <input 
+                                <input
                                     type="range"
                                     min={0}
                                     max={100}
@@ -2525,7 +2527,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                         </div>
 
                         {/* Fullscreen */}
-                        <button 
+                        <button
                             onClick={toggleFullscreen}
                             className="text-white hover:text-blue-400 transition-colors p-1"
                         >

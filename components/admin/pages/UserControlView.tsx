@@ -4,6 +4,7 @@ import { db } from '../../../firebase';
 import { ref as dbRef, update, remove } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
+import { DEFAULT_USAGE_SETTINGS } from '../../../utils/appSettings';
 
 interface UserControlViewProps {
     allUsersList: UserProfile[];
@@ -26,6 +27,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
     const [editRole, setEditRole] = useState<'superadmin' | 'deptadmin' | 'user'>('user');
     const [editAdminDepts, setEditAdminDepts] = useState<string[]>([]);
     const [editStatus, setEditStatus] = useState<string>('active');
+    const [editCredits, setEditCredits] = useState<number>(0);
 
     const filteredUsers = allUsersList.filter(user => {
         const matchesSearch = (user.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -43,6 +45,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         setEditRole(user.role || (user.is_admin ? 'superadmin' : 'user'));
         setEditAdminDepts(user.admin_department_ids || []);
         setEditStatus(user.status || 'active');
+        setEditCredits(user.ai_credits_balance ?? 0);
     };
 
     const handleSaveEdit = async () => {
@@ -54,7 +57,8 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                 role: editRole,
                 is_admin: editRole === 'superadmin', // Keep legacy flag synced
                 admin_department_ids: editRole === 'deptadmin' ? editAdminDepts : null,
-                status: editStatus
+                status: editStatus,
+                ai_credits_balance: Number(editCredits)
             });
             addToast("User updated successfully!", "success");
             setEditingUserId(null);
@@ -245,7 +249,13 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                             {editingUserId === user.uid ? (
                                                 <select 
                                                     value={editSub} 
-                                                    onChange={e => setEditSub(e.target.value)}
+                                                    onChange={e => {
+                                                        const newSub = e.target.value;
+                                                        setEditSub(newSub);
+                                                        const planKey = (newSub === 'pro' ? 'premium' : newSub) as 'free' | 'basic' | 'premium';
+                                                        const defaultCredits = DEFAULT_USAGE_SETTINGS.tiers[planKey]?.credit_allocation ?? 30;
+                                                        setEditCredits(defaultCredits);
+                                                    }}
                                                     className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
                                                 >
                                                     <option value="free">Free</option>
@@ -265,14 +275,27 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                         </td>
                                         <td className="px-6 py-4">
                                             {editingUserId === user.uid ? (
-                                                <input 
-                                                    type="number" 
-                                                    value={editXp} 
-                                                    onChange={e => setEditXp(Number(e.target.value))}
-                                                    className="w-24 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
-                                                />
+                                                <div className="flex flex-col gap-2">
+                                                    <input 
+                                                        type="number" 
+                                                        value={editXp} 
+                                                        onChange={e => setEditXp(Number(e.target.value))}
+                                                        className="w-24 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                        title="XP Points"
+                                                    />
+                                                    <input 
+                                                        type="number" 
+                                                        value={editCredits} 
+                                                        onChange={e => setEditCredits(Number(e.target.value))}
+                                                        className="w-24 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 bg-indigo-50"
+                                                        title="AI Credits"
+                                                    />
+                                                </div>
                                             ) : (
-                                                <span className="text-sm font-bold text-slate-700">{user.xp || 0} XP</span>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-sm font-bold text-slate-700">{user.xp || 0} XP</span>
+                                                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded w-max">{user.ai_credits_balance ?? 0} Credits</span>
+                                                </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">

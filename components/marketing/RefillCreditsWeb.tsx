@@ -3,6 +3,8 @@ import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
+import { ref as dbRef, update, get } from 'firebase/database';
+import { db } from '../../firebase';
 
 interface RefillCreditsWebProps {
     appSettings: AppSettings;
@@ -50,7 +52,19 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 purchaseType: 'additional_credits',
                 addToast,
                 onSuccess: async (reference) => {
-                    addToast('Payment successful! Credits will be added shortly.', 'success');
+                    try {
+                        const userRef = dbRef(db, `users/${targetUid}`);
+                        const snapshot = await get(userRef);
+                        const currentData = snapshot.val();
+                        const currentCredits = currentData?.ai_credits_balance || 0;
+                        await update(userRef, {
+                            ai_credits_balance: currentCredits + amount
+                        });
+                        addToast('Payment successful! Credits have been added to your account.', 'success');
+                    } catch (e) {
+                        console.error('Failed to update credits', e);
+                        addToast('Payment successful, but failed to update balance. Please contact support.', 'error');
+                    }
                     setIsProcessing(false);
                 },
                 onCancel: () => {

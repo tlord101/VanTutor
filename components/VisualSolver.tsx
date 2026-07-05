@@ -823,11 +823,15 @@ ${retrievedContext}
             return;
         }
 
+        const previewUrl = URL.createObjectURL(file);
+        setScannedImage(previewUrl);
+        setCameraState('preview');
+
         const reader = new FileReader();
         reader.onload = (event) => {
             const dataUrl = event.target?.result as string;
             setScannedImage(dataUrl);
-            setCameraState('preview');
+            URL.revokeObjectURL(previewUrl);
         };
         reader.onerror = () => {
             addToast('Could not read the file.', 'error');

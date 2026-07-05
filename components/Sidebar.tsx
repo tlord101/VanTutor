@@ -21,6 +21,23 @@ interface SidebarProps {
   unreadMessagesCount?: number;
 }
 
+const getGradientClasses = (id: string) => {
+    switch (id) {
+        case 'dashboard': return 'from-blue-500 to-indigo-500';
+        case 'messenger': return 'from-emerald-400 to-teal-500';
+        case 'exam': return 'from-orange-400 to-red-500';
+        case 'visual_solver': return 'from-purple-500 to-pink-500';
+        case 'study_guide': return 'from-yellow-400 to-amber-500';
+        case 'upload_center': return 'from-green-400 to-emerald-500';
+        case 'leaderboard': return 'from-yellow-500 to-orange-500';
+        case 'admin_panel': return 'from-rose-500 to-red-600';
+        case 'ai_tutor': return 'from-cyan-400 to-blue-500';
+        case 'help': return 'from-sky-400 to-indigo-400';
+        case 'settings': return 'from-slate-400 to-slate-600';
+        default: return 'from-indigo-400 to-purple-500';
+    }
+};
+
 const NavButton: React.FC<{
     item: NavItem;
     isActive: boolean;
@@ -29,37 +46,61 @@ const NavButton: React.FC<{
     onClick: () => void;
     unreadCount?: number;
     unreadMessagesCount?: number;
-}> = ({ item, isActive, isExpanded, isModal, onClick, unreadCount = 0, unreadMessagesCount = 0 }) => (
+}> = ({ item, isActive, isExpanded, isModal, onClick, unreadCount = 0, unreadMessagesCount = 0 }) => {
+    const gradientClasses = getGradientClasses(item.id);
+    
+    return (
     <li className="relative">
-        <button
-            onClick={onClick}
-            data-tour-id={`sidebar-${item.id}`}
-            className={`w-full flex transition-all duration-350 ease-in-out group hover:scale-[1.02] ${
-                isModal 
-                    ? 'flex-col items-center justify-center p-3 rounded-2xl gap-2 text-center h-full' 
-                    : `items-center p-3 rounded-xl text-left ${isExpanded ? 'justify-start' : 'justify-center'}`
-            } ${
-                isActive
-                ? (isModal ? 'bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 font-bold border border-blue-500/20' : 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/10')
-                : (isModal ? 'bg-white dark:bg-black/50 dark:bg-slate-800/50 text-slate-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-slate-700' : 'text-slate-655 opacity-85 hover:bg-white dark:bg-black/50 hover:text-blue-600 hover:opacity-100')
-            }`}
-        >
-            {!isModal && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-white dark:bg-black rounded-r-full"></div>}
-            <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${!isModal && isExpanded ? 'mr-4' : 'mr-0'} ${!isModal && isActive ? 'text-white' : (isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-gray-400 group-hover:text-blue-600')}`}>{item.icon}</span>
-            <span className={`font-semibold overflow-hidden transition-opacity duration-300 ease-in-out flex-1 ${!isModal && isExpanded ? 'opacity-100 whitespace-nowrap' : (isModal ? 'text-xs leading-tight' : 'opacity-0 whitespace-nowrap')}`}>
-                {item.label}
-            </span>
-            {isExpanded && !isModal && item.id === 'messenger' && unreadMessagesCount > 0 && (
-                <span className="bg-red-500 text-white text-[9px] font-black rounded-full h-4 min-w-4 px-1 flex items-center justify-center shadow-sm">
-                    {unreadMessagesCount}
+        {isModal ? (
+            <div className={`p-[2px] rounded-2xl bg-gradient-to-br ${gradientClasses} h-full transition-transform duration-300 hover:scale-[1.02] group shadow-sm`}>
+                <button
+                    onClick={onClick}
+                    data-tour-id={`sidebar-${item.id}`}
+                    className={`w-full flex flex-col items-center justify-center p-3 rounded-[14px] gap-2 text-center h-full ${
+                        isActive
+                        ? 'bg-blue-50/90 dark:bg-slate-900/90 text-blue-700 dark:text-blue-300 font-bold'
+                        : 'bg-white dark:bg-black/90 text-slate-700 dark:text-gray-300 hover:bg-white/90 dark:hover:bg-slate-800'
+                    }`}
+                >
+                    <span className={`flex-shrink-0 transition-all duration-300 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-gray-400 group-hover:scale-110'}`}>
+                        {item.icon}
+                    </span>
+                    <span className={`font-semibold overflow-hidden flex-1 text-xs leading-tight`}>
+                        {item.label}
+                    </span>
+                    {item.id === 'messenger' && unreadMessagesCount > 0 && (
+                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                    )}
+                </button>
+            </div>
+        ) : (
+            <button
+                onClick={onClick}
+                data-tour-id={`sidebar-${item.id}`}
+                className={`w-full flex transition-all duration-350 ease-in-out group hover:scale-[1.02] items-center p-3 rounded-xl text-left ${isExpanded ? 'justify-start' : 'justify-center'} ${
+                    isActive
+                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/10'
+                    : 'text-slate-655 opacity-85 hover:bg-white dark:bg-black/50 hover:text-blue-600 hover:opacity-100'
+                }`}
+            >
+                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-white dark:bg-black rounded-r-full"></div>}
+                <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isExpanded ? 'mr-4' : 'mr-0'} ${isActive ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-blue-600'}`}>{item.icon}</span>
+                <span className={`font-semibold overflow-hidden transition-opacity duration-300 ease-in-out flex-1 ${isExpanded ? 'opacity-100 whitespace-nowrap' : 'opacity-0 whitespace-nowrap'}`}>
+                    {item.label}
                 </span>
-            )}
-            {((!isExpanded && item.id === 'messenger') || (isModal && item.id === 'messenger')) && unreadMessagesCount > 0 && (
-                <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
-            )}
-        </button>
+                {isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
+                    <span className="bg-red-500 text-white text-[9px] font-black rounded-full h-4 min-w-4 px-1 flex items-center justify-center shadow-sm">
+                        {unreadMessagesCount}
+                    </span>
+                )}
+                {!isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
+                    <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                )}
+            </button>
+        )}
     </li>
-);
+    );
+};
 
 const SidebarContent: React.FC<{
     isExpanded: boolean;

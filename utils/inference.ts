@@ -266,6 +266,12 @@ export const createAvelutAI = (
         const processed = await prepareParams(params);
         return await rawClient.models.generateImages(processed);
       }
+    },
+    interactions: {
+      create: async (params: any) => {
+        const processed = await prepareParams(params);
+        return await rawClient.interactions.create(processed);
+      }
     }
   };
 };

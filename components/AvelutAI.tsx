@@ -371,10 +371,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             departmentData = snapshot.val();
         }
 
-        const courses: Course[] = departmentData?.course_list
-            ? (Array.isArray(departmentData.course_list) ? departmentData.course_list : Object.values(departmentData.course_list))
-            : (departmentData?.levels
-                ? Object.values(departmentData.levels).flatMap((lvl: any) => lvl.courses ? Object.values(lvl.courses) : [])
+        const courses: Course[] = departmentData?.levels?.[userProfile.level]?.courses
+            ? Object.values(departmentData.levels[userProfile.level].courses) as Course[]
+            : (departmentData?.course_list
+                ? (Array.isArray(departmentData.course_list) ? departmentData.course_list : Object.values(departmentData.course_list)).filter((c: any) => c.level === userProfile.level)
                 : []);
         const contextParts: string[] = [];
 

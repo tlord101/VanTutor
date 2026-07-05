@@ -151,14 +151,14 @@ export const Header: React.FC<HeaderProps> = ({
                                         Billing & Subscriptions
                                     </button>
                                     <button
-                                        onClick={async () => {
+                                        onClick={() => {
                                             setIsAvatarMenuOpen(false);
                                             const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
                                             const plansUrl = `${baseUrl}/plans?uid=${userProfile?.uid || ''}&plan=premium`;
                                             if (isNative()) {
-                                                await Browser.open({ url: plansUrl });
+                                                window.open(plansUrl, '_system');
                                             } else {
-                                                window.location.href = plansUrl;
+                                                window.open(plansUrl, '_blank');
                                             }
                                         }}
                                         className="w-full flex items-center justify-between text-left px-4 py-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
