@@ -9,7 +9,7 @@ import { EyeIcon } from './icons/EyeIcon';
 import { EyeOffIcon } from './icons/EyeOffIcon';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { useToast } from '../hooks/useToast';
-import { isNative } from '../utils/capacitorUtils';
+import { isNative, triggerHaptic } from '../utils/capacitorUtils';
 
 interface LoginProps {
     onSwitchToSignUp: () => void;
@@ -25,6 +25,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const { addToast } = useToast();
 
   const handleGoogleSignIn = async () => {
+    void triggerHaptic();
     setIsGoogleSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -82,6 +83,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    void triggerHaptic();
     setIsSubmitting(true);
 
     try {
@@ -175,7 +177,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                 <button
                   type="submit"
                   disabled={isSubmitting || isGoogleSubmitting}
-                  className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isSubmitting ? (
                     <>
@@ -198,7 +200,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
             <button
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting || isGoogleSubmitting}
-                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
                 {isGoogleSubmitting ? (
                     <>
