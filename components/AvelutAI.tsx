@@ -14,12 +14,14 @@ import type { Course, UserProfile } from '../types';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
+import { triggerHaptic } from '../utils/capacitorUtils';
 import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { CheckIcon } from './icons/CheckIcon';
 import { Flag } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
 
@@ -272,6 +274,7 @@ const ShareUploadIcon = () => (
 
 export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -904,8 +907,11 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           <button
             type="button"
-            onClick={startNewChat}
-            className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+            onClick={() => {
+              void triggerHaptic();
+              startNewChat();
+            }}
+            className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 active:scale-95 duration-200"
           >
             <PlusIcon />
             New chat
@@ -953,7 +959,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         setStatusText('Could not delete chat.');
                       }
                     }}
-                    className="p-2 mt-2 rounded-full text-red-400 hover:bg-red-950/30"
+                    className="p-2 mt-2 rounded-full text-red-400 hover:bg-red-950/30 transition active:scale-95 duration-200"
                     aria-label={`Delete ${item.title}`}
                     title={`Delete ${item.title}`}
                   >
@@ -1061,23 +1067,33 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             <button
                               type="button"
                               onClick={async () => {
+                                void triggerHaptic();
                                 try {
                                   if (navigator.clipboard && navigator.clipboard.writeText) {
                                     await navigator.clipboard.writeText(message.text);
-                                    addToast('Copied to clipboard', 'success');
-                                  } else {
-                                    addToast('Copied to clipboard', 'success');
                                   }
-                                } catch (err) {
+                                  setCopiedId(message.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
                                   addToast('Copied to clipboard', 'success');
+                                } catch (err) {
+                                  addToast('Failed to copy', 'error');
                                 }
                               }}
-                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
-                              aria-label="Copy message"
-                              title="Copy message"
+                              className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition active:scale-95 ${copiedId === message.id ? 'text-emerald-500 bg-emerald-500/10' : 'text-slate-500 dark:text-gray-400 hover:bg-slate-100 hover:text-emerald-400'}`}
+                              aria-label={copiedId === message.id ? "Message copied" : "Copy message"}
+                              title={copiedId === message.id ? "Message copied" : "Copy message"}
                             >
-                              <CopyIcon className="h-3.5 w-3.5" />
-                              Copy
+                              {copiedId === message.id ? (
+                                <>
+                                  <CheckIcon className="h-3.5 w-3.5" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <CopyIcon className="h-3.5 w-3.5" />
+                                  Copy
+                                </>
+                              )}
                             </button>
                             <button
                               type="button"
@@ -1267,6 +1283,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       type="button"
                       onClick={() => {
                         if ((inputValue.trim() || attachments.length > 0) && !isSending) {
+                          void triggerHaptic();
                           void handleSend();
                         }
                       }}
