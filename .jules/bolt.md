@@ -5,3 +5,7 @@
 ## 2026-06-26 - [Hook Dependency Narrowing]
 **Learning:** Using a large, frequently updated object (like `userProfile` with a `last_seen` timestamp) as a dependency in high-level hooks (like AI client `useMemo` or data-sync `useEffect`) causes massive performance overhead.
 **Action:** Always narrow dependencies to the specific primitive fields required by the hook logic to isolate them from unrelated state changes.
+
+## 2025-05-15 - [Stable Reference Hoisting in Streaming UIs]
+**Learning:** In components with high-frequency state updates (like AI streaming in `AvelutAI.tsx`), passing inline objects to sub-components (like the `components` prop in `ReactMarkdown`) triggers full re-renders of the entire sub-tree on every chunk.
+**Action:** Always hoist configuration objects and custom component definitions outside the render cycle or memoize them to maintain stable references and prevent UI jank during streaming.
