@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import { db } from '../firebase';
 import { ref as dbRef, push, serverTimestamp, set } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
+import { triggerHaptic } from '../utils/capacitorUtils';
 
 interface FeedbackProps {
   userProfile: UserProfile;
@@ -20,6 +21,7 @@ export const Feedback: React.FC<FeedbackProps> = ({ userProfile }) => {
       return addToast('Please enter your feedback before submitting.', 'error');
     }
 
+    void triggerHaptic();
     setIsSubmitting(true);
     try {
       const feedbackRef = dbRef(db, 'feedback');
@@ -63,8 +65,9 @@ export const Feedback: React.FC<FeedbackProps> = ({ userProfile }) => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
-                  onClick={() => setFeedbackType('suggestion')}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${feedbackType === 'suggestion' ? 'border-[#009EE2] bg-[#009EE2]/5 text-[#009EE2]' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
+                  aria-pressed={feedbackType === 'suggestion'}
+                  onClick={() => { void triggerHaptic(); setFeedbackType('suggestion'); }}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 active:scale-95 ${feedbackType === 'suggestion' ? 'border-[#009EE2] bg-[#009EE2]/5 text-[#009EE2]' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
@@ -75,8 +78,9 @@ export const Feedback: React.FC<FeedbackProps> = ({ userProfile }) => {
 
                 <button
                   type="button"
-                  onClick={() => setFeedbackType('bug')}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${feedbackType === 'bug' ? 'border-red-500 bg-red-500/5 text-red-600' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
+                  aria-pressed={feedbackType === 'bug'}
+                  onClick={() => { void triggerHaptic(); setFeedbackType('bug'); }}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 active:scale-95 ${feedbackType === 'bug' ? 'border-red-500 bg-red-500/5 text-red-600' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -87,8 +91,9 @@ export const Feedback: React.FC<FeedbackProps> = ({ userProfile }) => {
 
                 <button
                   type="button"
-                  onClick={() => setFeedbackType('complaint')}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${feedbackType === 'complaint' ? 'border-orange-500 bg-orange-500/5 text-orange-600' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
+                  aria-pressed={feedbackType === 'complaint'}
+                  onClick={() => { void triggerHaptic(); setFeedbackType('complaint'); }}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 active:scale-95 ${feedbackType === 'complaint' ? 'border-orange-500 bg-orange-500/5 text-orange-600' : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
@@ -124,7 +129,7 @@ export const Feedback: React.FC<FeedbackProps> = ({ userProfile }) => {
               <button
                 type="submit"
                 disabled={isSubmitting || !content.trim()}
-                className="px-8 py-3 bg-[#009EE2] hover:bg-[#0085BF] text-white rounded-xl text-sm font-black tracking-wide shadow-lg shadow-[#009EE2]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-8 py-3 bg-[#009EE2] hover:bg-[#0085BF] text-white rounded-xl text-sm font-black tracking-wide shadow-lg shadow-[#009EE2]/20 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>
