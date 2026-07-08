@@ -67,7 +67,7 @@ const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
     </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData, onNavigateToExams, onNavigateToLeaderboard }) => {
+export const Dashboard: React.FC<DashboardProps> = React.memo(({ userProfile, dashboardData, onNavigateToExams, onNavigateToLeaderboard }) => {
   
   const completedTopicsCount = dashboardData?.completedTopicsCount ?? 0;
   const totalTopics = dashboardData?.totalTopics || 0;
@@ -254,4 +254,4 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
             </div>
         </div>
     );
-};
+});
