@@ -105,7 +105,7 @@ export const SystemSettingsView: React.FC = () => {
         const tier = appSettings.usage_settings?.tiers?.[tierId] || {} as TierConfig;
         return (
             <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 mb-6">
-                <h4 className="font-bold text-slate-800 capitalize flex items-center gap-2">
+                <h4 className="font-bold  dark:text-white capitalize flex items-center gap-2">
                     <Layers className="w-4 h-4 text-indigo-500" /> {title} Plan
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -154,28 +154,28 @@ export const SystemSettingsView: React.FC = () => {
             <div className="flex flex-wrap gap-4 border-b border-slate-200">
                 <button 
                     onClick={() => setActiveTab('general')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'general' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'general' ? 'border-indigo-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Settings className="w-4 h-4" />
                     General Platform
                 </button>
                 <button 
                     onClick={() => setActiveTab('plans')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'plans' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'plans' ? 'border-indigo-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <CreditCard className="w-4 h-4" />
                     Usage & Plans
                 </button>
                 <button 
                     onClick={() => setActiveTab('keys')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'keys' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'keys' ? 'border-indigo-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Key className="w-4 h-4" />
                     API & Secrets
                 </button>
                 <button 
                     onClick={() => setActiveTab('email')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'email' ? 'border-indigo-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'email' ? 'border-indigo-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Mail className="w-4 h-4" />
                     SMTP Configuration
@@ -185,7 +185,7 @@ export const SystemSettingsView: React.FC = () => {
             {activeTab === 'general' && (
                 <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 mb-1">Platform Preferences</h3>
+                        <h3 className="font-black text-xl  dark:text-white mb-1">Platform Preferences</h3>
                         <p className="text-sm text-slate-500">Manage global limits and feature toggles.</p>
                     </div>
 
@@ -215,7 +215,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <HardDrive className="w-5 h-5 text-indigo-500" />
                                 <div>
-                                    <p className="font-bold text-slate-900">Upload Center Enabled</p>
+                                    <p className="font-bold  dark:text-white">Upload Center Enabled</p>
                                     <p className="text-xs text-slate-500">Allow users to upload files.</p>
                                 </div>
                             </div>
@@ -231,7 +231,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <Shield className="w-5 h-5 text-amber-500" />
                                 <div>
-                                    <p className="font-bold text-slate-900">Maintenance Mode (Coming Soon)</p>
+                                    <p className="font-bold  dark:text-white">Maintenance Mode (Coming Soon)</p>
                                     <p className="text-xs text-slate-500">Locks the app for non-admins.</p>
                                 </div>
                             </div>
@@ -247,7 +247,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <Smartphone className="w-5 h-5 text-emerald-500" />
                                 <div>
-                                    <p className="font-bold text-slate-900">Play Store Early Access Modal</p>
+                                    <p className="font-bold  dark:text-white">Play Store Early Access Modal</p>
                                     <p className="text-xs text-slate-500">Show popup prompting users to download Android App.</p>
                                 </div>
                             </div>
@@ -263,7 +263,7 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <Mail className="w-5 h-5 text-blue-500" />
                                 <div>
-                                    <p className="font-bold text-slate-900">Collect Emails in Play Store Modal</p>
+                                    <p className="font-bold  dark:text-white">Collect Emails in Play Store Modal</p>
                                     <p className="text-xs text-slate-500">Require email before redirecting (Disable for direct link).</p>
                                 </div>
                             </div>
@@ -278,7 +278,7 @@ export const SystemSettingsView: React.FC = () => {
 
                     <div className="pt-6 border-t border-slate-100 space-y-6">
                         <div>
-                            <h3 className="font-black text-xl text-slate-900 mb-1">Support Contact Credentials</h3>
+                            <h3 className="font-black text-xl  dark:text-white mb-1">Support Contact Credentials</h3>
                             <p className="text-sm text-slate-500">Displayed on the Contact Us page.</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -326,20 +326,20 @@ export const SystemSettingsView: React.FC = () => {
             {activeTab === 'plans' && (
                 <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 mb-1">Subscriptions & Usage Settings</h3>
+                        <h3 className="font-black text-xl  dark:text-white mb-1">Subscriptions & Usage Settings</h3>
                         <p className="text-sm text-slate-500">Configure plans, pricing, and AI feature costs.</p>
                     </div>
 
                     <div className="space-y-8">
                         <div>
-                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Subscription Tiers</h4>
+                            <h4 className="font-bold  dark:text-white mb-4 border-b pb-2">Subscription Tiers</h4>
                             {renderTierForm('free', 'Free')}
                             {renderTierForm('basic', 'Basic')}
                             {renderTierForm('premium', 'Premium')}
                         </div>
 
                         <div>
-                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Feature Costs (Credits)</h4>
+                            <h4 className="font-bold  dark:text-white mb-4 border-b pb-2">Feature Costs (Credits)</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).map((key) => (
                                     <div key={key} className="space-y-1">
@@ -351,7 +351,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         <div>
-                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Feature AI Models</h4>
+                            <h4 className="font-bold  dark:text-white mb-4 border-b pb-2">Feature AI Models</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
                                     <div key={key} className="space-y-1">
@@ -363,7 +363,7 @@ export const SystemSettingsView: React.FC = () => {
                         </div>
 
                         <div>
-                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Top-up & Additional Pricing</h4>
+                            <h4 className="font-bold  dark:text-white mb-4 border-b pb-2">Top-up & Additional Pricing</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {Object.keys(appSettings.usage_settings?.additional_prices || {}).map((key) => (
                                     <div key={key} className="space-y-1">
@@ -386,14 +386,14 @@ export const SystemSettingsView: React.FC = () => {
             {activeTab === 'keys' && (
                 <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 mb-1">API Keys & Secrets</h3>
+                        <h3 className="font-black text-xl  dark:text-white mb-1">API Keys & Secrets</h3>
                         <p className="text-sm text-slate-500">Manage third-party integrations.</p>
                     </div>
 
                     <div className="space-y-6">
                         {/* Gemini */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-blue-500" /> Gemini AI
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -405,7 +405,7 @@ export const SystemSettingsView: React.FC = () => {
 
                         {/* Google/Firebase Auth */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-red-500" /> Google Auth & Identity
                             </h4>
                             <div className="grid grid-cols-1 gap-4">
@@ -416,7 +416,7 @@ export const SystemSettingsView: React.FC = () => {
 
                         {/* YouTube */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-red-600" /> YouTube
                             </h4>
                             <div className="grid grid-cols-1 gap-4">
@@ -426,7 +426,7 @@ export const SystemSettingsView: React.FC = () => {
 
                         {/* Paystack */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-teal-500" /> Paystack
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -437,7 +437,7 @@ export const SystemSettingsView: React.FC = () => {
 
                         {/* RevenueCat */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-rose-500" /> RevenueCat (Android IAP)
                             </h4>
                             <div className="grid grid-cols-1 gap-4">
@@ -447,7 +447,7 @@ export const SystemSettingsView: React.FC = () => {
 
                         {/* Pinecone */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
                                 <Database className="w-4 h-4 text-purple-500" /> Pinecone Vector DB
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -468,7 +468,7 @@ export const SystemSettingsView: React.FC = () => {
             {activeTab === 'email' && (
                 <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 mb-1">SMTP Configuration</h3>
+                        <h3 className="font-black text-xl  dark:text-white mb-1">SMTP Configuration</h3>
                         <p className="text-sm text-slate-500">Configure outbound email server for systemic broadcasts.</p>
                     </div>
 

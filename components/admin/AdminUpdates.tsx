@@ -106,14 +106,14 @@ export const AdminUpdates: React.FC = () => {
     return (
         <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">
             <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">App Updates</h1>
+                <h1 className="text-3xl font-black  dark:text-white tracking-tight">App Updates</h1>
                 <p className="text-slate-500 font-medium mt-2 max-w-2xl">Publish new versions of the AVELUT app directly to your users. When you upload a new version here with a higher Version Code, users will be prompted to update.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form Section */}
                 <div className="lg:col-span-2 bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm">
-                    <h2 className="text-xl font-black mb-6 text-slate-800">Publish New Release</h2>
+                    <h2 className="text-xl font-black mb-6  dark:text-white">Publish New Release</h2>
                     
                     <form onSubmit={handlePublish} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

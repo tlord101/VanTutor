@@ -144,7 +144,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">Create Account</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold  dark:text-white tracking-wider">Create Account</h2>
             <p className="text-gray-600 mt-2">Join AVELUT to start learning.</p>
           </div>
 
@@ -162,7 +162,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                   required
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
 
@@ -178,7 +178,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
 
@@ -195,7 +195,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                   />
                   <button
                     type="button"

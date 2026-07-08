@@ -122,13 +122,13 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <span className="text-slate-800 font-bold block mb-1">Change Password</span>
+              <span className=" dark:text-white font-bold block mb-1">Change Password</span>
               <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">We will send a secure link to your email to reset your password.</p>
             </div>
             <button
                 onClick={handlePasswordReset}
                 disabled={isResetEmailSending}
-                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 disabled:opacity-50"
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200  dark:text-white text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 disabled:opacity-50"
             >
                 {isResetEmailSending ? 'Sending...' : 'Send Reset Link'}
             </button>
@@ -159,7 +159,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Notifications</h3>
         <div className="flex justify-between items-center gap-4">
             <div>
-                <span className="text-slate-800 font-bold block mb-1">Push Notifications</span>
+                <span className=" dark:text-white font-bold block mb-1">Push Notifications</span>
                  <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">
                     Get reminders, progress updates, and message alerts.
                 </p>
@@ -177,14 +177,14 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
          <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
            <a
               href="/t&c"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black text-slate-800 font-bold hover:bg-slate-100 transition-colors"
+              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black  dark:text-white font-bold hover:bg-slate-100 transition-colors"
             >
               <span>Terms & Conditions</span>
               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
             </a>
             <a
               href="https://www.avelut.xyz/policy"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black text-slate-800 font-bold hover:bg-slate-100 transition-colors"
+              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black  dark:text-white font-bold hover:bg-slate-100 transition-colors"
             >
               <span>Privacy Policy</span>
               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>

@@ -22,7 +22,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const savedMode = localStorage.getItem('app_mode') as Mode;
 
     if (savedMode) setModeState(savedMode);
-    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setModeState('dark');
 
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {

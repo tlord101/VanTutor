@@ -150,7 +150,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     return (
         <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
             <div>
-                <h3 className="font-black text-xl text-slate-900 mb-1 flex items-center gap-2">
+                <h3 className="font-black text-xl  dark:text-white mb-1 flex items-center gap-2">
                     <Bell className="w-5 h-5 text-indigo-500" />
                     Push Notifications
                 </h3>
@@ -159,7 +159,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                    <h4 className="font-bold text-slate-800 text-sm">Recipient Selection</h4>
+                    <h4 className="font-bold  dark:text-white text-sm">Recipient Selection</h4>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setRecipientMode('all')}
@@ -203,7 +203,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                    <h4 className="font-bold text-slate-800 text-sm">Notification Content</h4>
+                    <h4 className="font-bold  dark:text-white text-sm">Notification Content</h4>
                     
                     <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notification Type</label>

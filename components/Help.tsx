@@ -62,7 +62,7 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
                                 className="flex items-center justify-between p-4 bg-white dark:bg-black rounded-lg border border-gray-200 hover:border-lime-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                             >
                                 <div>
-                                    <p className="font-semibold text-gray-800 inline-flex items-center gap-1.5">
+                                    <p className="font-semibold  dark:text-white inline-flex items-center gap-1.5">
                                         {contact.name}
                                         {contact.verified === 'blue' && <BlueVerifiedBadge />}
                                     </p>
@@ -77,7 +77,7 @@ const Help: React.FC<HelpProps> = ({ onStartTour }) => {
                     </div>
 
                     <div className="mt-8 p-4 bg-white dark:bg-black rounded-xl border border-gray-200 text-center">
-                        <h3 className="font-semibold text-gray-800">Need a refresher?</h3>
+                        <h3 className="font-semibold  dark:text-white">Need a refresher?</h3>
                         <p className="text-sm text-gray-600 mt-1">Take a guided tour of the app's features.</p>
                         <button
                           onClick={onStartTour}

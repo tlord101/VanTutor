@@ -58,12 +58,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
       >
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors text-2xl"
+          className="absolute top-4 right-4 text-gray-400 hover: dark:text-white transition-colors text-2xl"
           aria-label="Close"
         >
           &times;
         </button>
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Reset Password</h2>
+        <h2 className="text-2xl font-bold  dark:text-white text-center mb-2">Reset Password</h2>
         <p className="text-gray-600 text-center mb-6">
           Enter your email and we'll send you a link to reset your password.
         </p>
@@ -73,7 +73,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
             <p className="text-green-700 font-semibold mb-4">Check your inbox for the reset link.</p>
             <button
               onClick={handleClose}
-              className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+              className="w-full bg-gray-200  dark:text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Close
             </button>
@@ -93,7 +93,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-black border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                  className="w-full bg-gray-50 dark:bg-black border border-gray-300 rounded-lg py-2 px-3  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                 />
               </div>
             </div>

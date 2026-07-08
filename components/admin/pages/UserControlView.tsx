@@ -144,7 +144,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                         <Users className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="font-black text-xl text-slate-900 leading-tight">User Control</h3>
+                        <h3 className="font-black text-xl  dark:text-white leading-tight">User Control</h3>
                         <div className="flex items-center gap-3 mt-1">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
                             <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
@@ -236,7 +236,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                     className="w-10 h-10 rounded-full border border-slate-200 object-cover"
                                                 />
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                                                    <p className="text-sm font-bold  dark:text-white flex items-center gap-1.5">
                                                         {user.display_name || 'Anonymous User'}
                                                         {(user.role === 'superadmin' || user.is_admin) && <span title="Super Admin"><Shield className="w-3.5 h-3.5 text-indigo-500" /></span>}
                                                         {user.role === 'deptadmin' && <span title="Department Admin"><Shield className="w-3.5 h-3.5 text-blue-400" /></span>}

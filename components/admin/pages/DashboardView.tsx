@@ -133,7 +133,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             </div>
                             
                             <div className="mt-6 relative z-10">
-                                <h3 className="text-4xl font-black text-slate-900 tracking-tight">{card.value}</h3>
+                                <h3 className="text-4xl font-black  dark:text-white tracking-tight">{card.value}</h3>
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{card.title}</p>
                             </div>
                         </div>
@@ -143,7 +143,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-blue-500" /> Revenue (Last 30 Days)
                     </h3>
                     <div className="flex-grow w-full h-full min-h-[250px]">
@@ -163,7 +163,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 
                 <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
                         <Users className="w-5 h-5 text-amber-500" /> User Signups (Last 30 Days)
                     </h3>
                     <div className="flex-grow w-full h-full min-h-[250px]">

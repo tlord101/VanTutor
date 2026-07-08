@@ -42,7 +42,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 </svg>
             </div>
             
-            <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight">{title}</h2>
+            <h2 className="text-xl font-black  dark:text-white mb-2 tracking-tight">{title}</h2>
             <p className="text-sm font-medium text-gray-400 mb-8 leading-relaxed px-2">{message}</p>
             
             <div className="flex flex-col w-full gap-3">

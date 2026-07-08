@@ -177,7 +177,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
                                                 value={replyText}
                                                 onChange={(e) => setReplyText(e.target.value)}
                                                 placeholder="Type your reply..."
-                                                className="flex-1 bg-white dark:bg-black border border-gray-200 text-gray-900 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all shadow-sm"
+                                                className="flex-1 bg-white dark:bg-black border border-gray-200  dark:text-white text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all shadow-sm"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') handleSendReply(notification, e as any);
                                                 }}

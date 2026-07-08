@@ -81,7 +81,7 @@ export const PlaystoreEarlyAccessModal: React.FC<PlaystoreModalProps> = ({ onClo
           <Smartphone className="w-8 h-8 text-white" />
         </div>
 
-        <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">
+        <h2 className="text-2xl font-black  dark:text-white mb-3 tracking-tight">
           Avelut on Android
         </h2>
         
@@ -117,7 +117,7 @@ export const PlaystoreEarlyAccessModal: React.FC<PlaystoreModalProps> = ({ onClo
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Your Google Play email"
-                            className="w-full pl-12 pr-4 py-4 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all font-medium text-slate-800"
+                            className="w-full pl-12 pr-4 py-4 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all font-medium  dark:text-white"
                         />
                     </div>
                     {error && <p className="text-red-500 text-sm text-left px-2">{error}</p>}

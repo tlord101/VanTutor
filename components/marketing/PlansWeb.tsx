@@ -110,13 +110,13 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-24 overflow-x-hidden">
+        <div className="min-h-screen bg-[#f8fafc]  dark:text-white font-sans pb-24 overflow-x-hidden">
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-50">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <img src="/logo_icon.png" alt="AVELUT" className="w-8 h-8 object-contain" />
-                        <span className="text-xl font-bold tracking-tight text-slate-800">AVELUT <span className="font-light text-slate-500">Premium</span></span>
+                        <span className="text-xl font-bold tracking-tight  dark:text-white">AVELUT <span className="font-light text-slate-500">Premium</span></span>
                     </div>
                 </div>
             </header>
@@ -136,7 +136,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter email address for receipt"
-                        className="bg-white border border-slate-200 text-slate-900 text-center font-medium text-base rounded-full focus:ring-[#009EE2] focus:border-[#009EE2] block w-full py-3 px-6 shadow-sm outline-none"
+                        className="bg-white border border-slate-200  dark:text-white text-center font-medium text-base rounded-full focus:ring-[#009EE2] focus:border-[#009EE2] block w-full py-3 px-6 shadow-sm outline-none"
                     />
                 </div>
 

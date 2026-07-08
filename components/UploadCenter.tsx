@@ -890,7 +890,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
   };
 
   const renderAuth = () => (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_40%),linear-gradient(180deg,_#f0f9ff_0%,_#fff_100%)] px-4 py-8 text-slate-900">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_40%),linear-gradient(180deg,_#f0f9ff_0%,_#fff_100%)] px-4 py-8  dark:text-white">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
         <div className="grid w-full gap-8 rounded-[32px] border border-sky-100 bg-white p-6 shadow-xl backdrop-blur md:grid-cols-[1.1fr_0.9fr] md:p-8">
           <div className="rounded-[28px] bg-[linear-gradient(135deg,_#0f172a_0%,_#0284c7_55%,_#38bdf8_100%)] p-8 text-white">
@@ -902,8 +902,8 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           </div>
           <div className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-8">
             <div className="flex gap-2 rounded-full bg-slate-100 p-1 text-sm font-semibold">
-              <button onClick={() => setAuthMode('login')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Sign in</button>
-              <button onClick={() => setAuthMode('signup')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
+              <button onClick={() => setAuthMode('login')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'login' ? 'bg-white  dark:text-white shadow-sm' : 'text-slate-500'}`}>Sign in</button>
+              <button onClick={() => setAuthMode('signup')} className={`flex-1 rounded-full px-4 py-2 transition ${authMode === 'signup' ? 'bg-white  dark:text-white shadow-sm' : 'text-slate-500'}`}>Sign up</button>
             </div>
             <form onSubmit={handleAuth} className="mt-6 space-y-4">
               <input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100" />
@@ -1036,7 +1036,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
   const schoolDepartments = getSchoolDepartments();
 
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900 overflow-hidden relative">
+    <div className="min-h-screen flex bg-slate-50  dark:text-white overflow-hidden relative">
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div 
@@ -1076,7 +1076,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                 <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition">
                     <Menu className="w-6 h-6" />
                 </button>
-                <h1 className="text-lg font-black tracking-tight text-slate-900 capitalize">
+                <h1 className="text-lg font-black tracking-tight  dark:text-white capitalize">
                     {activeView.replace('_', ' ')}
                 </h1>
             </div>
@@ -1168,7 +1168,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           </div>
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                         </div>
-                        <h4 className="font-black text-lg text-slate-900 leading-tight mt-3">{course.course_name}</h4>
+                        <h4 className="font-black text-lg  dark:text-white leading-tight mt-3">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
@@ -1215,7 +1215,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                                 {dept.collegeName}
                              </span>
                           </div>
-                          <h4 className="font-black text-xl text-slate-900 mt-2">{dept.name || dept.id}</h4>
+                          <h4 className="font-black text-xl  dark:text-white mt-2">{dept.name || dept.id}</h4>
                           <div className="mt-4 flex items-center text-sky-600 font-bold text-sm gap-1">
                               View Courses <ChevronRight className="w-4 h-4" />
                           </div>
@@ -1265,7 +1265,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                       <button onClick={() => { setIsAddingCourse(false); setExtractedCourses([]); }} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition">
                         ✕
                       </button>
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Add Courses</h3>
+                      <h3 className="text-2xl font-black  dark:text-white tracking-tight mb-2">Add Courses</h3>
                       <p className="text-sm text-slate-500 font-medium mb-6">Add courses manually or extract them from a syllabus document.</p>
 
                       {extractedCourses.length > 0 ? (
@@ -1369,7 +1369,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                           <button onClick={() => handleDeleteCourse(course)} className="text-slate-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button>
                         </div>
-                        <h4 className="font-black text-lg text-slate-900 leading-tight">{course.course_name}</h4>
+                        <h4 className="font-black text-lg  dark:text-white leading-tight">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
@@ -1448,7 +1448,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                                </span>
                            )}
                         </div>
-                        <h4 className="font-black text-lg text-slate-900 leading-tight mt-2">{course.course_name}</h4>
+                        <h4 className="font-black text-lg  dark:text-white leading-tight mt-2">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
 
                         <div className="mt-6 flex gap-2">
@@ -1501,7 +1501,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
       {uploadModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md rounded-[32px] border border-sky-100 bg-white p-8 shadow-2xl space-y-6 relative">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Upload Material</h3>
+            <h3 className="text-2xl font-black  dark:text-white tracking-tight">Upload Material</h3>
             <p className="text-sm text-slate-500 font-medium">Select what type of material you are uploading for {uploadModal.course.course_name}.</p>
             
             <div className="space-y-4">
@@ -1585,7 +1585,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                 <div className="absolute inset-0 rounded-full border-4 border-sky-500 border-l-transparent border-t-transparent animate-spin"></div>
                 <UploadCloud className="w-6 h-6 text-sky-500" />
               </div>
-              <h3 className="text-xl font-black tracking-tight text-slate-900">Uploading & Processing</h3>
+              <h3 className="text-xl font-black tracking-tight  dark:text-white">Uploading & Processing</h3>
               <p className="mt-2 text-sm font-medium text-sky-600 h-10">{uploadProgress.status}</p>
               <div className="mt-6 w-full overflow-hidden rounded-full bg-slate-100 h-2">
                 <div className="h-full rounded-full bg-sky-500 transition-all duration-300 ease-out" style={{ width: `${uploadProgress.percent}%` }}></div>

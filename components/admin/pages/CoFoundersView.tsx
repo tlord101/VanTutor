@@ -91,7 +91,7 @@ export const CoFoundersView: React.FC = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-black  dark:text-white tracking-tight flex items-center gap-2">
                         <Users className="w-6 h-6 text-indigo-500" />
                         Co-Founders Management
                     </h2>
@@ -111,7 +111,7 @@ export const CoFoundersView: React.FC = () => {
 
             {isAdding ? (
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 max-w-3xl">
-                    <h3 className="text-xl font-bold text-slate-900 mb-6">{isEditing ? 'Edit' : 'Add'} Co-Founder</h3>
+                    <h3 className="text-xl font-bold  dark:text-white mb-6">{isEditing ? 'Edit' : 'Add'} Co-Founder</h3>
                     <form onSubmit={handleSave} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">

@@ -45,7 +45,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC]  dark:text-white font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
       <SEO />
       {/* Dynamic Background Elements */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white">
@@ -92,7 +92,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
               <Sparkles className="w-3 h-3" />
               <span>Hyper-Personalized AI Tutoring</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]  dark:text-white">
               The AI Tutor That Won't Rest Until Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">GPA Rises</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">

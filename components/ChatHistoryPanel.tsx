@@ -130,7 +130,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                             if (e.key === 'Escape') setRenamingId(null);
                         }}
                         autoFocus
-                        className="w-full text-xs font-bold text-gray-800 border-none p-1 focus:ring-0"
+                        className="w-full text-xs font-bold  dark:text-white border-none p-1 focus:ring-0"
                     />
                 </div>
             ) : (
@@ -149,7 +149,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                       <div className="absolute left-0 top-3 bottom-3 w-1 bg-lime-500 rounded-r-full"></div>
                   )}
                   <div className="flex-1 overflow-hidden pr-4">
-                      <p className={`text-sm truncate leading-tight mb-1 ${activeConversationId === convo.id ? 'font-bold text-gray-900' : 'font-medium text-gray-600 group-hover:text-gray-900'}`}>
+                      <p className={`text-sm truncate leading-tight mb-1 ${activeConversationId === convo.id ? 'font-bold  dark:text-white' : 'font-medium text-gray-600 group-hover: dark:text-white'}`}>
                         {convo.title}
                       </p>
                       <p className={`text-[10px] font-bold uppercase tracking-wider ${activeConversationId === convo.id ? 'text-lime-600/60' : 'text-gray-400'}`}>

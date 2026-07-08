@@ -39,7 +39,7 @@ export const DeleteAccountWeb: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50  font-sans text-slate-900  flex flex-col">
+        <div className="min-h-screen bg-slate-50  font-sans  dark:text-white  flex flex-col">
             <SEOHead 
                 title="Delete Account | AVELUT" 
                 description="Request to delete your AVELUT account and associated data."
@@ -49,7 +49,7 @@ export const DeleteAccountWeb: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <a href="/" className="flex items-center gap-2 sm:gap-3 transition-transform hover:scale-[1.02] active:scale-95">
                         <img src="/logo_icon.png" alt="AVELUT Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
-                        <span className="font-black text-xl sm:text-2xl tracking-tighter text-slate-900">AVELUT</span>
+                        <span className="font-black text-xl sm:text-2xl tracking-tighter  dark:text-white">AVELUT</span>
                     </a>
                 </div>
             </header>

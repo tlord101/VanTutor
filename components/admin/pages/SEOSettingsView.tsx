@@ -94,7 +94,7 @@ ${staticRoutes.map(route => `  <url>
         <div className="space-y-6 max-w-5xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-black  dark:text-white tracking-tight flex items-center gap-2">
                         <Search className="w-6 h-6 text-indigo-500" />
                         SEO & Marketing Settings
                     </h2>
@@ -107,7 +107,7 @@ ${staticRoutes.map(route => `  <url>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Meta Settings */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                    <h3 className="text-lg font-bold  dark:text-white mb-6 flex items-center gap-2">
                         <Globe className="w-5 h-5 text-indigo-500" /> Global Meta Tags
                     </h3>
                     <form onSubmit={handleSave} className="space-y-5">
@@ -181,7 +181,7 @@ ${staticRoutes.map(route => `  <url>
 
                 {/* Sitemap Generator */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                    <h3 className="text-lg font-bold  dark:text-white mb-6 flex items-center gap-2">
                         <Code className="w-5 h-5 text-indigo-500" /> Sitemap Generator
                     </h3>
                     

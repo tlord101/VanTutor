@@ -31,7 +31,7 @@ const SetupRequired: React.FC = () => (
           Welcome to AVELUT! To get started, you need to connect the application to your Firebase project.
         </p>
         <div className="mt-6 text-left bg-gray-50 dark:bg-black p-6 rounded-lg border border-gray-200">
-          <p className="font-semibold text-gray-800">Please follow these steps:</p>
+          <p className="font-semibold  dark:text-white">Please follow these steps:</p>
           <ol className="list-decimal list-inside mt-2 space-y-2 text-gray-600">
             <li>Open the <code className="bg-gray-200 text-red-700 font-mono px-1 py-0.5 rounded">index.html</code> file in your project.</li>
             <li>Find the script tag near the bottom of the file.</li>

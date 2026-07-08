@@ -74,7 +74,7 @@ export const TicketsView: React.FC = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-6">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-black  dark:text-white tracking-tight flex items-center gap-2">
                         <Mail className="w-6 h-6 text-indigo-500" />
                         Support Tickets
                     </h2>
@@ -97,7 +97,7 @@ export const TicketsView: React.FC = () => {
                 {/* Tickets List */}
                 <div className="lg:col-span-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[70vh]">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
-                        <h3 className="font-bold text-slate-800 text-sm">Recent Tickets</h3>
+                        <h3 className="font-bold  dark:text-white text-sm">Recent Tickets</h3>
                     </div>
                     <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
                         {tickets.length === 0 ? (
@@ -110,7 +110,7 @@ export const TicketsView: React.FC = () => {
                                     className={`w-full text-left p-4 hover:bg-slate-50 transition ${selectedTicket?.id === ticket.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'} ${ticket.status === 'unread' ? 'font-bold' : ''}`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-sm text-slate-900 truncate pr-2">{ticket.name}</span>
+                                        <span className="text-sm  dark:text-white truncate pr-2">{ticket.name}</span>
                                         <span className="text-[10px] text-slate-400 whitespace-nowrap">
                                             {new Date(ticket.createdAt).toLocaleDateString()}
                                         </span>
@@ -137,7 +137,7 @@ export const TicketsView: React.FC = () => {
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full flex flex-col">
                             <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                                 <div>
-                                    <h3 className="text-xl font-bold text-slate-900 mb-2">{selectedTicket.subject}</h3>
+                                    <h3 className="text-xl font-bold  dark:text-white mb-2">{selectedTicket.subject}</h3>
                                     <div className="flex items-center gap-4 text-sm text-slate-500">
                                         <span className="flex items-center gap-1"><User className="w-4 h-4" /> {selectedTicket.name}</span>
                                         <a href={`mailto:${selectedTicket.email}`} className="flex items-center gap-1 hover:text-indigo-600 transition"><Mail className="w-4 h-4" /> {selectedTicket.email}</a>

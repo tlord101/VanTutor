@@ -83,14 +83,14 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
             <div className="flex gap-4 border-b border-slate-200">
                 <button 
                     onClick={() => setActiveTab('payments')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'payments' ? 'border-emerald-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'payments' ? 'border-emerald-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <CreditCard className="w-4 h-4" />
                     Financial Logs
                 </button>
                 <button 
                     onClick={() => setActiveTab('usage')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'usage' ? 'border-emerald-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'usage' ? 'border-emerald-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Activity className="w-4 h-4" />
                     System Usage Analytics
@@ -107,17 +107,17 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                         </div>
                         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
                             <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total Transactions</p>
-                            <h3 className="text-4xl font-black text-slate-800">{paymentLogs.length}</h3>
+                            <h3 className="text-4xl font-black  dark:text-white">{paymentLogs.length}</h3>
                         </div>
                         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
                             <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Premium Users</p>
-                            <h3 className="text-4xl font-black text-slate-800">{allUsersList.filter(u => u.subscription_status === 'premium').length}</h3>
+                            <h3 className="text-4xl font-black  dark:text-white">{allUsersList.filter(u => u.subscription_status === 'premium').length}</h3>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <h3 className="font-black text-lg text-slate-800">Transaction History</h3>
+                            <h3 className="font-black text-lg  dark:text-white">Transaction History</h3>
                             <div className="flex gap-3">
                                 <div className="relative">
                                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -150,8 +150,8 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                     {filteredPayments.map((log, i) => (
                                         <tr key={i} className="hover:bg-slate-50 transition">
                                             <td className="px-6 py-4 font-mono text-xs text-slate-600">{log.reference}</td>
-                                            <td className="px-6 py-4 font-semibold text-slate-800">{log.user_email}</td>
-                                            <td className="px-6 py-4 font-bold text-slate-900">₦{(Number(log.amount) || 0).toLocaleString()}</td>
+                                            <td className="px-6 py-4 font-semibold  dark:text-white">{log.user_email}</td>
+                                            <td className="px-6 py-4 font-bold  dark:text-white">₦{(Number(log.amount) || 0).toLocaleString()}</td>
                                             <td className="px-6 py-4 uppercase text-xs font-black text-emerald-600">{log.tier_id}</td>
                                             <td className="px-6 py-4">
                                                 {(!log.status || log.status === 'success' || log.status === 'successful') ? (
@@ -185,7 +185,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                 <div className="space-y-6">
                     {/* Top Row: AI Volume */}
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
                             <BrainCircuit className="w-5 h-5 text-emerald-500" /> AI Query Volume (Last 30 Days)
                         </h3>
                         <div className="flex-grow w-full h-full min-h-[250px]">
@@ -214,7 +214,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Token Type Distribution */}
                         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
                                 <Key className="w-5 h-5 text-amber-500" /> Token Authorization Source
                             </h3>
                             <div className="flex-grow w-full h-full min-h-[250px] flex items-center justify-center">
@@ -245,7 +245,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
 
                         {/* Model Usage */}
                         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
                                 <Server className="w-5 h-5 text-indigo-500" /> API Model Traffic
                             </h3>
                             <div className="flex-grow w-full h-full min-h-[250px]">

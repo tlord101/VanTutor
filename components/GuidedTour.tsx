@@ -76,13 +76,13 @@ const Tooltip: React.FC<{
 
   return (
     <div ref={tooltipRef} style={style} className="bg-white dark:bg-black rounded-lg shadow-2xl p-4 w-72 max-w-[calc(100vw-2rem)] z-[9999] animate-fade-in-up">
-      <h3 className="font-bold text-lg text-gray-800">{step.title}</h3>
+      <h3 className="font-bold text-lg  dark:text-white">{step.title}</h3>
       <p className="text-sm text-gray-600 mt-2">{step.content}</p>
       <div className="flex justify-between items-center mt-4">
         <span className="text-xs text-gray-500 dark:text-gray-400">{currentStepIndex + 1} / {totalSteps}</span>
         <div className="flex gap-2">
           {currentStepIndex > 0 && (
-            <button onClick={onBack} className="text-sm font-semibold text-gray-600 hover:text-gray-900">Back</button>
+            <button onClick={onBack} className="text-sm font-semibold text-gray-600 hover: dark:text-white">Back</button>
           )}
           <button onClick={onNext} className="text-sm font-semibold px-3 py-1 rounded-md bg-lime-600 text-white hover:bg-lime-700">
             {isLastStep ? 'Finish' : 'Next'}

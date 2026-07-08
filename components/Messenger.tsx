@@ -405,7 +405,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
                 </button>
                 {showStickerPopup && (
-                  <div className="absolute -top-10 left-2 bg-white text-black text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
+                  <div className="absolute -top-10 left-2 bg-white  dark:text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
                     Coming soon
                     <div className="absolute -bottom-1 left-4 w-2 h-2 bg-white rotate-45"></div>
                   </div>

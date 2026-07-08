@@ -61,7 +61,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
           <div className="w-20 h-20 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-6">
             <HelpCircle className="w-10 h-10 text-gray-300" />
           </div>
-          <h3 className="text-xl font-black text-gray-800 mb-2">No Saved History</h3>
+          <h3 className="text-xl font-black  dark:text-white mb-2">No Saved History</h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-sm">When you generate flashcards, take mock exams, or practice past questions, they will automatically be saved here for you to review later.</p>
         </div>
       );
@@ -83,7 +83,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
                 </span>
                 <span className="text-xs font-bold text-gray-400">{date}</span>
               </div>
-              <h3 className="text-lg font-black text-gray-900 leading-tight mb-4 group-hover:text-blue-600 transition-colors">
+              <h3 className="text-lg font-black  dark:text-white leading-tight mb-4 group-hover:text-blue-600 transition-colors">
                 {item.title}
               </h3>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-6">
@@ -109,7 +109,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8 flex justify-between items-end">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Saved History</h1>
+            <h1 className="text-3xl font-black  dark:text-white tracking-tight">Saved History</h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium mt-2">Review your past generated study materials.</p>
           </div>
         </div>
@@ -131,7 +131,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setActiveItem(null)}></div>
            <div className="relative bg-white dark:bg-black rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 dark:bg-black/50 shrink-0">
-                  <h3 className="text-xl font-black text-gray-900">{activeItem.title}</h3>
+                  <h3 className="text-xl font-black  dark:text-white">{activeItem.title}</h3>
                   <button onClick={() => setActiveItem(null)} className="p-2 rounded-xl hover:bg-gray-200 transition-colors">
                      <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                   </button>
@@ -140,7 +140,7 @@ export const History: React.FC<HistoryProps> = ({ userProfile }) => {
                    {activeItem.data.map((q: any, idx: number) => (
                        <div key={idx} className="p-6 rounded-2xl bg-white dark:bg-black border border-gray-200 shadow-sm">
                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Question {idx + 1}</p>
-                           <h4 className="text-lg font-black text-gray-900 mb-4">{q.question}</h4>
+                           <h4 className="text-lg font-black  dark:text-white mb-4">{q.question}</h4>
                            
                            {q.options && q.options.length > 0 ? (
                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">

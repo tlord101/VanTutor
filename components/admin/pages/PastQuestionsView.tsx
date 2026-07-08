@@ -35,7 +35,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
         <div className="space-y-8 max-w-4xl">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
                 <div>
-                    <h3 className="font-black text-xl text-slate-900 mb-1 flex items-center gap-2">
+                    <h3 className="font-black text-xl  dark:text-white mb-1 flex items-center gap-2">
                         <HelpCircle className="w-6 h-6 text-indigo-500" />
                         <span>Past Questions Management</span>
                     </h3>
@@ -98,7 +98,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                 <UploadCloud className="w-8 h-8" />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-800 text-sm">Upload Exam PDF</p>
+                                <p className="font-bold  dark:text-white text-sm">Upload Exam PDF</p>
                                 <p className="text-xs text-slate-500 max-w-[200px] mt-1">Our AI will automatically extract and format the questions and answers.</p>
                             </div>
                             

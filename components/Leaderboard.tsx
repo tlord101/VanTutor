@@ -26,7 +26,7 @@ const RankItem: React.FC<{rank: number, user: LeaderboardEntry, isCurrentUser: b
         </div>
         <Avatar display_name={user.display_name} photo_url={user.photo_url} className="w-10 h-10 ml-4" />
         <div className="flex-1 ml-4">
-            <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+            <p className="font-semibold  dark:text-white flex items-center gap-1.5">
                 <span>{user.display_name}</span>
                 <VerificationBadge status={(user as any).subscription_status} />
             </p>

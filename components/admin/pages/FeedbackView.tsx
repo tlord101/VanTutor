@@ -69,7 +69,7 @@ export const FeedbackView: React.FC = () => {
         <div className="p-6">
             <div className="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900">User Feedback</h2>
+                    <h2 className="text-2xl font-black  dark:text-white">User Feedback</h2>
                     <p className="text-slate-500 text-sm font-medium mt-1">Suggestions, bug reports, and complaints from users.</p>
                 </div>
             </div>
@@ -77,7 +77,7 @@ export const FeedbackView: React.FC = () => {
             {feedbacks.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 shadow-sm">
                     <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-slate-900">No Feedback Yet</h3>
+                    <h3 className="text-lg font-bold  dark:text-white">No Feedback Yet</h3>
                     <p className="text-slate-500 text-sm mt-1">When users submit feedback, it will appear here.</p>
                 </div>
             ) : (

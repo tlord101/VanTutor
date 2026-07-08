@@ -186,14 +186,14 @@ export const AcademicUnitsView: React.FC = () => {
             <div className="flex gap-4 border-b border-slate-200">
                 <button 
                     onClick={() => setActiveTab('manage')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'manage' ? 'border-lime-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'manage' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <FolderTree className="w-4 h-4" />
                     Manage Hierarchy
                 </button>
                 <button 
                     onClick={() => setActiveTab('migrate')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'migrate' ? 'border-lime-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'migrate' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     <Database className="w-4 h-4" />
                     Data Migration
@@ -208,7 +208,7 @@ export const AcademicUnitsView: React.FC = () => {
                     {/* Build Form */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
                         <div>
-                            <h3 className="font-black text-xl text-slate-900 mb-1">Create Academic Units</h3>
+                            <h3 className="font-black text-xl  dark:text-white mb-1">Create Academic Units</h3>
                             <p className="text-sm text-slate-500">Build your institution's hierarchy step-by-step.</p>
                         </div>
                         
@@ -279,7 +279,7 @@ export const AcademicUnitsView: React.FC = () => {
                     {/* Preview List */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6 sticky top-24">
                         <div>
-                            <h3 className="font-black text-xl text-slate-900 mb-1">Active Departments</h3>
+                            <h3 className="font-black text-xl  dark:text-white mb-1">Active Departments</h3>
                             <p className="text-sm text-slate-500">Currently mapped in the system.</p>
                         </div>
                         
@@ -294,7 +294,7 @@ export const AcademicUnitsView: React.FC = () => {
                                 {allDepartments.map(dept => (
                                     <div key={dept.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col gap-2">
                                         <div className="flex justify-between items-start">
-                                            <h4 className="font-bold text-slate-900">{dept.department_name}</h4>
+                                            <h4 className="font-bold  dark:text-white">{dept.department_name}</h4>
                                             <span className="px-2.5 py-1 bg-lime-50 text-lime-700 text-[10px] font-black uppercase tracking-widest rounded-md">
                                                 {dept.levels?.length || 0} Levels
                                             </span>
@@ -319,7 +319,7 @@ export const AcademicUnitsView: React.FC = () => {
                             <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-4">
                                 <Database className="w-8 h-8" />
                             </div>
-                            <h3 className="font-black text-xl text-slate-900 mb-2">No Legacy Data Found</h3>
+                            <h3 className="font-black text-xl  dark:text-white mb-2">No Legacy Data Found</h3>
                             <p className="text-slate-500 text-sm max-w-sm">
                                 Your system is clean! There are no legacy departments to migrate. You can manage your academic units normally.
                             </p>

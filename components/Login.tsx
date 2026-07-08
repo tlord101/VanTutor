@@ -108,7 +108,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                 <img src="/logo_full.png" alt="AVELUT Logo" className="h-16 object-contain" />
             </div>
             <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">Welcome Back</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold  dark:text-white tracking-wider">Welcome Back</h2>
               <p className="text-gray-600 mt-2">Log in to continue your learning.</p>
             </div>
 
@@ -126,7 +126,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 px-3  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                   />
                 </div>
 
@@ -152,7 +152,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-lime-500 focus:outline-none"
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-3 pr-10  dark:text-white focus:ring-2 focus:ring-lime-500 focus:outline-none"
                     />
                     <button
                       type="button"
