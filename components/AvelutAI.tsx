@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { get, onValue, push, ref as dbRef, serverTimestamp, set, update, remove } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { triggerHaptic } from '../utils/capacitorUtils';
 // @ts-ignore: Allow importing third-party CSS without type declarations
 import 'katex/dist/katex.min.css';
 import { db, storage } from '../firebase';
@@ -20,6 +21,7 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { CheckIcon } from './icons/CheckIcon';
 import { Flag } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
 
@@ -273,6 +275,7 @@ const ShareUploadIcon = () => (
 export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -1061,10 +1064,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                             <button
                               type="button"
                               onClick={async () => {
+                                void triggerHaptic();
                                 try {
                                   if (navigator.clipboard && navigator.clipboard.writeText) {
                                     await navigator.clipboard.writeText(message.text);
+                                    setCopiedMessageId(message.id);
                                     addToast('Copied to clipboard', 'success');
+                                    setTimeout(() => setCopiedMessageId(null), 2000);
                                   } else {
                                     addToast('Copied to clipboard', 'success');
                                   }
@@ -1073,11 +1079,15 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                 }
                               }}
                               className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
-                              aria-label="Copy message"
-                              title="Copy message"
+                              aria-label={copiedMessageId === message.id ? "Message copied" : "Copy message"}
+                              title={copiedMessageId === message.id ? "Message copied" : "Copy message"}
                             >
-                              <CopyIcon className="h-3.5 w-3.5" />
-                              Copy
+                              {copiedMessageId === message.id ? (
+                                <CheckIcon className="h-3.5 w-3.5" />
+                              ) : (
+                                <CopyIcon className="h-3.5 w-3.5" />
+                              )}
+                              {copiedMessageId === message.id ? 'Copied!' : 'Copy'}
                             </button>
                             <button
                               type="button"
