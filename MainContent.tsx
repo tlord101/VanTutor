@@ -76,7 +76,9 @@ interface MainContentProps {
 
 
 
-export const MainContent: React.FC<MainContentProps> = ({
+// Memoize MainContent to prevent unnecessary re-renders when parent state changes
+// but relevant props remain stable.
+export const MainContent: React.FC<MainContentProps> = React.memo(({
     activeItem,
     user,
     userProfile,
@@ -174,4 +176,4 @@ export const MainContent: React.FC<MainContentProps> = ({
             })()}
         </Suspense>
     );
-};
+});

@@ -412,6 +412,47 @@ const App: React.FC = () => {
         }
     }, []);
 
+    // Stable Profile Pattern: Create a memoized profile object that excludes high-frequency
+    // update fields (like last_seen, is_online, and last_activity_date). This prevents
+    // major layout components from re-rendering every time the user's heartbeat updates.
+    const stableProfile = useMemo(() => {
+        if (!userProfile) return null;
+        return {
+            ...userProfile,
+            // These fields are specifically excluded from triggering re-renders via stableProfile
+            // as they change very frequently and are rarely needed for primary UI layout.
+            last_seen: undefined,
+            is_online: undefined,
+            last_activity_date: 0,
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        userProfile?.uid,
+        userProfile?.display_name,
+        userProfile?.photo_url,
+        userProfile?.level,
+        userProfile?.subscription_status,
+        userProfile?.school_id,
+        userProfile?.college_id,
+        userProfile?.department_id,
+        userProfile?.notifications_enabled,
+        userProfile?.is_admin,
+        userProfile?.role,
+        userProfile?.xp,
+        userProfile?.current_streak,
+        userProfile?.privacy_consent?.granted,
+        userProfile?.email,
+        userProfile?.bio,
+        userProfile?.has_completed_tour,
+        userProfile?.is_activated,
+        userProfile?.use_personal_token,
+        userProfile?.personal_api_key,
+        userProfile?.fcm_token,
+        userProfile?.ai_credits_balance,
+        userProfile?.theme_preferences,
+        userProfile?.privacy_settings
+    ]);
+
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
             const intentListener = SendIntent.addListener('appSendActionIntent', (data: any) => {
@@ -728,10 +769,10 @@ const App: React.FC = () => {
         }
     }, [user]);
 
-    const handleConsent = async (granted: boolean) => {
+    const handleConsent = useCallback(async (granted: boolean) => {
         setShowPrivacyModal(false);
         await handleProfileUpdate({ privacy_consent: { granted, timestamp: Date.now() } });
-    };
+    }, [handleProfileUpdate]);
 
     useEffect(() => {
         if (!userProfile) return;
@@ -1140,16 +1181,16 @@ const App: React.FC = () => {
 
 
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await firebaseSignOut(firebaseAuth);
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
             addToast(error.message || "Failed to log out.", "error");
         }
-    };
+    }, [addToast]);
 
-    const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
+    const handleOnboardingComplete = useCallback(async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
         const now = Date.now();
         const displayName = user.displayName || 'AVELITE';
@@ -1192,9 +1233,9 @@ const App: React.FC = () => {
             console.error("Failed to complete onboarding:", error.message || error);
             addToast(error.message || "Could not save your profile.", "error");
         }
-    };
+    }, [user, setActiveItem, addToast]);
 
-    const handleMarkNotificationRead = async (id: string) => {
+    const handleMarkNotificationRead = useCallback(async (id: string) => {
         if (!user) return;
         const notificationRef = dbRef(db, `notifications/${user.uid}/${id}`);
         try {
@@ -1203,9 +1244,9 @@ const App: React.FC = () => {
             console.error("Error marking notification read:", err);
             addToast("Could not update notification.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleMarkAllNotificationsRead = async () => {
+    const handleMarkAllNotificationsRead = useCallback(async () => {
         if (!user) return;
         const notificationsRef = dbRef(db, `notifications/${user.uid}`);
         try {
@@ -1223,9 +1264,9 @@ const App: React.FC = () => {
             console.error("Error clearing notifications:", error);
             addToast("Could not clear notifications.", "error");
         }
-    };
+    }, [user, addToast]);
 
-    const handleAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+    const handleAccountDeletion = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
             if (user) {
                 await update(dbRef(db, `users/${user.uid}`), { is_deleted: true });
@@ -1238,17 +1279,41 @@ const App: React.FC = () => {
             console.error("Error deleting account:", error.message || error);
             return { success: false, error: error.message || 'An error occurred while deleting your account.' };
         }
-    };
+    }, [user, addToast]);
     
-    const handleTourClose = async (completed: boolean) => {
-        if (completed && userProfile && !userProfile.has_completed_tour) {
+    const hasCompletedTour = userProfile?.has_completed_tour;
+    const handleTourClose = useCallback(async (completed: boolean) => {
+        if (completed && !hasCompletedTour) {
             const result = await handleProfileUpdate({ has_completed_tour: true });
             if (!result.success) {
                 addToast(result.error || 'Could not save tour completion status.', 'error');
             }
         }
         setIsTourOpen(false);
-    };
+    }, [hasCompletedTour, handleProfileUpdate, addToast]);
+
+    const handleCloseMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
+    const handleHeaderNotificationsClick = useCallback(() => setActiveItem('notifications'), [setActiveItem]);
+    const handleMenuClick = useCallback(() => setIsMobileSidebarOpen(true), []);
+    const handleMessengerClick = useCallback(() => setActiveItem('messenger'), [setActiveItem]);
+    const handleCalendarClick = useCallback(() => setIsCalendarOpen(true), []);
+    const handleCloseCalendar = useCallback(() => setIsCalendarOpen(false), []);
+    const handleBottomNavItemClick = useCallback((id: string) => {
+        if (id === 'mobile_menu') {
+            setIsMobileSidebarOpen(true);
+        } else {
+            setActiveItem(id);
+        }
+    }, [setActiveItem]);
+    const handleAllowConsent = useCallback(() => handleConsent(true), [handleConsent]);
+    const handleDenyConsent = useCallback(() => handleConsent(false), [handleConsent]);
+    const handleCenterActionClick = useCallback(() => {
+        if (activeItemRef.current === 'visual_solver') {
+            triggerScanRef.current?.();
+        } else {
+            setActiveItem('visual_solver');
+        }
+    }, [setActiveItem]);
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -1479,10 +1544,10 @@ const App: React.FC = () => {
             <Sidebar
                 activeItem={activeItem}
                 onItemClick={setActiveItem}
-                userProfile={userProfile}
+                userProfile={stableProfile as UserProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
-                onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+                onCloseMobileSidebar={handleCloseMobileSidebar}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
             />
@@ -1490,16 +1555,16 @@ const App: React.FC = () => {
                 <Header 
                     currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
                     unreadCount={unreadCount}
-                    onNotificationsClick={() => setActiveItem('notifications')}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
-                    onMessengerClick={() => setActiveItem('messenger')}
-                    onCalendarClick={() => setIsCalendarOpen(true)}
+                    onNotificationsClick={handleHeaderNotificationsClick}
+                    onMenuClick={handleMenuClick}
+                    onMessengerClick={handleMessengerClick}
+                    onCalendarClick={handleCalendarClick}
                     unreadMessagesCount={unreadMessagesCount}
-                    userProfile={userProfile}
+                    userProfile={stableProfile as UserProfile}
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
-                    onNavigate={(route) => setActiveItem(route)}
+                    onNavigate={setActiveItem}
                     onLogoutClick={handleLogout}
                 />
                 <div 
@@ -1515,7 +1580,7 @@ const App: React.FC = () => {
                             key={activeItem}
                             activeItem={activeItem}
                             user={user}
-                            userProfile={userProfile}
+                            userProfile={stableProfile as UserProfile}
                             appSettings={appSettings}
                             userProgress={userProgress}
                             dashboardData={dashboardData}
@@ -1535,32 +1600,20 @@ const App: React.FC = () => {
                     )}
                 </div>
             </main>
-            {showPrivacyModal && <PrivacyConsentModal onAllow={() => handleConsent(true)} onDeny={() => handleConsent(false)} />}
+            {showPrivacyModal && <PrivacyConsentModal onAllow={handleAllowConsent} onDeny={handleDenyConsent} />}
             {userProfile && (
                 <CalendarModal
                     isOpen={isCalendarOpen}
-                    onClose={() => setIsCalendarOpen(false)}
-                    userProfile={userProfile}
+                    onClose={handleCloseCalendar}
+                    userProfile={stableProfile as UserProfile}
                 />
             )}
             <BottomNavBar
               activeItem={activeItem}
-              onItemClick={(id) => {
-                if (id === 'mobile_menu') {
-                    setIsMobileSidebarOpen(true);
-                } else {
-                    setActiveItem(id);
-                }
-              }}
-              onCenterActionClick={() => {
-                  if (activeItem === 'visual_solver') {
-                      triggerScanRef.current?.();
-                  } else {
-                      setActiveItem('visual_solver');
-                  }
-              }}
+              onItemClick={handleBottomNavItemClick}
+              onCenterActionClick={handleCenterActionClick}
               isVisible={activeItem !== 'chat' && !customHeaderConfig?.hideBottomNav}
-              userProfile={userProfile}
+              userProfile={stableProfile as UserProfile}
             />
             <GuidedTour 
                 steps={tourSteps}
