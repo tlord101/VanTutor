@@ -23,7 +23,9 @@ interface HeaderProps {
   onLogoutClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+// Memoize Header to prevent unnecessary re-renders when parent state updates
+// but UI-critical profile fields and navigation state remain stable.
+export const Header: React.FC<HeaderProps> = React.memo(({
     currentPageLabel, 
     onNotificationsClick, 
     unreadCount = 0, 
@@ -195,4 +197,4 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
         </header>
     );
-};
+});

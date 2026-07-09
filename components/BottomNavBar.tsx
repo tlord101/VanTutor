@@ -18,7 +18,9 @@ interface BottomNavBarProps {
   onCenterActionClick?: () => void;
 }
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemClick, isVisible, userProfile, items, onCenterActionClick }) => {
+// Memoize BottomNavBar to isolate it from parent re-renders caused by frequent
+// profile heartbeat updates.
+export const BottomNavBar: React.FC<BottomNavBarProps> = React.memo(({ activeItem, onItemClick, isVisible, userProfile, items, onCenterActionClick }) => {
   const baseNavItems = [
     { id: 'mobile_menu', icon: <MenuIcon />, label: 'Menu' },
     { id: 'study_guide', icon: <StudyGuideIcon />, label: 'Guide' },
@@ -218,4 +220,4 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
       </div>
     </nav>
   );
-};
+});
