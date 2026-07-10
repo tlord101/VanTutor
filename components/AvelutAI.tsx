@@ -20,8 +20,10 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { CheckIcon } from './icons/CheckIcon';
 import { Flag } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
+import { triggerHaptic } from '../utils/capacitorUtils';
 
 type AssistantSender = 'user' | 'assistant';
 
@@ -274,6 +276,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(() => {
@@ -857,6 +860,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     }
   };
 
+  const handleCopy = async (messageId: string, text: string) => {
+    try {
+      void triggerHaptic();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopiedId(messageId);
+      addToast('Copied to clipboard', 'success');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      addToast('Failed to copy', 'error');
+    }
+  };
+
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInputValue(val);
@@ -1060,28 +1078,27 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           <div className="mt-4 flex justify-end border-t border-slate-200 dark:border-white/10 pt-2">
                             <button
                               type="button"
-                              onClick={async () => {
-                                try {
-                                  if (navigator.clipboard && navigator.clipboard.writeText) {
-                                    await navigator.clipboard.writeText(message.text);
-                                    addToast('Copied to clipboard', 'success');
-                                  } else {
-                                    addToast('Copied to clipboard', 'success');
-                                  }
-                                } catch (err) {
-                                  addToast('Copied to clipboard', 'success');
-                                }
-                              }}
-                              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
-                              aria-label="Copy message"
-                              title="Copy message"
+                              onClick={() => handleCopy(message.id, message.text)}
+                              className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition active:scale-95 ${copiedId === message.id ? 'text-emerald-500 bg-emerald-50' : 'text-slate-500 dark:text-gray-400 hover:bg-slate-100 hover:text-emerald-400'}`}
+                              aria-label={copiedId === message.id ? "Copied" : "Copy message"}
+                              title={copiedId === message.id ? "Copied" : "Copy message"}
                             >
-                              <CopyIcon className="h-3.5 w-3.5" />
-                              Copy
+                              {copiedId === message.id ? (
+                                <>
+                                  <CheckIcon className="h-3.5 w-3.5" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <CopyIcon className="h-3.5 w-3.5" />
+                                  Copy
+                                </>
+                              )}
                             </button>
                             <button
                               type="button"
                               onClick={async () => {
+                                void triggerHaptic();
                                 try {
                                   const reportsRef = dbRef(db, 'reported_content');
                                   await push(reportsRef, {
@@ -1267,6 +1284,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       type="button"
                       onClick={() => {
                         if ((inputValue.trim() || attachments.length > 0) && !isSending) {
+                          void triggerHaptic();
                           void handleSend();
                         }
                       }}

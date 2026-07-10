@@ -9,3 +9,7 @@
 ## 2025-06-20 - [Automated Testing of Password Toggles]
 **Learning:** When implementing password visibility toggles, standard Playwright locators like `get_by_role('textbox', name='Password')` will fail when the input is in `type="password"` mode, as it no longer carries the 'textbox' role. Additionally, multiple elements (input and toggle button) might share the same ARIA label or text, causing strict mode violations.
 **Action:** Use unique `id` and `htmlFor` attributes for all form inputs. For testing toggles, prefer targeting by label (`get_by_label`) or specific CSS selectors to ensure the element is found regardless of its current `type` attribute.
+
+## 2025-05-14 - [Multi-Modal Copy Feedback]
+**Learning:** For long-form content (like AI responses), a "Copy" button that only shows a toast is insufficient. Users benefit significantly from immediate, in-place visual confirmation (icon swap to checkmark, text update to "Copied!") combined with tactile feedback (haptics) to feel confident the action was successful without looking away.
+**Action:** Always implement temporary state changes (2s duration) for copy actions that include an icon swap, descriptive text update, and `triggerHaptic()`.
