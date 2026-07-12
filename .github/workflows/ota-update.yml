@@ -1,0 +1,37 @@
+name: OTA Update (Capgo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Release Notes (optional)'
+        required: false
+        default: 'Triggered via Admin Panel'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Deploy to Capgo
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: |
+          npx @capgo/cli@latest upload -a ${{ secrets.CAPGO_TOKEN }}
+          
+      - name: Output Status
+        run: echo "OTA Update successfully pushed to Capgo."

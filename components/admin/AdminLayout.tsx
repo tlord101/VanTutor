@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { 
     Home, Building, BookOpen, HelpCircle, Users, Settings, 
     CreditCard, Activity, LogOut, Menu, X, Bell, Shield, 
-    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone, MessageSquare
+    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone, MessageSquare, Github
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback';
+export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -32,6 +32,7 @@ const SIDEBAR_ITEMS = [
     { id: 'cofounders', label: 'Co-Founders', icon: Users },
     { id: 'seo', label: 'SEO & Marketing', icon: Activity },
     { id: 'feedback', label: 'User Feedback', icon: MessageSquare },
+    { id: 'github-integration', label: 'CI/CD & GitHub', icon: Github },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ 

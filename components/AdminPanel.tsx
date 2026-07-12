@@ -59,6 +59,67 @@ import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
 import { AdminUpdates } from './admin/AdminUpdates';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { db, storage, auth } from '../firebase';
+import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { GoogleGenAI, Type } from '@google/genai';
+import type { UsageSettings } from '../types';
+import { useToast } from '../hooks/useToast';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
+import type { UserProfile, Question, Course, Topic, EmailConfig } from '../types';
+import { MenuIcon } from './icons/MenuIcon';
+import { TrashIcon } from './icons/TrashIcon';
+import { StackIcon } from './icons/StackIcon';
+import { StudyGuideIcon } from './icons/StudyGuideIcon';
+import { ExamIcon } from './icons/ExamIcon';
+import { GraduationCapIcon } from './icons/GraduationCapIcon';
+import { CheckIcon } from './icons/CheckIcon';
+import { 
+    Folder, 
+    BookOpen, 
+    HelpCircle, 
+    Users, 
+    Settings as SettingsIcon, 
+    LogOut, 
+    ChevronDown, 
+    ChevronRight,
+    Moon,
+    Sparkles, 
+    RefreshCw, 
+    Trash2,
+    Shield,
+    TrendingUp,
+    Clock,
+    UserCheck,
+    CreditCard,
+    Key,
+    Activity,
+    Plus,
+    X,
+    Building,
+    Home,
+    Bell,
+    Send,
+    Mail,
+    CheckCircle,
+    AlertCircle,
+    MessageSquare,
+    ArrowUpRight
+} from 'lucide-react';
+import { getWindowPathname } from '../utils/pathname';
+import { APP_SETTINGS_PATH, DEFAULT_APP_SETTINGS, DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
+import { getFeatureModel } from '../utils/usage';
+
+import { AdminLayout } from './admin/AdminLayout';
+import { DashboardView } from './admin/pages/DashboardView';
+import { AcademicUnitsView } from './admin/pages/AcademicUnitsView';
+import { UserControlView } from './admin/pages/UserControlView';
+import { SystemSettingsView } from './admin/pages/SystemSettingsView';
+import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
+import { PastQuestionsView } from './admin/pages/PastQuestionsView';
+import { AdminUpdates } from './admin/AdminUpdates';
 import { CourseCatalogView } from './admin/pages/CourseCatalogView';
 import { NotificationsView } from './admin/pages/NotificationsView';
 import { EmailsView } from './admin/pages/EmailsView';
@@ -67,6 +128,7 @@ import { CoFoundersView } from './admin/pages/CoFoundersView';
 import { SEOSettingsView } from './admin/pages/SEOSettingsView';
 import { FirebaseAuthUsersView } from './admin/pages/FirebaseAuthUsersView';
 import { FeedbackView } from './admin/pages/FeedbackView';
+import { GitHubIntegrationView } from './admin/pages/GitHubIntegrationView';
 
 interface AdminPanelProps {
     userProfile: UserProfile;
@@ -104,7 +166,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback';
+type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -115,7 +177,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'firebase-users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'firebase-users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo', 'github-integration'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -2825,6 +2887,7 @@ FORMAT:
             {activeTab === 'cofounders' && <CoFoundersView />}
             {activeTab === 'seo' && <SEOSettingsView />}
             {activeTab === 'feedback' && <FeedbackView />}
+            {activeTab === 'github-integration' && <GitHubIntegrationView />}
         </AdminLayout>
     );
 };
