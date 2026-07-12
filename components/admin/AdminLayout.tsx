@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
     Home, Building, BookOpen, HelpCircle, Users, Settings, 
     CreditCard, Activity, LogOut, Menu, X, Bell, Shield, 
-    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone, MessageSquare, Github
+    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone, MessageSquare, Code as Github
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 

@@ -14,6 +14,7 @@ import { getWindowPathname } from '../utils/pathname';
 import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion, Menu, X } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import { PageSkeleton } from './Skeleton';
+import { SchoolHierarchySelector } from './SchoolHierarchySelector';
 
 function uint8ToBase64(bytes: Uint8Array): string {
     let binary = '';
@@ -503,20 +504,24 @@ export const UploadCenter: React.FC = () => {
 
         
         const textbookPrompt = `Analyze this PDF textbook for "${course.course_name}" at "${course.level}" level.
-Extract a comprehensive syllabus/course outline into a structured JSON array of topics with concise grounding context.
+First, determine if this document is ACTUALLY related to the course "${course.course_name}".
+If it is completely unrelated (e.g. a cooking recipe for a Math course), set "is_related" to false and provide an "unrelated_reason" explaining why.
+If it is related, set "is_related" to true and extract a comprehensive syllabus/course outline into a structured JSON array of topics with concise grounding context.
 RULES:
 1. Output ONLY the JSON object.
-2. The root object must have a "syllabus" key which is an array of objects.
+2. The root object must have "is_related" (boolean), "unrelated_reason" (string, optional), and "syllabus" (array) keys.
 3. Each topic object must have: topic_name, topic_id, topic_context, start_point, end_point.
-FORMAT: { "syllabus": [ { "topic_name": "...", "topic_id": "...", "topic_context": "...", "start_point": "...", "end_point": "..." } ] }`;
+FORMAT: { "is_related": true, "unrelated_reason": "", "syllabus": [ { "topic_name": "...", "topic_id": "...", "topic_context": "...", "start_point": "...", "end_point": "..." } ] }`;
 
         const pqPrompt = `Analyze this PDF past question paper for "${course.course_name}".
-Extract all the questions and their options.
+First, determine if this document is ACTUALLY related to the course "${course.course_name}".
+If it is completely unrelated, set "is_related" to false and provide an "unrelated_reason" explaining why.
+If it is related, set "is_related" to true and extract all the questions and their options.
 RULES:
 1. Output ONLY the JSON object.
-2. The root object must have a "questions" key which is an array of objects.
-3. Each question object must have: "question" (string), "options" (array of strings), "correctAnswer" (string), "explanation" (string). If the correct answer is not explicitly stated, infer the most likely correct option and provide a brief explanation.
-FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer": "...", "explanation": "..." } ] }`;
+2. The root object must have "is_related" (boolean), "unrelated_reason" (string, optional), and "questions" (array) keys.
+3. Each question object must have: "question" (string), "options" (array of strings), "correctAnswer" (string), "explanation" (string).
+FORMAT: { "is_related": true, "unrelated_reason": "", "questions": [ { "question": "...", "options": ["..."], "correctAnswer": "...", "explanation": "..." } ] }`;
 
         const chunkPromises = base64Chunks.map(async (chunkBase64) => {
           return attemptApiCall(async () => {
@@ -528,6 +533,8 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                 responseSchema: type === 'textbook' ? {
                   type: Type.OBJECT,
                   properties: {
+                    is_related: { type: Type.BOOLEAN },
+                    unrelated_reason: { type: Type.STRING },
                     syllabus: {
                       type: Type.ARRAY,
                       items: {
@@ -543,10 +550,12 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                       }
                     }
                   },
-                  required: ['syllabus']
+                  required: ['is_related', 'syllabus']
                 } : {
                   type: Type.OBJECT,
                   properties: {
+                    is_related: { type: Type.BOOLEAN },
+                    unrelated_reason: { type: Type.STRING },
                     questions: {
                       type: Type.ARRAY,
                       items: {
@@ -561,14 +570,18 @@ FORMAT: { "questions": [ { "question": "...", "options": ["..."], "correctAnswer
                       }
                     }
                   },
-                  required: ['questions']
+                  required: ['is_related', 'questions']
                 }
               },
             });
   
             const text = getResponseText(aiResponse);
             if (!text) throw new Error(`AI returned an empty response.`);
-            return JSON.parse(text);
+            const parsed = JSON.parse(text);
+            if (parsed.is_related === false) {
+                throw new Error(`Upload Rejected: ${parsed.unrelated_reason || 'Document is not related to this course.'}`);
+            }
+            return parsed;
           });
         });
 
@@ -1194,13 +1207,20 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
           <div className="max-w-6xl space-y-6">
             <h2 className="text-3xl font-black tracking-tight">Department Directories</h2>
             
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select School</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select value={selectedSchoolId} onChange={e => { setSelectedSchoolId(e.target.value); setSelectedDepartmentId(''); }} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
-                  <option value="">Select School</option>
-                  {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
-                </select>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+              <div>
+                 <h3 className="text-xl font-black mb-1">Browse Catalog</h3>
+                 <p className="text-sm text-slate-500 font-medium">Navigate through schools, colleges, and departments.</p>
+              </div>
+              <div className="w-full md:w-96">
+                  <SchoolHierarchySelector 
+                      schoolId={selectedSchoolId}
+                      setSchoolId={setSelectedSchoolId}
+                      collegeId={selectedCollegeId}
+                      setCollegeId={setSelectedCollegeId}
+                      departmentId={selectedDepartmentId}
+                      setDepartmentId={setSelectedDepartmentId}
+                  />
               </div>
             </div>
 
@@ -1399,20 +1419,16 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
             <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2"><Layers className="w-4 h-4"/> Select Context</h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
-                  <option value="">Select School</option>
-                  {Object.keys(schoolsData).map(k => <option key={k} value={k}>{schoolsData[k].name || k}</option>)}
-                </select>
-                
-                <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
-                  <option value="">Select College</option>
-                  {selectedSchoolId && schoolsData[selectedSchoolId]?.colleges && Object.keys(schoolsData[selectedSchoolId].colleges).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[k].name || k}</option>)}
-                </select>
-                
-                <select value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} disabled={!selectedCollegeId} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium disabled:opacity-50">
-                  <option value="">Select Department</option>
-                  {selectedCollegeId && schoolsData[selectedSchoolId]?.colleges[selectedCollegeId]?.departments && Object.keys(schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments).map(k => <option key={k} value={k}>{schoolsData[selectedSchoolId].colleges[selectedCollegeId].departments[k].name || k}</option>)}
-                </select>
+                 <div className="md:col-span-3">
+                    <SchoolHierarchySelector 
+                        schoolId={selectedSchoolId}
+                        setSchoolId={setSelectedSchoolId}
+                        collegeId={selectedCollegeId}
+                        setCollegeId={setSelectedCollegeId}
+                        departmentId={selectedDepartmentId}
+                        setDepartmentId={setSelectedDepartmentId}
+                    />
+                 </div>
                 
                 <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value as any)} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 ring-sky-100 font-medium">
                   {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}

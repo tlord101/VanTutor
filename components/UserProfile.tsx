@@ -7,6 +7,7 @@ import { ref as dbRef, get, query, orderByChild, equalTo, update } from 'firebas
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
+import { SchoolHierarchySelector } from './SchoolHierarchySelector';
 
 
 interface UserProfileProps {
@@ -33,6 +34,11 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const [levels, setLevels] = useState<string[]>([]);
   const [isLevelsLoading, setIsLevelsLoading] = useState(true);
   
+  const [isEditingAcademics, setIsEditingAcademics] = useState(false);
+  const [editSchoolId, setEditSchoolId] = useState(userProfile.school_id || '');
+  const [editCollegeId, setEditCollegeId] = useState(userProfile.college_id || '');
+  const [editDepartmentId, setEditDepartmentId] = useState(userProfile.department_id || '');
+
   const [referralCodeInput, setReferralCodeInput] = useState('');
   const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
 
@@ -187,6 +193,22 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
       e.target.value = userProfile.level || '';
     }
     setIsSaving(false);
+  };
+
+  const handleSaveAcademics = async () => {
+      setIsSaving(true);
+      const result = await onProfileUpdate({
+          school_id: editSchoolId,
+          college_id: editCollegeId,
+          department_id: editDepartmentId
+      });
+      if (result.success) {
+          addToast('Academic details updated successfully!', 'success');
+          setIsEditingAcademics(false);
+      } else {
+          addToast(result.error || "Failed to save academic details.", 'error');
+      }
+      setIsSaving(false);
   };
 
   const compressImage = (blob: Blob, maxWidth: number, maxHeight: number, quality: number = 0.8): Promise<Blob> => {
@@ -423,39 +445,66 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                     </div>
 
                     <div className="bg-white dark:bg-black p-6 rounded-3xl border border-[#E9ECEF] dark:border-transparent shadow-sm">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-[#ADB5BD] mb-4">Academic Details</h3>
-                        <div className="space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#F8F9FA] dark:bg-black rounded-2xl border border-[#E9ECEF] dark:border-transparent">
-                                <div>
-                                    <p className="text-[10px] font-bold text-[#ADB5BD] uppercase">Department</p>
-                                    <p className="text-[#212529] dark:text-white font-bold text-sm mt-0.5">{isDepartmentLoading ? 'Loading...' : departmentName}</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#F8F9FA] dark:bg-black rounded-2xl border border-[#E9ECEF] dark:border-transparent gap-3">
-                                <div>
-                                    <p className="text-[10px] font-bold text-[#ADB5BD] uppercase">Level</p>
-                                </div>
-                                {isLevelsLoading ? (
-                                    <span className="text-[#6C757D] dark:text-gray-400 text-sm font-semibold">Loading...</span>
-                                ) : (
-                                    <select
-                                        value={userProfile.level || ''}
-                                        onChange={handleLevelChange}
-                                        disabled={isSaving || levels.length === 0}
-                                        className="bg-white dark:bg-black border border-[#E9ECEF] dark:border-transparent rounded-xl py-2 px-4 text-[#212529] dark:text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-[#009EE2] shadow-sm cursor-pointer"
-                                    >
-                                        {levels.length > 0 ? (
-                                            levels.map((level) => (
-                                                <option key={level} value={level}>{level} Level</option>
-                                            ))
-                                        ) : (
-                                            <option value={userProfile.level} disabled>{userProfile.level} Level</option>
-                                        )}
-                                    </select>
-                                )}
-                            </div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-[#ADB5BD]">Academic Details</h3>
+                            {!isEditingAcademics ? (
+                                <button onClick={() => setIsEditingAcademics(true)} className="text-xs font-bold text-[#009EE2]">Edit</button>
+                            ) : (
+                                <button onClick={() => setIsEditingAcademics(false)} className="text-xs font-bold text-gray-400">Cancel</button>
+                            )}
                         </div>
+                        {isEditingAcademics ? (
+                            <div className="space-y-4">
+                                <SchoolHierarchySelector
+                                    schoolId={editSchoolId}
+                                    setSchoolId={setEditSchoolId}
+                                    collegeId={editCollegeId}
+                                    setCollegeId={setEditCollegeId}
+                                    departmentId={editDepartmentId}
+                                    setDepartmentId={setEditDepartmentId}
+                                />
+                                <button 
+                                    onClick={handleSaveAcademics}
+                                    disabled={isSaving || !editSchoolId || !editCollegeId || !editDepartmentId}
+                                    className="w-full mt-4 px-6 py-2.5 bg-[#009EE2] text-white rounded-xl text-sm font-black shadow-lg hover:bg-[#0070B8] transition disabled:opacity-50"
+                                >
+                                    Save Academic Info
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#F8F9FA] dark:bg-black rounded-2xl border border-[#E9ECEF] dark:border-transparent">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-[#ADB5BD] uppercase">Department</p>
+                                        <p className="text-[#212529] dark:text-white font-bold text-sm mt-0.5">{isDepartmentLoading ? 'Loading...' : departmentName}</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#F8F9FA] dark:bg-black rounded-2xl border border-[#E9ECEF] dark:border-transparent gap-3">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-[#ADB5BD] uppercase">Level</p>
+                                    </div>
+                                    {isLevelsLoading ? (
+                                        <span className="text-[#6C757D] dark:text-gray-400 text-sm font-semibold">Loading...</span>
+                                    ) : (
+                                        <select
+                                            value={userProfile.level || ''}
+                                            onChange={handleLevelChange}
+                                            disabled={isSaving || levels.length === 0}
+                                            className="bg-white dark:bg-black border border-[#E9ECEF] dark:border-transparent rounded-xl py-2 px-4 text-[#212529] dark:text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-[#009EE2] shadow-sm cursor-pointer"
+                                        >
+                                            {levels.length > 0 ? (
+                                                levels.map((level) => (
+                                                    <option key={level} value={level}>{level} Level</option>
+                                                ))
+                                            ) : (
+                                                <option value={userProfile.level} disabled>{userProfile.level} Level</option>
+                                            )}
+                                        </select>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

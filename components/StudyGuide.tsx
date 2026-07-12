@@ -188,6 +188,17 @@ const extractCoursesFromDepartmentData = (departmentData: any): Course[] => {
     return [];
 };
 
+function uint8ToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+
+async function fileToBase64(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    return uint8ToBase64(new Uint8Array(arrayBuffer));
+}
 
 const base64ToBlob = (base64: string, mimeType: string): Blob => {
     const byteCharacters = atob(base64);
@@ -2022,6 +2033,81 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const { settings: appSettings } = useAppSettings();
 
     const isUserExempt = !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
+    const { attemptApiCall } = useApiLimiter({ userProfile, addToast, setShowLimitModal, setLimitModalData });
+    const [isExtractingCourses, setIsExtractingCourses] = useState(false);
+
+    const handleExtractCourses = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        if (file.type !== 'application/pdf') return addToast('Please upload a PDF file.', 'error');
+        if (!userProfile.school_id || !userProfile.college_id || !userProfile.department_id || !userProfile.level) {
+            return addToast('Please complete your profile (School, College, Department, Level) first.', 'error');
+        }
+
+        setIsExtractingCourses(true);
+        try {
+            const apiKey = userProfile.use_personal_token ? userProfile.personal_api_key : undefined;
+            const ai = createAvelutAI(apiKey);
+            const geminiModel = getFeatureModel(appSettings, 'textbook_extraction') || 'gemini-2.5-pro';
+            const base64Chunk = await fileToBase64(file);
+            const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
+
+            const aiResponse = await attemptApiCall(() => ai.models.generateContent({
+                model: geminiModel,
+                contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: 'application/pdf', data: base64Chunk } }] }],
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            courses: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: { course_name: { type: Type.STRING }, course_code: { type: Type.STRING } },
+                                    required: ['course_name', 'course_code']
+                                }
+                            }
+                        },
+                        required: ['courses']
+                    }
+                },
+            }), getFeatureCost(appSettings, 'textbook_extraction') || 5);
+
+            if (!aiResponse) throw new Error("Failed to get response from AI");
+            const text = getResponseText(aiResponse);
+            if (!text) throw new Error("Failed to get response from AI");
+            const data = JSON.parse(text);
+            
+            if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+                const updates: any = {};
+                const deptPath = `${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`;
+                data.courses.forEach((c: any) => {
+                    const courseId = c.course_code.trim().toLowerCase().replace(/\s+/g, '');
+                    const courseData = {
+                        course_id: courseId,
+                        course_name: c.course_name.trim(),
+                        course_code: c.course_code.trim().toUpperCase(),
+                        level: userProfile.level,
+                        semester: filter.semester === 'all' ? 'first' : filter.semester,
+                        course_status: 'active'
+                    };
+                    updates[`schools_data/${deptPath}/levels/${userProfile.level}/courses/${courseId}`] = courseData;
+                    updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
+                });
+                await update(dbRef(db), updates);
+                addToast(`Successfully extracted and saved ${data.courses.length} courses!`, 'success');
+            } else {
+                throw new Error("No courses found in the document");
+            }
+        } catch (err: any) {
+            console.error(err);
+            addToast(err.message || 'Failed to extract courses', 'error');
+        } finally {
+            setIsExtractingCourses(false);
+            if (e.target) e.target.value = '';
+        }
+    };
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -2187,7 +2273,18 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                 <SearchIcon className="w-8 h-8" />
                             </div>
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">No topics found</h3>
-                            <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or search term.</p>
+                            <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search term.</p>
+                            {!filter.searchTerm && (
+                                <div className="mt-4 p-6 bg-gray-50 dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-2xl w-full max-w-md">
+                                    <h4 className="text-sm font-bold mb-2 text-gray-900 dark:text-white">Auto-Add Courses</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Upload your course form PDF. We'll extract and add your courses automatically.</p>
+                                    <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-tr from-lime-400 to-teal-500 text-white rounded-xl text-sm font-bold cursor-pointer transition shadow-md hover:shadow-lg ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
+                                        <UploadCloud className="w-4 h-4" />
+                                        <span>{isExtractingCourses ? 'Extracting...' : 'Select Course Form PDF'}</span>
+                                        <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
+                                    </label>
+                                </div>
+                            )}
                         </div>
                     )
                 )}
