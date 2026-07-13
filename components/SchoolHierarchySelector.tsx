@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase';
 import { ref as dbRef, get, set, update } from 'firebase/database';
-import { Search, ChevronDown, Check, Plus } from 'lucide-react';
+import { Search, ChevronDown, Check, Plus, Loader2 } from 'lucide-react';
 import { NIGERIAN_FACULTIES } from '../lib/academic-constants';
 import type { School, College, Department } from '../types';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { createAvelutAI, getResponseText } from '../utils/inference';
 
 const sanitizeId = (name: string) => 
   name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
@@ -76,11 +78,18 @@ const CustomSearchableSelect: React.FC<CustomSearchableSelectProps> = ({
     setSearchQuery('');
   };
 
+  const [isAddingNew, setIsAddingNew] = useState(false);
+
   const handleAddNew = async () => {
     if (onAddNew && searchQuery.trim()) {
-      await onAddNew(searchQuery.trim());
-      setIsOpen(false);
-      setSearchQuery('');
+      setIsAddingNew(true);
+      try {
+        await onAddNew(searchQuery.trim());
+        setIsOpen(false);
+        setSearchQuery('');
+      } finally {
+        setIsAddingNew(false);
+      }
     }
   };
 
@@ -134,11 +143,11 @@ const CustomSearchableSelect: React.FC<CustomSearchableSelectProps> = ({
             
             {showAddNew && (
                 <div
-                  className="p-3 text-sm rounded-md cursor-pointer flex items-center bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 hover:bg-lime-100 dark:hover:bg-lime-900/40 border border-dashed border-lime-300 dark:border-lime-700 mt-1 font-medium transition-colors"
-                  onClick={handleAddNew}
+                  className={`p-3 text-sm rounded-md flex items-center bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 border border-dashed border-lime-300 dark:border-lime-700 mt-1 font-medium transition-colors ${isAddingNew ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:bg-lime-100 dark:hover:bg-lime-900/40'}`}
+                  onClick={!isAddingNew ? handleAddNew : undefined}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add "{searchQuery}"
+                  {isAddingNew ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {isAddingNew ? 'Standardizing...' : `Add "${searchQuery}"`}
                 </div>
             )}
           </div>
@@ -162,6 +171,7 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
   schoolId, setSchoolId, collegeId, setCollegeId, departmentId, setDepartmentId, disabled
 }) => {
   const [schools, setSchools] = useState<School[]>([]);
+  const { settings: appSettings } = useAppSettings();
 
   useEffect(() => {
     const fetchSchools = async () => {
@@ -185,54 +195,82 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
         .map(s => ({ id: s.id, name: s.name }));
       
       try {
-          const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-          if (!apiKey) return localMatches;
+          const ai = createAvelutAI(appSettings, null);
+          if (!ai) return localMatches;
 
-          const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'X-Goog-Api-Key': apiKey,
-              },
-              body: JSON.stringify({
-                  input: query,
-                  includedRegionCodes: ['ng']
-              })
+          const prompt = `Given the input "${query}", return a JSON array of up to 5 officially recognized universities in Nigeria that match this abbreviation or full name. If it's an abbreviation (like UNILAG), expand it to the official name (e.g. "University of Lagos"). Return ONLY a valid JSON array of strings, for example: ["University of Lagos", "Lagos State University"]. No markdown blocks or extra text.`;
+
+          const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: { maxOutputTokens: 200 }
           });
-          
-          if (!response.ok) return localMatches;
-          const data = await response.json();
-          
+
+          const text = getResponseText(response).trim();
+          let parsed: string[] = [];
+          try {
+              // Strip markdown if AI includes it
+              const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+              parsed = JSON.parse(cleanText);
+          } catch (err) {
+              console.error("Failed to parse AI school response:", text);
+          }
+
           const globalMatches: Option[] = [];
           const seen = new Set(localMatches.map(l => l.name.toLowerCase()));
           
-          if (data.suggestions) {
-              for (const suggestion of data.suggestions) {
-                  const name = suggestion.placePrediction?.text?.text || suggestion.placePrediction?.description;
-                  if (name && !seen.has(name.toLowerCase())) {
+          if (Array.isArray(parsed)) {
+              for (const name of parsed) {
+                  if (typeof name === 'string' && !seen.has(name.toLowerCase())) {
                       seen.add(name.toLowerCase());
                       globalMatches.push({ id: sanitizeId(name), name: name });
                   }
               }
           }
-          return [...localMatches, ...globalMatches.slice(0, 15)];
+          return [...localMatches, ...globalMatches];
       } catch (e) {
           console.error(e);
           return localMatches;
       }
   };
 
+  const standardizeAcademicUnit = async (name: string, type: 'College/Faculty' | 'Department') => {
+      const school = schools.find(s => s.id === schoolId);
+      const schoolName = school?.name || 'this university';
+      
+      try {
+          const ai = createAvelutAI(appSettings, null);
+          if (!ai) return name;
+          
+          const prompt = `You are an academic database assistant. The user typed "${name}" for a ${type} at ${schoolName}. Standardize and correct the spelling of this ${type} name. Use the official format (e.g. "Mechanical Engineering" instead of "mech eng", "Faculty of Science" instead of "fac of sci"). Return ONLY the official standard name without any extra text or markdown formatting.`;
+          
+          const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              tools: [{ googleSearch: {} }]
+          });
+          
+          const text = getResponseText(response).trim();
+          return text || name;
+      } catch (e) {
+          console.error("Failed to standardize name:", e);
+          return name;
+      }
+  };
+
   const handleAddCollege = async (name: string) => {
       if (!schoolId) return;
-      const id = sanitizeId(name);
-      await update(dbRef(db, `schools_data/${schoolId}/colleges/${id}`), { name });
+      const standardizedName = await standardizeAcademicUnit(name, 'College/Faculty');
+      const id = sanitizeId(standardizedName);
+      await update(dbRef(db, `schools_data/${schoolId}/colleges/${id}`), { name: standardizedName });
       setCollegeId(id);
   };
 
   const handleAddDepartment = async (name: string) => {
       if (!schoolId || !collegeId) return;
-      const id = sanitizeId(name);
-      await update(dbRef(db, `schools_data/${schoolId}/colleges/${collegeId}/departments/${id}`), { name });
+      const standardizedName = await standardizeAcademicUnit(name, 'Department');
+      const id = sanitizeId(standardizedName);
+      await update(dbRef(db, `schools_data/${schoolId}/colleges/${collegeId}/departments/${id}`), { name: standardizedName });
       setDepartmentId(id);
   };
 
