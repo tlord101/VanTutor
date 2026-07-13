@@ -185,29 +185,41 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
         .map(s => ({ id: s.id, name: s.name }));
       
       try {
-          const response = await fetch(`http://universities.hipolabs.com/search?name=${encodeURIComponent(query)}`);
+          const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+          if (!apiKey) return localMatches;
+
+          const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-Goog-Api-Key': apiKey,
+              },
+              body: JSON.stringify({
+                  input: query,
+                  includedRegionCodes: ['ng']
+              })
+          });
+          
           if (!response.ok) return localMatches;
           const data = await response.json();
           
-          const globalMatches = [];
+          const globalMatches: Option[] = [];
           const seen = new Set(localMatches.map(l => l.name.toLowerCase()));
           
-          for (const item of data) {
-              if (!seen.has(item.name.toLowerCase())) {
-                  seen.add(item.name.toLowerCase());
-                  globalMatches.push({ id: sanitizeId(item.name), name: item.name });
+          if (data.suggestions) {
+              for (const suggestion of data.suggestions) {
+                  const name = suggestion.placePrediction?.text?.text || suggestion.placePrediction?.description;
+                  if (name && !seen.has(name.toLowerCase())) {
+                      seen.add(name.toLowerCase());
+                      globalMatches.push({ id: sanitizeId(name), name: name });
+                  }
               }
           }
           return [...localMatches, ...globalMatches.slice(0, 15)];
       } catch (e) {
+          console.error(e);
           return localMatches;
       }
-  };
-
-  const handleAddSchool = async (name: string) => {
-      const id = sanitizeId(name);
-      await set(dbRef(db, `schools_data/${id}`), { name });
-      setSchoolId(id);
   };
 
   const handleAddCollege = async (name: string) => {
@@ -311,7 +323,6 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
         placeholder="Search globally or enter a school..."
         disabled={disabled}
         searchFn={searchGlobalUniversities}
-        onAddNew={handleAddSchool}
       />
 
       <CustomSearchableSelect 
