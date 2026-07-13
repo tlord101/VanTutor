@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Plus, ArrowRightLeft, FolderTree, Database } from 'lucide-react';
+import { Building, Plus, ArrowRightLeft, FolderTree, Database, Edit2, Trash2, GitMerge } from 'lucide-react';
 import { db } from '../../../firebase';
-import { ref as dbRef, get, set, update } from 'firebase/database';
+import { ref as dbRef, get, set, update, remove } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
@@ -28,8 +28,13 @@ export const AcademicUnitsView: React.FC = () => {
     const [migrateNewSchoolName, setMigrateNewSchoolName] = useState<string>('');
     const [migrateNewCollegeName, setMigrateNewCollegeName] = useState<string>('');
 
+    // Merge Schools State
+    const [mergeSourceSchoolId, setMergeSourceSchoolId] = useState('');
+    const [mergeDestSchoolId, setMergeDestSchoolId] = useState('');
+    const [mergeKeepName, setMergeKeepName] = useState<'source'|'dest'>('dest');
+
     // UI State
-    const [activeTab, setActiveTab] = useState<'manage' | 'migrate'>('manage');
+    const [activeTab, setActiveTab] = useState<'manage' | 'migrate' | 'mergeSchools'>('manage');
 
     const fetchDepartments = async () => {
         try {
@@ -98,6 +103,30 @@ export const AcademicUnitsView: React.FC = () => {
         }
     };
 
+    const handleRenameSchool = async (schoolId: string, oldName: string) => {
+        const newName = window.prompt(`Enter new name for school '${oldName}':`, oldName);
+        if (!newName || newName.trim() === '' || newName === oldName) return;
+        try {
+            await update(dbRef(db, `schools_data/${schoolId}`), { name: newName.trim() });
+            addToast("School renamed successfully!", "success");
+            fetchDepartments();
+        } catch (error: any) {
+            addToast(error.message, "error");
+        }
+    };
+
+    const handleDeleteSchool = async (schoolId: string, schoolName: string) => {
+        const confirmed = window.confirm(`WARNING: Are you sure you want to completely delete the school '${schoolName}'?\nThis will permanently delete all colleges, departments, and structure inside it.`);
+        if (!confirmed) return;
+        try {
+            await remove(dbRef(db, `schools_data/${schoolId}`));
+            addToast("School deleted successfully!", "success");
+            fetchDepartments();
+        } catch (error: any) {
+            addToast(error.message, "error");
+        }
+    };
+
     const handleAddCollege = async () => {
         if (!newCollegeName || !selectedSchoolId) return;
         const id = newCollegeName.toLowerCase().replace(/\s+/g, '_');
@@ -122,6 +151,18 @@ export const AcademicUnitsView: React.FC = () => {
             setNewDeptName('');
             fetchDepartments();
             addToast("Department added successfully!", "success");
+        } catch (error: any) {
+            addToast(error.message, "error");
+        }
+    };
+
+    const handleRenameDepartment = async (schoolId: string, collegeId: string, deptId: string, oldName: string) => {
+        const newName = window.prompt(`Enter new name for department '${oldName}':`, oldName);
+        if (!newName || newName.trim() === '' || newName === oldName) return;
+        try {
+            await update(dbRef(db, `schools_data/${schoolId}/colleges/${collegeId}/departments/${deptId}`), { name: newName.trim() });
+            addToast("Department renamed successfully!", "success");
+            fetchDepartments();
         } catch (error: any) {
             addToast(error.message, "error");
         }
@@ -180,6 +221,74 @@ export const AcademicUnitsView: React.FC = () => {
         }
     };
 
+    const handleMergeSchools = async () => {
+        if (!mergeSourceSchoolId || !mergeDestSchoolId || mergeSourceSchoolId === mergeDestSchoolId) {
+            return addToast("Please select two different schools to merge.", "error");
+        }
+        
+        const sourceName = schoolsData[mergeSourceSchoolId]?.name;
+        const destName = schoolsData[mergeDestSchoolId]?.name;
+        if (!sourceName || !destName) return;
+        
+        if (!window.confirm(`WARNING: You are about to merge '${sourceName}' into '${destName}'.\nThis will deeply merge all colleges, departments, and courses. '${sourceName}' will be DELETED.\nAre you sure you want to proceed?`)) return;
+
+        try {
+            const updates: Record<string, any> = {};
+            const sourceColleges = schoolsData[mergeSourceSchoolId].colleges || {};
+            const destColleges = schoolsData[mergeDestSchoolId].colleges || {};
+
+            // If user wants to keep the source name, update the dest school name
+            if (mergeKeepName === 'source') {
+                updates[`schools_data/${mergeDestSchoolId}/name`] = sourceName;
+            }
+
+            Object.keys(sourceColleges).forEach(cId => {
+                const sourceCollege = sourceColleges[cId];
+                if (!destColleges[cId]) {
+                    // Dest doesn't have this college at all, copy it whole
+                    updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}`] = sourceCollege;
+                } else {
+                    // Dest has this college, merge departments
+                    const sourceDepts = sourceCollege.departments || {};
+                    const destDepts = destColleges[cId].departments || {};
+                    
+                    Object.keys(sourceDepts).forEach(dId => {
+                        const sourceDept = sourceDepts[dId];
+                        if (!destDepts[dId]) {
+                            // Dest doesn't have this department, copy it
+                            updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}/departments/${dId}`] = sourceDept;
+                        } else {
+                            // Dest HAS this department, merge levels/courses
+                            const sourceLevels = sourceDept.levels || {};
+                            const destLevels = destDepts[dId].levels || {};
+                            LEVELS.forEach(lvl => {
+                                const sCourses = sourceLevels[lvl]?.courses || {};
+                                const dCourses = destLevels[lvl]?.courses || {};
+                                // we just merge the course objects together
+                                if (Object.keys(sCourses).length > 0) {
+                                    updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}/departments/${dId}/levels/${lvl}/courses`] = { ...dCourses, ...sCourses };
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await update(dbRef(db), updates);
+            }
+            
+            await remove(dbRef(db, `schools_data/${mergeSourceSchoolId}`));
+            
+            addToast("Schools merged successfully!", "success");
+            setMergeSourceSchoolId('');
+            setMergeDestSchoolId('');
+            fetchDepartments();
+        } catch (error: any) {
+            addToast("Merge failed: " + error.message, "error");
+        }
+    };
+
     return (
         <div className="space-y-8">
             {/* Header Tabs */}
@@ -201,6 +310,13 @@ export const AcademicUnitsView: React.FC = () => {
                         <span className="ml-1.5 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] uppercase font-black">{oldDepartments.length}</span>
                     )}
                 </button>
+                <button 
+                    onClick={() => setActiveTab('mergeSchools')}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'mergeSchools' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    <GitMerge className="w-4 h-4" />
+                    Merge Schools
+                </button>
             </div>
 
             {activeTab === 'manage' && (
@@ -216,7 +332,7 @@ export const AcademicUnitsView: React.FC = () => {
                             {/* School */}
                             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">1. Create School</label>
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">1. Create & Manage Schools</label>
                                 </div>
                                 <div className="flex gap-3">
                                     <input 
@@ -226,6 +342,24 @@ export const AcademicUnitsView: React.FC = () => {
                                     />
                                     <button onClick={handleAddSchool} disabled={!newSchoolName} className="px-5 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md">Add</button>
                                 </div>
+                                
+                                {Object.keys(schoolsData || {}).length > 0 && (
+                                    <div className="mt-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                        {Object.keys(schoolsData).map(id => (
+                                            <div key={id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                <span className="text-sm font-medium text-slate-700">{schoolsData[id].name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => handleRenameSchool(id, schoolsData[id].name)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors" title="Rename School">
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteSchool(id, schoolsData[id].name)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete School">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* College */}
@@ -294,7 +428,12 @@ export const AcademicUnitsView: React.FC = () => {
                                 {allDepartments.map(dept => (
                                     <div key={dept.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col gap-2">
                                         <div className="flex justify-between items-start">
-                                            <h4 className="font-bold  dark:text-white">{dept.department_name}</h4>
+                                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
+                                                {dept.department_name}
+                                                <button onClick={() => handleRenameDepartment(dept.schoolId, dept.collegeId, dept.id, dept.department_name)} className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors" title="Rename Department">
+                                                    <Edit2 className="w-3 h-3" />
+                                                </button>
+                                            </h4>
                                             <span className="px-2.5 py-1 bg-lime-50 text-lime-700 text-[10px] font-black uppercase tracking-widest rounded-md">
                                                 {dept.levels?.length || 0} Levels
                                             </span>
@@ -397,6 +536,74 @@ export const AcademicUnitsView: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+            
+            {activeTab === 'mergeSchools' && (
+                <div className="max-w-3xl">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-3xl p-6 sm:p-10 border border-blue-200/60 shadow-sm space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
+                        
+                        <div className="relative z-10">
+                            <h3 className="font-black text-2xl text-blue-950 mb-2">Merge Schools</h3>
+                            <p className="text-sm text-blue-800/80 max-w-xl leading-relaxed">
+                                Merge a duplicate school into another. All colleges, departments, and courses from the source school will be deeply merged into the destination school. The source school will then be permanently deleted.
+                            </p>
+                        </div>
+
+                        <div className="space-y-6 relative z-10">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {/* Source School */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Source (Will be deleted)</label>
+                                    <select value={mergeSourceSchoolId} onChange={e => setMergeSourceSchoolId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
+                                        <option value="">Select School to merge...</option>
+                                        {Object.keys(schoolsData || {}).map(id => (
+                                            <option key={id} value={id}>{schoolsData[id].name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Destination School */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination (Will be kept)</label>
+                                    <select value={mergeDestSchoolId} onChange={e => setMergeDestSchoolId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
+                                        <option value="">Select Destination...</option>
+                                        {Object.keys(schoolsData || {}).map(id => (
+                                            <option key={id} value={id}>{schoolsData[id].name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Name Selection */}
+                            {mergeSourceSchoolId && mergeDestSchoolId && mergeSourceSchoolId !== mergeDestSchoolId && (
+                                <div className="space-y-3 p-5 rounded-2xl bg-white/60 border border-blue-200/50">
+                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Which name should be kept?</label>
+                                    <div className="flex flex-col gap-3">
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="radio" name="keepName" value="dest" checked={mergeKeepName === 'dest'} onChange={() => setMergeKeepName('dest')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                                            <span className="text-sm font-medium text-slate-700">{schoolsData[mergeDestSchoolId]?.name} (Destination)</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="radio" name="keepName" value="source" checked={mergeKeepName === 'source'} onChange={() => setMergeKeepName('source')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                                            <span className="text-sm font-medium text-slate-700">{schoolsData[mergeSourceSchoolId]?.name} (Source)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="pt-6 border-t border-blue-200/50 flex justify-end">
+                                <button 
+                                    onClick={handleMergeSchools} 
+                                    disabled={!mergeSourceSchoolId || !mergeDestSchoolId || mergeSourceSchoolId === mergeDestSchoolId} 
+                                    className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none w-full sm:w-auto"
+                                >
+                                    Merge Schools
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

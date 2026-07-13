@@ -52,10 +52,14 @@ const CustomSearchableSelect: React.FC<CustomSearchableSelectProps> = ({
   }, [searchQuery, searchFn]);
 
   const filteredOptions = useMemo(() => {
-    if (searchFn) return asyncOptions; 
-    return options.filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const localMatches = options.filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (searchFn) {
+        const seen = new Set(localMatches.map(l => l.name.toLowerCase()));
+        const additional = asyncOptions.filter(opt => !seen.has(opt.name.toLowerCase()));
+        return [...localMatches, ...additional];
+    }
+    return localMatches;
   }, [options, searchQuery, asyncOptions, searchFn]);
-
   const selectedOption = useMemo(() => {
     return options.find(opt => opt.id === value) || 
            asyncOptions.find(opt => opt.id === value) || 
@@ -242,7 +246,8 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
           const ai = createAvelutAI(appSettings, null);
           if (!ai) return name;
           
-          const prompt = `You are an academic database assistant. The user typed "${name}" for a ${type} at ${schoolName}. Standardize and correct the spelling of this ${type} name. Use the official format (e.g. "Mechanical Engineering" instead of "mech eng", "Faculty of Science" instead of "fac of sci"). Return ONLY the official standard name without any extra text or markdown formatting.`;
+          const prefixInstruction = type === 'College/Faculty' ? 'IMPORTANT: You MUST prepend "Faculty of " to the name if it does not already have it. ' : '';
+          const prompt = `You are an academic database assistant. The user typed "${name}" for a ${type} at ${schoolName}. Standardize and correct the spelling of this ${type} name. Use the official format. ${prefixInstruction}Return ONLY the official standard name without any extra text or markdown formatting.`;
           
           const response = await ai.models.generateContent({
               model: 'gemini-2.5-flash',
@@ -281,10 +286,17 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
     let options: Option[] = [];
     
     if (school && school.colleges) {
-        options = Object.keys(school.colleges).map(cId => ({
-            id: cId,
-            name: school.colleges[cId].name || cId
-        }));
+        options = Object.keys(school.colleges).map(cId => {
+            let colName = school.colleges[cId].name || cId;
+            const lower = colName.toLowerCase();
+            if (!lower.startsWith('faculty of ') && !lower.startsWith('college of ') && !lower.startsWith('school of ')) {
+                colName = `Faculty of ${colName}`;
+            }
+            return {
+                id: cId,
+                name: colName
+            };
+        });
     }
 
     // Add predefined Nigerian faculties if they don't exist yet
