@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Github, Cloud, ShieldAlert, Key, Play, AlertCircle, Loader2, CheckCircle2, Save, Smartphone, Code } from 'lucide-react';
+import { Globe as Github, Cloud, ShieldAlert, Key, Play, AlertCircle, Loader2, CheckCircle2, Save, Smartphone, Code } from 'lucide-react';
 import { db } from '../../../firebase';
 import { ref, set, onValue } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
