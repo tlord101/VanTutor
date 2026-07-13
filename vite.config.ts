@@ -16,6 +16,7 @@ export default defineConfig(({ command }) => {
         react(),
         Sitemap({
           hostname: 'https://www.avelut.xyz', // Change this to your actual domain
+          generateRobotsTxt: false,
           dynamicRoutes: [
             '/',
             '/about',
