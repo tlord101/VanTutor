@@ -13,7 +13,7 @@
     "cap:android": "npx cap open android",
     "cap:add:android": "npx cap add android",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "postbuild": "node -e \"if(process.env.VERCEL) { console.log('Skipping react-snap on Vercel'); } else { require('child_process').execSync('react-snap', {stdio: 'inherit'}); }\"",
+    "postbuild": "node -e \"if(process.env.VERCEL || process.env.CI) { console.log('Skipping react-snap on CI/Vercel'); } else { require('child_process').execSync('react-snap', {stdio: 'inherit'}); }\"",
     "postinstall": "patch-package"
   },
   "reactSnap": {
