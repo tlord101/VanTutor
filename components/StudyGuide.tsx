@@ -2048,7 +2048,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         try {
             const apiKey = userProfile.use_personal_token ? userProfile.personal_api_key : undefined;
             const ai = createAvelutAI(apiKey);
-            const geminiModel = getFeatureModel(appSettings, 'textbook_extraction') || 'gemini-2.5-pro';
+            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-2.5-pro';
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 
@@ -2072,7 +2072,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         required: ['courses']
                     }
                 },
-            }), getFeatureCost(appSettings, 'textbook_extraction') || 5);
+            }), getFeatureCost('study_guide_extraction', appSettings) || 5);
 
             if (!aiResponse) throw new Error("Failed to get response from AI");
             const text = getResponseText(aiResponse);

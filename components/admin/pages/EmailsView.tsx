@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, auth } from '../../../firebase';
-import { ref as dbRef, push, set } from 'firebase/database';
-import { Mail, Send, Users, UserCheck } from 'lucide-react';
+import { ref as dbRef, push, set, get, query, limitToLast } from 'firebase/database';
+import { Mail, Send, Users, UserCheck, Download } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -17,6 +17,43 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
     const { addToast } = useToast();
     const [recipientMode, setRecipientMode] = useState<'all' | 'single'>('all');
     const [selectedRecipientId, setSelectedRecipientId] = useState('');
+    const [playstoreEmails, setPlaystoreEmails] = useState<{email: string, timestamp: number}[]>([]);
+    const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+
+    useEffect(() => {
+        const fetchPlaystoreEmails = async () => {
+            setIsLoadingEmails(true);
+            try {
+                const snap = await get(query(dbRef(db, 'playstore_early_access_emails'), limitToLast(1000)));
+                if (snap.exists()) {
+                    const data = snap.val();
+                    const emailsList = Object.values(data).map((item: any) => ({
+                        email: item.email,
+                        timestamp: item.timestamp
+                    })).sort((a: any, b: any) => b.timestamp - a.timestamp);
+                    setPlaystoreEmails(emailsList);
+                }
+            } catch (err) {
+                console.error("Error fetching playstore emails:", err);
+            } finally {
+                setIsLoadingEmails(false);
+            }
+        };
+        fetchPlaystoreEmails();
+    }, []);
+
+    const downloadPlaystoreEmails = () => {
+        if (playstoreEmails.length === 0) return;
+        const csvContent = "data:text/csv;charset=utf-8," + "Email,Timestamp\n" +
+            playstoreEmails.map(e => `${e.email},${new Date(e.timestamp).toISOString()}`).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "playstore_early_access_emails.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
     const [emailSubject, setEmailSubject] = useState('');
     const [emailBody, setEmailBody] = useState('');
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -281,6 +318,51 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                         <Send className="w-5 h-5" />
                         {isSendingEmail ? 'Queueing...' : 'Send HTML Email'}
                     </button>
+                </div>
+            </div>
+
+            <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 mt-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 className="font-black text-xl dark:text-white mb-1 flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-emerald-500" />
+                            Play Store Early Access Emails
+                        </h3>
+                        <p className="text-sm text-slate-500">Emails collected from the landing page Play Store modal.</p>
+                    </div>
+                    <button onClick={downloadPlaystoreEmails} disabled={playstoreEmails.length === 0} className="px-6 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition disabled:opacity-50 border border-emerald-200">
+                        <Download className="w-4 h-4" />
+                        Download CSV ({playstoreEmails.length})
+                    </button>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px]">
+                            <tr>
+                                <th className="p-4">Email</th>
+                                <th className="p-4">Date Collected</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {isLoadingEmails ? (
+                                <tr><td colSpan={2} className="p-8 text-center text-slate-500">Loading...</td></tr>
+                            ) : playstoreEmails.length === 0 ? (
+                                <tr><td colSpan={2} className="p-8 text-center text-slate-500">No emails collected yet.</td></tr>
+                            ) : (
+                                playstoreEmails.slice(0, 10).map((item, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50">
+                                        <td className="p-4 font-medium text-slate-700">{item.email}</td>
+                                        <td className="p-4 text-slate-500">{new Date(item.timestamp).toLocaleString()}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                    {playstoreEmails.length > 10 && (
+                        <div className="p-4 bg-slate-50 text-center text-xs text-slate-500 border-t border-slate-200">
+                            Showing latest 10 emails. Download CSV to see all {playstoreEmails.length} emails.
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
