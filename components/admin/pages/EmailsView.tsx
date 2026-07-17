@@ -35,8 +35,9 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                 }
             } catch (err) {
                 console.error("Error fetching playstore emails:", err);
+                addToast('Failed to load Play Store early access emails.', 'error');
+                setPlaystoreEmails([]);
             } finally {
-                setIsLoadingEmails(false);
             }
         };
         fetchPlaystoreEmails();
