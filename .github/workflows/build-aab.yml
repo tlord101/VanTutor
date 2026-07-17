@@ -28,7 +28,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Web Assets
         run: pnpm run build
