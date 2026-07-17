@@ -2072,7 +2072,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         required: ['courses']
                     }
                 },
-            }), getFeatureCost('study_guide_extraction', appSettings) || 5);
+            }), getFeatureCost('study_guide_extraction', appSettings));
 
             if (!aiResponse) throw new Error("Failed to get response from AI");
             const text = getResponseText(aiResponse);
