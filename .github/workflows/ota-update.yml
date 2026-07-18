@@ -31,7 +31,7 @@ jobs:
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest upload -a ${{ secrets.CAPGO_TOKEN }}
+          npx @capgo/cli@latest bundle upload com.avelut.app --apikey "$CAPGO_TOKEN"
           
       - name: Output Status
         run: echo "OTA Update successfully pushed to Capgo."
