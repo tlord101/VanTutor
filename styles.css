@@ -5,6 +5,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+}
+
 /* =========================================================
    CAPACITOR NATIVE: Safe Area & Keyboard CSS Variables
    These ensure content is not obscured by notches, home bars,
