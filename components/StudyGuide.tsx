@@ -196,8 +196,26 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 async function fileToBase64(file: File): Promise<string> {
-    const arrayBuffer = await file.arrayBuffer();
-    return uint8ToBase64(new Uint8Array(arrayBuffer));
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            if (typeof reader.result === 'string') {
+                const base64 = reader.result.split(',')[1];
+                if (base64) return resolve(base64);
+                return reject(new Error('Failed to parse base64 data'));
+            }
+
+            // Fallback (keeps uint8ToBase64 in use)
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                resolve(uint8ToBase64(new Uint8Array(arrayBuffer)));
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 const base64ToBlob = (base64: string, mimeType: string): Blob => {
@@ -1232,42 +1250,45 @@ Student: "${tempInput}"
             const result = await attemptApiCall(async () => {
                 const prompt = `Create an educational visualization for this study guide explanation:\n\n${promptText}`;
 
-                // Using the interaction API for image generation with flash-image
-                const interaction = await ai.interactions.create({
-                    model: 'gemini-3.1-flash-image',
-                    input: prompt
+                const response = await ai.models.generateContent({
+                    model: "gemini-3.1-flash-image-preview",
+                    contents: prompt,
+                    config: {
+                        responseModalities: ["IMAGE"],
+                        imageConfig: {
+                            aspectRatio: "16:9",
+                            imageSize: "1K",
+                        },
+                    },
                 });
                 
-                const generatedImage = interaction.output_image;
+                const candidate = response.candidates?.[0];
+                const part = candidate?.content?.parts?.[0];
 
-                const imageUrls: string[] = [];
-
-                if (generatedImage && generatedImage.data) {
-                    const mimeType = 'image/png';
-                    const fileExtension = 'png';
-                    const imageBlob = base64ToBlob(generatedImage.data, mimeType);
+                let publicUrl = '';
+                if (part?.inlineData?.data) {
+                    const mimeType = part.inlineData.mimeType || "image/png";
+                    const base64Data = part.inlineData.data;
+                    const imageBlob = base64ToBlob(base64Data, mimeType);
                     const uniqueImageId = createUniqueId();
+                    const fileExtension = mimeType.split('/')[1] || 'png';
                     const storageRefObj = storageRef(storage, `${userProfile.uid}/study-guide-illustrations/${course.course_id}/${uniqueImageId}.${fileExtension}`);
                     const uploadResult = await uploadBytes(storageRefObj, imageBlob);
-                    const publicUrl = await getDownloadURL(uploadResult.ref);
-                    imageUrls.push(publicUrl);
+                    publicUrl = await getDownloadURL(uploadResult.ref);
                 }
 
-                if (imageUrls.length === 0) {
+                if (!publicUrl) {
                     throw new Error("No image visualization was returned by the API.");
                 }
 
                 const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
-
-                for (const publicUrl of imageUrls) {
-                    const imageMsgRef = push(messagesRef);
-                    const imageMessageData = {
-                        sender: 'bot',
-                        image_url: publicUrl,
-                        timestamp: serverTimestamp(),
-                    };
-                    set(imageMsgRef, imageMessageData).catch(console.error);
-                }
+                const imageMsgRef = push(messagesRef);
+                const imageMessageData = {
+                    sender: 'bot',
+                    image_url: publicUrl,
+                    timestamp: serverTimestamp(),
+                };
+                set(imageMsgRef, imageMessageData).catch(console.error);
             });
 
             if (!result.success) {
@@ -1279,6 +1300,43 @@ Student: "${tempInput}"
         } finally {
             setIsIllustrating(false);
         }
+    };
+
+    const [flippingMessageId, setFlippingMessageId] = useState<string | null>(null);
+
+    const handleMessageDoubleTap = async (message: Message) => {
+        if (message.sender !== 'bot' || !message.text) return;
+
+        // Cancel visualization if already flipping
+        if (flippingMessageId === message.id) {
+             setFlippingMessageId(null);
+             // Note: We can't easily cancel the actual AI request once it's in flight without AbortController,
+             // but we can at least stop the UI from showing the loading state and flipping.
+             return;
+        }
+
+        // If it already has an image, maybe we just want to ignore or re-generate
+        // If image already exists and it's not currently flipping,
+        // the user wants to flip it back to chat text.
+        // We handle this by setting the flipping state momentarily to trigger the CSS transition,
+        // and in reality, we need a way to hide the image.
+        // For this patch, we will just toggle a local state property to hide/show the image.
+        // But since we can't easily persist "hidden" state without modifying Message interface,
+        // we'll just toggle the `flippingMessageId` to animate it and clear it.
+        // Wait, the prompt says: "waiting for the image to be generated they can double tap on it again to flip it back to the chat bubble"
+        // This is handled above by `if (flippingMessageId === message.id)` which clears the flipping state!
+
+        if (message.image_url) {
+             return; // If it already has an image, do nothing on double tap (or we could hide it, but not requested).
+        }
+
+        if (isIllustrating) return;
+
+        setFlippingMessageId(message.id);
+        void handleGenerateIllustration(message.text).finally(() => {
+             // The flip back will happen when image_url is populated, but we should clear the flipping state
+             setFlippingMessageId(null);
+        });
     };
 
     const lastBotMessageIndex = messages.map(m => m.sender).lastIndexOf('bot');
@@ -1401,7 +1459,8 @@ Student: "${tempInput}"
 
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                         <div
-                                            className={`p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'}`}
+                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${flippingMessageId === message.id ? 'rotate-y-180' : ''}`}
+                                            onDoubleClick={() => handleMessageDoubleTap(message)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
                                                 setMessageActionTarget(message);
@@ -1416,10 +1475,20 @@ Student: "${tempInput}"
                                                     setMessageActionPosition({ x: touch.clientX, y: touch.clientY });
                                                 }, 800);
                                             }}
-                                            onTouchEnd={() => {
+                                            onTouchEnd={(e) => {
                                                 if (longPressTimerRef.current) {
                                                     clearTimeout(longPressTimerRef.current);
                                                     longPressTimerRef.current = null;
+                                                }
+                                                // Handle double tap for touch devices
+                                                const now = Date.now();
+                                                const target = e.currentTarget;
+                                                const lastTap = parseInt(target.getAttribute('data-last-tap') || '0', 10);
+                                                if (now - lastTap < 300) {
+                                                    void handleMessageDoubleTap(message);
+                                                    target.setAttribute('data-last-tap', '0');
+                                                } else {
+                                                    target.setAttribute('data-last-tap', now.toString());
                                                 }
                                             }}
                                             onTouchMove={() => {
@@ -1435,16 +1504,17 @@ Student: "${tempInput}"
                                                 }
                                             }}
                                         >
-                                            {message.image_url && (
-                                                <div className="mb-2">
-                                                    <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
-                                                </div>
-                                            )}
-                                            {message.sender === 'user' ? (
-                                                <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
-                                            ) : (
-                                                cleanText &&
-                                                <div className="text-sm sm:text-base prose prose-sm max-w-none">
+                                            <div className={`${flippingMessageId === message.id ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}>
+                                                {message.image_url && (
+                                                    <div className="mb-2">
+                                                        <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
+                                                    </div>
+                                                )}
+                                                {message.sender === 'user' ? (
+                                                    <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
+                                                ) : (
+                                                    cleanText &&
+                                                    <div className="text-sm sm:text-base prose prose-sm max-w-none">
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm, remarkMath]}
                                                         rehypePlugins={[rehypeKatex]}
@@ -1485,6 +1555,17 @@ Student: "${tempInput}"
                                                     >
                                                         {cleanText}
                                                     </ReactMarkdown>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Back of the card (shown while flipping/loading) */}
+                                            {flippingMessageId === message.id && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden">
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-2"></div>
+                                                        <span className="text-xs text-gray-500 font-medium">Generating visualization...</span>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -1792,21 +1873,6 @@ Student: "${tempInput}"
                             >
                                 ➤ Forward to Study Partner
                             </button>
-                            {messageActionTarget.sender === 'bot' && messageActionTarget.text && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const textToIllustrate = messageActionTarget.text;
-                                        setMessageActionTarget(null);
-                                        setMessageActionPosition(null);
-                                        void handleGenerateIllustration(textToIllustrate);
-                                    }}
-                                    disabled={isThinking || isIllustrating}
-                                    className="w-full rounded-xl border border-gray-100 dark:border-transparent bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 transition hover:bg-gray-50 dark:bg-black disabled:opacity-50"
-                                >
-                                    🎨 Visualize
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -2035,6 +2101,84 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const isUserExempt = !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
     const { attemptApiCall } = useApiLimiter({ userProfile, addToast, setShowLimitModal, setLimitModalData });
     const [isExtractingCourses, setIsExtractingCourses] = useState(false);
+    const [manualCourseCode, setManualCourseCode] = useState('');
+    const [isSavingManual, setIsSavingManual] = useState(false);
+    const [isManualMode, setIsManualMode] = useState(false);
+
+    const handleSaveManualCourse = async () => {
+        if (!manualCourseCode.trim()) {
+            addToast('Please enter a course code/name', 'error');
+            return;
+        }
+        if (!userProfile.school_id || !userProfile.college_id || !userProfile.department_id || !userProfile.level) {
+            return addToast('Please complete your profile (School, College, Department, Level) first.', 'error');
+        }
+
+        setIsSavingManual(true);
+        try {
+            const apiKey = userProfile.use_personal_token ? userProfile.personal_api_key : undefined;
+            const ai = createAvelutAI(apiKey);
+            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-1.5-flash';
+
+            const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
+
+            const aiResponse = await attemptApiCall(() => ai.models.generateContent({
+                model: geminiModel,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            course_name: { type: Type.STRING },
+                            course_code: { type: Type.STRING },
+                            description: { type: Type.STRING }
+                        },
+                        required: ['course_name', 'course_code', 'description']
+                    }
+                }
+            }), getFeatureCost('study_guide_extraction', appSettings) || 0);
+
+            if (!aiResponse) throw new Error("Failed to generate course info");
+            const text = getResponseText(aiResponse);
+            if (!text) throw new Error("Failed to get response");
+            const data = JSON.parse(text) as Partial<{ course_name: unknown; course_code: unknown; description: unknown }>;
+
+            const courseName = typeof data.course_name === 'string' ? data.course_name.trim() : '';
+            const courseCode = typeof data.course_code === 'string' ? data.course_code.trim() : '';
+            const description = typeof data.description === 'string' ? data.description.trim() : '';
+
+            if (!courseName || !courseCode || !description) {
+                throw new Error('AI returned invalid course data. Please try again.');
+            }
+
+            const courseId = courseCode.toLowerCase().replace(/\s+/g, '');
+            const courseData = {
+                course_id: courseId,
+                course_name: courseName,
+                course_code: courseCode.toUpperCase(),
+                description,
+                level: userProfile.level,
+                semester: filter.semester === 'all' ? 'first' : filter.semester,
+                course_status: 'active'
+            };
+
+            const updates: any = {};
+            const deptPath = `${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`;
+            updates[`schools_data/${deptPath}/levels/${userProfile.level}/courses/${courseId}`] = courseData;
+            updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
+
+            await update(dbRef(db), updates);
+            addToast(`Added ${courseData.course_code} successfully!`, 'success');
+            setManualCourseCode('');
+            setIsManualMode(false);
+        } catch (err: any) {
+            console.error("Error saving manual course:", err);
+            addToast(err.message || "Failed to save course", "error");
+        } finally {
+            setIsSavingManual(false);
+        }
+    };
 
     const handleExtractCourses = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -2276,13 +2420,56 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search term.</p>
                             {!filter.searchTerm && (
                                 <div className="mt-4 p-6 bg-gray-50 dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-2xl w-full max-w-md">
-                                    <h4 className="text-sm font-bold mb-2 text-gray-900 dark:text-white">Auto-Add Courses</h4>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Upload your course form PDF. We'll extract and add your courses automatically.</p>
-                                    <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-tr from-lime-400 to-teal-500 text-white rounded-xl text-sm font-bold cursor-pointer transition shadow-md hover:shadow-lg ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        <UploadCloud className="w-4 h-4" />
-                                        <span>{isExtractingCourses ? 'Extracting...' : 'Select Course Form PDF'}</span>
-                                        <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
-                                    </label>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">Add Courses</h4>
+                                        {isManualMode && (
+                                            <button
+                                                onClick={() => setIsManualMode(false)}
+                                                className="text-xs text-indigo-500 hover:text-indigo-600 font-medium"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                        {isManualMode ? "Enter a course code/name to add it manually." : "Upload your course form PDF or add courses manually."}
+                                    </p>
+
+                                    {isManualMode ? (
+                                        <div className="flex flex-col gap-3">
+                                            <div className="relative flex items-center">
+                                                <input
+                                                    type="text"
+                                                    value={manualCourseCode}
+                                                    onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
+                                                    placeholder="e.g. MTH101, Intro to Math"
+                                                    className="w-full bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                                    disabled={isSavingManual}
+                                                />
+                                                <button
+                                                    onClick={handleSaveManualCourse}
+                                                    disabled={isSavingManual || !manualCourseCode.trim()}
+                                                    className="absolute right-2 px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                                                >
+                                                    {isSavingManual ? 'Saving...' : 'Save'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3">
+                                            <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-tr from-lime-400 to-teal-500 text-white rounded-xl text-sm font-bold cursor-pointer transition shadow-md hover:shadow-lg ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
+                                                <UploadCloud className="w-4 h-4" />
+                                                <span>{isExtractingCourses ? 'Extracting...' : 'Upload Course Form PDF'}</span>
+                                                <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
+                                            </label>
+                                            <button
+                                                onClick={() => setIsManualMode(true)}
+                                                className="w-full px-4 py-3 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold transition hover:bg-gray-50 dark:hover:bg-gray-900"
+                                            >
+                                                Manually Add Course
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

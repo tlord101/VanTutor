@@ -17,6 +17,7 @@ import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
+import { Share } from '@capacitor/share';
 import { Flag } from 'lucide-react';
 // --- INLINE ICONS ---
 const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
@@ -78,6 +79,13 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
     const captureImage = async (): Promise<Blob | null> => {
         if (!containerRef.current) return null;
         setIsSharing(true);
+
+        // Temporarily reset styles to capture full scrollable content
+        const originalHeight = containerRef.current.style.height;
+        const originalOverflow = containerRef.current.style.overflow;
+        containerRef.current.style.height = 'auto';
+        containerRef.current.style.overflow = 'visible';
+
         try {
             // Provide specific configuration to html2canvas for better markdown support
             const canvas = await html2canvas(containerRef.current, {
@@ -95,6 +103,9 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
             console.error('Failed to capture image', err);
             return null;
         } finally {
+            // Restore original styles
+            containerRef.current.style.height = originalHeight;
+            containerRef.current.style.overflow = originalOverflow;
             setIsSharing(false);
         }
     };
@@ -125,15 +136,27 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     directory: Directory.Cache
                 });
 
-                await FileOpener.openFile({
-                    path: savedFile.uri,
-                    mimeType: 'image/png'
-                });
-                
-                addToast('Image saved! Use the menu to share.', 'success');
+                try {
+                    await Share.share({
+                        title: 'Avelut Solution',
+                        text: 'Check out this solution from Avelut Visual Solver!',
+                        url: savedFile.uri,
+                        dialogTitle: 'Share Solution'
+                    });
+                } catch (shareErr: any) {
+                    // Fallback to FileOpener if share is cancelled or fails
+                    if (shareErr.message !== 'Share canceled') {
+                        console.error('Share plugin error, falling back to FileOpener:', shareErr);
+                        await FileOpener.openFile({
+                            path: savedFile.uri,
+                            mimeType: 'image/png'
+                        });
+                        addToast('Image saved! Use the menu to share.', 'success');
+                    }
+                }
             } catch (err) {
                 console.error('Native share error:', err);
-                addToast('Failed to open image for sharing.', 'error');
+                addToast('Failed to share image.', 'error');
             }
         } else {
             const file = new File([blob], 'avelut_solution.png', { type: 'image/png' });
