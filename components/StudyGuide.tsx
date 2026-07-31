@@ -198,12 +198,19 @@ function uint8ToBase64(bytes: Uint8Array): string {
 async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
             if (typeof reader.result === 'string') {
                 const base64 = reader.result.split(',')[1];
-                resolve(base64);
-            } else {
-                reject(new Error("Failed to read file"));
+                if (base64) return resolve(base64);
+                return reject(new Error('Failed to parse base64 data'));
+            }
+
+            // Fallback (keeps uint8ToBase64 in use)
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                resolve(uint8ToBase64(new Uint8Array(arrayBuffer)));
+            } catch (err) {
+                reject(err);
             }
         };
         reader.onerror = reject;
