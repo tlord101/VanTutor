@@ -1233,7 +1233,9 @@ Student: "${tempInput}"
         }
     };
 
-    const handleGenerateIllustration = async (promptText: string) => {
+    const [viewingImageIds, setViewingImageIds] = useState<Set<string>>(new Set());
+
+    const handleGenerateIllustration = async (promptText: string, messageId: string) => {
         if (!promptText) {
             addToast("Not enough context to create an image.", "info");
             return;
@@ -1281,14 +1283,13 @@ Student: "${tempInput}"
                     throw new Error("No image visualization was returned by the API.");
                 }
 
-                const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
-                const imageMsgRef = push(messagesRef);
-                const imageMessageData = {
-                    sender: 'bot',
-                    image_url: publicUrl,
-                    timestamp: serverTimestamp(),
-                };
-                set(imageMsgRef, imageMessageData).catch(console.error);
+                const msgRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${messageId}`);
+                await update(msgRef, { image_url: publicUrl });
+                setViewingImageIds(prev => {
+                    const next = new Set(prev);
+                    next.add(messageId);
+                    return next;
+                });
             });
 
             if (!result.success) {
@@ -1307,34 +1308,31 @@ Student: "${tempInput}"
     const handleMessageDoubleTap = async (message: Message) => {
         if (message.sender !== 'bot' || !message.text) return;
 
-        // Cancel visualization if already flipping
+        // Cancel visualization generation state flip if already flipping (meaning generating)
         if (flippingMessageId === message.id) {
              setFlippingMessageId(null);
              // Note: We can't easily cancel the actual AI request once it's in flight without AbortController,
-             // but we can at least stop the UI from showing the loading state and flipping.
+             // but we can stop the UI from showing the loading state and flipping.
              return;
         }
 
-        // If it already has an image, maybe we just want to ignore or re-generate
-        // If image already exists and it's not currently flipping,
-        // the user wants to flip it back to chat text.
-        // We handle this by setting the flipping state momentarily to trigger the CSS transition,
-        // and in reality, we need a way to hide the image.
-        // For this patch, we will just toggle a local state property to hide/show the image.
-        // But since we can't easily persist "hidden" state without modifying Message interface,
-        // we'll just toggle the `flippingMessageId` to animate it and clear it.
-        // Wait, the prompt says: "waiting for the image to be generated they can double tap on it again to flip it back to the chat bubble"
-        // This is handled above by `if (flippingMessageId === message.id)` which clears the flipping state!
-
+        // Toggle back and forth between image and text if the image already exists
         if (message.image_url) {
-             return; // If it already has an image, do nothing on double tap (or we could hide it, but not requested).
+             setViewingImageIds(prev => {
+                 const next = new Set(prev);
+                 if (next.has(message.id)) next.delete(message.id);
+                 else next.add(message.id);
+                 return next;
+             });
+             return;
         }
 
         if (isIllustrating) return;
 
         setFlippingMessageId(message.id);
-        void handleGenerateIllustration(message.text).finally(() => {
-             // The flip back will happen when image_url is populated, but we should clear the flipping state
+        void handleGenerateIllustration(message.text, message.id).finally(() => {
+             // The flip to the actual image is handled by adding it to viewingImageIds in handleGenerateIllustration,
+             // so we clear the generating flipping state.
              setFlippingMessageId(null);
         });
     };
@@ -1459,7 +1457,7 @@ Student: "${tempInput}"
 
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                         <div
-                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${flippingMessageId === message.id ? 'rotate-y-180' : ''}`}
+                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
                                             onDoubleClick={() => handleMessageDoubleTap(message)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
@@ -1504,12 +1502,8 @@ Student: "${tempInput}"
                                                 }
                                             }}
                                         >
-                                            <div className={`${flippingMessageId === message.id ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}>
-                                                {message.image_url && (
-                                                    <div className="mb-2">
-                                                        <img src={message.image_url} alt="Generated illustration" className="rounded-lg w-full" />
-                                                    </div>
-                                                )}
+                                            {/* Front of the card (Markdown text) */}
+                                            <div className={`${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 backface-hidden`}>
                                                 {message.sender === 'user' ? (
                                                     <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
                                                 ) : (
@@ -1559,13 +1553,21 @@ Student: "${tempInput}"
                                                 )}
                                             </div>
 
-                                            {/* Back of the card (shown while flipping/loading) */}
-                                            {flippingMessageId === message.id && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden">
-                                                    <div className="flex flex-col items-center">
-                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-2"></div>
-                                                        <span className="text-xs text-gray-500 font-medium">Generating visualization...</span>
-                                                    </div>
+                                            {/* Back of the card (shown while generating or when viewing image) */}
+                                            {(flippingMessageId === message.id || viewingImageIds.has(message.id)) && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden overflow-hidden">
+                                                    {viewingImageIds.has(message.id) && message.image_url ? (
+                                                        <img src={message.image_url} alt="Generated illustration" className="w-full h-full object-cover rounded-2xl" />
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center w-full h-full animate-[scan-pulse_2s_ease-in-out_infinite]">
+                                                            <div className="flex flex-col items-center p-6 text-gray-400 dark:text-gray-500">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 mb-3 animate-pulse">
+                                                                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                                                                </svg>
+                                                                <span className="text-xs font-semibold uppercase tracking-wider animate-pulse">Visualizing...</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -2183,7 +2185,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const handleExtractCourses = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
-        if (file.type !== 'application/pdf') return addToast('Please upload a PDF file.', 'error');
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return addToast('Please upload a PDF file.', 'error');
         if (!userProfile.school_id || !userProfile.college_id || !userProfile.department_id || !userProfile.level) {
             return addToast('Please complete your profile (School, College, Department, Level) first.', 'error');
         }

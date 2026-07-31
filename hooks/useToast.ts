@@ -42,16 +42,22 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const addToast = useCallback(async (message: string, type: ToastType = 'info') => {
     triggerHapticFeedback(type);
-    try {
-      await CapacitorToast.show({
-        text: message,
-        duration: 'short',
-        position: 'bottom',
-      });
-    } catch (e) {
-      console.warn("Toast plugin failed, falling back to alert:", e);
-      // Fallback in case pwa-elements is not installed
-      alert(message);
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await CapacitorToast.show({
+          text: message,
+          duration: 'short',
+          position: 'bottom',
+        });
+      } catch (e) {
+        console.warn("Toast plugin failed, falling back to React toast:", e);
+        const id = Date.now().toString() + Math.random().toString(36).substring(7);
+        setToasts(prev => [...prev, { id, message, type }]);
+      }
+    } else {
+      const id = Date.now().toString() + Math.random().toString(36).substring(7);
+      setToasts(prev => [...prev, { id, message, type }]);
     }
   }, []);
 
