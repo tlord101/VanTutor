@@ -1233,7 +1233,7 @@ Student: "${tempInput}"
         }
     };
 
-    const handleGenerateIllustration = async (promptText: string) => {
+    const handleGenerateIllustration = async (promptText: string, targetMessageId?: string) => {
         if (!promptText) {
             addToast("Not enough context to create an image.", "info");
             return;
@@ -1282,13 +1282,20 @@ Student: "${tempInput}"
                 }
 
                 const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
-                const imageMsgRef = push(messagesRef);
-                const imageMessageData = {
-                    sender: 'bot',
-                    image_url: publicUrl,
-                    timestamp: serverTimestamp(),
-                };
-                set(imageMsgRef, imageMessageData).catch(console.error);
+                if (targetMessageId) {
+                    const targetMessageRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${targetMessageId}`);
+                    update(targetMessageRef, {
+                        image_url: publicUrl,
+                    }).catch(console.error);
+                } else {
+                    const imageMsgRef = push(messagesRef);
+                    const imageMessageData = {
+                        sender: 'bot',
+                        image_url: publicUrl,
+                        timestamp: serverTimestamp(),
+                    };
+                    set(imageMsgRef, imageMessageData).catch(console.error);
+                }
             });
 
             if (!result.success) {
@@ -1333,7 +1340,7 @@ Student: "${tempInput}"
         if (isIllustrating) return;
 
         setFlippingMessageId(message.id);
-        void handleGenerateIllustration(message.text).finally(() => {
+        void handleGenerateIllustration(message.text, message.id).finally(() => {
              // The flip back will happen when image_url is populated, but we should clear the flipping state
              setFlippingMessageId(null);
         });
@@ -2823,4 +2830,3 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
         </div>
     );
 };
-
