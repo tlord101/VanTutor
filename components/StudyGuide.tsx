@@ -2142,14 +2142,22 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             if (!aiResponse) throw new Error("Failed to generate course info");
             const text = getResponseText(aiResponse);
             if (!text) throw new Error("Failed to get response");
-            const data = JSON.parse(text);
+            const data = JSON.parse(text) as Partial<{ course_name: unknown; course_code: unknown; description: unknown }>;
 
-            const courseId = data.course_code.trim().toLowerCase().replace(/\s+/g, '');
+            const courseName = typeof data.course_name === 'string' ? data.course_name.trim() : '';
+            const courseCode = typeof data.course_code === 'string' ? data.course_code.trim() : '';
+            const description = typeof data.description === 'string' ? data.description.trim() : '';
+
+            if (!courseName || !courseCode || !description) {
+                throw new Error('AI returned invalid course data. Please try again.');
+            }
+
+            const courseId = courseCode.toLowerCase().replace(/\s+/g, '');
             const courseData = {
                 course_id: courseId,
-                course_name: data.course_name.trim(),
-                course_code: data.course_code.trim().toUpperCase(),
-                description: data.description,
+                course_name: courseName,
+                course_code: courseCode.toUpperCase(),
+                description,
                 level: userProfile.level,
                 semester: filter.semester === 'all' ? 'first' : filter.semester,
                 course_status: 'active'
