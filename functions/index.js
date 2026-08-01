@@ -791,39 +791,68 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
 
         const txStatus = json.data.status;
         if (txStatus === 'success') {
-            const userRef = admin.database().ref(`/users/${uid}`);
+            const claimResult = await processedRef.transaction((current) => {
+                if (current === null) {
+                    return {
+                        uid,
+                        purchaseType,
+                        planKey: planKey || null,
+                        creditAmount: creditAmount || null,
+                        processing: true,
+                        timestamp: admin.database.ServerValue.TIMESTAMP
+                    };
+                }
+                return;
+            });
 
-            if (purchaseType === 'subscription' && planKey) {
-                const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
-                const tiers = settingsSnap.val() || {};
-                const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-                const activePlan = tiers[effectivePlanKey] || {};
-                const creditAllocation = activePlan.credit_allocation || 30; // default
-
-                await userRef.update({
-                    subscription_status: effectivePlanKey,
-                    ai_credits_balance: creditAllocation,
-                    is_activated: true,
-                    last_payment_reference: reference
-                });
-            } else if (purchaseType === 'additional_credits' && creditAmount) {
-                await userRef.child('ai_credits_balance').transaction((currentBalance) => {
-                    return (currentBalance || 0) + Number(creditAmount);
-                });
-                await userRef.update({
-                    is_activated: true,
-                    last_payment_reference: reference
-                });
+            if (!claimResult.committed) {
+                const existing = claimResult.snapshot.val();
+                if (existing?.uid && existing.uid !== uid) {
+                    throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
+                }
+                return { status: 'success', message: 'Transaction already processed.', reference };
             }
 
-            // Mark transaction as processed
-            await processedRef.set({
-                uid,
-                purchaseType,
-                planKey: planKey || null,
-                creditAmount: creditAmount || null,
-                timestamp: admin.database.ServerValue.TIMESTAMP
-            });
+            const userRef = admin.database().ref(`/users/${uid}`);
+
+            try {
+                if (purchaseType === 'subscription' && planKey) {
+                    const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
+                    const tiers = settingsSnap.val() || {};
+                    const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
+                    const activePlan = tiers[effectivePlanKey] || {};
+                    const creditAllocation = activePlan.credit_allocation || 30; // default
+
+                    await userRef.update({
+                        subscription_status: effectivePlanKey,
+                        ai_credits_balance: creditAllocation,
+                        is_activated: true,
+                        last_payment_reference: reference
+                    });
+                } else if (purchaseType === 'additional_credits' && creditAmount) {
+                    await userRef.child('ai_credits_balance').transaction((currentBalance) => {
+                        return (currentBalance || 0) + Number(creditAmount);
+                    });
+                    await userRef.update({
+                        is_activated: true,
+                        last_payment_reference: reference
+                    });
+                }
+
+                // Mark transaction as processed
+                await processedRef.set({
+                    uid,
+                    purchaseType,
+                    planKey: planKey || null,
+                    creditAmount: creditAmount || null,
+                    timestamp: admin.database.ServerValue.TIMESTAMP
+                });
+            } catch (updateErr) {
+                await processedRef.remove().catch((cleanupErr) => {
+                    console.error('Failed to clean up transaction claim:', cleanupErr);
+                });
+                throw updateErr;
+            }
 
             return { status: 'success', reference };
         } else {
