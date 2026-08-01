@@ -63,14 +63,14 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                         });
 
                         const data = result.data as any;
-                        if (data && data.status === 'success') {
-                            addToast('Payment successful! Credits have been added to your account.', 'success');
-                            setTimeout(() => {
-                                window.location.href = '/payment-success';
-                            }, 1000);
-                        } else {
-                            addToast('Payment verification failed: ' + (data?.message || 'Unknown error'), 'error');
+                        if (!data || data.status !== 'success') {
+                            throw new Error('Payment verification failed: ' + (data?.message || 'Unknown error'));
                         }
+
+                        addToast('Payment successful! Credits have been added to your account.', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/payment-success';
+                        }, 1000);
                     } catch (e: any) {
                         console.error('Failed to verify payment', e);
                         addToast(e.message || 'Payment verification failed. Please contact support if you were charged.', 'error');
