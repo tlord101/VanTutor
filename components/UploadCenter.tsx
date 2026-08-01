@@ -1500,7 +1500,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                         <h4 className="font-bold text-lg">{req.course_name}</h4>
                         <p className="text-sm font-medium text-slate-500 mb-2">{req.level} - {req.semester}</p>
                         <p className="text-sm bg-white p-3 rounded-xl border border-slate-200">{req.note}</p>
-                        <button onClick={() => navigate('/upload-center/upload')} className="mt-4 text-sm font-bold text-sky-600 hover:text-sky-700 underline underline-offset-2">Go to Manage Courses</button>
+                        <button onClick={() => navigate('/upload-center/courses')} className="mt-4 text-sm font-bold text-sky-600 hover:text-sky-700 underline underline-offset-2">Go to Manage Courses</button>
                       </div>
                     ))}
                   </div>
