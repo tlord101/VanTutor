@@ -79,15 +79,14 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                         });
 
                         const data = result.data as any;
-                        if (data && data.status === 'success') {
-                            addToast('Payment successful! Your plan and credits have been updated.', 'success');
-                            setTimeout(() => {
-                                window.location.href = '/payment-success';
-                            }, 1000);
-                        } else {
-                            addToast('Payment verification failed: ' + (data?.message || 'Unknown error'), 'error');
+                        if (!data || data.status !== 'success') {
+                            throw new Error('Payment verification failed: ' + (data?.message || 'Unknown error'));
                         }
-                    } catch (e: any) {
+
+                        addToast('Payment successful! Your plan and credits have been updated.', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/payment-success';
+                        }, 1000);
                         console.error('Failed to verify payment', e);
                         addToast(e.message || 'Payment verification failed. Please contact support if you were charged.', 'error');
                     }
