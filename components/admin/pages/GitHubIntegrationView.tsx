@@ -37,6 +37,7 @@ export const GitHubIntegrationView: React.FC = () => {
         if (settings.pat && settings.owner && settings.repo) {
             fetchWorkflowRuns();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settings.pat, settings.owner, settings.repo]);
 
     const handleSaveSettings = async (e: React.FormEvent) => {

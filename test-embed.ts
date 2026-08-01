@@ -1,15 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
 async function main() {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
     try {
         const response = await ai.models.embedContent({
-            model: 'gemini-embedding-2',
-            contents: 'What is the meaning of life?',
+            model: 'text-embedding-004',
+            contents: 'Hello world',
         });
-        console.log("gemini-embedding-2 SUCCESS");
+        console.log("SUCCESS");
     } catch (e: any) {
-        console.error("gemini-embedding-2 ERROR:", e.message);
+        console.error("ERROR:", e);
     }
 }
 main();
