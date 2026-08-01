@@ -827,6 +827,9 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
         }
     } catch (err) {
         console.error('Error in verifyPaystackTransaction:', err);
+        if (err instanceof functions.https.HttpsError) {
+            throw err;
+        }
         throw new functions.https.HttpsError('internal', 'Error verifying payment.');
     }
 });
