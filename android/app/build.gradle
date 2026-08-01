@@ -16,7 +16,7 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    def releaseKeystoreFile = file("avelut-release-key.keystore")
+    def releaseKeystoreFile = rootProject.file("../avelut-release-key.keystore")
     signingConfigs {
         release {
             if (releaseKeystoreFile.exists()) {
