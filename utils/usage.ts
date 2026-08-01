@@ -114,7 +114,9 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
             }
           } catch (e) {
             if (paymentLogRef) {
-               await update(paymentLogRef, { status: 'failed', error: e instanceof Error ? e.message : 'Verification failed' });
+              try {
+                await update(paymentLogRef, { status: 'failed', error: e instanceof Error ? e.message : 'Verification failed' });
+              } catch (err) {}
             }
             if (onError) onError(e);
           }
