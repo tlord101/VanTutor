@@ -1457,7 +1457,7 @@ Student: "${tempInput}"
 
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                         <div
-                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
+                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words touch-manipulation ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
                                             onDoubleClick={() => handleMessageDoubleTap(message)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
@@ -1555,7 +1555,13 @@ Student: "${tempInput}"
 
                                             {/* Back of the card (shown while generating or when viewing image) */}
                                             {(flippingMessageId === message.id || viewingImageIds.has(message.id)) && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden overflow-hidden">
+                                                <div
+                                                    className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden overflow-hidden"
+                                                    onDoubleClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleMessageDoubleTap(message);
+                                                    }}
+                                                >
                                                     {viewingImageIds.has(message.id) && message.image_url ? (
                                                         <img src={message.image_url} alt="Generated illustration" className="w-full h-full object-cover rounded-2xl" />
                                                     ) : (
@@ -1648,19 +1654,6 @@ Student: "${tempInput}"
                                 </div>
                             );
                         })()}
-                        {isIllustrating &&
-                            <div className="flex items-start gap-3 animate-fade-in-up">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
-                                    <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
-                                </div>
-                                <div className="max-w-lg p-3 px-4 rounded-2xl bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-bl-none">
-                                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                        <SparklesIcon className="w-4 h-4 text-lime-500 animate-pulse" />
-                                        <span>Creating visualization...</span>
-                                    </div>
-                                </div>
-                            </div>
-                        }
                         {isThinking && streamingBotText === null && (
                             <div className="flex items-start gap-3 animate-fade-in-up">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0">
