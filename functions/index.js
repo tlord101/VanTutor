@@ -743,3 +743,90 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     // Always return 200 OK for other events or successful processing
     res.status(200).send('OK');
 });
+
+// 20. Verify Paystack Transaction
+exports.verifyPaystackTransaction = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+    }
+
+    const { reference, purchaseType, planKey, creditAmount } = data;
+    const uid = context.auth.uid;
+
+    if (!reference) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing transaction reference.');
+    }
+
+    const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || functions.config().paystack?.secret;
+    if (!PAYSTACK_SECRET_KEY) {
+        console.error('PAYSTACK_SECRET_KEY is not configured in Firebase environment.');
+        throw new functions.https.HttpsError('internal', 'Payment gateway configuration error.');
+    }
+
+    try {
+        // Check if transaction has already been processed
+        const processedRef = admin.database().ref(`/processed_transactions/${reference}`);
+        const snapshot = await processedRef.once('value');
+        if (snapshot.exists()) {
+            return { status: 'success', message: 'Transaction already processed.', reference };
+        }
+
+        const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
+            }
+        });
+
+        const json = await response.json();
+
+        if (!json.status) {
+            console.error('Paystack API Error:', json);
+            throw new functions.https.HttpsError('internal', json.message || 'Failed to verify payment with provider.');
+        }
+
+        const txStatus = json.data.status;
+        if (txStatus === 'success') {
+            const userRef = admin.database().ref(`/users/${uid}`);
+
+            if (purchaseType === 'subscription' && planKey) {
+                const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
+                const tiers = settingsSnap.val() || {};
+                const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
+                const activePlan = tiers[effectivePlanKey] || {};
+                const creditAllocation = activePlan.credit_allocation || 30; // default
+
+                await userRef.update({
+                    subscription_status: effectivePlanKey,
+                    ai_credits_balance: creditAllocation,
+                    is_activated: true,
+                    last_payment_reference: reference
+                });
+            } else if (purchaseType === 'additional_credits' && creditAmount) {
+                await userRef.child('ai_credits_balance').transaction((currentBalance) => {
+                    return (currentBalance || 0) + Number(creditAmount);
+                });
+                await userRef.update({
+                    is_activated: true,
+                    last_payment_reference: reference
+                });
+            }
+
+            // Mark transaction as processed
+            await processedRef.set({
+                uid,
+                purchaseType,
+                planKey: planKey || null,
+                creditAmount: creditAmount || null,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+
+            return { status: 'success', reference };
+        } else {
+            return { status: txStatus, message: 'Transaction was not successful.' };
+        }
+    } catch (err) {
+        console.error('Error in verifyPaystackTransaction:', err);
+        throw new functions.https.HttpsError('internal', 'Error verifying payment.');
+    }
+});

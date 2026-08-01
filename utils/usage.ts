@@ -91,14 +91,31 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
       callback: (response: any) => {
         const runAsyncCallback = async () => {
           const reference = response?.reference || 'ref_missing';
+
+          if (response?.status && response.status !== 'success') {
+            if (paymentLogRef) {
+              try {
+                await update(paymentLogRef, { status: 'failed', reference, error: response.message || 'Transaction failed' });
+              } catch (e) {}
+            }
+            if (onError) onError(new Error(response.message || 'Transaction was not successful'));
+            return;
+          }
+
           if (paymentLogRef) {
             try {
-              await update(paymentLogRef, { status: 'success', reference });
+              await update(paymentLogRef, { status: 'processing', reference }); // Changed to processing as backend verifies
             } catch (e) {}
           }
           try {
             await onSuccess(reference);
+            if (paymentLogRef) {
+               await update(paymentLogRef, { status: 'success' });
+            }
           } catch (e) {
+            if (paymentLogRef) {
+               await update(paymentLogRef, { status: 'failed', error: e instanceof Error ? e.message : 'Verification failed' });
+            }
             if (onError) onError(e);
           }
         };

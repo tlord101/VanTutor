@@ -4,6 +4,8 @@ import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
 import { ref as dbRef, update, get } from 'firebase/database';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../firebase';
 import { db } from '../../firebase';
 
 interface RefillCreditsWebProps {
@@ -53,17 +55,25 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const userRef = dbRef(db, `users/${targetUid}`);
-                        const snapshot = await get(userRef);
-                        const currentData = snapshot.val();
-                        const currentCredits = currentData?.ai_credits_balance || 0;
-                        await update(userRef, {
-                            ai_credits_balance: currentCredits + amount
+                        const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
+                        const result = await verifyTx({
+                            reference,
+                            purchaseType: 'additional_credits',
+                            creditAmount: amount
                         });
-                        addToast('Payment successful! Credits have been added to your account.', 'success');
-                    } catch (e) {
-                        console.error('Failed to update credits', e);
-                        addToast('Payment successful, but failed to update balance. Please contact support.', 'error');
+
+                        const data = result.data as any;
+                        if (data && data.status === 'success') {
+                            addToast('Payment successful! Credits have been added to your account.', 'success');
+                            setTimeout(() => {
+                                window.location.href = '/payment-success';
+                            }, 1000);
+                        } else {
+                            addToast('Payment verification failed: ' + (data?.message || 'Unknown error'), 'error');
+                        }
+                    } catch (e: any) {
+                        console.error('Failed to verify payment', e);
+                        addToast(e.message || 'Payment verification failed. Please contact support if you were charged.', 'error');
                     }
                     setIsProcessing(false);
                 },
