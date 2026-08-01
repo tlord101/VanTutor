@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
-import { ref as dbRef, update, get } from 'firebase/database';
-import { db } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../firebase';
 
 interface RefillCreditsWebProps {
     appSettings: AppSettings;
@@ -53,19 +52,25 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const userRef = dbRef(db, `users/${targetUid}`);
-                        const snapshot = await get(userRef);
-                        const currentData = snapshot.val();
-                        const currentCredits = currentData?.ai_credits_balance || 0;
-                        await update(userRef, {
-                            ai_credits_balance: currentCredits + amount
+                        const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
+                        const result = await verifyTx({
+                            reference,
+                            purchaseType: 'additional_credits',
+                            creditAmount: amount
                         });
+
+                        const data = result.data as any;
+                        if (!data || data.status !== 'success') {
+                            throw new Error('Payment verification failed: ' + (data?.message || 'Unknown error'));
+                        }
+
                         addToast('Payment successful! Credits have been added to your account.', 'success');
-                    } catch (e) {
-                        console.error('Failed to update credits', e);
-                        addToast('Payment successful, but failed to update balance. Please contact support.', 'error');
+                        setTimeout(() => {
+                            window.location.href = '/payment-success';
+                        }, 1000);
+                    } finally {
+                        setIsProcessing(false);
                     }
-                    setIsProcessing(false);
                 },
                 onCancel: () => {
                     addToast('Payment was cancelled.', 'info');
@@ -73,7 +78,7 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 },
                 onError: (err) => {
                     console.error("Paystack error", err);
-                    addToast('Payment failed to initialize.', 'error');
+                    addToast((err as any)?.message || 'Payment failed to initialize.', 'error');
                     setIsProcessing(false);
                 }
             });

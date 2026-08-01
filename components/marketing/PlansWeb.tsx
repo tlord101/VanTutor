@@ -3,8 +3,8 @@ import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
-import { ref as dbRef, update } from 'firebase/database';
-import { db } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../firebase';
 
 interface PlansWebProps {
     appSettings: AppSettings;
@@ -69,17 +69,25 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const userRef = dbRef(db, `users/${targetUid}`);
-                        await update(userRef, {
-                            subscription_status: effectivePlanKey,
-                            ai_credits_balance: activePlan.credit_allocation
+                        const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
+                        const result = await verifyTx({
+                            reference,
+                            purchaseType: 'subscription',
+                            planKey: effectivePlanKey
                         });
+
+                        const data = result.data as any;
+                        if (!data || data.status !== 'success') {
+                            throw new Error('Payment verification failed: ' + (data?.message || 'Unknown error'));
+                        }
+
                         addToast('Payment successful! Your plan and credits have been updated.', 'success');
-                    } catch (e) {
-                        console.error('Failed to update plan', e);
-                        addToast('Payment successful, but failed to update plan. Please contact support.', 'error');
+                        setTimeout(() => {
+                            window.location.href = '/payment-success';
+                        }, 1000);
+                    } finally {
+                        setIsProcessing(false);
                     }
-                    setIsProcessing(false);
                 },
                 onCancel: () => {
                     addToast('Payment was cancelled.', 'info');
@@ -87,7 +95,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 },
                 onError: (err) => {
                     console.error("Paystack error", err);
-                    addToast('Payment failed to initialize.', 'error');
+                    addToast((err as any)?.message || 'Payment failed to initialize.', 'error');
                     setIsProcessing(false);
                 }
             });
@@ -296,4 +304,3 @@ const PricingCard: React.FC<PricingCardProps> = ({
         </div>
     );
 }
-
