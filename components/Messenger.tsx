@@ -1022,8 +1022,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         }
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chats, userMap]);
+  }, [chats, userMap, fetchedUserProfiles, userProfile.uid]);
 
   useEffect(() => {
     if (!chats.length) return;
