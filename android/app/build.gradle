@@ -16,19 +16,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    def releaseKeystoreFile = rootProject.file("../avelut-release-key.keystore")
     signingConfigs {
         release {
-            storeFile file("avelut-release-key.keystore")
-            storePassword "avelut2026"
-            keyAlias "avelut"
-            keyPassword "avelut2026"
+            if (releaseKeystoreFile.exists()) {
+                storeFile releaseKeystoreFile
+                storePassword "avelut2026"
+                keyAlias "avelut"
+                keyPassword "avelut2026"
+            }
         }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig releaseKeystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
