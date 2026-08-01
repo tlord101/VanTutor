@@ -750,7 +750,7 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
         throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
     }
 
-    const { reference, purchaseType, planKey, creditAmount } = data;
+    const { reference, purchaseType, planKey } = data;
     const uid = context.auth.uid;
 
     if (!reference) {
@@ -790,14 +790,39 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
         }
 
         const txStatus = json.data.status;
+        const verifiedAmountKobo = Number(json?.data?.amount);
+        const verifiedAmountNgn = Number.isFinite(verifiedAmountKobo)
+            ? Math.round(verifiedAmountKobo) / 100
+            : NaN;
         if (txStatus === 'success') {
+            const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
+            const tiers = settingsSnap.val() || {};
+            const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
+            const activePlan = effectivePlanKey ? tiers[effectivePlanKey] : null;
+
+            if (purchaseType === 'subscription') {
+                if (!effectivePlanKey || !activePlan) {
+                    throw new functions.https.HttpsError('invalid-argument', 'Invalid subscription plan.');
+                }
+                const expectedAmountNgn = Number(activePlan.price_ngn);
+                if (!Number.isFinite(expectedAmountNgn) || Math.abs(expectedAmountNgn - verifiedAmountNgn) > 0.0001) {
+                    throw new functions.https.HttpsError('failed-precondition', 'Verified amount does not match the selected plan.');
+                }
+            } else if (purchaseType === 'additional_credits') {
+                if (!Number.isFinite(verifiedAmountNgn) || verifiedAmountNgn <= 0) {
+                    throw new functions.https.HttpsError('failed-precondition', 'Unable to derive credits from verified payment amount.');
+                }
+            } else {
+                throw new functions.https.HttpsError('invalid-argument', 'Invalid purchase type.');
+            }
+
             const claimResult = await processedRef.transaction((current) => {
                 if (current === null) {
                     return {
                         uid,
                         purchaseType,
-                        planKey: planKey || null,
-                        creditAmount: creditAmount || null,
+                        planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
+                        creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
                         processing: true,
                         timestamp: admin.database.ServerValue.TIMESTAMP
                     };
@@ -816,11 +841,7 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
             const userRef = admin.database().ref(`/users/${uid}`);
 
             try {
-                if (purchaseType === 'subscription' && planKey) {
-                    const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
-                    const tiers = settingsSnap.val() || {};
-                    const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-                    const activePlan = tiers[effectivePlanKey] || {};
+                if (purchaseType === 'subscription') {
                     const creditAllocation = activePlan.credit_allocation || 30; // default
 
                     await userRef.update({
@@ -829,9 +850,9 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
                         is_activated: true,
                         last_payment_reference: reference
                     });
-                } else if (purchaseType === 'additional_credits' && creditAmount) {
+                } else if (purchaseType === 'additional_credits') {
                     await userRef.child('ai_credits_balance').transaction((currentBalance) => {
-                        return (currentBalance || 0) + Number(creditAmount);
+                        return (currentBalance || 0) + verifiedAmountNgn;
                     });
                     await userRef.update({
                         is_activated: true,
@@ -843,8 +864,8 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
                 await processedRef.set({
                     uid,
                     purchaseType,
-                    planKey: planKey || null,
-                    creditAmount: creditAmount || null,
+                    planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
+                    creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
                     timestamp: admin.database.ServerValue.TIMESTAMP
                 });
             } catch (updateErr) {

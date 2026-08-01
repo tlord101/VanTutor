@@ -3,10 +3,8 @@ import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
-import { ref as dbRef, update } from 'firebase/database';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { db } from '../../firebase';
 
 interface PlansWebProps {
     appSettings: AppSettings;
@@ -87,10 +85,9 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                         setTimeout(() => {
                             window.location.href = '/payment-success';
                         }, 1000);
-                        console.error('Failed to verify payment', e);
-                        addToast(e.message || 'Payment verification failed. Please contact support if you were charged.', 'error');
+                    } finally {
+                        setIsProcessing(false);
                     }
-                    setIsProcessing(false);
                 },
                 onCancel: () => {
                     addToast('Payment was cancelled.', 'info');
@@ -98,7 +95,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 },
                 onError: (err) => {
                     console.error("Paystack error", err);
-                    addToast('Payment failed to initialize.', 'error');
+                    addToast((err as any)?.message || 'Payment failed to initialize.', 'error');
                     setIsProcessing(false);
                 }
             });
@@ -307,4 +304,3 @@ const PricingCard: React.FC<PricingCardProps> = ({
         </div>
     );
 }
-
