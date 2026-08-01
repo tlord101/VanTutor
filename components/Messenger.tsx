@@ -1031,8 +1031,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const resolvedUser = otherUserId ? (userMap.get(otherUserId) || fetchedUserProfiles[otherUserId]) : undefined;
       return resolvedUser ? { ...chat, otherUser: resolvedUser } : chat;
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userMap, fetchedUserProfiles]);
+  }, [chats, userMap, fetchedUserProfiles]);
 
   useEffect(() => {
     if (!initialChatId || !chats.length) return;
