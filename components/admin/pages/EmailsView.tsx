@@ -41,6 +41,7 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
             }
         };
         fetchPlaystoreEmails();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const downloadPlaystoreEmails = () => {

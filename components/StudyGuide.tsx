@@ -1520,7 +1520,7 @@ Student: "${tempInput}"
                                                             // Paragraphs with better spacing
                                                             p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
                                                             // Bold - highlighted key concepts
-                                                            strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
+                                                            strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-blue-900 bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
                                                             // Italics for emphasis
                                                             em: ({ node, ...props }: any) => <em className="italic text-lime-700 font-medium" {...props} />,
                                                             // Lists with better styling
@@ -1626,7 +1626,7 @@ Student: "${tempInput}"
                                                         h2: ({ node, ...props }: any) => <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 mt-3" {...props} />,
                                                         h3: ({ node, ...props }: any) => <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-2" {...props} />,
                                                         p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200" {...props} />,
-                                                        strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
+                                                        strong: ({ node, ...props }: any) => <strong className="font-bold text-gray-900 dark:text-blue-900 bg-yellow-100 px-1 py-0.5 rounded" {...props} />,
                                                         em: ({ node, ...props }: any) => <em className="italic text-lime-700 font-medium" {...props} />,
                                                         ul: ({ node, ...props }: any) => <ul className="list-disc list-outside space-y-1.5 my-3 pl-5" {...props} />,
                                                         ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside space-y-1.5 my-3 pl-5" {...props} />,
@@ -2111,8 +2111,8 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
         setIsSavingManual(true);
         try {
-            const apiKey = userProfile.use_personal_token ? userProfile.personal_api_key : undefined;
-            const ai = createAvelutAI(apiKey);
+            const ai = createAvelutAI(appSettings, userProfile);
+            if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
             const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-1.5-flash';
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
@@ -2185,8 +2185,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
         setIsExtractingCourses(true);
         try {
-            const apiKey = userProfile.use_personal_token ? userProfile.personal_api_key : undefined;
-            const ai = createAvelutAI(apiKey);
+            const ai = createAvelutAI(appSettings, userProfile);
             const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-2.5-pro';
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
@@ -2414,7 +2413,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">No topics found</h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search term.</p>
                             {!filter.searchTerm && (
-                                <div className="mt-4 p-6 bg-gray-50 dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-2xl w-full max-w-md">
+                                <div className="mt-4 p-6 bg-gray-50 dark:bg-[#0b1120] border border-gray-200 dark:border-transparent rounded-2xl w-[90%] max-w-2xl">
                                     <div className="flex justify-between items-center mb-2">
                                         <h4 className="text-sm font-bold text-gray-900 dark:text-white">Add Courses</h4>
                                         {isManualMode && (

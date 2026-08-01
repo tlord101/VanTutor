@@ -958,6 +958,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       });
       setIsLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser]);
 
   useEffect(() => {
@@ -1021,7 +1022,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         }
       }
     });
-  }, [chats, userMap]);
+  }, [chats, userMap, fetchedUserProfiles, userProfile.uid]);
 
   useEffect(() => {
     if (!chats.length) return;
@@ -1030,7 +1031,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const resolvedUser = otherUserId ? (userMap.get(otherUserId) || fetchedUserProfiles[otherUserId]) : undefined;
       return resolvedUser ? { ...chat, otherUser: resolvedUser } : chat;
     }));
-  }, [userMap, fetchedUserProfiles]);
+  }, [chats, userMap, fetchedUserProfiles]);
 
   useEffect(() => {
     if (!initialChatId || !chats.length) return;
@@ -1730,6 +1731,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     return () => {
       setCustomHeaderConfig(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setCustomHeaderConfig, activeChat, tab, onNavigate, showUserOptions, messageActionTarget, firebaseUser]);
 
 
