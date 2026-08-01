@@ -2112,6 +2112,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         setIsSavingManual(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
+            if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
             const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-1.5-flash';
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
