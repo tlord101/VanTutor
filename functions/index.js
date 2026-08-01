@@ -768,6 +768,10 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
         const processedRef = admin.database().ref(`/processed_transactions/${reference}`);
         const snapshot = await processedRef.once('value');
         if (snapshot.exists()) {
+            const existing = snapshot.val();
+            if (existing?.uid && existing.uid !== uid) {
+                throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
+            }
             return { status: 'success', message: 'Transaction already processed.', reference };
         }
 
