@@ -53,6 +53,7 @@ import { initNativeNotifications, cleanupNativeNotifications } from './utils/nat
 
 import { Skeleton, PageSkeleton } from './components/Skeleton';
 import { useOTAUpdater } from './hooks/useOTAUpdater';
+import { useAppUpdate } from './hooks/useAppUpdate';
 
 declare var __app_id: string;
 
@@ -312,6 +313,7 @@ const playAlarmSound = () => {
 // CORE APP CONTEXT ENGINE INITIALIZATION
 // ==========================================
 const App: React.FC = () => {
+    useAppUpdate();
     useOTAUpdater();
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();

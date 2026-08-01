@@ -62,6 +62,9 @@ importers:
       '@capawesome-team/capacitor-file-opener':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.4.1)
+      '@capawesome/capacitor-app-update':
+        specifier: ^8.0.3
+        version: 8.0.3(@capacitor/core@8.4.1)
       '@capgo/capacitor-updater':
         specifier: ^8.50.1
         version: 8.50.1(@capacitor/core@8.4.1)
@@ -458,9 +461,6 @@ packages:
   '@capacitor/core@8.4.1':
     resolution: {integrity: sha512-xqhOGLbTAYeOWK+IDUNSjQJAPapQjRHrIcgk9PYp52or9zFTaaMko31uNi16N6W+CRJ8VrRram6fOYILkBG2Hg==}
 
-  '@capacitor/core@8.4.2':
-    resolution: {integrity: sha512-fQPRb3JXRaU2pnufDUvqOjhsrYxDQeFRZyaj/sHydIUxD2NxOGHKMpmKUdI+U4OOmKuGZyvRpi7TSJU+7Bjbmg==}
-
   '@capacitor/filesystem@8.1.2':
     resolution: {integrity: sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ==}
     peerDependencies:
@@ -506,6 +506,11 @@ packages:
 
   '@capawesome-team/capacitor-file-opener@8.0.1':
     resolution: {integrity: sha512-wGk5SUHFqWvfbN4BAlzzH7Xucl81UW2EkiwwfhOd1FBs1VYsq9X2W2CGpGBRlRRf9JnTk2aRaXGdGRV3/3LeGw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@capawesome/capacitor-app-update@8.0.3':
+    resolution: {integrity: sha512-5pS9I+i2TuUl8b6L3h2WsWF/PE68exzoc9CciXK/I2SdB2fIkdxObrYBeYS2Z09ndCGqJgx4iwZJmhXwVcMh4w==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -4883,10 +4888,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@capacitor/core@8.4.2':
-    dependencies:
-      tslib: 2.8.1
-
   '@capacitor/filesystem@8.1.2(@capacitor/core@8.4.1)':
     dependencies:
       '@capacitor/core': 8.4.1
@@ -4923,6 +4924,10 @@ snapshots:
       '@capacitor/core': 8.4.1
 
   '@capawesome-team/capacitor-file-opener@8.0.1(@capacitor/core@8.4.1)':
+    dependencies:
+      '@capacitor/core': 8.4.1
+
+  '@capawesome/capacitor-app-update@8.0.3(@capacitor/core@8.4.1)':
     dependencies:
       '@capacitor/core': 8.4.1
 
@@ -6314,7 +6319,7 @@ snapshots:
 
   capacitor-plugin-send-intent@0.0.2:
     dependencies:
-      '@capacitor/core': 8.4.2
+      '@capacitor/core': 8.4.1
 
   ccount@2.0.1: {}
 
