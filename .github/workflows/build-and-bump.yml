@@ -1,0 +1,97 @@
+name: Universal Release Build & Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type (apk or aab)'
+        required: true
+        default: 'aab'
+        type: choice
+        options:
+          - apk
+          - aab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Bump Versions (package.json & build.gradle)
+        run: |
+          # Bump the patch version in package.json
+          npm version patch --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "Bumping to Version: $NEW_VERSION"
+
+          BUILD_GRADLE="android/app/build.gradle"
+
+          # Increment versionCode in build.gradle
+          CURRENT_VERSION_CODE=$(grep -oP 'versionCode\s+\K[0-9]+' $BUILD_GRADLE)
+          NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+          sed -i -E "s/(versionCode\s+)[0-9]+/\1$NEW_VERSION_CODE/" $BUILD_GRADLE
+
+          # Update versionName in build.gradle to match package.json
+          sed -i -E "s/(versionName\s+)\".*\"/\1\"$NEW_VERSION\"/" $BUILD_GRADLE
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        working-directory: ./android
+        run: chmod +x gradlew
+
+      - name: Build AAB
+        if: ${{ github.event.inputs.build_type == 'aab' }}
+        working-directory: ./android
+        run: ./gradlew bundleRelease
+
+      - name: Build APK
+        if: ${{ github.event.inputs.build_type == 'apk' }}
+        working-directory: ./android
+        run: ./gradlew assembleRelease
+
+      - name: Commit Version Bumps
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: bump version to new release"
+          file_pattern: 'package.json android/app/build.gradle'
+
+      - name: Upload AAB Artifact
+        if: ${{ github.event.inputs.build_type == 'aab' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload APK Artifact
+        if: ${{ github.event.inputs.build_type == 'apk' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
