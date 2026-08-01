@@ -1,10 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { AppUpdate, AppUpdateAvailability } from '@capawesome/capacitor-app-update';
 
 export function useAppUpdate() {
+    const hasCheckedRef = useRef(false);
+
     useEffect(() => {
-        if (!Capacitor.isNativePlatform()) return;
+        // React StrictMode intentionally double-invokes effects in dev; guard to avoid duplicate update prompts.
+        if (hasCheckedRef.current) return;
+        hasCheckedRef.current = true;
+
+        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
 
         const checkAndPromptForUpdate = async () => {
             try {
@@ -17,6 +23,6 @@ export function useAppUpdate() {
             }
         };
 
-        checkAndPromptForUpdate();
+        void checkAndPromptForUpdate();
     }, []);
 }
