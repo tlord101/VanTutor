@@ -261,6 +261,7 @@ interface LearningInterfaceProps {
     userProfile: UserProfile;
     course: Course;
     onClose: () => void;
+    initialTopic?: { topic_id?: string; topic_context?: string; topic_name?: string } | null;
 }
 
 const INVIDIOUS_INSTANCES = [
@@ -391,6 +392,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const lastTapRef = useRef<Record<string, number>>({});
     const [textbookContext, setTextbookContext] = useState<string>('');
     const [selectedTopicContext, setSelectedTopicContext] = useState<string>('');
+    const [selectedTopicName, setSelectedTopicName] = useState<string | null>(null);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const isAwardingTimeXpRef = useRef(false);
     const [shouldAutoTeach, setShouldAutoTeach] = useState(false);
@@ -699,6 +701,14 @@ Return valid JSON as a list of objects with keys: title, description, searchQuer
         };
         fetchTextbook();
     }, [userProfile.department_id, userProfile.level, course]);
+    
+    // Initialize from initialTopic when provided
+    useEffect(() => {
+        if (initialTopic && initialTopic.topic_context) {
+            setSelectedTopicContext(initialTopic.topic_context);
+            setSelectedTopicName(initialTopic.topic_name || null);
+        }
+    }, [initialTopic]);
 
     const systemInstruction = `You are AVELUT, an enthusiastic, highly engaging, and fun AI educator. Your primary goal is to help the student master the topic without ever feeling overwhelmed or tired.
 
@@ -2089,6 +2099,8 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     });
 
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [topicPickerCourse, setTopicPickerCourse] = useState<Course | null>(null);
+    const [topicToOpen, setTopicToOpen] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [filter, setFilter] = useState(() => ({
         searchTerm: '',
@@ -2356,10 +2368,59 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             <LearningInterface
                 userProfile={userProfile}
                 course={selectedCourse}
-                onClose={() => setSelectedCourse(null)}
+                initialTopic={topicToOpen}
+                onClose={() => { setSelectedCourse(null); setTopicToOpen(null); }}
             />
         );
     }
+
+    // Topic picker modal when a course is clicked
+    const renderTopicPicker = () => {
+        if (!topicPickerCourse) return null;
+        const topics = Array.isArray(topicPickerCourse.topics) ? topicPickerCourse.topics : [];
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/40" onClick={() => setTopicPickerCourse(null)} />
+                <div className="relative bg-white dark:bg-black w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-transparent z-50">
+                    <div className="p-4 border-b border-gray-100 dark:border-transparent flex items-center justify-between">
+                        <div>
+                            <h3 className="text-base font-bold text-gray-900 dark:text-white">{topicPickerCourse.course_name}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Choose a topic to start with</p>
+                        </div>
+                        <button onClick={() => setTopicPickerCourse(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2">
+                        {topics.length === 0 ? (
+                            <div className="p-6 text-center text-sm text-gray-500">No topics found for this course. You can upload a textbook to extract topics.</div>
+                        ) : (
+                            topics.map((t: any, idx: number) => (
+                                <div key={t.topic_id || idx} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-100 dark:border-transparent hover:bg-gray-50 dark:hover:bg-gray-900">
+                                    <div className="flex-1">
+                                        <div className="font-semibold text-sm text-gray-900 dark:text-white">{t.topic_name}</div>
+                                        <div className="text-xs text-gray-500 mt-1 line-clamp-2">{(t.topic_context || '').slice(0, 180)}</div>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedCourse(topicPickerCourse);
+                                                setTopicToOpen(t);
+                                                setTopicPickerCourse(null);
+                                            }}
+                                            className="px-3 py-2 bg-lime-500 hover:bg-lime-600 text-white rounded-lg text-xs font-bold"
+                                        >Start</button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="p-4 border-t border-gray-100 dark:border-transparent bg-gray-50 dark:bg-black flex gap-3">
+                        <button onClick={() => { setSelectedCourse(topicPickerCourse); setTopicToOpen(null); setTopicPickerCourse(null); }} className="flex-1 bg-white dark:bg-black border border-gray-200 dark:border-transparent text-gray-700 dark:text-gray-300 rounded-xl py-3 font-bold">Start full course</button>
+                        <button onClick={() => setTopicPickerCourse(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-3 font-bold">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="flex-1 flex flex-col w-full bg-white dark:bg-black border border-gray-200 dark:border-transparent overflow-hidden rounded-2xl">
@@ -2404,7 +2465,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                     <CourseHeader
                                         course={course}
                                         isExpanded={false}
-                                        onClick={() => setSelectedCourse(course)}
+                                        onClick={() => setTopicPickerCourse(course)}
                                         userProgress={userProgress}
                                         onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
                                         isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
