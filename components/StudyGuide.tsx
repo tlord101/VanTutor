@@ -2032,7 +2032,12 @@ const CourseHeader: React.FC<{
                         </svg>
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <div className="text-base font-black text-gray-800 dark:text-gray-200 tracking-tight truncate">{courseLabel}</div>
+                        <div className="flex items-center gap-2">
+                            <div className="text-base font-black text-gray-800 dark:text-gray-200 tracking-tight truncate">{courseLabel}</div>
+                            {Array.isArray(course.topics) && course.topics.length > 0 && (
+                                <div className="text-xs font-bold text-gray-600 dark:text-gray-300 bg-white/60 dark:bg-white/5 px-2 py-0.5 rounded-full border border-gray-100">{course.topics.length} topics</div>
+                            )}
+                        </div>
                         <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 truncate">{course.course_name}</div>
                     </div>
                 </div>
@@ -2101,6 +2106,34 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [topicPickerCourse, setTopicPickerCourse] = useState<Course | null>(null);
     const [topicToOpen, setTopicToOpen] = useState<any | null>(null);
+    const [pinnedTopics, setPinnedTopics] = useState<Array<any>>(() => {
+        try {
+            const raw = window.localStorage.getItem(`pinned_topics_${userProfile.uid}`);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    const savePinnedTopics = (next: Array<any>) => {
+        try {
+            window.localStorage.setItem(`pinned_topics_${userProfile.uid}`, JSON.stringify(next));
+        } catch (e) {
+            console.warn('Failed to save pinned topics', e);
+        }
+        setPinnedTopics(next);
+    };
+
+    const togglePinTopic = (course: Course, topic: any) => {
+        const key = `${course.course_id}::${topic.topic_id}`;
+        const exists = pinnedTopics.find(p => p.key === key);
+        if (exists) {
+            savePinnedTopics(pinnedTopics.filter(p => p.key !== key));
+            return;
+        }
+        const next = [{ key, course_id: course.course_id, course_name: course.course_name, topic_id: topic.topic_id, topic_name: topic.topic_name, topic_context: topic.topic_context }, ...pinnedTopics];
+        savePinnedTopics(next.slice(0, 20)); // limit to 20
+    };
     const [isLoading, setIsLoading] = useState(false);
     const [filter, setFilter] = useState(() => ({
         searchTerm: '',
@@ -2389,14 +2422,36 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         </div>
                         <button onClick={() => setTopicPickerCourse(null)} className="text-gray-400 hover:text-gray-600">✕</button>
                     </div>
-                    <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2">
+                    <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
+                        {pinnedTopics.filter(p => p.course_id === topicPickerCourse.course_id).length > 0 && (
+                            <div className="space-y-2">
+                                <div className="text-xs font-bold uppercase text-gray-500">Pinned topics</div>
+                                {pinnedTopics.filter(p => p.course_id === topicPickerCourse.course_id).map((p) => (
+                                    <div key={p.key} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-100 dark:border-transparent bg-white/50 dark:bg-white/5">
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-sm text-gray-900 dark:text-white">{p.topic_name}</div>
+                                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{(p.topic_context || '').slice(0, 160)}</div>
+                                        </div>
+                                        <div className="flex-shrink-0 flex flex-col gap-2">
+                                            <button onClick={() => { setSelectedCourse(topicPickerCourse); setTopicToOpen({ topic_id: p.topic_id, topic_name: p.topic_name, topic_context: p.topic_context }); setTopicPickerCourse(null); }} className="px-3 py-2 bg-lime-500 hover:bg-lime-600 text-white rounded-lg text-xs font-bold">Open</button>
+                                            <button onClick={() => togglePinTopic(topicPickerCourse, { topic_id: p.topic_id, topic_name: p.topic_name, topic_context: p.topic_context })} className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">Unpin</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="border-t border-gray-100 dark:border-transparent my-2" />
+                            </div>
+                        )}
+
                         {topics.length === 0 ? (
                             <div className="p-6 text-center text-sm text-gray-500">No topics found for this course. You can upload a textbook to extract topics.</div>
                         ) : (
                             topics.map((t: any, idx: number) => (
                                 <div key={t.topic_id || idx} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-100 dark:border-transparent hover:bg-gray-50 dark:hover:bg-gray-900">
                                     <div className="flex-1">
-                                        <div className="font-semibold text-sm text-gray-900 dark:text-white">{t.topic_name}</div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="font-semibold text-sm text-gray-900 dark:text-white">{t.topic_name}</div>
+                                            <button onClick={() => togglePinTopic(topicPickerCourse, t)} className="text-xs text-gray-400 hover:text-gray-600">{pinnedTopics.find(p => p.key === `${topicPickerCourse.course_id}::${t.topic_id}`) ? '★' : '☆'}</button>
+                                        </div>
                                         <div className="text-xs text-gray-500 mt-1 line-clamp-2">{(t.topic_context || '').slice(0, 180)}</div>
                                     </div>
                                     <div className="flex-shrink-0">
