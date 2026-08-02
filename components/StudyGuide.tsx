@@ -388,6 +388,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const [isIllustrating, setIsIllustrating] = useState(false);
+    const lastTapRef = useRef<Record<string, number>>({});
     const [textbookContext, setTextbookContext] = useState<string>('');
     const [selectedTopicContext, setSelectedTopicContext] = useState<string>('');
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
@@ -1303,16 +1304,18 @@ Student: "${tempInput}"
         }
     };
 
-    const [flippingMessageId, setFlippingMessageId] = useState<string | null>(null);
+    const [generatingMessageIds, setGeneratingMessageIds] = useState<Set<string>>(new Set());
 
     const handleMessageDoubleTap = async (message: Message) => {
         if (message.sender !== 'bot' || !message.text) return;
 
-        // Cancel visualization generation state flip if already flipping (meaning generating)
-        if (flippingMessageId === message.id) {
-             setFlippingMessageId(null);
-             // Note: We can't easily cancel the actual AI request once it's in flight without AbortController,
-             // but we can stop the UI from showing the loading state and flipping.
+        // If this message is currently generating, toggle off the UI generating state for it
+        if (generatingMessageIds.has(message.id)) {
+             setGeneratingMessageIds(prev => {
+                 const next = new Set(prev);
+                 next.delete(message.id);
+                 return next;
+             });
              return;
         }
 
@@ -1327,13 +1330,19 @@ Student: "${tempInput}"
              return;
         }
 
-        if (isIllustrating) return;
+        // Start generation for this message only (allow other messages to be generated independently)
+        setGeneratingMessageIds(prev => {
+            const next = new Set(prev);
+            next.add(message.id);
+            return next;
+        });
 
-        setFlippingMessageId(message.id);
         void handleGenerateIllustration(message.text, message.id).finally(() => {
-             // The flip to the actual image is handled by adding it to viewingImageIds in handleGenerateIllustration,
-             // so we clear the generating flipping state.
-             setFlippingMessageId(null);
+            setGeneratingMessageIds(prev => {
+                const next = new Set(prev);
+                next.delete(message.id);
+                return next;
+            });
         });
     };
 
@@ -1457,7 +1466,7 @@ Student: "${tempInput}"
 
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                                         <div
-                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words touch-manipulation ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
+                                            className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words touch-manipulation ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(generatingMessageIds.has(message.id) || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
                                             onDoubleClick={() => handleMessageDoubleTap(message)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
@@ -1478,15 +1487,14 @@ Student: "${tempInput}"
                                                     clearTimeout(longPressTimerRef.current);
                                                     longPressTimerRef.current = null;
                                                 }
-                                                // Handle double tap for touch devices
+                                                // Handle double tap for touch devices using per-message timestamp ref
                                                 const now = Date.now();
-                                                const target = e.currentTarget;
-                                                const lastTap = parseInt(target.getAttribute('data-last-tap') || '0', 10);
-                                                if (now - lastTap < 300) {
+                                                const lastTap = lastTapRef.current[message.id] || 0;
+                                                if (now - lastTap < 350) {
                                                     void handleMessageDoubleTap(message);
-                                                    target.setAttribute('data-last-tap', '0');
+                                                    lastTapRef.current[message.id] = 0;
                                                 } else {
-                                                    target.setAttribute('data-last-tap', now.toString());
+                                                    lastTapRef.current[message.id] = now;
                                                 }
                                             }}
                                             onTouchMove={() => {
@@ -1503,7 +1511,7 @@ Student: "${tempInput}"
                                             }}
                                         >
                                             {/* Front of the card (Markdown text) */}
-                                            <div className={`${(flippingMessageId === message.id || viewingImageIds.has(message.id)) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 backface-hidden`}>
+                                            <div className={`${(generatingMessageIds.has(message.id) || viewingImageIds.has(message.id)) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 backface-hidden`}>
                                                 {message.sender === 'user' ? (
                                                     <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
                                                 ) : (
@@ -1554,7 +1562,7 @@ Student: "${tempInput}"
                                             </div>
 
                                             {/* Back of the card (shown while generating or when viewing image) */}
-                                            {(flippingMessageId === message.id || viewingImageIds.has(message.id)) && (
+                                            {(generatingMessageIds.has(message.id) || viewingImageIds.has(message.id)) && (
                                                 <div
                                                     className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl rotate-y-180 transform-style-3d backface-hidden overflow-hidden"
                                                     onDoubleClick={(e) => {
