@@ -390,6 +390,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const [isThinking, setIsThinking] = useState(false);
     const [isIllustrating, setIsIllustrating] = useState(false);
     const lastTapRef = useRef<Record<string, number>>({});
+    const lastToggleRef = useRef<Record<string, number>>({});
     const [textbookContext, setTextbookContext] = useState<string>('');
     const [selectedTopicContext, setSelectedTopicContext] = useState<string>('');
     const [selectedTopicName, setSelectedTopicName] = useState<string | null>(null);
@@ -1334,6 +1335,13 @@ Student: "${tempInput}"
 
     const handleMessageDoubleTap = async (message: Message) => {
         if (message.sender !== 'bot' || !message.text) return;
+        const nowToggle = Date.now();
+        const lastToggle = lastToggleRef.current[message.id] || 0;
+        // Debounce duplicate event sources (mouse doubleClick + touch doubleTap firing together)
+        if (nowToggle - lastToggle < 600) {
+            return;
+        }
+        lastToggleRef.current[message.id] = nowToggle;
         // If this message is currently generating, toggle off both generating and viewing states
         if (generatingMessageIds.has(message.id)) {
             setGeneratingMessageIds(prev => {
@@ -1526,13 +1534,14 @@ Student: "${tempInput}"
                                                 }
                                                 // Handle double tap for touch devices using per-message timestamp ref
                                                 const now = Date.now();
-                                                const lastTap = lastTapRef.current[message.id] || 0;
-                                                if (now - lastTap < 350) {
-                                                    void handleMessageDoubleTap(message);
-                                                    lastTapRef.current[message.id] = 0;
-                                                } else {
-                                                    lastTapRef.current[message.id] = now;
-                                                }
+                                                    const lastTap = lastTapRef.current[message.id] || 0;
+                                                    // tighten threshold slightly to avoid accidental multi-taps
+                                                    if (now - lastTap < 300) {
+                                                        void handleMessageDoubleTap(message);
+                                                        lastTapRef.current[message.id] = 0;
+                                                    } else {
+                                                        lastTapRef.current[message.id] = now;
+                                                    }
                                             }}
                                             onTouchMove={() => {
                                                 if (longPressTimerRef.current) {
