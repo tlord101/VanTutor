@@ -372,7 +372,7 @@ const parseMessageSuggestions = (text: string): { cleanText: string; suggestions
     return { cleanText: text, suggestions: [] };
 };
 
-const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, course, onClose }) => {
+const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, course, onClose, initialTopic }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
     const [input, setInput] = useState('');
