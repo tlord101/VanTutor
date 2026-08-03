@@ -119,23 +119,23 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
   return (
     <div className="fixed inset-0 z-[100] bg-white dark:bg-black flex flex-col overflow-hidden font-sans select-none">
       {/* Premium Header */}
-      <header className="flex justify-between items-center px-6 py-4 border-b border-[#E2E8F0] dark:border-gray-800 shrink-0">
+      <header className="flex justify-between items-center px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-800 shrink-0">
         <div className="flex flex-col">
-          <span className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em] mb-0.5">Card Queue</span>
-          <span className="text-sm font-bold text-[#1E293B] dark:text-white">
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.24em] mb-0.5">Card Queue</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-white">
             {currentIndex + 1} <span className="text-[#CBD5E1] dark:text-gray-600 mx-1">/</span> {flashcards.length}
           </span>
         </div>
         <button
           onClick={onClose}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-gray-700 text-[#64748B] dark:text-[#CBD5E1] hover:text-[#EF4444] transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:text-red-500 transition-colors"
         >
           <XIcon className="w-5 h-5" />
         </button>
       </header>
 
       {/* Main Flashcard Arena */}
-      <main className="flex-1 relative flex items-center justify-center p-6 bg-[#FFFFFF] dark:bg-[#000000]">
+      <main className="flex-1 relative flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-black">
         <div className="relative w-full max-w-sm aspect-[3/4]">
           <AnimatePresence mode="popLayout" custom={exitDirection}>
             {flashcards.slice(currentIndex, currentIndex + 3).map((card, idx) => (
@@ -154,26 +154,26 @@ export const FlashcardsUI: React.FC<FlashcardsUIProps> = ({ flashcards, onFinish
       </main>
 
       {/* Control Actions */}
-      <footer className="px-6 py-10 flex flex-col items-center gap-6 border-t border-[#E2E8F0] dark:border-gray-800 shrink-0">
-        <div className="flex gap-4 w-full max-w-sm">
+      <footer className="px-4 sm:px-6 py-5 flex flex-col items-center gap-4 border-t border-gray-200 dark:border-gray-800 shrink-0 bg-white dark:bg-black">
+        <div className="flex gap-3 w-full max-w-sm">
           <button
             onClick={handlePrev}
             disabled={currentIndex === 0}
-            className="flex-1 h-14 flex items-center justify-center rounded-2xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-gray-700 text-[#1E293B] dark:text-white font-bold text-xs uppercase tracking-widest hover:bg-[#F8FAFC] dark:hover:bg-[#334155] active:scale-95 transition-all disabled:opacity-30"
+            className="flex-1 h-11 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all disabled:opacity-30"
           >
             Previous
           </button>
           <button
             onClick={handleNextManual}
-            className={`flex-[2] h-14 flex items-center justify-center rounded-2xl text-white font-black text-xs uppercase tracking-widest active:scale-95 transition-all ${
-              currentIndex < flashcards.length - 1 ? 'bg-[#1E293B] dark:bg-[#3B82F6]' : 'bg-[#10B981]'
+            className={`flex-[2] h-11 flex items-center justify-center rounded-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all ${
+              currentIndex < flashcards.length - 1 ? 'bg-blue-600 dark:bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
             }`}
           >
             {currentIndex < flashcards.length - 1 ? 'Next Card' : 'Finish Session'}
           </button>
         </div>
 
-        <p className="text-[10px] font-black text-[#94A3B8] dark:text-[#64748B] uppercase tracking-[0.25em]">
+        <p className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.28em]">
           Swipe to navigate • Tap to reveal
         </p>
       </footer>
