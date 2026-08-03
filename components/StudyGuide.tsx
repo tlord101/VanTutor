@@ -2605,6 +2605,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 addToast={addToast}
                 onSuccessPurchase={() => { }}
             />
+            {renderTopicPicker()}
         </div>
     );
 };
