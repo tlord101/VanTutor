@@ -1276,7 +1276,7 @@ Student: "${tempInput}"
 
         try {
             const result = await attemptApiCall(async () => {
-                const prompt = `Create an educational visualization for this study guide explanation:\n\n${promptText}`;
+                const prompt = `Create a SIMPLE, minimal educational illustration for this study guide explanation. Use clear shapes, large readable labels, and avoid decorative or photorealistic details. Focus only on the essential concept to teach the idea quickly to a student. Keep the style flat and high-contrast, suitable for diagrams in textbooks or slides.\n\nContext:\n${promptText}`;
 
                 const response = await ai.models.generateContent({
                     model: "gemini-3.1-flash-image-preview",
@@ -1330,44 +1330,56 @@ Student: "${tempInput}"
     };
 
     const [generatingMessageIds, setGeneratingMessageIds] = useState<Set<string>>(new Set());
+    const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
 
     const handleMessageDoubleTap = async (message: Message) => {
         if (message.sender !== 'bot' || !message.text) return;
-
-        // If this message is currently generating, toggle off the UI generating state for it
+        // If this message is currently generating, toggle off both generating and viewing states
         if (generatingMessageIds.has(message.id)) {
-             setGeneratingMessageIds(prev => {
-                 const next = new Set(prev);
-                 next.delete(message.id);
-                 return next;
-             });
-             return;
+            setGeneratingMessageIds(prev => {
+                const next = new Set(prev);
+                next.delete(message.id);
+                return next;
+            });
+            setViewingImageIds(prev => {
+                const next = new Set(prev);
+                next.delete(message.id);
+                return next;
+            });
+            return;
         }
 
-        // Toggle back and forth between image and text if the image already exists
+        // If an image already exists for this message, just toggle viewing (flip back to chat)
         if (message.image_url) {
-             setViewingImageIds(prev => {
-                 const next = new Set(prev);
-                 if (next.has(message.id)) next.delete(message.id);
-                 else next.add(message.id);
-                 return next;
-             });
-             return;
+            setViewingImageIds(prev => {
+                const next = new Set(prev);
+                if (next.has(message.id)) next.delete(message.id);
+                else next.add(message.id);
+                return next;
+            });
+            return;
         }
 
-        // Start generation for this message only (allow other messages to be generated independently)
+        // Start generation for this message only: immediately flip to the "back" and show placeholder
         setGeneratingMessageIds(prev => {
             const next = new Set(prev);
             next.add(message.id);
             return next;
         });
+        setViewingImageIds(prev => {
+            const next = new Set(prev);
+            next.add(message.id);
+            return next;
+        });
 
+        // Launch generation; when done, DB update will include image_url and the back face will display it.
         void handleGenerateIllustration(message.text, message.id).finally(() => {
             setGeneratingMessageIds(prev => {
                 const next = new Set(prev);
                 next.delete(message.id);
                 return next;
             });
+            // keep viewingImageIds true so the produced image is visible when ready
         });
     };
 
@@ -1596,7 +1608,7 @@ Student: "${tempInput}"
                                                     }}
                                                 >
                                                     {viewingImageIds.has(message.id) && message.image_url ? (
-                                                        <img src={message.image_url} alt="Generated illustration" className="w-full h-full object-cover rounded-2xl" />
+                                                        <img onClick={(e) => { e.stopPropagation(); setFullScreenImageUrl(message.image_url || null); }} src={message.image_url} alt="Generated illustration" className="w-full h-full object-contain rounded-2xl cursor-pointer" />
                                                     ) : (
                                                         <div className="flex flex-col items-center justify-center w-full h-full animate-[scan-pulse_2s_ease-in-out_infinite]">
                                                             <div className="flex flex-col items-center p-6 text-gray-400 dark:text-gray-500">
@@ -2621,6 +2633,17 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 onSuccessPurchase={() => { }}
             />
             {renderTopicPicker()}
+
+            {/* Fullscreen image viewer for generated illustrations */}
+            {fullScreenImageUrl && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/60" onClick={() => setFullScreenImageUrl(null)} />
+                    <div className="relative max-w-[95%] max-h-[95%]">
+                        <button onClick={() => setFullScreenImageUrl(null)} className="absolute right-2 top-2 z-50 bg-white/80 rounded-full p-2">✕</button>
+                        <img src={fullScreenImageUrl} alt="Full illustration" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-xl" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
