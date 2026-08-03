@@ -229,6 +229,60 @@ const PWAInstallBannerOverlay: React.FC = () => {
     );
 };
 
+const AppUpdateDropModal: React.FC<{
+    visible: boolean;
+    title: string;
+    message: string;
+    mandatory: boolean;
+    targetVersionLabel?: string;
+    onUpdate: () => void;
+    onSkip: () => void;
+}> = ({ visible, title, message, mandatory, targetVersionLabel, onUpdate, onSkip }) => {
+    if (!visible) return null;
+
+    return (
+        <div className="fixed top-0 left-0 right-0 z-[120] flex justify-center px-4 pt-4 sm:pt-6 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-xl rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-500/20 overflow-hidden animate-[slideDown_280ms_ease-out]">
+                <div className="h-1.5 bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600" />
+                <div className="p-5 sm:p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 16V4" />
+                                <path d="m7 11 5 5 5-5" />
+                                <path d="M5 20h14" />
+                            </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">{title}</h3>
+                            {targetVersionLabel && (
+                                <p className="text-xs font-bold uppercase tracking-widest text-sky-600 mt-1">{targetVersionLabel}</p>
+                            )}
+                            <p className="text-sm text-slate-600 mt-2 leading-relaxed">{message}</p>
+                        </div>
+                    </div>
+                    <div className="mt-5 flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+                        {!mandatory && (
+                            <button
+                                onClick={onSkip}
+                                className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition"
+                            >
+                                Skip
+                            </button>
+                        )}
+                        <button
+                            onClick={onUpdate}
+                            className="px-4 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-black uppercase tracking-wide hover:bg-sky-700 transition"
+                        >
+                            Update App
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ==========================================
 // UTILITY ROUTING PROTOCOLS
 // ==========================================
@@ -242,7 +296,8 @@ const ALLOWED_ROUTE_ITEMS = new Set([
     'user_profile',
     'billing',
     'help',
-    'admin'
+    'admin',
+    'study_partners'
 ].map(normalizeRouteSegment));
 
 const resolveActiveItemFromPath = (pathname: string): string => {
@@ -313,7 +368,7 @@ const playAlarmSound = () => {
 // CORE APP CONTEXT ENGINE INITIALIZATION
 // ==========================================
 const App: React.FC = () => {
-    useAppUpdate();
+    const { updatePrompt, dismissUpdatePrompt, openUpdateInStore } = useAppUpdate();
     useOTAUpdater();
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
@@ -517,7 +572,9 @@ const App: React.FC = () => {
 
     const currentPageLabel = activeItem === 'messenger' 
         ? 'Messenger' 
-        : (navigationItems.find(item => item.id === activeItem)?.label || 'Dashboard');
+        : activeItem === 'study_partners'
+            ? 'Study Partners'
+            : (navigationItems.find(item => item.id === activeItem)?.label || 'Dashboard');
 
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -1184,7 +1241,10 @@ const App: React.FC = () => {
                 title: 'Welcome to AVELUT!',
                 message: 'Your learning journey starts now. Explore the study guide to begin.',
                 is_read: false,
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp(),
+                route: 'study_guide',
+                audience: 'single',
+                category: 'welcome'
             });
             
             setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
@@ -1473,6 +1533,18 @@ const App: React.FC = () => {
     return (
         <div className="flex h-screen w-full bg-off-white dark:bg-black font-sans text-charcoal dark:text-white selection:bg-brand-200 selection:text-brand-900 overflow-hidden">
             <NativePullToRefresh />
+
+            <AppUpdateDropModal
+                visible={updatePrompt.visible}
+                title={updatePrompt.title}
+                message={updatePrompt.message}
+                mandatory={updatePrompt.mandatory}
+                targetVersionLabel={updatePrompt.targetVersionName ? `v${updatePrompt.targetVersionName} (code ${updatePrompt.targetVersionCode})` : `Version code ${updatePrompt.targetVersionCode}`}
+                onUpdate={() => {
+                    void openUpdateInStore();
+                }}
+                onSkip={dismissUpdatePrompt}
+            />
 
             {/* Automatic PWA App Intercept Modal Overlay */}
             <PWAInstallBannerOverlay />

@@ -8,6 +8,7 @@ interface CourseCatalogViewProps {
     handleCourseTabNavigate: (path: string) => void;
     globalSearchQuery: string;
     setGlobalSearchQuery: (val: string) => void;
+    courseCatalog: any[];
     allDepartments: any[];
     LEVELS: string[];
     filteredGlobalCourses: any[];
@@ -42,6 +43,7 @@ interface CourseCatalogViewProps {
     normalizeTextbookUrls: (course: Partial<Course>) => string[];
     handleDeleteCourseFromDepartment: (course: Course, deleteAll?: boolean) => void;
     handleBatchDeleteCourses: (courses: Course[], deleteAll?: boolean) => void;
+    handleDeleteCourseTopics: (course: Course, topicIds: string[]) => void;
     selectedManagerDepartment: any;
     selectedManagerCourse: Course | undefined;
     setCourseDetailFiles: (files: File[]) => void;
@@ -55,7 +57,7 @@ interface CourseCatalogViewProps {
 
 export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     courseAdminView, handleCourseTabNavigate, globalSearchQuery, setGlobalSearchQuery,
-    allDepartments, LEVELS, filteredGlobalCourses, buildCourseManagerPath, buildCourseGlobalPath,
+    courseCatalog, allDepartments, LEVELS, filteredGlobalCourses, buildCourseManagerPath, buildCourseGlobalPath,
     globalLevelCourses, selectedGlobalCourseEntry,
     managerSelectionDepartmentId, setManagerSelectionDepartmentId,
     managerSelectionLevel, setManagerSelectionLevel, buildCourseAddPath,
@@ -65,7 +67,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     setCourseImportSessionOverride, setCourseRegistrationFiles, handleGoogleDrivePick,
     handleCourseRegistrationImport, handleCourseCSVImport, isCourseImportDisabled, isCourseImporting,
     courseImportProgress, managerCoursesForLevel, getCourseRouteKey,
-    normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, selectedManagerDepartment,
+    normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, handleDeleteCourseTopics, selectedManagerDepartment,
     selectedManagerCourse, setCourseDetailFiles, courseDetailFiles,
     autoSyncToOfferingDepartments, setAutoSyncToOfferingDepartments,
     isUploading, extractionProgress, handleTextbookUpload
@@ -76,6 +78,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     // Filters
     const [selectedFilterSchoolId, setSelectedFilterSchoolId] = useState<string>('');
     const [selectedFilterCollegeId, setSelectedFilterCollegeId] = useState<string>('');
+    const [selectedGlobalSchoolId, setSelectedGlobalSchoolId] = useState<string>('');
+    const [selectedGlobalLevel, setSelectedGlobalLevel] = useState<string>('');
+    const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
 
     // Derived unique lists for filters
     const uniqueSchools = Array.from(new Set(allDepartments.map(d => d.schoolId))).map(sId => {
@@ -97,6 +102,13 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         if (selectedFilterCollegeId && dept.collegeId !== selectedFilterCollegeId) return false;
         return true;
     });
+
+    const uniqueGlobalSchools = Array.from(new Set(allDepartments.map(d => d.schoolId))).map(sId => {
+        const d = allDepartments.find(dept => dept.schoolId === sId);
+        return { id: sId, name: d?.schoolName || sId };
+    });
+
+    const uniqueGlobalLevels = Array.from(new Set(courseCatalog.map(entry => entry.course?.level).filter(Boolean))).sort();
 
     // CSV Parse State
     const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -172,8 +184,6 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         reader.readAsText(csvFile);
     };
 
-    const isGlobalSearch = globalSearchQuery.length > 0;
-
     // Pagination for Global Search
     const [globalCurrentPage, setGlobalCurrentPage] = useState(1);
     const globalCoursesPerPage = 20;
@@ -182,9 +192,68 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         setGlobalCurrentPage(1);
     }, [globalSearchQuery]);
 
-    const globalTotalPages = Math.ceil(filteredGlobalCourses.length / globalCoursesPerPage);
+    React.useEffect(() => {
+        setGlobalCurrentPage(1);
+    }, [selectedGlobalSchoolId, selectedGlobalLevel]);
+
+    React.useEffect(() => {
+        setSelectedTopicIds([]);
+    }, [selectedGlobalCourseEntry?.course?.course_id, selectedGlobalCourseEntry?.course?.course_name, selectedGlobalCourseEntry?.course?.topics?.length]);
+
+    const globalDirectoryCourses = React.useMemo(() => {
+        const query = globalSearchQuery.trim().toLowerCase();
+        return (courseCatalog.length ? courseCatalog : filteredGlobalCourses).filter(({ course, departmentIds }) => {
+            if (selectedGlobalLevel && course.level !== selectedGlobalLevel) return false;
+
+            if (selectedGlobalSchoolId) {
+                const belongsToSchool = departmentIds.some((departmentId: string) => {
+                    const dept = allDepartments.find(d => d.id === departmentId);
+                    return dept?.schoolId === selectedGlobalSchoolId;
+                });
+                if (!belongsToSchool) return false;
+            }
+
+            if (!query) return true;
+
+            const departmentNames = departmentIds
+                .map((id: string) => allDepartments.find((dept) => dept.id === id)?.department_name || id)
+                .join(' ');
+
+            return [
+                course.course_name,
+                course.course_code,
+                course.course_id,
+                course.level,
+                course.semester,
+                departmentNames,
+            ].some((value) => (value || '').toString().toLowerCase().includes(query));
+        });
+    }, [allDepartments, courseCatalog, filteredGlobalCourses, globalSearchQuery, selectedGlobalLevel, selectedGlobalSchoolId]);
+
+    const globalTotalPages = Math.ceil(globalDirectoryCourses.length / globalCoursesPerPage);
     const globalStartIndex = (globalCurrentPage - 1) * globalCoursesPerPage;
-    const paginatedGlobalCourses = filteredGlobalCourses.slice(globalStartIndex, globalStartIndex + globalCoursesPerPage);
+    const paginatedGlobalCourses = globalDirectoryCourses.slice(globalStartIndex, globalStartIndex + globalCoursesPerPage);
+
+    const selectedGlobalTopics: Topic[] = Array.isArray(selectedGlobalCourseEntry?.course?.topics)
+        ? selectedGlobalCourseEntry.course.topics
+        : [];
+
+    const toggleGlobalTopicSelection = (topicId: string) => {
+        setSelectedTopicIds(prev => (
+            prev.includes(topicId)
+                ? prev.filter(id => id !== topicId)
+                : [...prev, topicId]
+        ));
+    };
+
+    const toggleSelectAllTopics = () => {
+        if (!selectedGlobalTopics.length) return;
+        if (selectedTopicIds.length === selectedGlobalTopics.length) {
+            setSelectedTopicIds([]);
+            return;
+        }
+        setSelectedTopicIds(selectedGlobalTopics.map(topic => topic.topic_id));
+    };
 
     return (
         <div className="space-y-6">
@@ -217,51 +286,73 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             {courseAdminView.mode === 'global' && (
                 <div className="space-y-6">
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h3 className="font-black text-xl  dark:text-white mb-1">Global Course Directory</h3>
-                                <p className="text-sm text-slate-500">Search all courses across all departments globally.</p>
+                                <h3 className="font-black text-xl dark:text-white mb-1">Global Course Directory</h3>
+                                <p className="text-sm text-slate-500">Filter by school, level, and search text, then open any course to manage its topics.</p>
                             </div>
-                            <input 
-                                type="text" 
-                                placeholder="Search courses..." 
-                                value={globalSearchQuery} 
-                                onChange={e => setGlobalSearchQuery(e.target.value)}
-                                className="p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition min-w-[250px]"
-                            />
+                            <div className="grid w-full gap-3 sm:max-w-3xl sm:grid-cols-3">
+                                <select
+                                    value={selectedGlobalSchoolId}
+                                    onChange={e => setSelectedGlobalSchoolId(e.target.value)}
+                                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                                >
+                                    <option value="">All Schools</option>
+                                    {uniqueGlobalSchools.map(school => (
+                                        <option key={school.id} value={school.id}>{school.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={selectedGlobalLevel}
+                                    onChange={e => setSelectedGlobalLevel(e.target.value)}
+                                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                                >
+                                    <option value="">All Levels</option>
+                                    {uniqueGlobalLevels.map(level => (
+                                        <option key={level} value={level}>{level}</option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="text"
+                                    placeholder="Search courses..."
+                                    value={globalSearchQuery}
+                                    onChange={e => setGlobalSearchQuery(e.target.value)}
+                                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                                />
+                            </div>
                         </div>
-                        
-                        {/* Global Search Results List */}
-                        {isGlobalSearch && (
+
+                        <div className="flex items-center justify-between gap-4">
+                            <p className="text-sm font-bold text-slate-500">
+                                Found {globalDirectoryCourses.length} course{globalDirectoryCourses.length === 1 ? '' : 's'} matching the current filters.
+                            </p>
+                            {selectedCourses.size > 0 && (
+                                <button
+                                    onClick={() => {
+                                        const coursesToDelete = globalDirectoryCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
+                                        handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
+                                        setSelectedCourses(new Set());
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    Global Batch Delete ({selectedCourses.size})
+                                </button>
+                            )}
+                        </div>
+
+                        {paginatedGlobalCourses.length ? (
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-bold text-slate-500">
-                                        Found {filteredGlobalCourses.length} courses across all departments
-                                    </p>
-                                    {selectedCourses.size > 0 && (
-                                        <button
-                                            onClick={() => {
-                                                const coursesToDelete = filteredGlobalCourses.filter(c => selectedCourses.has(c.course.course_id || c.course.course_name || ''));
-                                                handleBatchDeleteCourses(coursesToDelete.map(c => c.course), true);
-                                                setSelectedCourses(new Set());
-                                            }}
-                                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            Global Batch Delete ({selectedCourses.size})
-                                        </button>
-                                    )}
-                                </div>
-                                {paginatedGlobalCourses.map(({ course, deptId, deptName, level }) => {
+                                {paginatedGlobalCourses.map(({ course, departmentIds }) => {
                                     const courseRouteIdentifier = getCourseRouteKey(course);
                                     const courseKey = course.course_id || course.course_name || '';
                                     return (
                                         <div
-                                            key={`${deptId}-${level}-${courseRouteIdentifier}`}
-                                            onClick={() => handleCourseTabNavigate(buildCourseManagerPath(deptId, level, courseRouteIdentifier))}
+                                            key={courseRouteIdentifier}
+                                            onClick={() => handleCourseTabNavigate(buildCourseGlobalPath(selectedGlobalLevel || course.level, courseRouteIdentifier))}
                                             className="group flex items-center justify-between gap-4 p-5 rounded-3xl border border-slate-200 bg-white hover:border-indigo-200 transition cursor-pointer shadow-sm relative"
                                         >
-                                            <div 
+                                            <div
                                                 className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer z-10"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -273,27 +364,47 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                                     });
                                                 }}
                                             >
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     checked={selectedCourses.has(courseKey)}
                                                     readOnly
                                                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                                                 />
                                             </div>
                                             <div className="flex-1 min-w-0 pl-6">
-                                                <div className="font-bold  dark:text-white">{course.course_name}</div>
-                                                <div className="text-xs text-slate-500">{deptName} • {level}</div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold dark:text-white truncate group-hover:text-indigo-700">{course.course_name}</h4>
+                                                    {normalizeTextbookUrls(course).length > 0 && (
+                                                        <BookOpen className="w-4 h-4 text-indigo-500 shrink-0" />
+                                                    )}
+                                                </div>
+                                                <p className="text-xs font-semibold text-slate-500">{course.course_code || course.course_id}</p>
+                                                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">
+                                                    Offered in {departmentIds.length} department{departmentIds.length === 1 ? '' : 's'}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                    {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
+                                                </span>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleCourseTabNavigate(buildCourseGlobalPath(selectedGlobalLevel || course.level, courseRouteIdentifier)); }}
+                                                    className="p-2 rounded-lg text-slate-400 hover:bg-indigo-100 hover:text-indigo-600 transition opacity-0 group-hover:opacity-100"
+                                                    title="Open course"
+                                                >
+                                                    <Database className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     );
                                 })}
                                 {globalTotalPages > 1 && (
-                                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
                                         <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                                            Showing {globalStartIndex + 1} to {Math.min(globalStartIndex + globalCoursesPerPage, filteredGlobalCourses.length)} of {filteredGlobalCourses.length}
+                                            Showing {globalStartIndex + 1} to {Math.min(globalStartIndex + globalCoursesPerPage, globalDirectoryCourses.length)} of {globalDirectoryCourses.length}
                                         </span>
                                         <div className="flex gap-2">
-                                            <button 
+                                            <button
                                                 onClick={() => setGlobalCurrentPage(p => Math.max(1, p - 1))}
                                                 disabled={globalCurrentPage === 1}
                                                 className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
@@ -303,7 +414,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                             <span className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg">
                                                 Page {globalCurrentPage} of {globalTotalPages}
                                             </span>
-                                            <button 
+                                            <button
                                                 onClick={() => setGlobalCurrentPage(p => Math.min(globalTotalPages, p + 1))}
                                                 disabled={globalCurrentPage === globalTotalPages}
                                                 className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
@@ -314,33 +425,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                     </div>
                                 )}
                             </div>
+                        ) : (
+                            <div className="py-16 text-center">
+                                <Database className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                                <h3 className="font-bold text-slate-700">No courses found</h3>
+                                <p className="text-sm text-slate-500 mt-1">Try a different school, level, or search term.</p>
+                            </div>
                         )}
                     </div>
-                    
-                    {!isGlobalSearch && (
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 max-w-3xl mx-auto text-center space-y-6">
-                            <Database className="w-16 h-16 text-indigo-200 mx-auto" />
-                            <div>
-                                <h3 className="font-black text-2xl  dark:text-white mb-2">Global Level View</h3>
-                                <p className="text-slate-500">Select a level to view aggregated courses deduplicated across the entire college.</p>
-                            </div>
-                            <div className="max-w-xs mx-auto text-left">
-                                <select
-                                    value={managerSelectionLevel}
-                                    onChange={e => {
-                                        setManagerSelectionLevel(e.target.value);
-                                        handleCourseTabNavigate(buildCourseGlobalPath(e.target.value));
-                                    }}
-                                    className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100 transition"
-                                >
-                                    <option value="">Select Level</option>
-                                    {LEVELS.map(level => (
-                                        <option key={level} value={level}>{level}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -505,6 +597,74 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                             </a>
                                         ))}
                                     </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <h4 className="font-black text-lg dark:text-white flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-indigo-500" /> Topics
+                                </h4>
+                                {selectedGlobalTopics.length > 0 && (
+                                    <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTopicIds.length > 0 && selectedTopicIds.length === selectedGlobalTopics.length}
+                                            onChange={toggleSelectAllTopics}
+                                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        Select all
+                                    </label>
+                                )}
+                            </div>
+
+                            {selectedGlobalTopics.length > 0 ? (
+                                <div className="space-y-3">
+                                    {selectedGlobalTopics.map((topic) => {
+                                        const isSelected = selectedTopicIds.includes(topic.topic_id);
+                                        return (
+                                            <label
+                                                key={topic.topic_id}
+                                                className={`flex items-start gap-3 p-4 rounded-2xl border transition cursor-pointer ${isSelected ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:border-indigo-200'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleGlobalTopicSelection(topic.topic_id)}
+                                                    className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <p className="font-bold text-slate-800 truncate">{topic.topic_name}</p>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{topic.topic_id}</span>
+                                                    </div>
+                                                    {(topic.topic_context || topic.start_point || topic.end_point) && (
+                                                        <p className="mt-1 text-sm text-slate-500 line-clamp-2">
+                                                            {topic.topic_context || [topic.start_point, topic.end_point].filter(Boolean).join(' - ')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                            {selectedTopicIds.length} topic{selectedTopicIds.length === 1 ? '' : 's'} selected
+                                        </p>
+                                        <button
+                                            disabled={!selectedTopicIds.length}
+                                            onClick={() => handleDeleteCourseTopics(selectedGlobalCourseEntry.course, selectedTopicIds)}
+                                            className="px-5 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Delete Selected Topics
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-500">
+                                    No topics are attached to this course yet.
                                 </div>
                             )}
                         </div>

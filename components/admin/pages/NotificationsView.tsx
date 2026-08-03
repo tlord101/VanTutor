@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, push, update, set } from 'firebase/database';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Send, Sparkles, Bell, Users, UserCheck } from 'lucide-react';
+import { Send, Sparkles, Bell } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -20,17 +20,42 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     refreshSentNotifications 
 }) => {
     const { addToast } = useToast();
+    const [notificationAudience, setNotificationAudience] = useState<'general' | 'personal'>('general');
     const [recipientMode, setRecipientMode] = useState<'all' | 'single'>('all');
     const [selectedRecipientId, setSelectedRecipientId] = useState('');
     const [announcementTitle, setAnnouncementTitle] = useState('');
     const [announcementMessage, setAnnouncementMessage] = useState('');
-    const [notificationType, setNotificationType] = useState<'study_update' | 'exam_reminder' | 'welcome'>('study_update');
+    const [notificationType, setNotificationType] = useState<'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder' | 'study_partner_request' | 'messenger' | 'app_update' | 'general_info' | 'personal'>('general_info');
+    const [notificationRoute, setNotificationRoute] = useState('dashboard');
     const [isSendingPush, setIsSendingPush] = useState(false);
 
     const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
 
+    const notificationRoutes = [
+        { value: 'dashboard', label: 'Dashboard' },
+        { value: 'study_guide', label: 'Study Guide' },
+        { value: 'exam', label: 'Assessments' },
+        { value: 'messenger', label: 'Messenger' },
+        { value: 'study_partners', label: 'Study Partners' },
+        { value: 'leaderboard', label: 'Leaderboard' },
+        { value: 'visual_solver', label: 'Visual Solver' },
+        { value: 'settings', label: 'Settings' },
+    ];
+
+    const notificationStyles = [
+        { value: 'general_info', label: 'General Info' },
+        { value: 'personal', label: 'Personal' },
+        { value: 'study_update', label: 'Study Update' },
+        { value: 'study_reminder', label: 'Study Reminder' },
+        { value: 'exam_reminder', label: 'Exam Reminder' },
+        { value: 'messenger', label: 'Messenger' },
+        { value: 'study_partner_request', label: 'Study Partner Request' },
+        { value: 'app_update', label: 'App Update' },
+        { value: 'welcome', label: 'Welcome' },
+    ] as const;
+
     const getTargetUsers = () => {
-        if (recipientMode === 'all') {
+        if (notificationAudience === 'general' || recipientMode === 'all') {
             return allUsersList;
         }
         return allUsersList.filter(user => user.uid === selectedRecipientId);
@@ -62,6 +87,9 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                 }
                 updates[`notifications/${user.uid}/${notificationId}`] = {
                     type: notificationType,
+                    category: notificationType,
+                    audience: notificationAudience === 'personal' ? 'single' : 'all',
+                    route: notificationRoute,
                     title,
                     message,
                     is_read: false,
@@ -87,6 +115,9 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     title,
                     message,
                     type: notificationType,
+                    category: notificationType,
+                    audience: notificationAudience === 'personal' ? 'single' : 'all',
+                    route: notificationRoute,
                     recipient: targetLabel,
                     timestamp: Date.now(),
                     sent_by: auth.currentUser?.email || 'admin'
@@ -115,7 +146,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
         }
         setIsSendingPush(true);
         try {
-            const prompt = `Create a short notification title (max 8 words) and a concise notification message (max 200 characters) for a ${notificationType.replace('_', ' ')} to students. Return only a JSON object with keys "title" and "message".`;
+            const prompt = `Create a short notification title (max 8 words) and a concise notification message (max 200 characters) for a ${notificationType.replace('_', ' ')} notification to students. Return only a JSON object with keys "title" and "message".`;
 
             const response = await ai.models.generateContent({
                 model: geminiModel,
@@ -160,27 +191,20 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <h4 className="font-bold  dark:text-white text-sm">Recipient Selection</h4>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setRecipientMode('all')}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                                recipientMode === 'all'
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Audience</label>
+                        <select
+                            value={notificationAudience}
+                            onChange={(e) => {
+                                const nextAudience = e.target.value as 'general' | 'personal';
+                                setNotificationAudience(nextAudience);
+                                setRecipientMode(nextAudience === 'personal' ? 'single' : 'all');
+                            }}
+                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
                         >
-                            <Users className="w-4 h-4" /> All Users
-                        </button>
-                        <button
-                            onClick={() => setRecipientMode('single')}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                                recipientMode === 'single'
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            <UserCheck className="w-4 h-4" /> Single User
-                        </button>
+                            <option value="general">General info for all users</option>
+                            <option value="personal">Personal notification</option>
+                        </select>
                     </div>
 
                     {recipientMode === 'single' && (
@@ -206,15 +230,28 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     <h4 className="font-bold  dark:text-white text-sm">Notification Content</h4>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notification Type</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notification Category</label>
                         <select
                             value={notificationType}
                             onChange={(e) => setNotificationType(e.target.value as any)}
                             className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
                         >
-                            <option value="study_update">Study Update</option>
-                            <option value="exam_reminder">Exam Reminder</option>
-                            <option value="welcome">General Welcome / Info</option>
+                            {notificationStyles.map(style => (
+                                <option key={style.value} value={style.value}>{style.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Open Page</label>
+                        <select
+                            value={notificationRoute}
+                            onChange={(e) => setNotificationRoute(e.target.value)}
+                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                        >
+                            {notificationRoutes.map(route => (
+                                <option key={route.value} value={route.value}>{route.label}</option>
+                            ))}
                         </select>
                     </div>
 

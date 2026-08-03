@@ -58,7 +58,6 @@ import { UserControlView } from './admin/pages/UserControlView';
 import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
-import { AdminUpdates } from './admin/AdminUpdates';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, storage, auth } from '../firebase';
 import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
@@ -129,6 +128,7 @@ import { SEOSettingsView } from './admin/pages/SEOSettingsView';
 import { FirebaseAuthUsersView } from './admin/pages/FirebaseAuthUsersView';
 import { FeedbackView } from './admin/pages/FeedbackView';
 import { GitHubIntegrationView } from './admin/pages/GitHubIntegrationView';
+import { AppVersionUpdateView } from './admin/pages/AppVersionUpdateView';
 
 interface AdminPanelProps {
     userProfile: UserProfile;
@@ -1926,6 +1926,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [courseAdminView, allDepartments, isManagerCourseView, getCourseMergeKey, addToast, fetchDepartments, loadDepartmentCourses]);
 
+    const handleDeleteCourseTopics = useCallback(async (course: Course, topicIds: string[]) => {
+        if (!course || !topicIds.length) return;
+
+        const courseKey = getCourseMergeKey(course) || course.course_id;
+        if (!courseKey) {
+            addToast('Unable to identify the selected course.', 'error');
+            return;
+        }
+
+        const selectedTopicIds = Array.from(new Set(topicIds.filter(Boolean)));
+        const confirmed = window.confirm(
+            `Delete ${selectedTopicIds.length} topic${selectedTopicIds.length === 1 ? '' : 's'} from ${course.course_name}? This will update the shared syllabus for every department using this course.`
+        );
+        if (!confirmed) return;
+
+        try {
+            const sharedRef = dbRef(db, `textbook_contexts/shared/${courseKey}`);
+            const sharedSnapshot = await get(sharedRef);
+            const sharedData = sharedSnapshot.exists() ? sharedSnapshot.val() : {};
+            const existingTopics = Array.isArray(sharedData?.syllabus)
+                ? sharedData.syllabus
+                : Array.isArray(course.topics)
+                    ? course.topics
+                    : [];
+
+            const selectedTopicSet = new Set(selectedTopicIds);
+            const remainingTopics = existingTopics
+                .filter((topic: Partial<Topic>) => {
+                    const topicKey = (topic?.topic_id || normalizeTopicId(topic?.topic_name || '')).toString();
+                    return !selectedTopicSet.has(topicKey);
+                })
+                .map((topic: Partial<Topic>, index: number) => sanitizeTopicMetadata(topic, index));
+
+            const updates: Record<string, any> = {
+                [`textbook_contexts/shared/${courseKey}/syllabus`]: remainingTopics,
+            };
+
+            allDepartments.forEach((dept) => {
+                const existingCourses = normalizeCourseList(dept?.course_list);
+                let changed = false;
+                const nextCourses = existingCourses.map((existingCourse) => {
+                    const isTargetCourse = getCourseMergeKey(existingCourse) === courseKey || existingCourse.course_id === course.course_id;
+                    if (!isTargetCourse) return existingCourse;
+                    changed = true;
+                    return {
+                        ...existingCourse,
+                        topics: remainingTopics,
+                        textbook_shared_key: courseKey,
+                    };
+                });
+
+                if (changed) {
+                    updates[`departments_data/${dept.id}/course_list`] = nextCourses;
+                }
+            });
+
+            await update(dbRef(db), updates);
+            await fetchDepartments();
+            addToast(`Deleted ${selectedTopicIds.length} topic${selectedTopicIds.length === 1 ? '' : 's'} from ${course.course_name}.`, 'success');
+        } catch (error: any) {
+            console.error('Error deleting topics:', error);
+            addToast(error?.message || 'Failed to delete selected topics.', 'error');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addToast, allDepartments, fetchDepartments, getCourseMergeKey]);
+
     const handleGoogleDrivePick = (onFilesSelected: (files: File[]) => void) => {
         openPicker({
             clientId: appSettings.google_client_id || '',
@@ -2767,6 +2833,7 @@ FORMAT:
                     handleCourseTabNavigate={handleCourseTabNavigate}
                     globalSearchQuery={globalSearchQuery}
                     setGlobalSearchQuery={setGlobalSearchQuery}
+                    courseCatalog={courseCatalog}
                     allDepartments={scopedDepartments}
                     LEVELS={LEVELS as any}
                     filteredGlobalCourses={filteredGlobalCourses}
@@ -2800,6 +2867,7 @@ FORMAT:
                     normalizeTextbookUrls={normalizeTextbookUrls}
                     handleDeleteCourseFromDepartment={handleDeleteCourseFromDepartment as any}
                     handleBatchDeleteCourses={handleBatchDeleteCourses as any}
+                    handleDeleteCourseTopics={handleDeleteCourseTopics as any}
                     selectedManagerDepartment={selectedManagerDepartment}
                     selectedManagerCourse={selectedManagerCourse}
                     setCourseDetailFiles={setCourseDetailFiles as any}
@@ -2864,7 +2932,10 @@ FORMAT:
             )}
 
             {activeTab === 'app-updates' && (
-                <AdminUpdates />
+                <div className="space-y-8">
+                    <AppVersionUpdateView />
+                    <AdminUpdates />
+                </div>
             )}
 
             {activeTab === 'notifications' && (

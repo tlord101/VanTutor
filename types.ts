@@ -294,13 +294,15 @@ export interface AppSettings {
 // Type for the new Notification System
 export interface Notification {
   id: string;
-  type: 'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder' | 'study_partner_request' | 'messenger' | 'app_update';
+  type: 'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder' | 'study_partner_request' | 'messenger' | 'app_update' | 'general_info' | 'personal';
   title: string;
   message: string;
   timestamp: number;
   is_read: boolean;
   link?: string;
   route?: string; // App-internal route to navigate to
+  audience?: 'all' | 'single';
+  category?: 'general_info' | 'personal' | 'study_update' | 'exam_reminder' | 'welcome' | 'study_reminder' | 'study_partner_request' | 'messenger' | 'app_update';
   action_buttons?: { label: string; action: string; metadata?: any }[]; // For inline buttons like "Reply", "View"
   sender_id?: string; // Useful for replying directly to a user
 }

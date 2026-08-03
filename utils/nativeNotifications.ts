@@ -10,6 +10,26 @@ type AddToastFn = (message: string, type: ToastType) => void;
 type SetActiveItemFn = (item: string) => void;
 type SetPendingChatIdFn = (chatId: string | null) => void;
 
+const resolveNotificationScreen = (data: Record<string, any>): string | null => {
+  const route = (data.route || data.screen || data.destination || data.page || '').toString().trim();
+  if (!route) return null;
+
+  const normalized = route.replace(/^\//, '').replace(/-/g, '_');
+  const allowedScreens = new Set([
+    'dashboard',
+    'study_guide',
+    'exam',
+    'messenger',
+    'leaderboard',
+    'visual_solver',
+    'study_partners',
+    'settings',
+  ]);
+
+  if (allowedScreens.has(normalized)) return normalized;
+  return route;
+};
+
 let _notificationsInitialized = false;
 let _registrationListenerRef: any = null;
 let _registrationErrorListenerRef: any = null;
@@ -177,6 +197,12 @@ export const initNativeNotifications = async (
           return;
       }
 
+      const explicitScreen = resolveNotificationScreen(data);
+      if (explicitScreen) {
+        setTimeout(() => setActiveItem(explicitScreen), 50);
+        return;
+      }
+
       // Handle screen navigation
       if (data.screen) {
         const screenMap: Record<string, string> = {
@@ -186,6 +212,8 @@ export const initNativeNotifications = async (
           messenger: 'messenger',
           leaderboard: 'leaderboard',
           visual_solver: 'visual_solver',
+          study_partners: 'study_partners',
+          settings: 'settings',
         };
         const target = screenMap[data.screen];
         if (target) {

@@ -1742,10 +1742,6 @@ Student: "${tempInput}"
                         spellCheck="true"
                         style={{ height: 'auto' }}
                     />
-                    <label className="absolute left-4 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
-                        <PaperclipIcon className="w-9 h-9" />
-                        <input type="file" className="hidden" onChange={handleFileChange} disabled={isThinking || isIllustrating} accept="image/*" />
-                    </label>
                     <button
                         onClick={(e) => {
                             e.preventDefault();

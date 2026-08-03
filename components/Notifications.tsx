@@ -29,6 +29,7 @@ const NotificationTypeIcon: React.FC<{ type: Notification['type'], className?: s
     switch (type) {
         case 'welcome':
         case 'app_update':
+        case 'general_info':
             return <img src="/logo_icon.png" alt="AVELUT" className={`${className} object-contain`} />;
         case 'study_update':
         case 'study_reminder':
@@ -37,9 +38,39 @@ const NotificationTypeIcon: React.FC<{ type: Notification['type'], className?: s
             return <ExamIcon className={className} />;
         case 'messenger':
         case 'study_partner_request':
+        case 'personal':
             return <NotificationBellIcon className={className} />;
         default:
             return <NotificationBellIcon className={className} />;
+    }
+};
+
+const resolveNotificationRoute = (notification: Notification): string | null => {
+    if (notification.route) return notification.route;
+    if (notification.link) return notification.link;
+
+    const navigateAction = notification.action_buttons?.find(button => button.action === 'navigate');
+    const buttonRoute = (navigateAction as any)?.route || navigateAction?.metadata?.route;
+    if (typeof buttonRoute === 'string' && buttonRoute.trim()) return buttonRoute;
+
+    switch (notification.type) {
+        case 'study_update':
+        case 'study_reminder':
+            return 'study_guide';
+        case 'exam_reminder':
+            return 'exam';
+        case 'study_partner_request':
+            return 'study_partners';
+        case 'messenger':
+            return 'messenger';
+        case 'app_update':
+        case 'welcome':
+        case 'general_info':
+            return 'dashboard';
+        case 'personal':
+            return 'messenger';
+        default:
+            return null;
     }
 };
 
@@ -68,9 +99,10 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
             return;
         }
 
-        if (action === 'navigate' && notification.route) {
+        const route = resolveNotificationRoute(notification);
+        if (action === 'navigate' && route) {
             onMarkAsRead(notification.id);
-            onNavigate(notification.route);
+            onNavigate(route);
         }
     };
 
@@ -106,8 +138,9 @@ export const Notifications: React.FC<NotificationsProps> = ({ notifications, onM
 
     const handleNotificationClick = (notification: Notification) => {
         onMarkAsRead(notification.id);
-        if (notification.route) {
-            onNavigate(notification.route);
+        const route = resolveNotificationRoute(notification);
+        if (route) {
+            onNavigate(route);
         }
     };
 
