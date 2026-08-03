@@ -393,6 +393,7 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     const [textbookContext, setTextbookContext] = useState<string>('');
     const [selectedTopicContext, setSelectedTopicContext] = useState<string>('');
     const [selectedTopicName, setSelectedTopicName] = useState<string | null>(null);
+    const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const isAwardingTimeXpRef = useRef(false);
     const [shouldAutoTeach, setShouldAutoTeach] = useState(false);
@@ -707,6 +708,15 @@ Return valid JSON as a list of objects with keys: title, description, searchQuer
         if (initialTopic && initialTopic.topic_context) {
             setSelectedTopicContext(initialTopic.topic_context);
             setSelectedTopicName(initialTopic.topic_name || null);
+            setSelectedTopicId(initialTopic.topic_id || null);
+        } else if (initialTopic && initialTopic.topic_id) {
+            // if only id/name provided without context
+            setSelectedTopicName(initialTopic.topic_name || null);
+            setSelectedTopicId(initialTopic.topic_id || null);
+        } else {
+            setSelectedTopicContext('');
+            setSelectedTopicName(null);
+            setSelectedTopicId(null);
         }
     }, [initialTopic]);
 
@@ -911,16 +921,17 @@ ${selectedTopicContext ? `\n\nSELECTED TOPIC BOUNDARY:\n${selectedTopicContext}`
         setStreamingBotText('');
 
         try {
+            const topicLabel = selectedTopicName || course.course_name;
             const prompt = `
 Context:
 Department: ${userProfile.department_id}
 Course: ${course.course_name}
-Topic: ${course.course_name}
+Topic: ${topicLabel}
 User Level: ${userProfile.level}
 ${selectedTopicContext ? `Topic Boundaries:\n${selectedTopicContext}` : ''}
 
 Task:
-Please start teaching me about "${course.course_name}". Give me a simple and clear introduction to the topic.
+Please start teaching me about "${topicLabel}". Give me a simple and clear introduction to the topic.
 `;
             const result = await attemptApiCall(async () => {
                 let responseText = '';
@@ -942,7 +953,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
 
                 const botResponseText = responseText.trim();
 
-                const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
+                const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${selectedTopicId || 'full'}`);
                 const newMsgRef = push(messagesRef);
                 const msgData = {
                     sender: 'bot',
@@ -995,12 +1006,16 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
     };
 
     useEffect(() => {
-        const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
+                const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${selectedTopicId || 'full'}`);
 
-        setIsHistoryLoading(true);
+                // Clear currently-displayed messages while we subscribe to the topic-specific history
+                setMessages([]);
+                setIsHistoryLoading(true);
         const unsubscribe = onValue(messagesRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) {
+                // No messages for this topic yet — clear previous messages and trigger auto-teach
+                setMessages([]);
                 setShouldAutoTeach(true);
                 setIsHistoryLoading(false);
                 return;
@@ -1025,7 +1040,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
 
         return () => off(messagesRef, 'value', unsubscribe);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userProfile.uid, course.course_id]);
+    }, [userProfile.uid, course.course_id, selectedTopicId]);
 
     useEffect(() => {
         if (isAppSettingsLoading || !shouldAutoTeach) return;
@@ -1120,7 +1135,7 @@ Please start teaching me about "${course.course_name}". Give me a simple and cle
             }
 
             // Save user message to DB
-            const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}`);
+            const messagesRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${selectedTopicId || 'full'}`);
             const newUserMsgRef = push(messagesRef);
             const userMessageData: {
                 sender: 'user';
@@ -1294,7 +1309,7 @@ Student: "${tempInput}"
                     throw new Error("No image visualization was returned by the API.");
                 }
 
-                const msgRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${messageId}`);
+                const msgRef = dbRef(db, `study_guide_messages/${userProfile.uid}/${course.course_id}/${selectedTopicId || 'full'}/${messageId}`);
                 await update(msgRef, { image_url: publicUrl });
                 setViewingImageIds(prev => {
                     const next = new Set(prev);
