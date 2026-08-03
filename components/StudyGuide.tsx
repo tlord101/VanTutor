@@ -1011,6 +1011,7 @@ Please start teaching me about "${topicLabel}". Give me a simple and clear intro
 
                 // Clear currently-displayed messages while we subscribe to the topic-specific history
                 setMessages([]);
+                setShouldAutoTeach(false);
                 setIsHistoryLoading(true);
         const unsubscribe = onValue(messagesRef, (snapshot) => {
             const data = snapshot.val();
@@ -2556,7 +2557,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         )}
                     </div>
                     <div className="p-4 border-t border-gray-100 dark:border-transparent bg-gray-50 dark:bg-black flex gap-3">
-                        <button onClick={() => { setSelectedCourse(topicPickerCourse); setTopicToOpen(null); setTopicPickerCourse(null); }} className="flex-1 bg-white dark:bg-black border border-gray-200 dark:border-transparent text-gray-700 dark:text-gray-300 rounded-xl py-3 font-bold">Start full course</button>
+                        <button onClick={() => { setSelectedCourse(topicPickerCourse); setTopicToOpen(null); setTopicPickerCourse(null); }} className="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 font-bold">Start full course</button>
                         <button onClick={() => setTopicPickerCourse(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-3 font-bold">Cancel</button>
                     </div>
                 </div>
