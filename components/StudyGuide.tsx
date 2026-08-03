@@ -2685,16 +2685,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             />
             {renderTopicPicker()}
 
-            {/* Fullscreen image viewer for generated illustrations */}
-            {fullScreenImageUrl && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center p-6">
-                    <div className="absolute inset-0 bg-black/60" onClick={() => setFullScreenImageUrl(null)} />
-                    <div className="relative max-w-[95%] max-h-[95%]">
-                        <button onClick={() => setFullScreenImageUrl(null)} className="absolute right-2 top-2 z-50 bg-white/80 rounded-full p-2">✕</button>
-                        <img src={fullScreenImageUrl} alt="Full illustration" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-xl" />
-                    </div>
-                </div>
-            )}
+            {/* Fullscreen image viewer is shown inside LearningInterface where state is declared */}
         </div>
     );
 };
