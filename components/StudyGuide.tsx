@@ -2127,20 +2127,26 @@ interface StudyGuideProps {
 }
 export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
     const [courses, setCourses] = useState<Course[]>(() => {
-        return readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
+        const key = `avelut_courses_${userProfile?.uid || 'anon'}`;
+        return readCachedJson<Course[]>(key, []);
     });
 
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [topicPickerCourse, setTopicPickerCourse] = useState<Course | null>(null);
     const [topicToOpen, setTopicToOpen] = useState<any | null>(null);
-    const [pinnedTopics, setPinnedTopics] = useState<Array<any>>(() => {
+    const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
+
+    // Load pinned topics when userProfile becomes available
+    useEffect(() => {
+        if (!userProfile || !window?.localStorage) return;
         try {
             const raw = window.localStorage.getItem(`pinned_topics_${userProfile.uid}`);
-            return raw ? JSON.parse(raw) : [];
+            setPinnedTopics(raw ? JSON.parse(raw) : []);
         } catch (e) {
-            return [];
+            console.warn('Failed to load pinned topics', e);
+            setPinnedTopics([]);
         }
-    });
+    }, [userProfile]);
 
     const savePinnedTopics = (next: Array<any>) => {
         try {
@@ -2164,7 +2170,7 @@ export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [isLoading, setIsLoading] = useState(false);
     const [filter, setFilter] = useState(() => ({
         searchTerm: '',
-        semester: (userProfile.default_semester_tab || 'second') as 'all' | 'first' | 'second'
+        semester: (userProfile?.default_semester_tab || 'second') as 'all' | 'first' | 'second'
     }));
     const { addToast } = useToast();
     const { uploadTextbook, uploadProgress, isUploadingCourseKey } = useSharedTextbookUpload();
