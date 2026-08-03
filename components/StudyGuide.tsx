@@ -2037,6 +2037,12 @@ Student: "${tempInput}"
     );
 };
 
+export const StudyGuide: React.FC<StudyGuideProps> = (props) => (
+    <ErrorBoundary>
+        <StudyGuideContent {...props} />
+    </ErrorBoundary>
+);
+
 const CourseHeader: React.FC<{
     course: Course,
     isExpanded?: boolean,
@@ -2125,7 +2131,46 @@ interface StudyGuideProps {
     userProfile: UserProfile;
     userProgress: UserProgress;
 }
-export const StudyGuide: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
+// Error boundary to catch render-time exceptions and show a helpful message
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any; info?: any }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error: any, info: any) {
+        // Log to console — developer can inspect browser console
+        console.error('ErrorBoundary caught error:', error, info);
+        this.setState({ error, info });
+    }
+
+    reset = () => this.setState({ hasError: false, error: null, info: null });
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6 text-center">
+                    <h3 className="text-lg font-bold mb-2">Something went wrong loading Study Guide</h3>
+                    <p className="text-sm text-gray-600 mb-4">Open the browser console to see the error details. You can retry below.</p>
+                    <div className="text-left max-w-3xl mx-auto text-xs bg-gray-50 dark:bg-[#07111a] p-3 rounded-md overflow-auto mb-4">
+                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{String(this.state.error)}{this.state.info ? '\n\n' + JSON.stringify(this.state.info) : ''}</pre>
+                    </div>
+                    <div className="flex justify-center gap-2">
+                        <button onClick={this.reset} className="px-4 py-2 bg-lime-500 text-white rounded-lg">Retry</button>
+                    </div>
+                </div>
+            );
+        }
+        // @ts-ignore
+        return this.props.children;
+    }
+}
+
+const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
     const [courses, setCourses] = useState<Course[]>(() => {
         const key = `avelut_courses_${userProfile?.uid || 'anon'}`;
         return readCachedJson<Course[]>(key, []);
