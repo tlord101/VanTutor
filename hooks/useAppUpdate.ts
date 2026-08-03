@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
+import { AppUpdate, AppUpdateAvailability } from '@capawesome/capacitor-app-update';
 import { db } from '../firebase';
 import { get, ref as dbRef } from 'firebase/database';
 
 const PLAYSTORE_UPDATE_PATH = 'app_updates/playstore/latest';
 const PLAYSTORE_PACKAGE_ID = 'com.avelut.app';
+const UPDATE_POLL_INTERVAL_MS = 60_000;
+const UPDATE_PROMPT_COOLDOWN_MS = 2 * 60_000;
 
 type UpdatePromptState = {
     visible: boolean;
@@ -38,17 +40,9 @@ const parseVersionCode = (value: unknown): number => {
     return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-const getCurrentAppVersionCode = async (): Promise<number> => {
-    try {
-        const info = await CapacitorApp.getInfo();
-        return parseVersionCode((info as any).versionCode || info.version);
-    } catch {
-        return 0;
-    }
-};
-
 export function useAppUpdate(): UseAppUpdateResult {
     const hasStartedRef = useRef(false);
+    const skipUntilRef = useRef(0);
     const [updatePrompt, setUpdatePrompt] = useState<UpdatePromptState>(defaultPromptState);
 
     const evaluateUpdate = useCallback(async () => {
@@ -56,20 +50,24 @@ export function useAppUpdate(): UseAppUpdateResult {
             return;
         }
 
+        if (Date.now() < skipUntilRef.current) {
+            return;
+        }
+
         try {
-            const [serverSnapshot, currentVersionCode] = await Promise.all([
+            const [serverSnapshot, updateInfo] = await Promise.all([
                 get(dbRef(db, PLAYSTORE_UPDATE_PATH)),
-                getCurrentAppVersionCode(),
+                AppUpdate.getAppUpdateInfo(),
             ]);
 
-            if (!serverSnapshot.exists()) {
+            if (updateInfo.updateAvailability !== AppUpdateAvailability.UPDATE_AVAILABLE) {
                 setUpdatePrompt(defaultPromptState);
                 return;
             }
 
             const serverData = serverSnapshot.val() || {};
-            const targetVersionCode = parseVersionCode(serverData.versionCode);
-            if (!targetVersionCode || targetVersionCode <= currentVersionCode) {
+            const targetVersionCode = parseVersionCode(updateInfo.availableVersionCode || serverData.versionCode);
+            if (!targetVersionCode) {
                 setUpdatePrompt(defaultPromptState);
                 return;
             }
@@ -91,28 +89,54 @@ export function useAppUpdate(): UseAppUpdateResult {
         if (hasStartedRef.current) return;
         hasStartedRef.current = true;
 
+        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+            return;
+        }
+
         void evaluateUpdate();
+
+        let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+        const startPolling = () => {
+            if (pollTimer) return;
+            pollTimer = setInterval(() => {
+                void evaluateUpdate();
+            }, UPDATE_POLL_INTERVAL_MS);
+        };
+
+        const stopPolling = () => {
+            if (!pollTimer) return;
+            clearInterval(pollTimer);
+            pollTimer = undefined;
+        };
+
+        startPolling();
 
         const stateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
                 void evaluateUpdate();
+                startPolling();
+            } else {
+                stopPolling();
             }
         });
 
         return () => {
+            stopPolling();
             stateListener.then(listener => listener.remove()).catch(() => {});
         };
     }, [evaluateUpdate]);
 
     const dismissUpdatePrompt = useCallback(() => {
+        skipUntilRef.current = Date.now() + UPDATE_PROMPT_COOLDOWN_MS;
         setUpdatePrompt(prev => ({ ...prev, visible: false }));
     }, []);
 
     const openUpdateInStore = useCallback(async () => {
-        const playStoreUrl = `https://play.google.com/store/apps/details?id=${PLAYSTORE_PACKAGE_ID}`;
         try {
-            await Browser.open({ url: playStoreUrl });
+            await AppUpdate.openAppStore({ androidPackageName: PLAYSTORE_PACKAGE_ID });
         } catch {
+            const playStoreUrl = `https://play.google.com/store/apps/details?id=${PLAYSTORE_PACKAGE_ID}`;
             if (typeof window !== 'undefined') {
                 window.open(playStoreUrl, '_blank', 'noopener,noreferrer');
             }
