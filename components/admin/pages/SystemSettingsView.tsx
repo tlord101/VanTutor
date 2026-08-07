@@ -431,7 +431,6 @@ export const SystemSettingsView: React.FC = () => {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <input type="text" placeholder="Public Key" value={appSettings.paystack_public_key || ''} onChange={e => setAppSettings({...appSettings, paystack_public_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500 text-sm" />
-                                <input type="password" placeholder="Secret Key" value={appSettings.paystack_secret_key || ''} onChange={e => setAppSettings({...appSettings, paystack_secret_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-teal-500 text-sm" />
                             </div>
                         </div>
 

@@ -3,6 +3,140 @@ const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 admin.initializeApp();
 
+async function updatePaymentLogsByReference(reference, updates) {
+    if (!reference) {
+        return;
+    }
+
+    const logsRef = admin.database().ref('usage_logs/payments');
+    const snapshot = await logsRef.orderByChild('reference').equalTo(reference).once('value');
+    const patch = {};
+
+    snapshot.forEach((child) => {
+        patch[child.key] = {
+            ...updates,
+            last_updated_at: admin.database.ServerValue.TIMESTAMP
+        };
+    });
+
+    if (Object.keys(patch).length > 0) {
+        await logsRef.update(patch);
+    }
+}
+
+async function applyVerifiedPaystackTransaction({ uid, reference, purchaseType, planKey, verifiedAmountNgn }) {
+    const processedRef = admin.database().ref(`/processed_transactions/${reference}`);
+    const snapshot = await processedRef.once('value');
+
+    if (snapshot.exists()) {
+        const existing = snapshot.val();
+        if (existing?.uid && existing.uid !== uid) {
+            throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
+        }
+        await updatePaymentLogsByReference(reference, {
+            status: 'success',
+            user_id: uid,
+            purchase_type: purchaseType,
+            reference
+        });
+        return { status: 'success', message: 'Transaction already processed.', reference };
+    }
+
+    const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
+    const tiers = settingsSnap.val() || {};
+    const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
+    const activePlan = effectivePlanKey ? tiers[effectivePlanKey] : null;
+
+    if (purchaseType === 'subscription') {
+        if (!effectivePlanKey || !activePlan) {
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid subscription plan.');
+        }
+        const expectedAmountNgn = Number(activePlan.price_ngn);
+        if (!Number.isFinite(expectedAmountNgn) || Math.abs(expectedAmountNgn - verifiedAmountNgn) > 0.0001) {
+            throw new functions.https.HttpsError('failed-precondition', 'Verified amount does not match the selected plan.');
+        }
+    } else if (purchaseType === 'additional_credits') {
+        if (!Number.isFinite(verifiedAmountNgn) || verifiedAmountNgn <= 0) {
+            throw new functions.https.HttpsError('failed-precondition', 'Unable to derive credits from verified payment amount.');
+        }
+    } else {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid purchase type.');
+    }
+
+    const claimResult = await processedRef.transaction((current) => {
+        if (current === null) {
+            return {
+                uid,
+                purchaseType,
+                planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
+                creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
+                processing: true,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            };
+        }
+        return;
+    });
+
+    if (!claimResult.committed) {
+        const existing = claimResult.snapshot.val();
+        if (existing?.uid && existing.uid !== uid) {
+            throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
+        }
+        await updatePaymentLogsByReference(reference, {
+            status: 'success',
+            user_id: uid,
+            purchase_type: purchaseType,
+            reference
+        });
+        return { status: 'success', message: 'Transaction already processed.', reference };
+    }
+
+    const userRef = admin.database().ref(`/users/${uid}`);
+
+    try {
+        if (purchaseType === 'subscription') {
+            const creditAllocation = activePlan.credit_allocation || 30;
+
+            await userRef.update({
+                subscription_status: effectivePlanKey,
+                ai_credits_balance: creditAllocation,
+                is_activated: true,
+                last_payment_reference: reference
+            });
+        } else if (purchaseType === 'additional_credits') {
+            await userRef.child('ai_credits_balance').transaction((currentBalance) => {
+                return (currentBalance || 0) + verifiedAmountNgn;
+            });
+            await userRef.update({
+                is_activated: true,
+                last_payment_reference: reference
+            });
+        }
+
+        await processedRef.set({
+            uid,
+            purchaseType,
+            planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
+            creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
+            timestamp: admin.database.ServerValue.TIMESTAMP
+        });
+
+        await updatePaymentLogsByReference(reference, {
+            status: 'success',
+            user_id: uid,
+            purchase_type: purchaseType,
+            reference
+        });
+    } catch (updateErr) {
+        await processedRef.remove().catch((cleanupErr) => {
+            console.error('Failed to clean up transaction claim:', cleanupErr);
+        });
+        throw updateErr;
+    }
+
+    return { status: 'success', reference };
+}
+
 // 1. Send push notification when a new notification is written to the database (admin pushes)
 exports.onNotificationWritten = functions.database.ref('/notifications/{userId}/{notificationId}')
     .onCreate(async (snapshot, context) => {
@@ -677,8 +811,11 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     }
 
     // Validate Signature
-    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
-    if (hash !== req.headers['x-paystack-signature']) {
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(rawBody).digest('hex');
+    const signatureHeader = Array.isArray(req.headers['x-paystack-signature']) ? req.headers['x-paystack-signature'][0] : req.headers['x-paystack-signature'];
+    const signatureValid = signatureHeader && hash.length === signatureHeader.length && crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signatureHeader));
+    if (!signatureValid) {
         console.warn('Invalid Paystack signature');
         res.status(401).send('Unauthorized');
         return;
@@ -691,6 +828,7 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
         const reference = data.reference;
         const metadata = data.metadata || {};
         const customFields = metadata.custom_fields || [];
+        const paymentLogId = metadata.payment_log_id || metadata.paymentLogId;
         
         const uidField = customFields.find(f => f.variable_name === 'user_id');
         const typeField = customFields.find(f => f.variable_name === 'purchase_type');
@@ -705,33 +843,29 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
         const uid = uidField.value;
         const type = typeField?.value;
         const planKey = planField?.value;
+        const verifiedAmountKobo = Number(data.amount);
+        const verifiedAmountNgn = Number.isFinite(verifiedAmountKobo) ? Math.round(verifiedAmountKobo) / 100 : NaN;
 
         try {
-            const userRef = admin.database().ref(`/users/${uid}`);
-            
-            if (type === 'subscription' && planKey && planKey !== 'none') {
-                // Update subscription status
-                await userRef.update({
-                    subscription_status: planKey,
-                    is_activated: true,
-                    last_payment_reference: reference
+            await applyVerifiedPaystackTransaction({
+                uid,
+                reference,
+                purchaseType: type,
+                planKey,
+                verifiedAmountNgn
+            });
+
+            if (paymentLogId) {
+                await updatePaymentLogsByReference(reference, {
+                    status: 'success',
+                    reference,
+                    payment_log_id: paymentLogId,
+                    user_id: uid,
+                    purchase_type: type
                 });
-                console.log(`Successfully upgraded user ${uid} to plan ${planKey}`);
-            } else {
-                // Default to credits refill
-                // Amount is in kobo, convert back to Naira, and maybe 1 NGN = 1 Credit
-                const creditsPurchased = data.amount / 100;
-                
-                await userRef.child('ai_credits_balance').transaction((currentBalance) => {
-                    return (currentBalance || 0) + creditsPurchased;
-                });
-                
-                await userRef.update({
-                    is_activated: true,
-                    last_payment_reference: reference
-                });
-                console.log(`Successfully added ${creditsPurchased} credits to user ${uid}`);
             }
+
+            console.log(`Successfully processed Paystack transaction for user ${uid}`);
         } catch (err) {
             console.error('Error updating Realtime Database from webhook:', err);
             // Return 500 so Paystack might retry
@@ -764,17 +898,6 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
     }
 
     try {
-        // Check if transaction has already been processed
-        const processedRef = admin.database().ref(`/processed_transactions/${reference}`);
-        const snapshot = await processedRef.once('value');
-        if (snapshot.exists()) {
-            const existing = snapshot.val();
-            if (existing?.uid && existing.uid !== uid) {
-                throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
-            }
-            return { status: 'success', message: 'Transaction already processed.', reference };
-        }
-
         const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
             method: 'GET',
             headers: {
@@ -795,88 +918,31 @@ exports.verifyPaystackTransaction = functions.https.onCall(async (data, context)
             ? Math.round(verifiedAmountKobo) / 100
             : NaN;
         if (txStatus === 'success') {
-            const settingsSnap = await admin.database().ref('app_settings/usage_settings/tiers').once('value');
-            const tiers = settingsSnap.val() || {};
-            const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-            const activePlan = effectivePlanKey ? tiers[effectivePlanKey] : null;
-
-            if (purchaseType === 'subscription') {
-                if (!effectivePlanKey || !activePlan) {
-                    throw new functions.https.HttpsError('invalid-argument', 'Invalid subscription plan.');
-                }
-                const expectedAmountNgn = Number(activePlan.price_ngn);
-                if (!Number.isFinite(expectedAmountNgn) || Math.abs(expectedAmountNgn - verifiedAmountNgn) > 0.0001) {
-                    throw new functions.https.HttpsError('failed-precondition', 'Verified amount does not match the selected plan.');
-                }
-            } else if (purchaseType === 'additional_credits') {
-                if (!Number.isFinite(verifiedAmountNgn) || verifiedAmountNgn <= 0) {
-                    throw new functions.https.HttpsError('failed-precondition', 'Unable to derive credits from verified payment amount.');
-                }
-            } else {
-                throw new functions.https.HttpsError('invalid-argument', 'Invalid purchase type.');
-            }
-
-            const claimResult = await processedRef.transaction((current) => {
-                if (current === null) {
-                    return {
-                        uid,
-                        purchaseType,
-                        planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
-                        creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
-                        processing: true,
-                        timestamp: admin.database.ServerValue.TIMESTAMP
-                    };
-                }
-                return;
+            const result = await applyVerifiedPaystackTransaction({
+                uid,
+                reference,
+                purchaseType,
+                planKey,
+                verifiedAmountNgn
             });
 
-            if (!claimResult.committed) {
-                const existing = claimResult.snapshot.val();
-                if (existing?.uid && existing.uid !== uid) {
-                    throw new functions.https.HttpsError('permission-denied', 'Transaction reference belongs to another user.');
-                }
-                return { status: 'success', message: 'Transaction already processed.', reference };
-            }
+            await updatePaymentLogsByReference(reference, {
+                status: 'success',
+                reference,
+                user_id: uid,
+                purchase_type: purchaseType,
+                last_verified_at: admin.database.ServerValue.TIMESTAMP
+            });
 
-            const userRef = admin.database().ref(`/users/${uid}`);
-
-            try {
-                if (purchaseType === 'subscription') {
-                    const creditAllocation = activePlan.credit_allocation || 30; // default
-
-                    await userRef.update({
-                        subscription_status: effectivePlanKey,
-                        ai_credits_balance: creditAllocation,
-                        is_activated: true,
-                        last_payment_reference: reference
-                    });
-                } else if (purchaseType === 'additional_credits') {
-                    await userRef.child('ai_credits_balance').transaction((currentBalance) => {
-                        return (currentBalance || 0) + verifiedAmountNgn;
-                    });
-                    await userRef.update({
-                        is_activated: true,
-                        last_payment_reference: reference
-                    });
-                }
-
-                // Mark transaction as processed
-                await processedRef.set({
-                    uid,
-                    purchaseType,
-                    planKey: purchaseType === 'subscription' ? effectivePlanKey : null,
-                    creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
-                    timestamp: admin.database.ServerValue.TIMESTAMP
-                });
-            } catch (updateErr) {
-                await processedRef.remove().catch((cleanupErr) => {
-                    console.error('Failed to clean up transaction claim:', cleanupErr);
-                });
-                throw updateErr;
-            }
-
-            return { status: 'success', reference };
+            return result;
         } else {
+            await updatePaymentLogsByReference(reference, {
+                status: txStatus,
+                reference,
+                user_id: uid,
+                purchase_type: purchaseType,
+                last_verified_at: admin.database.ServerValue.TIMESTAMP
+            });
             return { status: txStatus, message: 'Transaction was not successful.' };
         }
     } catch (err) {

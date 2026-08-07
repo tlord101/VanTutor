@@ -27,14 +27,19 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
         return;
       }
       try {
-        const q = query(dbRef(db, 'usage_logs/payments'), orderByChild('user_email'), equalTo(userProfile.email));
-        const snap = await get(q);
-        if (snap.exists()) {
-          const data = snap.val();
-          const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-          list.sort((a: any, b: any) => b.timestamp - a.timestamp);
-          setTransactions(list);
-        }
+        const fetchMatches = async (childKey: 'user_email' | 'email') => {
+          const q = query(dbRef(db, 'usage_logs/payments'), orderByChild(childKey), equalTo(userProfile.email));
+          const snap = await get(q);
+          if (!snap.exists()) {
+            return [];
+          }
+          return Object.keys(snap.val()).map(k => ({ id: k, ...snap.val()[k] }));
+        };
+
+        const primaryMatches = await fetchMatches('user_email');
+        const fallbackMatches = primaryMatches.length > 0 ? [] : await fetchMatches('email');
+        const list = [...primaryMatches, ...fallbackMatches].sort((a: any, b: any) => b.timestamp - a.timestamp);
+        setTransactions(list);
       } catch (err) {
         console.error("Error fetching transactions:", err);
       } finally {

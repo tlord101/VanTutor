@@ -25,6 +25,29 @@ const timeAgo = (timestamp: number): string => {
   return `${days}d ago`;
 };
 
+const normalizeRouteTarget = (route: string): string => {
+    const trimmed = route.trim();
+    if (!trimmed) return '';
+    return trimmed
+        .replace(/^\//, '')
+        .replace(/\?.*$/, '')
+        .replace(/-/g, '_');
+};
+
+const isKnownRouteTarget = (route: string): boolean => {
+    return new Set([
+        'dashboard',
+        'study_guide',
+        'exam',
+        'messenger',
+        'study_partners',
+        'leaderboard',
+        'visual_solver',
+        'settings',
+        'notifications',
+    ]).has(route);
+};
+
 const NotificationTypeIcon: React.FC<{ type: Notification['type'], className?: string }> = ({ type, className = "w-6 h-6" }) => {
     switch (type) {
         case 'welcome':
@@ -46,12 +69,21 @@ const NotificationTypeIcon: React.FC<{ type: Notification['type'], className?: s
 };
 
 const resolveNotificationRoute = (notification: Notification): string | null => {
-    if (notification.route) return notification.route;
-    if (notification.link) return notification.link;
+    const candidates = [notification.route, notification.link];
 
     const navigateAction = notification.action_buttons?.find(button => button.action === 'navigate');
     const buttonRoute = (navigateAction as any)?.route || navigateAction?.metadata?.route;
-    if (typeof buttonRoute === 'string' && buttonRoute.trim()) return buttonRoute;
+    if (typeof buttonRoute === 'string' && buttonRoute.trim()) {
+        candidates.push(buttonRoute);
+    }
+
+    for (const candidate of candidates) {
+        if (typeof candidate !== 'string' || !candidate.trim()) continue;
+        const normalized = normalizeRouteTarget(candidate);
+        if (isKnownRouteTarget(normalized)) return normalized;
+        if (candidate.startsWith('/')) return candidate;
+        return candidate;
+    }
 
     switch (notification.type) {
         case 'study_update':

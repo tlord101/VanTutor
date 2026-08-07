@@ -31,6 +31,54 @@ const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6'
     </svg>
 );
 
+const MAX_CAPTURE_SLICE_HEIGHT = 1600;
+const CAPTURE_SLICE_OVERLAP = 96;
+
+const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob | null> => (
+    new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
+    })
+);
+
+const sliceCanvasIntoBlobs = async (canvas: HTMLCanvasElement): Promise<Blob[]> => {
+    if (canvas.height <= MAX_CAPTURE_SLICE_HEIGHT) {
+        const blob = await canvasToBlob(canvas);
+        return blob ? [blob] : [];
+    }
+
+    const blobs: Blob[] = [];
+    const sliceWidth = canvas.width;
+    const sliceHeight = MAX_CAPTURE_SLICE_HEIGHT;
+    const step = Math.max(1, sliceHeight - CAPTURE_SLICE_OVERLAP);
+
+    for (let sourceY = 0; sourceY < canvas.height; sourceY += step) {
+        const currentSliceHeight = Math.min(sliceHeight, canvas.height - sourceY);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = sliceWidth;
+        sliceCanvas.height = currentSliceHeight;
+
+        const sliceCtx = sliceCanvas.getContext('2d');
+        if (!sliceCtx) continue;
+
+        sliceCtx.drawImage(
+            canvas,
+            0,
+            sourceY,
+            sliceWidth,
+            currentSliceHeight,
+            0,
+            0,
+            sliceWidth,
+            currentSliceHeight
+        );
+
+        const blob = await canvasToBlob(sliceCanvas);
+        if (blob) blobs.push(blob);
+    }
+
+    return blobs;
+};
+
 
 // --- TUTORIAL DISPLAY COMPONENT ---
 interface TutorialDisplayProps {
@@ -42,6 +90,7 @@ interface TutorialDisplayProps {
 
 const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const scrollContentRef = useRef<HTMLDivElement>(null);
     const [isSharing, setIsSharing] = useState(false);
     const { addToast } = useToast();
     const [showForwardModal, setShowForwardModal] = useState(false);
@@ -76,71 +125,87 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
         };
     }, [userProfile]);
 
-    const captureImage = async (): Promise<Blob | null> => {
+    const captureImages = async (): Promise<Blob[]> => {
         if (!containerRef.current) return null;
         setIsSharing(true);
 
         // Temporarily reset styles to capture full scrollable content
         const originalHeight = containerRef.current.style.height;
         const originalOverflow = containerRef.current.style.overflow;
+        const scrollContent = scrollContentRef.current;
+        const originalScrollHeight = scrollContent?.style.height;
+        const originalScrollOverflow = scrollContent?.style.overflow;
+        const originalScrollMaxHeight = scrollContent?.style.maxHeight;
         containerRef.current.style.height = 'auto';
         containerRef.current.style.overflow = 'visible';
+        if (scrollContent) {
+            scrollContent.style.height = 'auto';
+            scrollContent.style.overflow = 'visible';
+            scrollContent.style.maxHeight = 'none';
+        }
 
         try {
             // Provide specific configuration to html2canvas for better markdown support
             const canvas = await html2canvas(containerRef.current, {
                 useCORS: true,
                 scale: 2,
+                backgroundColor: '#ffffff',
                 windowWidth: containerRef.current.scrollWidth,
                 windowHeight: containerRef.current.scrollHeight
             });
-            return new Promise((resolve) => {
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/png');
-            });
+            return await sliceCanvasIntoBlobs(canvas);
         } catch (err) {
             console.error('Failed to capture image', err);
-            return null;
+            return [];
         } finally {
             // Restore original styles
             containerRef.current.style.height = originalHeight;
             containerRef.current.style.overflow = originalOverflow;
+            if (scrollContent) {
+                scrollContent.style.height = originalScrollHeight || '';
+                scrollContent.style.overflow = originalScrollOverflow || '';
+                scrollContent.style.maxHeight = originalScrollMaxHeight || '';
+            }
             setIsSharing(false);
         }
     };
 
     const handleShareNative = async () => {
-        const blob = await captureImage();
-        if (!blob) {
+        const blobs = await captureImages();
+        if (!blobs.length) {
             addToast('Failed to generate image.', 'error');
             return;
         }
 
         if (Capacitor.isNativePlatform()) {
             try {
-                const base64Data = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const b64 = (reader.result as string).split(',')[1];
-                        resolve(b64);
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
+                const savedFiles = [] as { uri: string }[];
+                for (let index = 0; index < blobs.length; index++) {
+                    const blob = blobs[index];
+                    const base64Data = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const b64 = (reader.result as string).split(',')[1];
+                            resolve(b64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    });
 
-                const fileName = `avelut_solution_${Date.now()}.png`;
-                const savedFile = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Cache
-                });
+                    const fileName = `avelut_solution_${Date.now()}_${index + 1}.png`;
+                    const savedFile = await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64Data,
+                        directory: Directory.Cache
+                    });
+                    savedFiles.push({ uri: savedFile.uri });
+                }
 
                 try {
                     await Share.share({
                         title: 'Avelut Solution',
                         text: 'Check out this solution from Avelut Visual Solver!',
-                        url: savedFile.uri,
+                        files: savedFiles.map(file => file.uri),
                         dialogTitle: 'Share Solution'
                     });
                 } catch (shareErr: any) {
@@ -148,10 +213,10 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     if (shareErr.message !== 'Share canceled') {
                         console.error('Share plugin error, falling back to FileOpener:', shareErr);
                         await FileOpener.openFile({
-                            path: savedFile.uri,
+                            path: savedFiles[0].uri,
                             mimeType: 'image/png'
                         });
-                        addToast('Image saved! Use the menu to share.', 'success');
+                        addToast(blobs.length > 1 ? 'Images saved! Use the menu to share them.' : 'Image saved! Use the menu to share.', 'success');
                     }
                 }
             } catch (err) {
@@ -159,26 +224,28 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 addToast('Failed to share image.', 'error');
             }
         } else {
-            const file = new File([blob], 'avelut_solution.png', { type: 'image/png' });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            const files = blobs.map((blob, index) => new File([blob], `avelut_solution_${index + 1}.png`, { type: 'image/png' }));
+            if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
                 try {
                     await navigator.share({
                         title: 'Avelut Solution',
                         text: 'Check out this solution from Avelut Visual Solver!',
-                        files: [file]
+                        files
                     });
                 } catch (err) {
                     console.error('Error sharing', err);
                 }
             } else {
-                // Fallback to download
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'avelut_solution.png';
-                a.click();
-                URL.revokeObjectURL(url);
-                addToast('Image downloaded! You can now share it manually.', 'success');
+                // Fallback to downloading each slice
+                blobs.forEach((blob, index) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `avelut_solution_${index + 1}.png`;
+                    a.click();
+                    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                });
+                addToast(blobs.length > 1 ? 'Images downloaded! You can share them manually.' : 'Image downloaded! You can now share it manually.', 'success');
             }
         }
     };
@@ -186,8 +253,8 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
     const handleForwardToPartner = async () => {
         if (selectedIds.length === 0) return;
         setIsSending(true);
-        const blob = await captureImage();
-        if (!blob) {
+        const blobs = await captureImages();
+        if (!blobs.length) {
             addToast('Failed to generate image.', 'error');
             setIsSending(false);
             return;
@@ -196,36 +263,45 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
         try {
             for (const recipientId of selectedIds) {
                 const chatId = [userProfile.uid, recipientId].sort().join('_');
-                const localTimestamp = Date.now();
-                const cloudPath = `chat_files/${chatId}/${localTimestamp}_solution.png`;
-                const fileBucketRef = storageRef(storage, cloudPath);
-                const snapshot = await uploadBytes(fileBucketRef, blob);
-                const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-
-                const text = `![Avelut Solution](${fileDownloadUrl})`;
-                const msgRef = push(dbRef(db, `messages/${chatId}`));
-                const data = { senderId: userProfile.uid, text, type: 'image', timestamp: localTimestamp, is_forwarded: true };
-                await set(msgRef, data);
-
-                const updates: any = {};
                 const participantIds = [userProfile.uid, recipientId];
-                participantIds.forEach((participantId) => {
-                    updates[`user_chats/${participantId}/${chatId}/last_message`] = {
-                        text: '📷 Solution Image',
+                const updates: any = {};
+
+                for (let sliceIndex = 0; sliceIndex < blobs.length; sliceIndex++) {
+                    const blob = blobs[sliceIndex];
+                    const localTimestamp = Date.now() + sliceIndex;
+                    const cloudPath = `chat_files/${chatId}/${localTimestamp}_solution_${sliceIndex + 1}.png`;
+                    const fileBucketRef = storageRef(storage, cloudPath);
+                    const snapshot = await uploadBytes(fileBucketRef, blob);
+                    const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+
+                    const text = `![Avelut Solution ${sliceIndex + 1}](${fileDownloadUrl})`;
+                    const msgRef = push(dbRef(db, `messages/${chatId}`));
+                    const data = {
                         senderId: userProfile.uid,
-                        timestamp: localTimestamp,
+                        text,
                         type: 'image',
+                        timestamp: localTimestamp,
+                        is_forwarded: true,
+                        partIndex: sliceIndex + 1,
+                        totalParts: blobs.length,
                     };
-                    updates[`user_chats/${participantId}/${chatId}/timestamp`] = localTimestamp;
-                    updates[`user_chats/${participantId}/${chatId}/otherUserId`] = participantId === userProfile.uid
-                        ? recipientId
-                        : userProfile.uid;
-                });
-                updates[`user_chats/${userProfile.uid}/${chatId}/unreadCount`] = 0;
-                // We use get() here to increment isn't strictly necessary if we rely on update logic, but we assume it's just +1
-                // Actually, increment(1) requires ServerValue.increment which we didn't import, so we fetch or just set to 1.
-                // We will just do a simple update since this is optimistic.
-                updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = 1; // Simplify
+                    await set(msgRef, data);
+
+                    participantIds.forEach((participantId) => {
+                        updates[`user_chats/${participantId}/${chatId}/last_message`] = {
+                            text: blobs.length > 1 ? `📷 Solution Image (${sliceIndex + 1}/${blobs.length})` : '📷 Solution Image',
+                            senderId: userProfile.uid,
+                            timestamp: localTimestamp,
+                            type: 'image',
+                        };
+                        updates[`user_chats/${participantId}/${chatId}/timestamp`] = localTimestamp;
+                        updates[`user_chats/${participantId}/${chatId}/otherUserId`] = participantId === userProfile.uid
+                            ? recipientId
+                            : userProfile.uid;
+                    });
+                    updates[`user_chats/${userProfile.uid}/${chatId}/unreadCount`] = 0;
+                    updates[`user_chats/${recipientId}/${chatId}/unreadCount`] = 1;
+                }
 
                 await update(dbRef(db), updates);
             }
@@ -249,7 +325,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 <div className="flex-shrink-0 h-[33vh] bg-gradient-to-br from-indigo-50 to-blue-50 border-b-2 border-indigo-200 shadow-sm">
                     <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain p-2" />
                 </div>
-                <div className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-y-auto">
+                <div ref={scrollContentRef} className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-y-auto">
                     <div className="max-w-4xl mx-auto">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
@@ -261,7 +337,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 h4: ({node, ...props}: any) => <h4 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-4" {...props} />,
                                 p: ({node, ...props}: any) => <p className="mb-5 text-base sm:text-lg text-gray-700 leading-relaxed tracking-wide" {...props} />,
                                 a: ({node, ...props}: any) => <a className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline decoration-indigo-300 decoration-2 transition-all" target="_blank" rel="noreferrer" {...props} />,
-                                strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-white bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />,
+                                strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-blue-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />,
                                 em: ({node, ...props}: any) => <em className="italic text-indigo-600 font-medium" {...props} />,
                                 ul: ({node, ...props}: any) => <ul className="list-none space-y-3 my-5 pl-1" {...props} />,
                                 li: ({node, ...props}: any) => <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />,
