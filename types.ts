@@ -276,7 +276,6 @@ export interface AppSettings {
   upload_center_uploads_enabled?: boolean;
   coming_soon_enabled?: boolean;
   paystack_public_key: string;
-  paystack_secret_key: string;
   custom_user_limit_rpm?: number;
   custom_user_limit_tpm?: number;
   usage_settings?: UsageSettings;

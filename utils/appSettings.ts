@@ -68,7 +68,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   show_playstore_modal: true,
   playstore_modal_collect_emails: true,
   paystack_public_key: '',
-  paystack_secret_key: '',
   custom_user_limit_rpm: 10,
   custom_user_limit_tpm: 250000,
   usage_settings: DEFAULT_USAGE_SETTINGS as any, // Temporary cast until types propagate fully
@@ -94,7 +93,6 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
   show_playstore_modal: raw?.show_playstore_modal ?? DEFAULT_APP_SETTINGS.show_playstore_modal,
   playstore_modal_collect_emails: raw?.playstore_modal_collect_emails ?? DEFAULT_APP_SETTINGS.playstore_modal_collect_emails,
   paystack_public_key: (raw?.paystack_public_key || DEFAULT_APP_SETTINGS.paystack_public_key).toString().trim(),
-  paystack_secret_key: (raw?.paystack_secret_key || DEFAULT_APP_SETTINGS.paystack_secret_key).toString().trim(),
   custom_user_limit_rpm: typeof raw?.custom_user_limit_rpm === 'number' ? raw.custom_user_limit_rpm : DEFAULT_APP_SETTINGS.custom_user_limit_rpm,
   custom_user_limit_tpm: typeof raw?.custom_user_limit_tpm === 'number' ? raw.custom_user_limit_tpm : DEFAULT_APP_SETTINGS.custom_user_limit_tpm,
   usage_settings: raw?.usage_settings ? {

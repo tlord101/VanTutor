@@ -372,6 +372,29 @@ const parseMessageSuggestions = (text: string): { cleanText: string; suggestions
     return { cleanText: text, suggestions: [] };
 };
 
+const InlineMathText: React.FC<{ text: string }> = ({ text }) => {
+    return (
+        <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={{
+                p: ({ node, ...props }: any) => <span className="whitespace-normal" {...props} />,
+                strong: ({ node, ...props }: any) => <strong className="font-bold" {...props} />,
+                em: ({ node, ...props }: any) => <em className="italic" {...props} />,
+                code: ({ node, inline, ...props }: any) =>
+                    inline ? (
+                        <code className="font-mono text-[0.8em] bg-lime-50 text-lime-800 px-1 py-0.5 rounded border border-lime-200" {...props} />
+                    ) : (
+                        <code className="font-mono text-[0.8em] bg-lime-50 text-lime-800 px-1 py-0.5 rounded border border-lime-200" {...props} />
+                    ),
+                span: ({ node, ...props }: any) => <span {...props} />,
+            }}
+        >
+            {text}
+        </ReactMarkdown>
+    );
+};
+
 const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, course, onClose, initialTopic }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
@@ -1641,9 +1664,9 @@ Student: "${tempInput}"
                                                         onClick={() => {
                                                             handleSend(suggestion);
                                                         }}
-                                                        className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation"
+                                                        className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation leading-snug text-left"
                                                     >
-                                                        {suggestion}
+                                                        <InlineMathText text={suggestion} />
                                                     </button>
                                                 ))}
                                             </div>

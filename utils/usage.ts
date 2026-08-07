@@ -41,6 +41,7 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
     await set(paymentLogRef, {
       id: paymentLogRef.key,
       user_id: userId,
+      user_email: email,
       email: email,
       amount: amount,
       purchase_type: purchaseType,
@@ -51,6 +52,17 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
   } catch (err) {
     console.error('Failed to create payment log:', err);
   }
+
+  const paystackMetadata = {
+    ...(metadata || {}),
+    payment_log_id: paymentLogRef?.key || metadata?.payment_log_id,
+    custom_fields: [
+      ...(Array.isArray(metadata?.custom_fields) ? metadata.custom_fields : []),
+      { display_name: 'User ID', variable_name: 'user_id', value: userId },
+      { display_name: 'Purchase Type', variable_name: 'purchase_type', value: purchaseType },
+      ...(metadata?.plan_key ? [{ display_name: 'Plan Key', variable_name: 'plan_key', value: metadata.plan_key }] : []),
+    ],
+  };
 
   if (!publicKey) {
     addToast('Demo Mode: Simulating checkout...', 'info');
@@ -88,6 +100,7 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
       email: email,
       amount: amount * 100, // in kobo
       currency: 'NGN',
+      metadata: paystackMetadata,
       callback: (response: any) => {
         const runAsyncCallback = async () => {
           const reference = response?.reference || 'ref_missing';

@@ -1399,7 +1399,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             primary_gemini_model: appSettingsDraft.primary_gemini_model.trim() || DEFAULT_APP_SETTINGS.primary_gemini_model,
             gemini_api_key: appSettingsDraft.gemini_api_key.trim(),
             paystack_public_key: (appSettingsDraft.paystack_public_key || '').trim(),
-            paystack_secret_key: (appSettingsDraft.paystack_secret_key || '').trim(),
             custom_user_limit_rpm: appSettingsDraft.custom_user_limit_rpm ?? 10,
             custom_user_limit_tpm: appSettingsDraft.custom_user_limit_tpm ?? 250000,
             usage_settings: appSettingsDraft.usage_settings || DEFAULT_USAGE_SETTINGS,
