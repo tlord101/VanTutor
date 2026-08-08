@@ -135,7 +135,7 @@ const shouldHighlightForVisual = (text: string) => {
   return /(diagram|graph|illustration|process|cycle|structure|formula|equation|timeline|map|flow|drawing|visual|example)/i.test(normalized);
 };
 
-const InlineMarkdownText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
+const InlineMarkdownText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }: { text: string; className?: string }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm, remarkMath]}
     rehypePlugins={[rehypeKatex]}
@@ -462,8 +462,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             departmentData = snapshot.val();
         }
 
-        const courses: Course[] = departmentData?.levels?.[userProfile.level]?.courses
-            ? Object.values(departmentData.levels[userProfile.level].courses) as Course[]
+        const levelKey = userProfile.level as keyof NonNullable<typeof departmentData>['levels'];
+      const courses: Course[] = departmentData?.levels?.[levelKey]?.courses
+            ? Object.values(departmentData.levels[levelKey].courses) as Course[]
             : (departmentData?.course_list
                 ? (Array.isArray(departmentData.course_list) ? departmentData.course_list : Object.values(departmentData.course_list)).filter((c: any) => c.level === userProfile.level)
                 : []);
@@ -545,7 +546,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
   const conversationSummary = useMemo(() => {
     if (activeHistoryId) {
-      const active = history.find(item => item.id === activeHistoryId);
+      const active = history.find((item: HistoryItem) => item.id === activeHistoryId);
       if (active) return active.title;
     }
 
@@ -557,13 +558,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setCustomHeaderConfig({
         leftActions: (
           <div className="flex items-center">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 dark:bg-black mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-black p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
+              className="rounded-lg border border-slate-200 dark:border-white/10 bg-white p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
               aria-label="Open assistant history"
               title="Open assistant history"
             >
@@ -1127,7 +1128,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 Loading chat history...
               </div>
             ) : history.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-6 text-sm text-slate-500 dark:text-gray-400 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-white px-4 py-6 text-sm text-slate-500 dark:text-gray-400 text-center">
                 Your saved chats will appear here.
               </div>
             ) : (
@@ -1140,7 +1141,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       setIsSidebarOpen(false);
                       setStatusText(`Opened ${item.title}.`);
                     }}
-                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 dark:border-white/10 bg-white dark:bg-black hover:border-slate-300 hover:bg-slate-50 dark:bg-black'}`}
+                    className={`flex-1 text-left rounded-2xl border px-4 py-3 transition ${activeHistoryId === item.id ? 'border-emerald-500/50 bg-emerald-50' : 'border-slate-200 dark:border-white/10 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-gray-400">Recent chat</p>
                     <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{item.title}</p>

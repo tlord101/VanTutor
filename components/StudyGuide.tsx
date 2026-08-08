@@ -1451,7 +1451,7 @@ Student: "${tempInput}"
         <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black md:rounded-xl border border-gray-200 dark:border-transparent overflow-hidden">
             {/* Sticky Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-4 bg-white dark:bg-black/80 backdrop-blur-lg border-b border-gray-200 dark:border-transparent z-10">
-                <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-full"><ArrowLeftIcon /></button>
                 <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 truncate mx-4 flex-1 text-center">{course.course_name}</h2>
                 <div className="flex items-center gap-2">
                     {!course.topics?.length && (
@@ -1491,7 +1491,7 @@ Student: "${tempInput}"
                     <div className="relative">
                         <button
                             onClick={() => setShowShareDropdown(!showShareDropdown)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
+                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition cursor-pointer select-none"
                             title="Share Options"
                         >
                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1977,7 +1977,7 @@ Student: "${tempInput}"
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 dark:border-transparent bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 transition hover:bg-gray-50 dark:bg-black"
+                                className="w-full rounded-xl border border-gray-100 dark:border-transparent bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 transition hover:bg-gray-50"
                             >
                                 📋 Copy message
                             </button>
@@ -1990,7 +1990,7 @@ Student: "${tempInput}"
                                     setMessageActionTarget(null);
                                     setMessageActionPosition(null);
                                 }}
-                                className="w-full rounded-xl border border-gray-100 dark:border-transparent bg-white dark:bg-black px-3 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 transition hover:bg-gray-50 dark:bg-black"
+                                className="w-full rounded-xl border border-gray-100 dark:border-transparent bg-white px-3 py-2 text-left text-sm font-semibold text-gray-800 dark:text-gray-200 transition hover:bg-gray-50"
                             >
                                 ➤ Forward to Study Partner
                             </button>
@@ -2035,7 +2035,7 @@ Student: "${tempInput}"
                                         <div
                                             key={u.uid}
                                             onClick={() => setSelectedRecipients(prev => isChecked ? prev.filter(id => id !== u.uid) : [...prev, u.uid])}
-                                            className={`flex items-center gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-lime-50 border-lime-400' : 'bg-white dark:bg-black border-gray-100 dark:border-transparent hover:bg-gray-50 dark:bg-black'}`}
+                                            className={`flex items-center gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${isChecked ? 'bg-lime-50 border-lime-400' : 'bg-white border-gray-100 dark:border-transparent hover:bg-gray-50'}`}
                                         >
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                                                 {(u.display_name || 'L')[0].toUpperCase()}
