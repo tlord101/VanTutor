@@ -40,6 +40,89 @@ const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob | null> => (
     })
 );
 
+const inferImageMimeType = (fileName: string, fallbackType?: string): string => {
+    const normalizedName = (fileName || '').toLowerCase();
+    if (fallbackType && fallbackType.startsWith('image/')) return fallbackType;
+    if (normalizedName.endsWith('.png')) return 'image/png';
+    if (normalizedName.endsWith('.jpg') || normalizedName.endsWith('.jpeg')) return 'image/jpeg';
+    if (normalizedName.endsWith('.webp')) return 'image/webp';
+    if (normalizedName.endsWith('.gif')) return 'image/gif';
+    if (normalizedName.endsWith('.bmp')) return 'image/bmp';
+    if (normalizedName.endsWith('.heic') || normalizedName.endsWith('.heif')) return 'image/heic';
+    return 'image/jpeg';
+};
+
+const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUrl: string; mimeType: string }> => {
+    if (typeof input === 'string') {
+        if (input.startsWith('data:')) {
+            const mimeType = input.split(';')[0].split(':')[1] || 'image/jpeg';
+            return { dataUrl: input, mimeType };
+        }
+
+        if (input.startsWith('blob:')) {
+            const response = await fetch(input);
+            const blob = await response.blob();
+            return readImageAsDataUrl(blob);
+        }
+
+        if (input.startsWith('content://') || input.startsWith('file://')) {
+            try {
+                const rawPath = input.replace(/^file:\/\//, '').replace(/^content:\/\//, '');
+                const fileData = await Filesystem.readFile({ path: rawPath });
+                return {
+                    dataUrl: `data:image/jpeg;base64,${fileData.data}`,
+                    mimeType: 'image/jpeg'
+                };
+            } catch (error) {
+                console.warn('Unable to read shared image path:', error);
+                throw error;
+            }
+        }
+    }
+
+    const source = input instanceof Blob ? input : new Blob([input], { type: input.type || 'image/jpeg' });
+    const mimeType = inferImageMimeType((input instanceof File ? input.name : ''), source.type);
+
+    try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Could not read image file.'));
+            reader.readAsDataURL(source);
+        });
+        if (dataUrl.startsWith('data:image/')) {
+            return { dataUrl, mimeType: dataUrl.split(';')[0].split(':')[1] || mimeType };
+        }
+    } catch (error) {
+        console.warn('Falling back to canvas conversion for image input:', error);
+    }
+
+    const objectUrl = URL.createObjectURL(source);
+    try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Image could not be decoded.'));
+            img.src = objectUrl;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not prepare canvas for image conversion.');
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const outputMime = mimeType.includes('png') ? 'image/png' : mimeType.includes('webp') ? 'image/webp' : 'image/jpeg';
+        return {
+            dataUrl: canvas.toDataURL(outputMime, 0.92),
+            mimeType: outputMime
+        };
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+};
+
 const sliceCanvasIntoBlobs = async (canvas: HTMLCanvasElement): Promise<Blob[]> => {
     if (canvas.height <= MAX_CAPTURE_SLICE_HEIGHT) {
         const blob = await canvasToBlob(canvas);
@@ -732,8 +815,8 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
                 try {
                     let imageUri = sharedImage;
                     if (sharedImage.startsWith('content://') || sharedImage.startsWith('file://')) {
-                        const fileData = await Filesystem.readFile({ path: sharedImage });
-                        imageUri = `data:image/jpeg;base64,${fileData.data}`;
+                        const normalized = await readImageAsDataUrl(sharedImage);
+                        imageUri = normalized.dataUrl;
                     }
                     setScannedImage(imageUri);
                     setCameraState('preview');
@@ -1037,38 +1120,32 @@ ${retrievedContext}
         initializeCamera();
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Allow any image type
-        if (file.type && !file.type.startsWith('image/')) {
+        const isImageLike = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|gif|bmp|webp|heic|heif)$/i.test(file.name);
+        if (!isImageLike) {
             addToast('Please upload a valid image file.', 'error');
             return;
         }
 
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            addToast('Image must be under 5MB.', 'error');
+        if (file.size > 10 * 1024 * 1024) {
+            addToast('Image must be under 10MB.', 'error');
             return;
         }
 
-        const previewUrl = URL.createObjectURL(file);
-        setScannedImage(previewUrl);
-        setCameraState('preview');
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const dataUrl = event.target?.result as string;
+        try {
+            setCameraState('preview');
+            const { dataUrl } = await readImageAsDataUrl(file);
             setScannedImage(dataUrl);
-            URL.revokeObjectURL(previewUrl);
-        };
-        reader.onerror = () => {
-            addToast('Could not read the file.', 'error');
-        };
-        reader.readAsDataURL(file);
-
-        // Reset input so the same file can be selected again
-        e.target.value = '';
+            setError('');
+        } catch (error) {
+            console.error('Could not process uploaded image:', error);
+            addToast('Could not read the image. Please try another photo.', 'error');
+        } finally {
+            e.target.value = '';
+        }
     };
 
     const renderContent = () => {
@@ -1128,7 +1205,7 @@ ${retrievedContext}
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/jpeg, image/png, image/webp"
+                            accept="image/*"
                             onChange={handleFileUpload}
                             className="hidden"
                         />
