@@ -372,6 +372,28 @@ const parseMessageSuggestions = (text: string): { cleanText: string; suggestions
     return { cleanText: text, suggestions: [] };
 };
 
+const parseVisualHint = (text: string): { cleanText: string; visualHintText: string | null } => {
+    if (!text) return { cleanText: '', visualHintText: null };
+
+    const regex = /\[VisualHint:\s*(.*?)\]/i;
+    const match = text.match(regex);
+
+    if (match) {
+        return {
+            cleanText: text.replace(regex, '').trim(),
+            visualHintText: match[1]?.trim() || null,
+        };
+    }
+
+    return { cleanText: text, visualHintText: null };
+};
+
+const shouldHighlightForVisual = (text: string) => {
+    if (!text) return false;
+    const normalized = text.toLowerCase();
+    return /(diagram|graph|illustration|process|cycle|structure|formula|equation|timeline|map|flow|drawing|visual|example)/i.test(normalized);
+};
+
 const InlineMathText: React.FC<{ text: string }> = ({ text }) => {
     return (
         <ReactMarkdown
@@ -1524,6 +1546,8 @@ Student: "${tempInput}"
                     <>
                         {messages.map((message) => {
                             const { cleanText, suggestions } = parseMessageSuggestions(message.text || '');
+                            const { cleanText: cleanVisualText, visualHintText } = parseVisualHint(cleanText);
+                            const shouldShowVisualCue = message.sender === 'bot' && (Boolean(visualHintText) || shouldHighlightForVisual(cleanVisualText));
 
                             return (
                                 <div key={message.id} className={`flex items-start gap-3 w-full animate-fade-in-up ${message.sender === 'user' ? 'justify-end items-end' : 'justify-start'}`}>
@@ -1534,6 +1558,11 @@ Student: "${tempInput}"
                                     }
 
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                                        {shouldShowVisualCue && (
+                                            <div className="mb-2 inline-flex self-start items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700 shadow-sm">
+                                                Double-tap for a visual
+                                            </div>
+                                        )}
                                         <div
                                             className={`relative transform-style-3d transition-transform duration-700 p-3 px-4 rounded-2xl break-words touch-manipulation ${message.sender === 'user' ? 'bg-lime-500 text-white rounded-br-none' : 'bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent cursor-pointer select-text'} ${(generatingMessageIds.has(message.id) || viewingImageIds.has(message.id)) ? 'rotate-y-180' : ''}`}
                                             onDoubleClick={() => handleMessageDoubleTap(message)}
@@ -1583,9 +1612,9 @@ Student: "${tempInput}"
                                             {/* Front of the card (Markdown text) */}
                                             <div className={`${(generatingMessageIds.has(message.id) || viewingImageIds.has(message.id)) ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 backface-hidden`}>
                                                 {message.sender === 'user' ? (
-                                                    <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanText}</p>
+                                                    <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{cleanVisualText}</p>
                                                 ) : (
-                                                    cleanText &&
+                                                    cleanVisualText &&
                                                     <div className="text-sm sm:text-base prose prose-sm max-w-none">
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm, remarkMath]}
@@ -1625,7 +1654,7 @@ Student: "${tempInput}"
                                                             hr: ({ node, ...props }: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
                                                         }}
                                                     >
-                                                        {cleanText}
+                                                        {cleanVisualText}
                                                     </ReactMarkdown>
                                                     </div>
                                                 )}
@@ -1687,13 +1716,20 @@ Student: "${tempInput}"
                             if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text && lastMsg.text.length >= streamingBotText.length) {
                                 return null;
                             }
-                            const { cleanText: cleanStreamingText } = parseMessageSuggestions(streamingBotText);
+                            const { cleanText: cleanStreamingText, suggestions: streamingSuggestions } = parseMessageSuggestions(streamingBotText);
+                            const { cleanText: cleanVisualStreamingText, visualHintText: streamingVisualHintText } = parseVisualHint(cleanStreamingText);
+                            const shouldShowStreamingVisualCue = Boolean(streamingVisualHintText) || shouldHighlightForVisual(cleanVisualStreamingText);
                             return (
                                 <div className="flex items-start gap-3 w-full animate-fade-in-up justify-start">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-lime-400 to-teal-500 flex-shrink-0 self-start">
                                         <GraduationCapIcon className="w-full h-full p-1.5 text-white" />
                                     </div>
                                     <div className="flex flex-col max-w-[85%] sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl" style={{ alignItems: 'flex-start' }}>
+                                        {shouldShowStreamingVisualCue && (
+                                            <div className="mb-2 inline-flex self-start items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700 shadow-sm">
+                                                Double-tap for a visual
+                                            </div>
+                                        )}
                                         <div className="p-3 px-4 rounded-2xl break-words bg-white dark:bg-[#0b1120] text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-transparent">
                                             <div className="text-sm sm:text-base prose prose-sm max-w-none">
                                                 <ReactMarkdown
@@ -1724,9 +1760,25 @@ Student: "${tempInput}"
                                                         hr: ({ node, ...props }: any) => <hr className="my-4 border-gray-300 dark:border-transparent" {...props} />,
                                                     }}
                                                 >
-                                                    {cleanStreamingText}
+                                                    {cleanVisualStreamingText}
                                                 </ReactMarkdown>
                                             </div>
+                                            {streamingSuggestions.length > 0 && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {streamingSuggestions.map((suggestion, sIdx) => (
+                                                        <button
+                                                            key={sIdx}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                handleSend(suggestion);
+                                                            }}
+                                                            className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 hover:border-blue-200 text-blue-700 border border-blue-100 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto touch-manipulation leading-snug text-left"
+                                                        >
+                                                            <InlineMathText text={suggestion} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

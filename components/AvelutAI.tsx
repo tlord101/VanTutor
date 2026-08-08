@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { get, onValue, push, ref as dbRef, serverTimestamp, set, update, remove } from 'firebase/database';
-import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { getDownloadURL, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 // @ts-ignore: Allow importing third-party CSS without type declarations
 import 'katex/dist/katex.min.css';
 import { db, storage } from '../firebase';
@@ -39,6 +39,7 @@ interface AssistantMessage {
   text: string;
   timestamp?: number;
   attachments?: AssistantAttachment[];
+  image_url?: string;
 }
 
 interface HistoryItem {
@@ -55,6 +56,30 @@ interface AvelutAIProps {
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const base64ToBlob = (base64: string, mimeType: string): Blob => {
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i += 1) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mimeType });
+};
+
+const createUniqueId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const truncateTitle = (text: string) => {
   const cleaned = text.trim().replace(/\s+/g, ' ');
   if (!cleaned) return 'New Chat';
@@ -68,6 +93,68 @@ const normalizeTitle = (text: string) => {
     .trim();
   return truncateTitle(cleaned || 'New Chat');
 };
+
+const parseMessageSuggestions = (text: string): { cleanText: string; suggestions: string[] } => {
+  if (!text) return { cleanText: '', suggestions: [] };
+
+  const regex = /\[Suggestions:\s*(.*?)\]/i;
+  const match = text.match(regex);
+  if (match) {
+    const rawOptions = match[1] || '';
+    const suggestions = rawOptions
+      .split('|')
+      .map(option => option.trim())
+      .filter(Boolean);
+    return {
+      cleanText: text.replace(regex, '').trim(),
+      suggestions,
+    };
+  }
+
+  return { cleanText: text, suggestions: [] };
+};
+
+const parseVisualHint = (text: string): { cleanText: string; visualHintText: string | null } => {
+  if (!text) return { cleanText: '', visualHintText: null };
+
+  const regex = /\[VisualHint:\s*(.*?)\]/i;
+  const match = text.match(regex);
+  if (match) {
+    return {
+      cleanText: text.replace(regex, '').trim(),
+      visualHintText: match[1]?.trim() || null,
+    };
+  }
+
+  return { cleanText: text, visualHintText: null };
+};
+
+const shouldHighlightForVisual = (text: string) => {
+  if (!text) return false;
+  const normalized = text.toLowerCase();
+  return /(diagram|graph|illustration|process|cycle|structure|formula|equation|timeline|map|flow|drawing|visual|example)/i.test(normalized);
+};
+
+const InlineMarkdownText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm, remarkMath]}
+    rehypePlugins={[rehypeKatex]}
+    components={{
+      p: ({ node, ...props }: any) => <span className={`whitespace-normal ${className}`} {...props} />,
+      strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-600" {...props} />,
+      em: ({ node, ...props }: any) => <em className="italic" {...props} />,
+      code: ({ node, inline, ...props }: any) =>
+        inline ? (
+          <code className="rounded bg-emerald-100 px-1 py-0.5 text-[0.8em] font-mono text-emerald-800" {...props} />
+        ) : (
+          <code className="block overflow-x-auto rounded-2xl bg-slate-950 p-3 text-sm text-white" {...props} />
+        ),
+      a: ({ node, ...props }: any) => <a className="underline decoration-emerald-400 underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />,
+    }}
+  >
+    {text}
+  </ReactMarkdown>
+);
 
 const getHistoryFallbackTitle = (prompt: string, attachment: File | null) => (
   prompt || (attachment ? `Attachment: ${attachment.name}` : 'New Chat')
@@ -315,6 +402,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   // Custom Input Bar States: 1 (Default), 2 (Typing)
   const [inputState, setInputState] = useState<number>(1);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState<boolean>(false);
+  const [viewingImageIds, setViewingImageIds] = useState<Set<string>>(new Set());
+  const [generatingMessageIds, setGeneratingMessageIds] = useState<Set<string>>(new Set());
+  const lastTapRef = useRef<Record<string, number>>({});
+  const lastToggleRef = useRef<Record<string, number>>({});
 
   const sectionRef = useRef<HTMLElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -441,6 +532,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           text: value.text || '',
           timestamp: Number(value.timestamp || 0),
           attachments,
+          image_url: value.image_url || undefined,
         });
       });
 
@@ -543,6 +635,122 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       console.error('Failed to generate chat title:', error);
       return fallbackTitle;
     }
+  };
+
+  const handleGenerateIllustration = async (promptText: string, messageId: string) => {
+    if (!promptText) return;
+    if (!ai) {
+      addToast('Gemini API key is not configured in App Controls.', 'error');
+      return;
+    }
+
+    setGeneratingMessageIds(prev => {
+      const next = new Set(prev);
+      next.add(messageId);
+      return next;
+    });
+    setViewingImageIds(prev => {
+      const next = new Set(prev);
+      next.add(messageId);
+      return next;
+    });
+    addToast('Creating a visualization for you...', 'info');
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: `Create a simple educational illustration for this explanation. Keep it minimal, readable, and focused on the core concept.\n\nContext:\n${promptText}`,
+        config: {
+          responseModalities: ['IMAGE'],
+          imageConfig: {
+            aspectRatio: '16:9',
+            imageSize: '1K',
+          },
+        },
+      });
+
+      const candidate = response.candidates?.[0];
+      const part = candidate?.content?.parts?.[0];
+      if (!part?.inlineData?.data) {
+        throw new Error('No image was returned.');
+      }
+
+      const mimeType = part.inlineData.mimeType || 'image/png';
+      const imageBlob = base64ToBlob(part.inlineData.data, mimeType);
+      const uniqueImageId = createUniqueId();
+      const fileExtension = mimeType.split('/')[1] || 'png';
+      const fileRef = storageRef(storage, `${userProfile.uid}/assistant-visuals/${uniqueImageId}.${fileExtension}`);
+      const uploadResult = await uploadBytes(fileRef, imageBlob);
+      const publicUrl = await getDownloadURL(uploadResult.ref);
+
+      if (activeHistoryId) {
+        await update(dbRef(db, `chat_messages/${activeHistoryId}/${messageId}`), { image_url: publicUrl });
+      }
+
+      setMessages(prev => prev.map(message => message.id === messageId ? { ...message, image_url: publicUrl } : message));
+      setViewingImageIds(prev => {
+        const next = new Set(prev);
+        next.add(messageId);
+        return next;
+      });
+    } catch (error) {
+      console.error('Assistant illustration error:', error);
+      addToast('Failed to generate the visual.', 'error');
+    } finally {
+      setGeneratingMessageIds(prev => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
+
+  const handleMessageDoubleTap = async (message: AssistantMessage) => {
+    if (message.sender !== 'assistant' || !message.text) return;
+
+    const nowToggle = Date.now();
+    const lastToggle = lastToggleRef.current[message.id] || 0;
+    if (nowToggle - lastToggle < 600) {
+      return;
+    }
+    lastToggleRef.current[message.id] = nowToggle;
+
+    if (generatingMessageIds.has(message.id)) {
+      setGeneratingMessageIds(prev => {
+        const next = new Set(prev);
+        next.delete(message.id);
+        return next;
+      });
+      setViewingImageIds(prev => {
+        const next = new Set(prev);
+        next.delete(message.id);
+        return next;
+      });
+      return;
+    }
+
+    if (message.image_url) {
+      setViewingImageIds(prev => {
+        const next = new Set(prev);
+        if (next.has(message.id)) next.delete(message.id);
+        else next.add(message.id);
+        return next;
+      });
+      return;
+    }
+
+    setGeneratingMessageIds(prev => {
+      const next = new Set(prev);
+      next.add(message.id);
+      return next;
+    });
+    setViewingImageIds(prev => {
+      const next = new Set(prev);
+      next.add(message.id);
+      return next;
+    });
+
+    void handleGenerateIllustration(message.text, message.id);
   };
 
   const handleSend = async (messageText?: string) => {
@@ -767,6 +975,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     'When the student asks abstract or general questions, answer them clearly but briefly, keeping the tone supportive and lively.',
                     'If the student feels stressed, confused, or anxious, act as their ultimate cheerleader. Be reassuring, empathetic, and break things down into the tiniest possible steps.',
                     'When math is involved, use Markdown and LaTeX formatting with inline $...$ and display $$...$$ equations, but explain the math simply like you would to a beginner.',
+                    'If the concept would benefit from a diagram, graph, process map, formula picture, or simple visual example, add a short cue near the end like [VisualHint: Double tap this message to view a visual explanation].',
+                    'At the very end of your response, attach exactly 2 to 3 short, context-specific suggestion pills to continue the conversation. Format them on a single line at the very end of the response as: [Suggestions: Option 1 | Option 2 | Option 3]',
                     'If the question needs calculations, show the steps clearly and neatly, praising their progress.',
                     courseContext ? `COURSE CONTEXT:\n${courseContext}` : '',
                     retrievedContext,
@@ -1002,6 +1212,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     return null;
                   }
 
+                  const { cleanText, suggestions } = parseMessageSuggestions(message.text || '');
+                  const { cleanText: cleanVisualText, visualHintText } = parseVisualHint(cleanText);
+                  const shouldShowVisualCue = message.sender === 'assistant' && (Boolean(visualHintText) || shouldHighlightForVisual(cleanVisualText));
+
                   return (
                   <div
                     key={message.id}
@@ -1011,8 +1225,25 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       className={`px-4 py-3 shadow-sm ${
                         message.sender === 'user'
                           ? 'max-w-[76%] rounded-3xl bg-emerald-600 text-white'
-                          : 'w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200'
+                          : `w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 ${generatingMessageIds.has(message.id) || viewingImageIds.has(message.id) ? 'ring-1 ring-amber-200' : ''}`
                       }`}
+                      onDoubleClick={() => {
+                        if (message.sender === 'assistant') {
+                          void handleMessageDoubleTap(message);
+                        }
+                      }}
+                      onTouchEnd={(event) => {
+                        if (message.sender !== 'assistant') return;
+                        const now = Date.now();
+                        const lastTap = lastTapRef.current[message.id] || 0;
+                        if (now - lastTap < 300) {
+                          event.preventDefault();
+                          void handleMessageDoubleTap(message);
+                          lastTapRef.current[message.id] = 0;
+                        } else {
+                          lastTapRef.current[message.id] = now;
+                        }
+                      }}
                     >
                       {message.attachments && message.attachments.length > 0 && (
                         <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
@@ -1043,20 +1274,53 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       )}
                       {message.sender === 'assistant' ? (
                         <>
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
-                            components={{
-                              p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                              ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                              ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                              li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                              strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
-                              pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
-                            }}
-                          >
-                            {message.text}
-                          </ReactMarkdown>
+                          {shouldShowVisualCue && (
+                            <div className="mb-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+                              Double-tap for a visual
+                            </div>
+                          )}
+                          {generatingMessageIds.has(message.id) || (viewingImageIds.has(message.id) && message.image_url) ? (
+                            <div className="min-h-[180px] rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                              {generatingMessageIds.has(message.id) ? (
+                                <div className="flex h-full min-h-[160px] items-center justify-center rounded-xl bg-slate-100 text-sm font-medium text-slate-500">
+                                  Creating the visual...
+                                </div>
+                              ) : (
+                                message.image_url && (
+                                  <img src={message.image_url} alt="Assistant visual explanation" className="h-full w-full rounded-xl object-contain" />
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                                li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
+                                pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
+                              }}
+                            >
+                              {cleanVisualText}
+                            </ReactMarkdown>
+                          )}
+                          {suggestions.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {suggestions.map((suggestion, index) => (
+                                <button
+                                  key={`${suggestion}-${index}`}
+                                  type="button"
+                                  onClick={() => void handleSend(suggestion)}
+                                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                >
+                                  <InlineMarkdownText text={suggestion} />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <div className="mt-4 flex justify-end border-t border-slate-200 dark:border-white/10 pt-2">
                             <button
                               type="button"
@@ -1107,7 +1371,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           </div>
                         </>
                       ) : (
-                        <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{cleanText}</p>
                       )}
                     </div>
                   </div>
@@ -1129,20 +1393,48 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 {streamingBotText !== null && (
                   <div className="flex justify-start">
                     <div className="w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 px-4 py-3 shadow-sm">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                          ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                          ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                          li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                          strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
-                          pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
-                        }}
-                      >
-                        {streamingBotText}
-                      </ReactMarkdown>
+                      {(() => {
+                        const { cleanText: cleanStreamingText, suggestions: streamingSuggestions } = parseMessageSuggestions(streamingBotText);
+                        const { cleanText: cleanVisualStreamingText, visualHintText: streamingVisualHintText } = parseVisualHint(cleanStreamingText);
+                        const shouldShowStreamingVisualCue = Boolean(streamingVisualHintText) || shouldHighlightForVisual(cleanVisualStreamingText);
+                        return (
+                          <>
+                            {shouldShowStreamingVisualCue && (
+                              <div className="mb-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+                                Double-tap for a visual
+                              </div>
+                            )}
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
+                                li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
+                                pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
+                              }}
+                            >
+                              {cleanVisualStreamingText}
+                            </ReactMarkdown>
+                            {streamingSuggestions.length > 0 && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {streamingSuggestions.map((suggestion, index) => (
+                                  <button
+                                    key={`${suggestion}-${index}`}
+                                    type="button"
+                                    onClick={() => void handleSend(suggestion)}
+                                    className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                  >
+                                    <InlineMarkdownText text={suggestion} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
