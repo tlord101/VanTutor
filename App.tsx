@@ -16,6 +16,7 @@ import { createAvelutAI } from './utils/inference';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const SendIntent = registerPlugin<any>('SendIntent');
 
@@ -229,6 +230,55 @@ const PWAInstallBannerOverlay: React.FC = () => {
     );
 };
 
+const SharedImagePromptModal: React.FC<{
+    visible: boolean;
+    imagePreview: string | null;
+    onScan: () => void;
+    onCancel: () => void;
+}> = ({ visible, imagePreview, onScan, onCancel }) => {
+    if (!visible) return null;
+
+    return (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[28px] border border-white/20 bg-white p-5 shadow-2xl dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-[0.3em] text-sky-600">Visual Solver</p>
+                        <h3 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Use this image?</h3>
+                    </div>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                    {imagePreview ? (
+                        <img src={imagePreview} alt="Shared preview" className="h-56 w-full object-contain" />
+                    ) : (
+                        <div className="flex h-56 items-center justify-center text-sm font-semibold text-slate-500">Preview unavailable</div>
+                    )}
+                </div>
+
+                <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">A photo was detected on your device. Open it in Visual Solver to analyze it, or dismiss this prompt.</p>
+
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onScan}
+                        className="flex-1 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition hover:bg-sky-700"
+                    >
+                        Scan Image
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AppUpdateDropModal: React.FC<{
     visible: boolean;
     title: string;
@@ -418,6 +468,9 @@ const App: React.FC = () => {
 
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [showOnlineRestored, setShowOnlineRestored] = useState(false);
+    const [showSharedImagePrompt, setShowSharedImagePrompt] = useState(false);
+    const [sharedImagePreview, setSharedImagePreview] = useState<string | null>(null);
+    const [pendingSharedImage, setPendingSharedImage] = useState<string | null>(null);
 
     useEffect(() => {
         const handleOnline = () => {
@@ -442,6 +495,21 @@ const App: React.FC = () => {
         const item = resolveActiveItemFromPath(getWindowPathname());
         return item === 'admin' ? 'admin' : item;
     });
+
+    const handleSharedImageScan = useCallback(() => {
+        if (pendingSharedImage) {
+            localStorage.setItem('shared_image_intent', pendingSharedImage);
+        }
+        setShowSharedImagePrompt(false);
+        setActiveItemState('visual_solver');
+        window.dispatchEvent(new Event('shared_image_received'));
+    }, [pendingSharedImage]);
+
+    const handleSharedImageCancel = useCallback(() => {
+        setShowSharedImagePrompt(false);
+        setPendingSharedImage(null);
+        setSharedImagePreview(null);
+    }, []);
 
     const activeItemRef = useRef(activeItem);
     useEffect(() => {
@@ -469,25 +537,47 @@ const App: React.FC = () => {
         }
     }, []);
 
+    const loadSharedImagePreview = useCallback(async (imageUri: string) => {
+        if (!imageUri) return;
+        try {
+            if (imageUri.startsWith('content://') || imageUri.startsWith('file://')) {
+                const normalized = imageUri.replace(/^file:\/\//, '').replace(/^content:\/\//, '');
+                const fileData = await Filesystem.readFile({ path: normalized });
+                setSharedImagePreview(`data:image/jpeg;base64,${fileData.data}`);
+            } else if (imageUri.startsWith('data:image')) {
+                setSharedImagePreview(imageUri);
+            } else if (imageUri.startsWith('http')) {
+                setSharedImagePreview(imageUri);
+            } else {
+                setSharedImagePreview(null);
+            }
+        } catch (error) {
+            console.warn('Unable to create shared image preview:', error);
+            setSharedImagePreview(null);
+        }
+    }, []);
+
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
-            const intentListener = SendIntent.addListener('appSendActionIntent', (data: any) => {
+            const intentListener = SendIntent.addListener('appSendActionIntent', async (data: any) => {
                 if (data && data.extras && data.extras['android.intent.extra.STREAM']) {
                     const streamUri = data.extras['android.intent.extra.STREAM'];
                     localStorage.setItem('shared_image_intent', streamUri);
-                    // Force navigation to the solver
-                    window.dispatchEvent(new Event('shared_image_received'));
+                    setPendingSharedImage(streamUri);
+                    await loadSharedImagePreview(streamUri);
+                    setShowSharedImagePrompt(true);
                 }
             });
             return () => { 
                 intentListener.then((handle: any) => handle.remove()).catch(() => {});
             };
         }
-    }, []);
+    }, [loadSharedImagePreview]);
 
     useEffect(() => {
         const handleSharedImage = () => {
             setActiveItem('visual_solver');
+            setShowSharedImagePrompt(true);
         };
         window.addEventListener('shared_image_received', handleSharedImage);
         return () => window.removeEventListener('shared_image_received', handleSharedImage);
@@ -1548,7 +1638,12 @@ const App: React.FC = () => {
 
             {/* Automatic PWA App Intercept Modal Overlay */}
             <PWAInstallBannerOverlay />
-
+            <SharedImagePromptModal
+                visible={showSharedImagePrompt}
+                imagePreview={sharedImagePreview}
+                onScan={handleSharedImageScan}
+                onCancel={handleSharedImageCancel}
+            />
 
             <Sidebar
                 activeItem={activeItem}
