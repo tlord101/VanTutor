@@ -553,6 +553,33 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     return messages.length > 0 ? 'Current chat' : 'New chat';
   }, [activeHistoryId, history, messages.length]);
 
+  const preparePendingPrompt = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem('avelut_pending_tutorial_prompt');
+    if (!stored) return null;
+    try {
+      const parsed = JSON.parse(stored);
+      return typeof parsed?.prompt === 'string' ? parsed.prompt : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!preparePendingPrompt) return;
+    window.localStorage.removeItem('avelut_pending_tutorial_prompt');
+    setActiveHistoryId(null);
+    setMessages([]);
+    setInputValue('');
+    clearAttachment();
+    setStatusText('Opening a fresh tutor chat...');
+    setInputState(1);
+    const timer = window.setTimeout(() => {
+      void handleSend(preparePendingPrompt);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [preparePendingPrompt]);
+
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({

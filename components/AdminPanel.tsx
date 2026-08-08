@@ -58,66 +58,6 @@ import { UserControlView } from './admin/pages/UserControlView';
 import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { db, storage, auth } from '../firebase';
-import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { GoogleGenAI, Type } from '@google/genai';
-import type { UsageSettings } from '../types';
-import { useToast } from '../hooks/useToast';
-import { useAppSettings } from '../hooks/useAppSettings';
-import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
-import type { UserProfile, Question, Course, Topic, EmailConfig } from '../types';
-import { MenuIcon } from './icons/MenuIcon';
-import { TrashIcon } from './icons/TrashIcon';
-import { StackIcon } from './icons/StackIcon';
-import { StudyGuideIcon } from './icons/StudyGuideIcon';
-import { ExamIcon } from './icons/ExamIcon';
-import { GraduationCapIcon } from './icons/GraduationCapIcon';
-import { CheckIcon } from './icons/CheckIcon';
-import { 
-    Folder, 
-    BookOpen, 
-    HelpCircle, 
-    Users, 
-    Settings as SettingsIcon, 
-    LogOut, 
-    ChevronDown, 
-    ChevronRight,
-    Moon,
-    Sparkles, 
-    RefreshCw, 
-    Trash2,
-    Shield,
-    TrendingUp,
-    Clock,
-    UserCheck,
-    CreditCard,
-    Key,
-    Activity,
-    Plus,
-    X,
-    Building,
-    Home,
-    Bell,
-    Send,
-    Mail,
-    CheckCircle,
-    AlertCircle,
-    MessageSquare,
-    ArrowUpRight
-} from 'lucide-react';
-import { getWindowPathname } from '../utils/pathname';
-import { APP_SETTINGS_PATH, DEFAULT_APP_SETTINGS, DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
-import { getFeatureModel } from '../utils/usage';
-
-import { AdminLayout } from './admin/AdminLayout';
-import { DashboardView } from './admin/pages/DashboardView';
-import { AcademicUnitsView } from './admin/pages/AcademicUnitsView';
-import { UserControlView } from './admin/pages/UserControlView';
-import { SystemSettingsView } from './admin/pages/SystemSettingsView';
-import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
-import { PastQuestionsView } from './admin/pages/PastQuestionsView';
 import { AdminUpdates } from './admin/AdminUpdates';
 import { CourseCatalogView } from './admin/pages/CourseCatalogView';
 import { NotificationsView } from './admin/pages/NotificationsView';
@@ -1999,14 +1939,101 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         });
     };
 
+    const handleRemoveDuplicateTopicsForCourse = useCallback(async (course: Course) => {
+        if (!course) return;
+
+        const courseKey = getCourseMergeKey(course) || course.course_id;
+        if (!courseKey) {
+            addToast('Unable to identify the selected course.', 'error');
+            return;
+        }
+
+        const sharedRef = dbRef(db, `textbook_contexts/shared/${courseKey}`);
+        const sharedSnapshot = await get(sharedRef);
+        const sharedData = sharedSnapshot.exists() ? sharedSnapshot.val() : {};
+        const existingTopics = Array.isArray(sharedData?.syllabus)
+            ? sharedData.syllabus
+            : Array.isArray(course.topics)
+                ? course.topics
+                : [];
+
+        const seenTopicKeys = new Set<string>();
+        const dedupedTopics = existingTopics.filter((topic: Partial<Topic>) => {
+            const topicKey = normalizeTopicId((topic?.topic_id || topic?.topic_name || '').toString().trim());
+            if (!topicKey) return true;
+            if (seenTopicKeys.has(topicKey)) return false;
+            seenTopicKeys.add(topicKey);
+            return true;
+        }).map((topic: Partial<Topic>, index: number) => sanitizeTopicMetadata(topic, index));
+
+        const duplicateCount = existingTopics.length - dedupedTopics.length;
+        if (!duplicateCount) {
+            addToast(`No duplicate topics found for ${course.course_name}.`, 'info');
+            return;
+        }
+
+        const confirmed = window.confirm(`Remove ${duplicateCount} duplicate topic${duplicateCount === 1 ? '' : 's'} from ${course.course_name}?`);
+        if (!confirmed) return;
+
+        const updates: Record<string, any> = {
+            [`textbook_contexts/shared/${courseKey}/syllabus`]: dedupedTopics,
+        };
+
+        allDepartments.forEach((dept) => {
+            const existingCourses = normalizeCourseList(dept?.course_list);
+            let changed = false;
+            const nextCourses = existingCourses.map((existingCourse) => {
+                const isTargetCourse = getCourseMergeKey(existingCourse) === courseKey || existingCourse.course_id === course.course_id;
+                if (!isTargetCourse) return existingCourse;
+                changed = true;
+                return {
+                    ...existingCourse,
+                    topics: dedupedTopics,
+                    textbook_shared_key: courseKey,
+                };
+            });
+
+            if (changed) {
+                updates[`departments_data/${dept.id}/course_list`] = nextCourses;
+            }
+        });
+
+        await update(dbRef(db), updates);
+        await fetchDepartments();
+        addToast(`Removed ${duplicateCount} duplicate topic${duplicateCount === 1 ? '' : 's'} from ${course.course_name}.`, 'success');
+    }, [addToast, allDepartments, fetchDepartments, getCourseMergeKey]);
+
+    const resolvePastQuestionTarget = useCallback((providedDepartmentId: string, providedLevel: string, providedCourseName: string, inferredMetadata?: any) => {
+        const normalizeText = (value: any) => (value || '').toString().trim();
+        const inferredDepartment = normalizeText(inferredMetadata?.department || inferredMetadata?.dept);
+        const inferredLevel = normalizeText(inferredMetadata?.level);
+        const inferredCourse = normalizeText(inferredMetadata?.courseName || inferredMetadata?.course_name || inferredMetadata?.course || inferredMetadata?.courseCode || inferredMetadata?.course_code);
+
+        const matchedDepartment = providedDepartmentId
+            ? allDepartments.find((dept) => dept.id === providedDepartmentId)
+            : (inferredDepartment
+                ? allDepartments.find((dept) => {
+                    const labels = [dept.department_name, dept.id, dept.short_name].filter(Boolean).map((label: string) => label.toString().toLowerCase());
+                    return labels.some((label) => label.includes(inferredDepartment.toLowerCase()));
+                })
+                : undefined);
+
+        return {
+            departmentId: matchedDepartment?.id || providedDepartmentId || (inferredDepartment ? normalizeTopicId(inferredDepartment) : 'unassigned'),
+            level: providedLevel || inferredLevel || 'unassigned',
+            courseName: providedCourseName || inferredCourse || 'unassigned_course',
+        };
+    }, [allDepartments]);
+
     const handleAddQuestion = async () => {
-        if (!uploadDepartmentId || !uploadLevel || !uploadCourseName || !year || !newQuestion.question || !newQuestion.correctAnswer) {
-            addToast("Please fill all required fields", "error");
+        if (!year || !newQuestion.question || !newQuestion.correctAnswer) {
+            addToast("Please fill the required fields including the year", "error");
             return;
         }
 
         try {
-            const pqRef = dbRef(db, `past_questions/${uploadDepartmentId}/${uploadLevel}/${uploadCourseName}/${year}`);
+            const target = resolvePastQuestionTarget(uploadDepartmentId, uploadLevel, uploadCourseName);
+            const pqRef = dbRef(db, `past_questions/${target.departmentId}/${target.level}/${target.courseName}/${year}`);
             const newPQRef = push(pqRef);
             await set(newPQRef, newQuestion);
             addToast("Question added successfully!", "success");
@@ -2022,8 +2049,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     const handlePQUpload = async () => {
-        if (!pqFile || !uploadDepartmentId || !uploadLevel || !uploadCourseName || !year) {
-            addToast("Please select a PDF file and enter Department, Level, Course Name and Year", "error");
+        if (!pqFile || !year) {
+            addToast("Please select a PDF file and enter a year", "error");
             return;
         }
         if (!ai) {
@@ -2043,13 +2070,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 reader.onload = () => resolve((reader.result as string).split(',')[1]);
             });
 
-            const prompt = `Analyze this PDF containing past exam questions for "${uploadCourseName}" (${year}) at "${uploadLevel}" level. 
-            Extract ALL multiple-choice questions into a structured JSON array.
+            const prompt = `Analyze this PDF containing past exam questions for ${uploadCourseName ? `"${uploadCourseName}"` : 'the uploaded exam'} (${year}). If the document shows a course title, course code, department, or level, extract that information too. If the admin did not provide a course or level, infer it directly from the PDF when possible.
+            Extract ALL multiple-choice questions into a structured JSON object.
             
             RULES:
-            1. Output ONLY the JSON array.
-            2. Each object must have: question, options (array of 4 strings), correctAnswer (the exact string of the correct option), and explanation (brief reasoning).
-            3. Ensure the correctAnswer exactly matches one of the strings in the options array.
+            1. Output ONLY a JSON object.
+            2. Include: questions (array), courseCode (string or null), courseName (string or null), level (string or null), department (string or null), sourceYear (string or null).
+            3. Each question object must have: question, options (array of 4 strings), correctAnswer (the exact string of the correct option), and explanation (brief reasoning).
+            4. Ensure the correctAnswer exactly matches one of the strings in the options array.
 
             FORMAT:
             {
@@ -2060,7 +2088,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         "correctAnswer": "A",
                         "explanation": "Because..."
                     }
-                ]
+                ],
+                "courseCode": "CS101",
+                "courseName": "Introduction to Programming",
+                "level": "100lvl",
+                "department": "Computer Science",
+                "sourceYear": "2023"
             }`;
 
             const response = await ai.models.generateContent({
@@ -2103,13 +2136,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 throw new Error("AI returned an empty response while extracting questions.");
             }
             const responseData = JSON.parse(responseText);
-            const extractedQuestions = responseData.questions || [];
+            const extractedQuestions = Array.isArray(responseData.questions) ? responseData.questions : [];
 
             if (extractedQuestions.length === 0) throw new Error("No questions found in the PDF.");
 
+            const target = resolvePastQuestionTarget(uploadDepartmentId, uploadLevel, uploadCourseName, responseData);
             setExtractionProgress(`Saving ${extractedQuestions.length} questions to database...`);
 
-            const pqRef = dbRef(db, `past_questions/${uploadDepartmentId}/${uploadLevel}/${uploadCourseName}/${year}`);
+            const pqRef = dbRef(db, `past_questions/${target.departmentId}/${target.level}/${target.courseName}/${year}`);
             
             // Push each question individually
             for (const q of extractedQuestions) {
@@ -2117,7 +2151,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 await set(newPQRef, q);
             }
 
-            addToast(`Successfully extracted and saved ${extractedQuestions.length} questions!`, "success");
+            addToast(`Successfully extracted and saved ${extractedQuestions.length} questions under ${target.courseName}!`, "success");
             setPqFile(null);
         } catch (error: any) {
             console.error(error);
@@ -2867,6 +2901,7 @@ FORMAT:
                     handleDeleteCourseFromDepartment={handleDeleteCourseFromDepartment as any}
                     handleBatchDeleteCourses={handleBatchDeleteCourses as any}
                     handleDeleteCourseTopics={handleDeleteCourseTopics as any}
+                    handleRemoveDuplicateTopicsForCourse={handleRemoveDuplicateTopicsForCourse as any}
                     selectedManagerDepartment={selectedManagerDepartment}
                     selectedManagerCourse={selectedManagerCourse}
                     setCourseDetailFiles={setCourseDetailFiles as any}

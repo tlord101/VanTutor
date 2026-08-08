@@ -9,7 +9,7 @@ export const DEFAULT_USAGE_SETTINGS = {
       display_name: 'Forever Free',
       description: 'Fundamental study tools with standard constraints. Good for **upto 1 hour of studytime**.',
       price_ngn: 0,
-      credit_allocation: 30,
+      credit_allocation: 15,
       max_saved_courses: 2,
       has_verification_badge: false,
       badge_color: 'none',

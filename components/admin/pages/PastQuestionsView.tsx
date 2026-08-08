@@ -39,7 +39,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <HelpCircle className="w-6 h-6 text-indigo-500" />
                         <span>Past Questions Management</span>
                     </h3>
-                    <p className="text-sm text-slate-500">Automate extraction using AI, or manually input individual questions.</p>
+                    <p className="text-sm text-slate-500">Automate extraction using AI, or manually input individual questions. If the PDF contains course information, the AI can detect it automatically.</p>
                 </div>
 
                 {/* Common Target Configuration */}
@@ -51,7 +51,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             onChange={e => setUploadDepartmentId(e.target.value)}
                             className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
-                            <option value="">Select Department</option>
+                            <option value="">Department (Optional)</option>
                             {allDepartments.map(dept => (
                                 <option key={dept.id} value={dept.id}>{dept.department_name}</option>
                             ))}
@@ -61,7 +61,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             onChange={e => setUploadLevel(e.target.value)}
                             className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
-                            <option value="">Select Level</option>
+                            <option value="">Level (Optional)</option>
                             {LEVELS.map(lvl => (
                                 <option key={lvl} value={lvl}>{lvl}</option>
                             ))}
@@ -71,7 +71,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             onChange={e => setUploadCourseName(e.target.value)}
                             className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
                         >
-                            <option value="">Select Course</option>
+                            <option value="">Course (Optional)</option>
                             {availableCourses.map(({ course }) => (
                                 <option key={course.course_id || course.course_name} value={course.course_name}>
                                     {course.course_code || course.course_id} ({course.course_name})

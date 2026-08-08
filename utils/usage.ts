@@ -223,7 +223,7 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
         const planKey = (profile.subscription_status === 'pro' ? 'premium' : (profile.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
         const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
         const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
-        const defaultLimit = tiers[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers[planKey]?.credit_allocation ?? 30;
+        const defaultLimit = tiers[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers[planKey]?.credit_allocation ?? 15;
 
         // If balance is missing, initialize with plan default before deducting
         const currentBalance = profile.ai_credits_balance ?? defaultLimit;

@@ -91,14 +91,54 @@ interface TutorialDisplayProps {
 const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollContentRef = useRef<HTMLDivElement>(null);
+    const sheetRef = useRef<HTMLDivElement>(null);
+    const dragStartRef = useRef<{ y: number; initialOffset: number; allowClose: boolean } | null>(null);
     const [isSharing, setIsSharing] = useState(false);
     const { addToast } = useToast();
     const [showForwardModal, setShowForwardModal] = useState(false);
+    const [shareMenuOpen, setShareMenuOpen] = useState(false);
     const [studyPartners, setStudyPartners] = useState<Record<string, boolean>>({});
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isSending, setIsSending] = useState(false);
+    const [dragOffsetY, setDragOffsetY] = useState(0);
+    const [isClosing, setIsClosing] = useState(false);
+
+    const closeSheet = useCallback(() => {
+        setIsClosing(true);
+        window.setTimeout(() => {
+            setIsClosing(false);
+            setShareMenuOpen(false);
+            setDragOffsetY(0);
+            onClose();
+        }, 180);
+    }, [onClose]);
+
+    const handleDragStart = (clientY: number) => {
+        const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? window.innerHeight;
+        const allowClose = clientY <= sheetTop + 60;
+        dragStartRef.current = { y: clientY, initialOffset: dragOffsetY, allowClose };
+    };
+
+    const handleDragMove = (clientY: number) => {
+        if (!dragStartRef.current || !dragStartRef.current.allowClose) return;
+        const delta = clientY - dragStartRef.current.y;
+        if (delta <= 0) {
+            setDragOffsetY(0);
+            return;
+        }
+        setDragOffsetY(Math.min(220, Math.max(0, dragStartRef.current.initialOffset + delta)));
+    };
+
+    const handleDragEnd = () => {
+        if (dragOffsetY > 140) {
+            closeSheet();
+        } else {
+            setDragOffsetY(0);
+        }
+        dragStartRef.current = null;
+    };
 
     useEffect(() => {
         if (!userProfile) return;
@@ -171,6 +211,90 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
     };
 
     const handleShareNative = async () => {
+        setShareMenuOpen(false);
+        setIsSharing(true);
+        try {
+            const blobs = await captureImages();
+            if (!blobs.length) {
+                addToast('Failed to generate image.', 'error');
+                return;
+            }
+
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    const savedFiles = [] as { uri: string }[];
+                    for (let index = 0; index < blobs.length; index++) {
+                        const blob = blobs[index];
+                        const base64Data = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                const b64 = (reader.result as string).split(',')[1];
+                                resolve(b64);
+                            };
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+
+                        const fileName = `avelut_solution_${Date.now()}_${index + 1}.png`;
+                        const savedFile = await Filesystem.writeFile({
+                            path: fileName,
+                            data: base64Data,
+                            directory: Directory.Cache
+                        });
+                        savedFiles.push({ uri: savedFile.uri });
+                    }
+
+                    try {
+                        await Share.share({
+                            title: 'Avelut Solution',
+                            text: 'Check out this solution from Avelut Visual Solver!',
+                            files: savedFiles.map(file => file.uri),
+                            dialogTitle: 'Share Solution'
+                        });
+                    } catch (shareErr: any) {
+                        if (shareErr.message !== 'Share canceled') {
+                            console.error('Share plugin error, falling back to FileOpener:', shareErr);
+                            await FileOpener.openFile({
+                                path: savedFiles[0].uri,
+                                mimeType: 'image/png'
+                            });
+                            addToast(blobs.length > 1 ? 'Images saved! Use the menu to share them.' : 'Image saved! Use the menu to share.', 'success');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Native share error:', err);
+                    addToast('Failed to share image.', 'error');
+                }
+            } else {
+                const files = blobs.map((blob, index) => new File([blob], `avelut_solution_${index + 1}.png`, { type: 'image/png' }));
+                if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+                    try {
+                        await navigator.share({
+                            title: 'Avelut Solution',
+                            text: 'Check out this solution from Avelut Visual Solver!',
+                            files
+                        });
+                    } catch (err) {
+                        console.error('Error sharing', err);
+                    }
+                } else {
+                    blobs.forEach((blob, index) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `avelut_solution_${index + 1}.png`;
+                        a.click();
+                        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    });
+                    addToast(blobs.length > 1 ? 'Images downloaded! You can share them manually.' : 'Image downloaded! You can now share it manually.', 'success');
+                }
+            }
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
+    const handleShareNativeLegacy = async () => {
         const blobs = await captureImages();
         if (!blobs.length) {
             addToast('Failed to generate image.', 'error');
@@ -252,6 +376,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
 
     const handleForwardToPartner = async () => {
         if (selectedIds.length === 0) return;
+        setShareMenuOpen(false);
         setIsSending(true);
         const blobs = await captureImages();
         if (!blobs.length) {
@@ -320,13 +445,56 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
     const filteredPartners = partnersList.filter(u => u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
-        <div className="w-full h-full flex flex-col bg-gradient-to-b from-gray-50 to-white relative">
-            <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
-                <div className="flex-shrink-0 h-[33vh] bg-gradient-to-br from-indigo-50 to-blue-50 border-b-2 border-indigo-200 shadow-sm">
-                    <img src={scannedImage} alt="Scanned problem" className="w-full h-full object-contain p-2" />
+        <div className="absolute inset-0 z-40 flex items-end justify-center bg-slate-950/40 backdrop-blur-sm p-0 sm:p-2">
+            <div
+                ref={sheetRef}
+                className={`w-full max-w-5xl rounded-t-[32px] border border-slate-200 bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] transition-transform duration-300 ${isClosing ? 'translate-y-full' : 'translate-y-0'}`}
+                style={{ transform: `translateY(${dragOffsetY}px)` }}
+                onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+                onTouchMove={(e) => handleDragMove(e.touches[0].clientY)}
+                onTouchEnd={handleDragEnd}
+                onMouseDown={(e) => handleDragStart(e.clientY)}
+                onMouseMove={(e) => handleDragMove(e.clientY)}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+            >
+                <div className="flex items-center justify-center py-2 cursor-grab active:cursor-grabbing">
+                    <div className="h-1.5 w-16 rounded-full bg-slate-300" />
                 </div>
-                <div ref={scrollContentRef} className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-y-auto">
-                    <div className="max-w-4xl mx-auto">
+
+                <div className="flex items-start justify-between px-4 pb-3">
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-emerald-600">Visual tutorial</p>
+                        <h3 className="text-lg font-semibold text-slate-900">Step-by-step guide</h3>
+                    </div>
+                    <div className="relative">
+                        <button
+                            onClick={() => setShareMenuOpen(prev => !prev)}
+                            disabled={isSharing || isSending}
+                            className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 disabled:opacity-60"
+                            aria-label="More actions"
+                        >
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="5" r="1.5" />
+                                <circle cx="12" cy="12" r="1.5" />
+                                <circle cx="12" cy="19" r="1.5" />
+                            </svg>
+                        </button>
+                        {shareMenuOpen && (
+                            <div className="absolute right-0 bottom-14 z-10 flex min-w-[180px] flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+                                <button onClick={() => { setShowForwardModal(true); setShareMenuOpen(false); }} className="rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700">↪ Forward</button>
+                                <button onClick={() => { void handleShareNative(); }} className="rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-700">{isSharing ? 'Preparing share…' : 'Share'}</button>
+                                <button onClick={async () => { setShareMenuOpen(false); try { const reportsRef = dbRef(db, 'reported_content'); await push(reportsRef, { userId: userProfile.uid, messageText: tutorialText, timestamp: serverTimestamp(), type: 'visual_solver_response' }); addToast('Content reported to moderators', 'success'); } catch (err) { console.error('Failed to report:', err); addToast('Failed to report content', 'error'); } }} className="rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-rose-50 hover:text-rose-700">⚑ Report</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div ref={containerRef} className="max-h-[64vh] overflow-y-auto bg-white px-4 pb-24 sm:px-6">
+                    <div className="mb-4 overflow-hidden rounded-[24px] border border-slate-200 bg-gradient-to-br from-indigo-50 via-sky-50 to-white">
+                        <img src={scannedImage} alt="Scanned problem" className="h-44 w-full object-contain p-3" />
+                    </div>
+                    <div ref={scrollContentRef} className="max-w-4xl mx-auto pb-8">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
@@ -334,10 +502,10 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 h1: ({node, ...props}: any) => <h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-900 mt-10 mb-6 tracking-tight leading-tight" {...props} />,
                                 h2: ({node, ...props}: any) => <h2 className="text-2xl sm:text-3xl font-bold text-indigo-800 mt-8 mb-5 tracking-tight border-b border-indigo-100 pb-2" {...props} />,
                                 h3: ({node, ...props}: any) => <h3 className="text-xl sm:text-2xl font-bold text-indigo-700 mt-6 mb-4 tracking-tight" {...props} />,
-                                h4: ({node, ...props}: any) => <h4 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 mt-4" {...props} />,
+                                h4: ({node, ...props}: any) => <h4 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 mt-4" {...props} />,
                                 p: ({node, ...props}: any) => <p className="mb-5 text-base sm:text-lg text-gray-700 leading-relaxed tracking-wide" {...props} />,
                                 a: ({node, ...props}: any) => <a className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline decoration-indigo-300 decoration-2 transition-all" target="_blank" rel="noreferrer" {...props} />,
-                                strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-blue-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />,
+                                strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 bg-yellow-100 px-1.5 py-0.5 rounded" {...props} />,
                                 em: ({node, ...props}: any) => <em className="italic text-indigo-600 font-medium" {...props} />,
                                 ul: ({node, ...props}: any) => <ul className="list-none space-y-3 my-5 pl-1" {...props} />,
                                 li: ({node, ...props}: any) => <li className="flex items-start gap-3 text-base sm:text-lg text-gray-700 leading-relaxed before:content-['●'] before:text-indigo-500 before:font-bold before:text-xl before:mt-0.5 before:flex-shrink-0" {...props} />,
@@ -345,95 +513,54 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 code: ({node, inline, ...props}: any) => inline ? <code className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono text-sm border border-indigo-200" {...props} /> : <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 font-mono text-sm leading-relaxed border-l-4 border-indigo-500" {...props} />,
                                 pre: ({node, ...props}: any) => <pre className="bg-gray-900 rounded-lg overflow-hidden my-5 shadow-lg" {...props} />,
                                 blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-6 pr-4 py-4 my-5 rounded-r-lg shadow-sm" {...props} />,
-                                table: ({node, ...props}: any) => <div className="overflow-x-auto my-6 shadow-md rounded-lg"><table className="min-w-full divide-y divide-gray-200 border border-gray-200 dark:border-transparent" {...props} /></div>,
+                                table: ({node, ...props}: any) => <div className="overflow-x-auto my-6 shadow-md rounded-lg"><table className="min-w-full divide-y divide-gray-200 border border-gray-200" {...props} /></div>,
                                 thead: ({node, ...props}: any) => <thead className="bg-indigo-600 text-white" {...props} />,
-                                tbody: ({node, ...props}: any) => <tbody className="bg-white dark:bg-black divide-y divide-gray-200" {...props} />,
-                                tr: ({node, ...props}: any) => <tr className="hover:bg-gray-50 dark:bg-black transition-colors" {...props} />,
+                                tbody: ({node, ...props}: any) => <tbody className="bg-white divide-y divide-gray-200" {...props} />,
+                                tr: ({node, ...props}: any) => <tr className="hover:bg-gray-50 transition-colors" {...props} />,
                                 th: ({node, ...props}: any) => <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider" {...props} />,
                                 td: ({node, ...props}: any) => <td className="px-6 py-4 text-sm text-gray-700" {...props} />,
-                                hr: ({node, ...props}: any) => <hr className="my-8 border-t-2 border-gray-200 dark:border-transparent" {...props} />,
+                                hr: ({node, ...props}: any) => <hr className="my-8 border-t-2 border-gray-200" {...props} />,
                             }}
                         >
                             {tutorialText}
                         </ReactMarkdown>
                     </div>
                 </div>
-            </div>
-            
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t-2 border-gray-200 dark:border-transparent bg-white dark:bg-black/90 backdrop-blur-md shadow-lg flex gap-3">
-                <button 
-                    onClick={onClose} 
-                    className="flex-1 bg-neutral-200 dark:bg-gray-800 hover:bg-neutral-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                    <ArrowLeftIcon className="w-5 h-5" />
-                    Back
-                </button>
-                <button 
-                    onClick={handleShareNative} 
-                    disabled={isSharing}
-                    className="flex-1 bg-[#009EE2] hover:bg-[#0070B8] text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                    Share
-                </button>
-                <button 
-                    onClick={() => setShowForwardModal(true)} 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
-                    Forward
-                </button>
-                <button
-                    onClick={async () => {
-                        try {
-                            const reportsRef = dbRef(db, 'reported_content');
-                            await push(reportsRef, {
-                                userId: userProfile.uid,
-                                messageText: tutorialText,
-                                timestamp: serverTimestamp(),
-                                type: 'visual_solver_response'
-                            });
-                            addToast('Content reported to moderators', 'success');
-                        } catch (err) {
-                            console.error('Failed to report:', err);
-                            addToast('Failed to report content', 'error');
-                        }
-                    }}
-                    className="flex-1 bg-red-600/10 hover:bg-red-600/20 text-red-600 font-bold py-4 px-2 rounded-xl transition-all duration-200 transform active:scale-[0.98] flex items-center justify-center gap-1.5"
-                    title="Report inappropriate AI content"
-                >
-                    <Flag className="w-5 h-5" />
-                    Report
-                </button>
+
+                <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur">
+                    <button onClick={closeSheet} className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-200">Back</button>
+                    <button onClick={() => { setShowForwardModal(true); setShareMenuOpen(false); }} disabled={isSending} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60">Forward</button>
+                    <button onClick={() => { void handleShareNative(); }} disabled={isSharing} className="flex-1 rounded-2xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-500 disabled:opacity-60">{isSharing ? 'Preparing…' : 'Share'}</button>
+                </div>
             </div>
 
             {showForwardModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white dark:bg-black w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh]">
-                        <div className="p-5 border-b border-[#E9ECEF] dark:border-transparent flex items-center justify-between">
-                            <h2 className="text-base font-bold text-[#212529] dark:text-white">Forward Solution</h2>
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-[#6C757D] text-xs font-bold transition">✕</button>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-[#E9ECEF] p-5">
+                            <h2 className="text-base font-bold text-[#212529]">Forward Solution</h2>
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-xs font-bold text-[#6C757D] transition hover:bg-neutral-200">✕</button>
                         </div>
-                        <div className="p-4 border-b border-[#E9ECEF]">
-                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#F8F9FA] dark:bg-black text-sm px-4 py-2 rounded-xl border focus:outline-none focus:border-[#009EE2]" />
+                        <div className="border-b border-[#E9ECEF] p-4">
+                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-[#F8F9FA] px-4 py-2 text-sm focus:border-[#009EE2] focus:outline-none" />
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        <div className="flex-1 space-y-2 overflow-y-auto p-4">
                             {filteredPartners.length === 0 ? (
-                                <p className="text-center text-xs font-medium text-gray-500 py-8">No partners found</p>
+                                <p className="py-8 text-center text-xs font-medium text-gray-500">No partners found</p>
                             ) : (
                                 filteredPartners.map(u => (
-                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer ${selectedIds.includes(u.uid) ? 'bg-[#009EE2]/5 border-[#009EE2]' : 'border-[#E9ECEF]'}`}>
-                                        <div className="font-semibold text-sm">{u.display_name}</div>
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedIds.includes(u.uid) ? 'border-[#009EE2] bg-[#009EE2]' : 'border-gray-300'}`}>
-                                            {selectedIds.includes(u.uid) && <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
+                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer ${selectedIds.includes(u.uid) ? 'border-[#009EE2] bg-[#009EE2]/5' : 'border-[#E9ECEF]'}`}>
+                                        <div className="text-sm font-semibold">{u.display_name}</div>
+                                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selectedIds.includes(u.uid) ? 'border-[#009EE2] bg-[#009EE2]' : 'border-gray-300'}`}>
+                                            {selectedIds.includes(u.uid) && <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
                                         </div>
                                     </div>
                                 ))
                             )}
                         </div>
-                        <div className="p-4 border-t bg-[#F8F9FA] dark:bg-black flex gap-3">
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 bg-white border py-3.5 rounded-xl font-bold text-xs text-gray-500 uppercase">Cancel</button>
-                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] bg-[#009EE2] text-white py-3.5 rounded-xl font-bold text-xs uppercase disabled:opacity-50 flex justify-center items-center gap-2">
+                        <div className="flex gap-3 border-t bg-[#F8F9FA] p-4">
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 rounded-xl border border-slate-200 bg-white py-3.5 text-xs font-bold uppercase tracking-wide text-gray-500">Cancel</button>
+                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] rounded-xl bg-[#009EE2] py-3.5 text-xs font-bold uppercase tracking-wide text-white disabled:opacity-50">
                                 {isSending ? 'Sending...' : `Send to ${selectedIds.length} partner${selectedIds.length !== 1 ? 's' : ''}`}
                             </button>
                         </div>
@@ -752,6 +879,11 @@ ${retrievedContext}
 
                 setAnalysisResult(finalResult);
 
+                onStartChat?.(
+                    `Teach me this scanned problem step by step in a friendly tutor style. Use simple language, explain the concept clearly, and include a small visual hint if useful.\n\nScanned problem context:\n${finalResult}`,
+                    finalResult
+                );
+
                 // Deduct credits as soon as we have a result
                 deductAICredits(userProfile.uid, cost, 'Visual Solver - Detailed', appSettings).catch(console.error);
 
@@ -769,7 +901,7 @@ ${retrievedContext}
             setError(err.message || "Failed to connect to the solver.");
             setCameraState('preview');
         }
-    }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast]);
+    }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast, onStartChat]);
 
     const handleQuickAnswer = useCallback(async () => {
         if (!scannedImage) return;

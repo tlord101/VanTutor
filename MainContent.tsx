@@ -116,7 +116,16 @@ export const MainContent: React.FC<MainContentProps> = ({
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':
                         return (
-                                <VisualSolver userProfile={userProfile} onStartChat={() => { /* No-op, handled by navigation */ }} triggerScanRef={triggerScanRef} />
+                                <VisualSolver
+                                    userProfile={userProfile}
+                                    onStartChat={(prompt, tutorialText) => {
+                                        if (typeof window !== 'undefined') {
+                                            window.localStorage.setItem('avelut_pending_tutorial_prompt', JSON.stringify({ prompt, tutorialText }));
+                                        }
+                                        onNavigate?.('chat');
+                                    }}
+                                    triggerScanRef={triggerScanRef}
+                                />
                         );
                     case 'exam':
                         return <Exam userProfile={userProfile} userProgress={userProgress} />;

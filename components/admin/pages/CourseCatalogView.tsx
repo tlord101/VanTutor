@@ -44,6 +44,7 @@ interface CourseCatalogViewProps {
     handleDeleteCourseFromDepartment: (course: Course, deleteAll?: boolean) => void;
     handleBatchDeleteCourses: (courses: Course[], deleteAll?: boolean) => void;
     handleDeleteCourseTopics: (course: Course, topicIds: string[]) => void;
+    handleRemoveDuplicateTopicsForCourse: (course: Course) => void;
     selectedManagerDepartment: any;
     selectedManagerCourse: Course | undefined;
     setCourseDetailFiles: (files: File[]) => void;
@@ -67,7 +68,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     setCourseImportSessionOverride, setCourseRegistrationFiles, handleGoogleDrivePick,
     handleCourseRegistrationImport, handleCourseCSVImport, isCourseImportDisabled, isCourseImporting,
     courseImportProgress, managerCoursesForLevel, getCourseRouteKey,
-    normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, handleDeleteCourseTopics, selectedManagerDepartment,
+    normalizeTextbookUrls, handleDeleteCourseFromDepartment, handleBatchDeleteCourses, handleDeleteCourseTopics, handleRemoveDuplicateTopicsForCourse, selectedManagerDepartment,
     selectedManagerCourse, setCourseDetailFiles, courseDetailFiles,
     autoSyncToOfferingDepartments, setAutoSyncToOfferingDepartments,
     isUploading, extractionProgress, handleTextbookUpload
@@ -653,13 +654,21 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                                             {selectedTopicIds.length} topic{selectedTopicIds.length === 1 ? '' : 's'} selected
                                         </p>
-                                        <button
-                                            disabled={!selectedTopicIds.length}
-                                            onClick={() => handleDeleteCourseTopics(selectedGlobalCourseEntry.course, selectedTopicIds)}
-                                            className="px-5 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <Trash2 className="w-4 h-4" /> Delete Selected Topics
-                                        </button>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => handleRemoveDuplicateTopicsForCourse(selectedGlobalCourseEntry.course)}
+                                                className="px-4 py-3 rounded-xl bg-amber-50 text-amber-700 font-black uppercase tracking-widest text-xs hover:bg-amber-100 transition flex items-center gap-2"
+                                            >
+                                                <Sparkles className="w-4 h-4" /> Remove Duplicate Topics
+                                            </button>
+                                            <button
+                                                disabled={!selectedTopicIds.length}
+                                                onClick={() => handleDeleteCourseTopics(selectedGlobalCourseEntry.course, selectedTopicIds)}
+                                                className="px-5 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Delete Selected Topics
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -1092,7 +1101,13 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             )}
                         </div>
 
-                        <div className="pt-8 border-t border-slate-100 flex justify-end">
+                        <div className="pt-8 border-t border-slate-100 flex flex-wrap justify-end gap-3">
+                            <button
+                                onClick={() => handleRemoveDuplicateTopicsForCourse(selectedManagerCourse)}
+                                className="px-6 py-3 rounded-xl bg-amber-50 text-amber-700 font-black uppercase tracking-widest text-xs hover:bg-amber-100 transition flex items-center gap-2"
+                            >
+                                <Sparkles className="w-4 h-4" /> Remove Duplicate Topics
+                            </button>
                             <button
                                 onClick={() => handleDeleteCourseFromDepartment(selectedManagerCourse, true)}
                                 className="px-6 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2"
