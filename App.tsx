@@ -574,6 +574,52 @@ const App: React.FC = () => {
         }
     }, [loadSharedImagePreview]);
 
+    // Helper to convert a Blob to a data URL
+    const blobToDataUrl = useCallback((blob: Blob): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }, []);
+
+    // Attempt to detect an image in the clipboard when the app is opened or focused.
+    useEffect(() => {
+        let mounted = true;
+        const tryReadClipboardImage = async () => {
+            if (!mounted) return;
+            if (!navigator.clipboard || !('read' in navigator.clipboard)) return;
+            try {
+                const items: any = await (navigator.clipboard as any).read();
+                if (!items || !items.length) return;
+                for (const item of items) {
+                    if (!item.types) continue;
+                    const imageType = item.types.find((t: string) => t.startsWith('image/'));
+                    if (imageType) {
+                        const blob = await item.getType(imageType);
+                        const dataUrl = await blobToDataUrl(blob);
+                        setPendingSharedImage(dataUrl);
+                        setSharedImagePreview(dataUrl);
+                        setShowSharedImagePrompt(true);
+                        return;
+                    }
+                }
+            } catch (err) {
+                // Reading clipboard may be blocked by browser without a user gesture; ignore failures.
+                // console.warn('Clipboard read failed', err);
+            }
+        };
+
+        // Try once on mount
+        void tryReadClipboardImage();
+
+        // Also try when window gains focus (useful if user copied before switching to app)
+        const onFocus = () => { void tryReadClipboardImage(); };
+        window.addEventListener('focus', onFocus);
+        return () => { mounted = false; window.removeEventListener('focus', onFocus); };
+    }, [blobToDataUrl]);
+
     useEffect(() => {
         const handleSharedImage = () => {
             setActiveItem('visual_solver');

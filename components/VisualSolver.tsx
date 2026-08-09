@@ -23,25 +23,32 @@ import { Flag } from 'lucide-react';
 const ErrorIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
      <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-     </svg>
-);
-const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-    </svg>
-);
+    const source = input instanceof Blob ? input : new Blob([input as any], { type: (input as any).type || 'image/jpeg' });
+    const mimeType = inferImageMimeType((input instanceof File ? input.name : ''), (source as Blob).type);
 
-const MAX_CAPTURE_SLICE_HEIGHT = 1600;
-const CAPTURE_SLICE_OVERLAP = 96;
+    try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Could not read image file.'));
+            reader.readAsDataURL(source);
+        });
+        if (dataUrl.startsWith('data:image/')) {
+            const detectedMime = dataUrl.split(';')[0].split(':')[1] || mimeType;
+            // Some mobile cameras produce HEIC/HEIF images which many browsers cannot render
+            // from a data URL. If we detect HEIC/HEIF, fall back to canvas conversion path
+            // to produce a JPEG data URL for reliable display.
+            if (detectedMime.includes('heic') || detectedMime.includes('heif')) {
+                // fall through to object URL -> canvas conversion below
+            } else {
+                return { dataUrl, mimeType: detectedMime };
+            }
+        }
+    } catch (error) {
+        console.warn('Falling back to canvas conversion for image input:', error);
+    }
 
-const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob | null> => (
-    new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/png');
-    })
-);
-
-const inferImageMimeType = (fileName: string, fallbackType?: string): string => {
-    const normalizedName = (fileName || '').toLowerCase();
+    const objectUrl = URL.createObjectURL(source);
     if (fallbackType && fallbackType.startsWith('image/')) return fallbackType;
     if (normalizedName.endsWith('.png')) return 'image/png';
     if (normalizedName.endsWith('.jpg') || normalizedName.endsWith('.jpeg')) return 'image/jpeg';
@@ -80,8 +87,13 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
         }
     }
 
+<<<<<<< HEAD
     const source = input instanceof Blob ? input : new Blob([input], { type: input.type || 'image/jpeg' });
     const mimeType = inferImageMimeType((input instanceof File ? input.name : ''), source.type);
+=======
+    const source = input instanceof Blob ? input : new Blob([input as any], { type: (input as any).type || 'image/jpeg' });
+    const mimeType = inferImageMimeType((input instanceof File ? input.name : ''), (source as Blob).type);
+>>>>>>> 17b08d4 (Visual Solver: HEIC->JPEG fallback and clipboard-image prompt on app open)
 
     try {
         const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -91,7 +103,19 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
             reader.readAsDataURL(source);
         });
         if (dataUrl.startsWith('data:image/')) {
+<<<<<<< HEAD
             return { dataUrl, mimeType: dataUrl.split(';')[0].split(':')[1] || mimeType };
+=======
+            const detectedMime = dataUrl.split(';')[0].split(':')[1] || mimeType;
+            // Some mobile cameras produce HEIC/HEIF images which many browsers cannot render
+            // from a data URL. If we detect HEIC/HEIF, fall back to canvas conversion path
+            // to produce a JPEG data URL for reliable display.
+            if (detectedMime.includes('heic') || detectedMime.includes('heif')) {
+                // fall through to object URL -> canvas conversion below
+            } else {
+                return { dataUrl, mimeType: detectedMime };
+            }
+>>>>>>> 17b08d4 (Visual Solver: HEIC->JPEG fallback and clipboard-image prompt on app open)
         }
     } catch (error) {
         console.warn('Falling back to canvas conversion for image input:', error);
