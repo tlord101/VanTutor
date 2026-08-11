@@ -887,7 +887,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             >
                                 {isCourseImporting ? 'Processing AI...' : 'Extract from PDFs'}
                             </button>
-                            <p className="text-[10px] text-slate-400 text-center uppercase font-bold tracking-widest">Powered by Gemini AI</p>
+                            <p className="text-[10px] text-slate-400 text-center uppercase font-bold tracking-widest">Powered by Avelut AI</p>
                         </div>
                         <div className="space-y-3">
                             <div className="flex gap-2">

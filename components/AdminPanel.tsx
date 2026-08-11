@@ -649,7 +649,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleGenerateActivationCode = async () => {
         if (!newCodeApiKey.trim()) {
-            addToast('Please enter an actual Gemini API key to generate a code', 'error');
+            addToast('Please enter an actual Avelut AI API key to generate a code', 'error');
             return;
         }
         setIsGeneratingCode(true);
@@ -1225,7 +1225,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleSuggestAnnouncement = async () => {
         if (!ai) {
-            addToast("AI features are unavailable because the Gemini API key is not configured in App Controls.", "error");
+            addToast("AI features are unavailable because the Avelut AI API key is not configured in App Controls.", "error");
             return;
         }
         setIsSendingPush(true);
@@ -1362,11 +1362,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
-    const handleTestGeminiSettings = async () => {
+    const handleTestAvelutSettings = async () => {
         const modelToTest = appSettingsDraft.primary_gemini_model.trim() || DEFAULT_APP_SETTINGS.primary_gemini_model;
         const apiKeyToTest = appSettingsDraft.gemini_api_key.trim();
         if (!apiKeyToTest) {
-            addToast('Add a Gemini API key before running the hello test.', 'error');
+            addToast('Add an Avelut AI API key before running the hello test.', 'error');
             return;
         }
 
@@ -1384,7 +1384,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }
             addToast(`Hello test successful: ${preview.slice(0, 120)}`, 'success');
         } catch (error: any) {
-            console.error('Error testing Gemini settings:', error);
+            console.error('Error testing Avelut settings:', error);
             addToast(error?.message || 'Hello test failed.', 'error');
         } finally {
             setIsTestingAppSettings(false);
@@ -2054,7 +2054,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             return;
         }
         if (!ai) {
-            addToast("AI features are unavailable because the Gemini API key is not configured in App Controls.", "error");
+            addToast("AI features are unavailable because the Avelut AI API key is not configured in App Controls.", "error");
             return;
         }
 
@@ -2179,7 +2179,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             return;
         }
         if (!ai) {
-            addToast("AI features are unavailable because the Gemini API key is not configured in App Controls.", "error");
+            addToast("AI features are unavailable because the Avelut AI API key is not configured in App Controls.", "error");
             return;
         }
 
@@ -2423,7 +2423,7 @@ FORMAT:
         overrideCourseList?: Course[]
     ) => {
         if (!ai) {
-            addToast("AI features are unavailable because the Gemini API key is not configured in App Controls.", "error");
+            addToast("AI features are unavailable because the Avelut AI API key is not configured in App Controls.", "error");
             return;
         }
         const sourceCourseList = overrideCourseList || coursesList;

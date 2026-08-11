@@ -66,7 +66,7 @@ export const AppVersionUpdateView: React.FC = () => {
 
     const handleGenerateCopy = async () => {
         if (!ai) {
-            addToast('Gemini API key is not configured in App Settings.', 'error');
+            addToast('Avelut AI API key is not configured in App Settings.', 'error');
             return;
         }
 
@@ -239,7 +239,7 @@ Return only JSON with keys: title, message, version_name.`;
                                 onClick={() => void handleGenerateCopy()}
                                 disabled={isGenerating || isSaving || isLoading || !ai}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-black uppercase tracking-wider hover:bg-indigo-100 transition disabled:opacity-50"
-                                title={!ai ? 'Configure Gemini API key in App Settings first' : 'Generate update title/message with AI'}
+                                title={!ai ? 'Configure Avelut AI API key in App Settings first' : 'Generate update title/message with AI'}
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 {isGenerating ? 'Generating...' : 'AI Generate'}

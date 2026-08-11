@@ -55,6 +55,9 @@ import { initNativeNotifications, cleanupNativeNotifications } from './utils/nat
 import { Skeleton, PageSkeleton } from './components/Skeleton';
 import { useOTAUpdater } from './hooks/useOTAUpdater';
 import { useAppUpdate } from './hooks/useAppUpdate';
+import { getDatabaseConnection } from './lib/sqlite/sqliteService';
+import { cleanExpiredAICache } from './services/aiCacheService';
+import { cloudSyncEngine } from './services/cloudSyncService';
 
 declare var __app_id: string;
 
@@ -427,6 +430,24 @@ const App: React.FC = () => {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const userProfileRef = useRef<UserProfile | null>(null);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
+
+    // Initialize local SQLite database & clean expired AI cache on app startup
+    useEffect(() => {
+        getDatabaseConnection().then(() => {
+            cleanExpiredAICache().catch(() => {});
+        }).catch(err => {
+            console.warn('[App] SQLite initialization note:', err);
+        });
+    }, []);
+
+    // Start background cloud sync engine when user profile is loaded
+    useEffect(() => {
+        if (userProfile?.uid) {
+            cloudSyncEngine.start(userProfile.uid);
+        } else {
+            cloudSyncEngine.stop();
+        }
+    }, [userProfile?.uid]);
 
     useEffect(() => {
         const handlePopState = () => setCurrentPath(getWindowPathname());

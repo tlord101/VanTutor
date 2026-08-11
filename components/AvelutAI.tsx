@@ -16,6 +16,15 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
+import {
+  getLocalConversations,
+  getLocalMessages,
+  saveLocalMessage,
+  saveLocalConversation,
+  deleteLocalConversation,
+  renameLocalConversation,
+} from '../services/chatStorageService';
+import { getCachedAIResponse, setCachedAIResponse } from '../services/aiCacheService';
 import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -418,14 +427,29 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   }, [messages, isSending]);
 
   useEffect(() => {
+    let isMounted = true;
     setIsHistoryLoading(true);
-    const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}`);
 
+    // 0ms instant local SQLite fetch
+    getLocalConversations(userProfile.uid).then(localConvos => {
+      if (isMounted && localConvos.length > 0) {
+        setHistory(localConvos.map(c => ({
+          id: c.id,
+          title: normalizeTitle(c.title || 'New Chat'),
+          lastUpdatedAt: c.last_updated_at || c.created_at || 0
+        })));
+        setIsHistoryLoading(false);
+      }
+    }).catch(() => {});
+
+    const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}`);
     const unsubscribe = onValue(conversationsRef, snapshot => {
       if (!snapshot.exists()) {
-        setHistory([]);
-        setActiveHistoryId(null);
-        setIsHistoryLoading(false);
+        if (isMounted) {
+          setHistory([]);
+          setActiveHistoryId(null);
+          setIsHistoryLoading(false);
+        }
         return;
       }
 
@@ -440,11 +464,16 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       });
 
       nextHistory.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
-      setHistory(nextHistory);
-      setIsHistoryLoading(false);
+      if (isMounted) {
+        setHistory(nextHistory);
+        setIsHistoryLoading(false);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [userProfile.uid]);
 
   useEffect(() => {
@@ -508,10 +537,25 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       return;
     }
 
+    let isMounted = true;
+
+    // 0ms instant local SQLite fetch
+    getLocalMessages(activeHistoryId).then(localMsgs => {
+      if (isMounted && localMsgs.length > 0) {
+        setMessages(localMsgs.map(m => ({
+          id: m.id,
+          sender: mapSender(m.sender),
+          text: m.text,
+          timestamp: m.timestamp,
+          attachments: m.attachments_json ? JSON.parse(m.attachments_json) : undefined,
+          image_url: m.image_url || undefined,
+        })));
+      }
+    }).catch(() => {});
+
     const messagesRef = dbRef(db, `chat_messages/${activeHistoryId}`);
     const unsubscribe = onValue(messagesRef, snapshot => {
       if (!snapshot.exists()) {
-        setMessages([]);
         return;
       }
 
@@ -538,10 +582,15 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       });
 
       nextMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      setMessages(nextMessages);
+      if (isMounted) {
+        setMessages(nextMessages);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [activeHistoryId]);
 
   const conversationSummary = useMemo(() => {
@@ -668,7 +717,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const handleGenerateIllustration = async (promptText: string, messageId: string) => {
     if (!promptText) return;
     if (!ai) {
-      addToast('Gemini API key is not configured in App Controls.', 'error');
+      addToast('Avelut AI is not configured in App Controls.', 'error');
       return;
     }
 
@@ -846,7 +895,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           {
             id: createMessageId(),
             sender: 'assistant',
-            text: 'Gemini is not configured yet. Ask an admin to save the Gemini API key in App Controls.',
+            text: 'Avelut AI is not configured yet. Ask an admin to configure the API key in App Controls.',
           },
         ]);
         setStatusText('API key missing.');
@@ -864,6 +913,15 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         if (!conversationId) {
           throw new Error('Failed to create conversation: Firebase push() returned no key.');
         }
+
+        // Save conversation to SQLite immediately
+        void saveLocalConversation({
+          id: conversationId,
+          user_id: userProfile.uid,
+          title: 'New Chat',
+          created_at: now,
+          last_updated_at: now,
+        });
 
         await set(newConversationRef, {
           title: 'New Chat',
@@ -951,6 +1009,17 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       setUploadProgress(null);
 
+      // 1. Save user message to SQLite immediately (0ms)
+      void saveLocalMessage({
+        id: userMessageId,
+        conversation_id: conversationId,
+        user_id: userProfile.uid,
+        sender: 'user',
+        text: userText,
+        attachments_json: storedAttachments.length > 0 ? JSON.stringify(storedAttachments) : null,
+        timestamp: Date.now()
+      });
+
       const storedUserMessage = {
         text: userText,
         sender: 'user',
@@ -974,7 +1043,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         // Optimize payload: preserve system instructions but only send last 5 messages for context
         const contextMessages = nextMessages.slice(-5);
 
-        // 💡 RAG: Retrieve relevant textbook context from Pinecone
+        // 💡 RAG: Retrieve relevant textbook context from Pinecone (utilizes SQLite semantic cache)
         let retrievedContext = "";
         try {
           const { searchPinecone } = await import('../utils/pinecone');
@@ -986,6 +1055,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           }
         } catch (searchErr) {
           console.warn("RAG retrieval failed:", searchErr);
+        }
+
+        // Check if there is a cached response for exact prompt when no files attached
+        if (filesToSend.length === 0) {
+          const cachedReply = await getCachedAIResponse(prompt, geminiModel || 'gemini-3.1-flash-lite', courseContext);
+          if (cachedReply) {
+            return cachedReply;
+          }
         }
 
         const responseStream = await ai.models.generateContentStream({
@@ -1031,14 +1108,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         }
 
         if (!responseText) {
-          throw new Error('Gemini returned an empty response.');
+          throw new Error('Avelut AI returned an empty response.');
         }
 
         return responseText.trim();
       });
 
       if (!aiResult.success) {
-        console.error('Gemini assistant error:', aiResult.message);
+        console.error('Avelut assistant error:', aiResult.message);
         setStatusText('Unable to respond right now.');
         setMessages(prev => [
             ...prev,
@@ -1057,6 +1134,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       // Deduct credits
       deductAICredits(userProfile.uid, featureCost, 'AI Assistant Chat', appSettings).catch(console.error);
 
+      // Save assistant response to SQLite instantly
+      void saveLocalMessage({
+        id: assistantMsgId,
+        conversation_id: conversationId,
+        user_id: userProfile.uid,
+        sender: 'assistant',
+        text: finalResponseText,
+        timestamp: Date.now()
+      });
+
+      // Cache AI response for future zero-latency repeat queries
+      if (filesToSend.length === 0) {
+        void setCachedAIResponse(prompt, geminiModel || 'gemini-3.1-flash-lite', courseContext, finalResponseText);
+      }
+
       push(messagesRef, {
         text: finalResponseText,
         sender: 'assistant',
@@ -1065,6 +1157,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       if (shouldGenerateTitle) {
         generateChatTitle(userText, finalResponseText).then(title => {
+          void renameLocalConversation(conversationId!, title, userProfile.uid);
           update(dbRef(db, `chat_conversations/${userProfile.uid}/${conversationId}`), {
             title,
             last_updated_at: Date.now()
@@ -1078,7 +1171,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       setStatusText('Response ready.');
     } catch (error) {
-      console.error('Gemini assistant error:', error);
+      console.error('Avelut assistant error:', error);
       setMessages(prev => [
         ...prev,
         {
@@ -1179,6 +1272,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       e.stopPropagation();
                       if (!confirm(`Delete "${item.title}" from assistant history?`)) return;
                       try {
+                        void deleteLocalConversation(item.id, userProfile.uid);
                         await remove(dbRef(db, `chat_conversations/${userProfile.uid}/${item.id}`));
                         await remove(dbRef(db, `chat_messages/${item.id}`));
                         if (activeHistoryId === item.id) {

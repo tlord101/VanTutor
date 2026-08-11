@@ -141,7 +141,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
 
     const handleSuggestAnnouncement = async () => {
         if (!ai || !geminiModel) {
-            addToast("AI features are unavailable because the Gemini API key or model is not configured in App Controls.", "error");
+            addToast("AI features are unavailable because the Avelut AI API key or model is not configured in App Controls.", "error");
             return;
         }
         setIsSendingPush(true);

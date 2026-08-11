@@ -25,7 +25,7 @@ export const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ title, subti
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
                 ['Modern learning', 'A sharper experience is on the way.'],
-                ['AI-ready', 'Gemini-powered support will return shortly.'],
+                ['AI-ready', 'Avelut-powered support will return shortly.'],
                 ['Clean rollout', 'Admins can switch the app back on anytime.'],
               ].map(([label, copy]) => (
                 <div key={label} className="rounded-[22px] border border-white/10 bg-white dark:bg-black/5 p-4">
@@ -53,7 +53,7 @@ export const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ title, subti
                   </div>
                 </div>
                 <div className="mt-5 grid gap-3 text-sm text-white/70">
-                  <p>• Learning tools, uploads, and Gemini features are currently hidden.</p>
+                  <p>• Learning tools, uploads, and Avelut AI features are currently hidden.</p>
                   <p>• Existing data and admin controls remain available for maintenance.</p>
                   <p>• You can return to the full experience as soon as the admins reopen it.</p>
                 </div>

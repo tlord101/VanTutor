@@ -8,7 +8,7 @@
   # AVELUT: Your Personal AI University Companion
   
   [![Vercel Deployment](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel)](https://vercel.com)
-  [![AI Engine](https://img.shields.io/badge/AI-Gemini_3.5_Flash-blue?logo=google-gemini)](https://deepmind.google/technologies/gemini/)
+  [![AI Engine](https://img.shields.io/badge/AI-Avelut_AI_Flash--Lite-blue?logo=google-gemini)](https://deepmind.google/technologies/gemini/)
   [![Database](https://img.shields.io/badge/Database-Firebase-orange?logo=firebase)](https://firebase.google.com/)
 
   **The ultimate all-in-one learning platform that turns your textbooks and past questions into an interactive, personalized tutoring experience.**
@@ -29,9 +29,9 @@ AVELUT is your advanced AI-powered academic companion, built to ensure you never
 
 ## 🔥 Key Features for Students
 
-### 🧠 Gemini 3.5 Flash Tutoring
+### 🧠 Avelut AI Tutoring
 Experience a tutor that never sleeps and knows everything about your course. 
-*   **Deep Understanding**: Powered by Gemini 3.5 Flash, AVELUT can digest thousands of pages of textbooks to answer your most specific questions.
+*   **Deep Understanding**: Powered by lightning-fast Avelut AI (`gemini-3.1-flash-lite`), AVELUT can digest thousands of pages of textbooks to answer your most specific questions instantly.
 *   **Bite-sized Lessons**: Complex chapters are broken down into easy-to-digest modules with interactive quizzes.
 *   **Visual Solver**: Simply snap a photo of a math problem or diagram, and get an instant, step-by-step walkthrough.
 
@@ -63,7 +63,7 @@ We are constantly evolving to provide the most futuristic learning experience po
 
 *   **Frontend**: React & TypeScript (Modern, robust web technology).
 *   **Styling**: Tailwind CSS (Clean, fast, mobile-first design).
-*   **AI Engine**: Google Gemini 3.5 Flash (State-of-the-art reasoning and long-context understanding).
+*   **AI Engine**: Avelut AI / Google GenAI (`gemini-3.1-flash-lite` for ultra-fast response times).
 *   **Backend**: Firebase Realtime Database & Storage (Real-time updates and secure file handling).
 *   **Hosting**: Vercel (Fast, reliable global delivery).
 

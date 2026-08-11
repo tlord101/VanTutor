@@ -44,7 +44,7 @@ export const DEFAULT_USAGE_SETTINGS = {
     study_guide_extraction: 10,
   },
   feature_models: {
-    visual_solve: 'gemini-3.1-pro',
+    visual_solve: 'gemini-3.1-flash-lite',
     chat_interaction: 'gemini-3.1-flash-lite',
     flashcard_generation: 'gemini-3.1-flash-lite',
     ai_quiz_generation: 'gemini-3.1-flash-lite',

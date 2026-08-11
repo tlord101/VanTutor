@@ -205,7 +205,7 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
           const prompt = `Given the input "${query}", return a JSON array of up to 5 officially recognized universities in Nigeria that match this abbreviation or full name. If it's an abbreviation (like UNILAG), expand it to the official name (e.g. "University of Lagos"). Return ONLY a valid JSON array of strings, for example: ["University of Lagos", "Lagos State University"]. No markdown blocks or extra text.`;
 
           const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-3.1-flash-lite',
               contents: prompt,
               config: { maxOutputTokens: 200 }
           });
@@ -250,7 +250,7 @@ export const SchoolHierarchySelector: React.FC<SchoolHierarchySelectorProps> = (
           const prompt = `You are an academic database assistant. The user typed "${name}" for a ${type} at ${schoolName}. Standardize and correct the spelling of this ${type} name. Use the official format. ${prefixInstruction}Return ONLY the official standard name without any extra text or markdown formatting.`;
           
           const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-3.1-flash-lite',
               contents: prompt,
               tools: [{ googleSearch: {} }]
           });

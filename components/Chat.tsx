@@ -9,6 +9,16 @@ import { useToast } from '../hooks/useToast';
 import { getFeatureModel } from '../utils/usage';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
+import {
+  getLocalConversations,
+  getLocalMessages,
+  saveLocalMessage,
+  saveLocalConversation,
+  renameLocalConversation,
+  deleteLocalConversation,
+  generateLocalId,
+} from '../services/chatStorageService';
+import { getCachedAIResponse, setCachedAIResponse } from '../services/aiCacheService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatHistoryPanel } from './ChatHistoryPanel';
@@ -218,6 +228,19 @@ const TextChat: React.FC<{
             return;
         }
 
+        let isMounted = true;
+        // 0ms instant local SQLite fetch
+        getLocalMessages(activeConversationId).then(localMsgs => {
+            if (isMounted && localMsgs.length > 0) {
+                setMessages(localMsgs.map(m => ({
+                    id: m.id,
+                    text: m.text,
+                    sender: m.sender as 'user' | 'ai',
+                    timestamp: m.timestamp
+                })));
+            }
+        }).catch(() => {});
+
         const messagesRef = dbRef(db, `chat_messages/${activeConversationId}`);
         const unsubscribeMessages = onValue(messagesRef, (snapshot) => {
             if (snapshot.exists()) {
@@ -226,13 +249,20 @@ const TextChat: React.FC<{
                     data.push({ id: child.key, ...child.val() });
                 });
                 const sortedMessages = data.sort((a,b) => a.timestamp - b.timestamp);
-                setMessages(sortedMessages as Message[]);
+                if (isMounted) {
+                    setMessages(sortedMessages as Message[]);
+                }
             } else {
-                setMessages([]);
+                if (isMounted) {
+                    setMessages([]);
+                }
             }
         });
 
-        return () => off(messagesRef);
+        return () => {
+            isMounted = false;
+            off(messagesRef);
+        };
     }, [activeConversationId]);
 
     const handleSendMessage = async (customInput?: string) => {
@@ -245,57 +275,100 @@ const TextChat: React.FC<{
     
         try {
             let currentConvoId = activeConversationId;
+            const now = Date.now();
     
             if (!currentConvoId) {
-                const now = Date.now();
-                const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}`);
-                const newConvoRef = push(conversationsRef);
-                await set(newConvoRef, {
+                currentConvoId = generateLocalId('conv');
+                void saveLocalConversation({
+                    id: currentConvoId,
+                    user_id: userProfile.uid,
                     title: 'New Chat',
                     created_at: now,
                     last_updated_at: now
                 });
-                currentConvoId = newConvoRef.key!;
+
+                const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}/${currentConvoId}`);
+                await set(conversationsRef, {
+                    title: 'New Chat',
+                    created_at: now,
+                    last_updated_at: now
+                });
                 setActiveConversationId(currentConvoId);
             }
             
+            const userMsgId = generateLocalId('msg');
+            // 1. Instant SQLite write for user message
+            void saveLocalMessage({
+                id: userMsgId,
+                conversation_id: currentConvoId,
+                user_id: userProfile.uid,
+                sender: 'user',
+                text: currentInput,
+                timestamp: now
+            });
+
+            // Optimistic UI update
+            setMessages(prev => [...prev, { id: userMsgId, text: currentInput, sender: 'user', timestamp: now }]);
+
             const messagesRef = dbRef(db, `chat_messages/${currentConvoId}`);
-            await push(messagesRef, {
+            push(messagesRef, {
                 text: currentInput,
                 sender: 'user',
                 timestamp: serverTimestamp()
-            });
+            }).catch(console.error);
 
             update(dbRef(db, `chat_conversations/${userProfile.uid}/${currentConvoId}`), { last_updated_at: Date.now() });
 
-            // Call Gemini
-            if (!ai) {
-                addToast('Gemini API key is not configured in App Controls.', 'error');
-                return;
-            }
-            const aiResult = await attemptApiCall(async () => {
-                const result = await ai.models.generateContent({
-                    model: geminiModel,
-                    contents: [{ role: 'user', parts: [{ text: currentInput }] }]
-                });
-                const text = getResponseText(result);
-                if (!text) {
-                    throw new Error('Gemini returned an empty response.');
+            // Check AI response cache in SQLite first (0ms)
+            const cachedReply = await getCachedAIResponse(currentInput, geminiModel, courseContext);
+            let responseText = cachedReply || '';
+
+            if (!responseText) {
+                // Call AI
+                if (!ai) {
+                    addToast('Avelut AI is not configured in App Controls.', 'error');
+                    return;
                 }
-                return text;
+                const aiResult = await attemptApiCall(async () => {
+                    const result = await ai.models.generateContent({
+                        model: geminiModel,
+                        contents: [{ role: 'user', parts: [{ text: currentInput }] }]
+                    });
+                    const text = getResponseText(result);
+                    if (!text) {
+                        throw new Error('Avelut AI returned an empty response.');
+                    }
+                    return text;
+                });
+
+                if (!aiResult.success) {
+                    addToast(aiResult.message, 'error');
+                    return;
+                }
+
+                responseText = (aiResult.data || '').trim();
+                // Cache response in SQLite
+                void setCachedAIResponse(currentInput, geminiModel, courseContext, responseText);
+            }
+
+            const aiMsgId = generateLocalId('msg');
+            // Instant SQLite write for AI response
+            void saveLocalMessage({
+                id: aiMsgId,
+                conversation_id: currentConvoId,
+                user_id: userProfile.uid,
+                sender: 'assistant',
+                text: responseText,
+                timestamp: Date.now()
             });
 
-            if (!aiResult.success) {
-                addToast(aiResult.message, 'error');
-                return;
-            }
+            setMessages(prev => [...prev, { id: aiMsgId, text: responseText, sender: 'ai', timestamp: Date.now() }]);
 
-            const responseText = (aiResult.data || '').trim();
-            await push(messagesRef, {
+            push(messagesRef, {
                 text: responseText,
                 sender: 'ai',
                 timestamp: serverTimestamp()
-            });
+            }).catch(console.error);
 
         } catch (error) {
             console.error('Error in chat:', error);
@@ -489,7 +562,22 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
     const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
     useEffect(() => {
+        let isMounted = true;
         setIsHistoryLoading(true);
+
+        // 0ms instant local SQLite fetch
+        getLocalConversations(userProfile.uid).then(localConvos => {
+            if (isMounted && localConvos.length > 0) {
+                setConversations(localConvos.map(c => ({
+                    id: c.id,
+                    title: c.title || 'New Chat',
+                    created_at: c.created_at || 0,
+                    last_updated_at: c.last_updated_at || c.created_at || 0,
+                } as ChatConversation)));
+                setIsHistoryLoading(false);
+            }
+        }).catch(() => {});
+
         const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}`);
         const unsubscribeConversations = onValue(conversationsRef, (snapshot) => {
             if (snapshot.exists()) {
@@ -498,24 +586,37 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                     data.push({ id: child.key, ...child.val() });
                 });
                 const sortedConvos = data.sort((a,b) => b.last_updated_at - a.last_updated_at);
-                setConversations(sortedConvos as ChatConversation[]);
+                if (isMounted) {
+                    setConversations(sortedConvos as ChatConversation[]);
+                }
             } else {
-                setConversations([]);
+                if (isMounted) {
+                    setConversations([]);
+                }
             }
-            setIsHistoryLoading(false);
+            if (isMounted) {
+                setIsHistoryLoading(false);
+            }
         });
 
-        return () => off(conversationsRef);
+        return () => {
+            isMounted = false;
+            off(conversationsRef);
+        };
     }, [userProfile.uid]);
 
     const handleNewChat = () => setActiveConversationId(null);
-    const onRenameConversation = async (id: string, newTitle: string) => update(dbRef(db, `chat_conversations/${userProfile.uid}/${id}`), { title: newTitle });
+    const onRenameConversation = async (id: string, newTitle: string) => {
+        void renameLocalConversation(id, newTitle, userProfile.uid);
+        return update(dbRef(db, `chat_conversations/${userProfile.uid}/${id}`), { title: newTitle });
+    };
     const handleDeleteConversation = async (id: string) => {
         setModalState({ isOpen: true, title: 'Delete Chat?', message: 'This will permanently delete this conversation.', confirmText: 'Delete',
             onConfirm: async () => {
                 setIsDeleting(true);
                 setModalState(s => ({ ...s, isOpen: false }));
                 if (activeConversationId === id) handleNewChat();
+                void deleteLocalConversation(id, userProfile.uid);
                 await remove(dbRef(db, `chat_conversations/${userProfile.uid}/${id}`));
                 await remove(dbRef(db, `chat_messages/${id}`));
                 addToast('Conversation deleted.', 'success');
@@ -529,6 +630,9 @@ export const Chat: React.FC<ChatProps> = ({ userProfile }) => {
                 setIsDeleting(true);
                 setModalState(s => ({...s, isOpen: false}));
                 handleNewChat();
+                for (const c of conversations) {
+                    void deleteLocalConversation(c.id, userProfile.uid);
+                }
                 await remove(dbRef(db, `chat_conversations/${userProfile.uid}`));
                 addToast('All conversations deleted.', 'success');
                 setIsDeleting(false);

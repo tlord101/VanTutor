@@ -946,7 +946,7 @@ ${selectedTopicContext ? `\n\nSELECTED TOPIC BOUNDARY:\n${selectedTopicContext}`
             return;
         }
         if (!ai) {
-            addToast('Gemini API key is not configured in App Controls.', 'error');
+            addToast('Avelut AI is not configured in App Controls.', 'error');
             return;
         }
 
@@ -994,7 +994,7 @@ Please start teaching me about "${topicLabel}". Give me a simple and clear intro
                 }
 
                 if (!responseText) {
-                    throw new Error('Gemini returned an empty response.');
+                    throw new Error('Avelut AI returned an empty response.');
                 }
 
                 const botResponseText = responseText.trim();
@@ -1125,7 +1125,7 @@ Please start teaching me about "${topicLabel}". Give me a simple and clear intro
         if (!textToSend.trim() && !file) return;
 
         if (!ai) {
-            addToast('Gemini API key is not configured in App Controls.', 'error');
+            addToast('Avelut AI is not configured in App Controls.', 'error');
             setIsThinking(false);
             return;
         }
@@ -1277,7 +1277,7 @@ Student: "${tempInput}"
                 }
 
                 if (!responseText) {
-                    throw new Error('Gemini returned an empty response.');
+                    throw new Error('Avelut AI returned an empty response.');
                 }
 
                 const botResponseText = responseText.trim();
@@ -1314,7 +1314,7 @@ Student: "${tempInput}"
             return;
         }
         if (!ai) {
-            addToast('Gemini API key is not configured in App Controls.', 'error');
+            addToast('Avelut AI is not configured in App Controls.', 'error');
             return;
         }
 
@@ -2324,8 +2324,8 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         setIsSavingManual(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
-            if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
-            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-1.5-flash';
+            if (!ai) throw new Error('Avelut AI is not configured in App Controls.');
+            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-3.1-flash-lite';
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
 
@@ -2398,7 +2398,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         setIsExtractingCourses(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
-            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-2.5-pro';
+            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'gemini-3.1-flash-lite';
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 

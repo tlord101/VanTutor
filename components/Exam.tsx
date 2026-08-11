@@ -215,7 +215,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
   const geminiModel = getFeatureModel('ai_quiz_generation', appSettings);
   const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
-  const isGeminiConfigured = Boolean(ai);
+  const isAvelutConfigured = Boolean(ai);
 
   useEffect(() => {
     const cacheKey = `avelut_pq_subjects_${userProfile.department_id}_${userProfile.level}`;
@@ -465,7 +465,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
 
     setExamState('generating');
     try {
-      if (!ai) throw new Error('Gemini API key is not configured in App Controls.');
+      if (!ai) throw new Error('Avelut AI is not configured in App Controls.');
       const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
       const safeCourseName = courseObj ? sanitizePromptInput(courseObj.course_name) : getCourseNameById(userProfile.department_id || '');
       const safeDepartment = sanitizePromptInput(getCourseNameById(userProfile.department_id || ''));
@@ -552,7 +552,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
     setExamState('generating');
     try {
       if (!ai) {
-        throw new Error('Gemini API key is not configured in App Controls.');
+        throw new Error('Avelut AI is not configured in App Controls.');
       }
       
       const courseObj = availableCourses.find(c => c.course_id === selectedCourseId);
@@ -803,7 +803,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                     <LoadingSpinner text="" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter mb-2">Assembling your Exam...</h3>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse text-center max-w-xs">Gemini is selecting questions based on your mastery</p>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse text-center max-w-xs">Avelut is selecting questions based on your mastery</p>
             </div>
         );
       
@@ -1181,8 +1181,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                   <button onClick={() => setExamFormat('theory')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${examFormat === 'theory' ? 'bg-white text-blue-700 shadow-sm border border-blue-100' : 'text-gray-500 hover:text-gray-700'}`}>Theory</button>
                               </div>
                           </div>
-                          <button onClick={generateQuestions} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-blue-600 text-white font-black py-3.5 rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 text-xs uppercase tracking-widest">
-                              {isGeminiConfigured ? 'Start Exam' : 'Unavailable'}
+                          <button onClick={generateQuestions} disabled={!isAvelutConfigured || !selectedCourseId} className="w-full bg-blue-600 text-white font-black py-3.5 rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 text-xs uppercase tracking-widest">
+                              {isAvelutConfigured ? 'Start Exam' : 'Unavailable'}
                           </button>
                       </div>
                   </div>
@@ -1204,8 +1204,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                                   {availableCourses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_code || c.course_id} ({c.course_name})</option>)}
                               </select>
                           </div>
-                          <button onClick={generateFlashcards} disabled={!isGeminiConfigured || !selectedCourseId} className="w-full bg-sky-600 text-white font-black py-3.5 rounded-2xl hover:bg-sky-700 transition-all disabled:opacity-50 text-xs uppercase tracking-widest">
-                              {isGeminiConfigured ? 'Generate Flashcards' : 'Unavailable'}
+                          <button onClick={generateFlashcards} disabled={!isAvelutConfigured || !selectedCourseId} className="w-full bg-sky-600 text-white font-black py-3.5 rounded-2xl hover:bg-sky-700 transition-all disabled:opacity-50 text-xs uppercase tracking-widest">
+                              {isAvelutConfigured ? 'Generate Flashcards' : 'Unavailable'}
                           </button>
                       </div>
                   </div>

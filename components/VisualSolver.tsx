@@ -968,7 +968,7 @@ ${retrievedContext}
 
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-pro',
+                    model: geminiModel || 'gemini-3.1-flash-lite',
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
@@ -1040,7 +1040,7 @@ ${retrievedContext}
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-pro',
+                    model: geminiModel || 'gemini-3.1-flash-lite',
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
@@ -1103,7 +1103,7 @@ ${retrievedContext}
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-pro',
+                    model: geminiModel || 'gemini-3.1-flash-lite',
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',

@@ -356,7 +356,7 @@ export const SystemSettingsView: React.FC = () => {
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
                                     <div key={key} className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
-                                        <input type="text" placeholder={`e.g. ${key === 'visual_solve' ? 'gemini-3.1-pro' : 'gemini-3.1-flash-lite'}`} value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
+                                        <input type="text" placeholder="e.g. gemini-3.1-flash-lite" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm" />
                                     </div>
                                 ))}
                             </div>
@@ -391,15 +391,15 @@ export const SystemSettingsView: React.FC = () => {
                     </div>
 
                     <div className="space-y-6">
-                        {/* Gemini */}
+                        {/* Avelut AI */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
                             <h4 className="font-bold  dark:text-white flex items-center gap-2">
-                                <Database className="w-4 h-4 text-blue-500" /> Gemini AI
+                                <Database className="w-4 h-4 text-blue-500" /> Avelut AI
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <input type="text" placeholder="Global Primary Model (e.g. gemini-3.1-flash-lite)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
-                                <input type="password" placeholder="Gemini API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
-                                <input type="text" placeholder="Visual Solver Model (e.g. gemini-3.1-pro)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm md:col-span-2" />
+                                <input type="password" placeholder="Avelut AI API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
+                                <input type="text" placeholder="Visual Solver Model (e.g. gemini-3.1-flash-lite)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm md:col-span-2" />
                             </div>
                         </div>
 

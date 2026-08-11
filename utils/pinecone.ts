@@ -1,5 +1,6 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 import { GoogleGenAI } from '@google/genai';
+import { getCachedSemanticSearch, setCachedSemanticSearch } from '../services/aiCacheService';
 
 interface SearchResult {
   score: number;
@@ -27,6 +28,7 @@ function createPineconeClient(apiKey: string): Pinecone {
 
 /**
  * Perform a vector search on the Pinecone index using client-side genAI embeddings.
+ * Checks local SQLite semantic cache first to eliminate unnecessary API requests and network usage.
  */
 export async function searchPinecone(
   query: string,
@@ -35,8 +37,17 @@ export async function searchPinecone(
   appSettings: any
 ): Promise<{ success: boolean; results?: SearchResult[]; message?: string }> {
   try {
-    if (!query) {
+    if (!query || !query.trim()) {
       return { success: false, message: "Missing query" };
+    }
+
+    // 0. Check SQLite local semantic cache first (0ms latency, zero mobile data)
+    const cachedHit = await getCachedSemanticSearch(query, courseKey);
+    if (cachedHit && cachedHit.results && cachedHit.results.length > 0) {
+      return {
+        success: true,
+        results: cachedHit.results.slice(0, limit) as SearchResult[],
+      };
     }
 
     const pineconeApiKey = appSettings?.pinecone_api_key;
@@ -44,7 +55,7 @@ export async function searchPinecone(
     const geminiApiKey = appSettings?.gemini_api_key;
 
     if (!pineconeApiKey || !geminiApiKey) {
-      return { success: false, message: "Pinecone or Gemini API key is missing in App Controls." };
+      return { success: false, message: "Pinecone or Avelut AI API key is missing in App Controls." };
     }
 
     const pc = createPineconeClient(pineconeApiKey);
@@ -67,7 +78,7 @@ export async function searchPinecone(
 
     const filter: any = {};
     if (courseKey) {
-        filter.course_key = courseKey;
+      filter.course_key = courseKey;
     }
 
     const queryResponse = await index.query({
@@ -83,6 +94,11 @@ export async function searchPinecone(
       course_name: (match.metadata?.course_name || "") as string,
       chunk_index: match.metadata?.chunk_index as number | undefined
     }));
+
+    // 3. Save to local SQLite cache for instant reuse
+    if (results.length > 0) {
+      void setCachedSemanticSearch(query, courseKey, results);
+    }
 
     return { success: true, results };
   } catch (error: any) {
@@ -131,7 +147,7 @@ export async function ingestTextToPinecone(
     const geminiApiKey = appSettings?.gemini_api_key;
 
     if (!pineconeApiKey || !geminiApiKey) {
-      return { success: false, message: "Pinecone or Gemini API key is missing in App Controls." };
+      return { success: false, message: "Pinecone or Avelut AI API key is missing in App Controls." };
     }
 
     const pc = createPineconeClient(pineconeApiKey);
