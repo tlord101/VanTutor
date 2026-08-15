@@ -180,6 +180,42 @@ class CloudSyncEngine {
             break;
           }
 
+          case 'exam': {
+            const userId = payload.user_id || this.currentUserId;
+            if (!userId) break;
+            const examRef = dbRef(db, `exam_history/${userId}/${item.entity_id}`);
+            if (item.action === 'delete') {
+              await remove(examRef);
+            } else {
+              await set(examRef, payload);
+            }
+            break;
+          }
+
+          case 'flashcard': {
+            const userId = payload.user_id || this.currentUserId;
+            if (!userId) break;
+            const fcRef = dbRef(db, `users/${userId}/flashcards/${item.entity_id}`);
+            if (item.action === 'delete') {
+              await remove(fcRef);
+            } else {
+              await set(fcRef, payload);
+            }
+            break;
+          }
+
+          case 'history': {
+            const userId = payload.user_id || this.currentUserId;
+            if (!userId) break;
+            const histRef = dbRef(db, `users/${userId}/history/${item.entity_id}`);
+            if (item.action === 'delete') {
+              await remove(histRef);
+            } else {
+              await set(histRef, payload);
+            }
+            break;
+          }
+
           case 'app_state': {
             const userId = payload.userId || this.currentUserId;
             if (userId) {
@@ -203,7 +239,7 @@ class CloudSyncEngine {
   }
 
   /**
-   * Pull latest conversations from Firebase Realtime Database and merge into local SQLite.
+   * Pull latest conversations, exams, and history from Firebase and merge into local SQLite.
    */
   private async pullDownstreamChanges(userId: string): Promise<void> {
     try {
@@ -233,8 +269,34 @@ class CloudSyncEngine {
           await bulkUpsertRemoteConversations(remoteConversations);
         }
       }
+
+      // Pull remote exams into SQLite
+      const examRef = dbRef(db, `exam_history/${userId}`);
+      const examSnap = await get(examRef);
+      if (examSnap.exists()) {
+        const examVal = examSnap.val() || {};
+        const { bulkUpsertRemoteExams } = await import('./examStorageService');
+        const remoteExams = Object.keys(examVal).map(k => ({
+          ...examVal[k],
+          id: k
+        }));
+        await bulkUpsertRemoteExams(userId, remoteExams);
+      }
+
+      // Pull remote history into SQLite
+      const histRef = dbRef(db, `users/${userId}/history`);
+      const histSnap = await get(histRef);
+      if (histSnap.exists()) {
+        const histVal = histSnap.val() || {};
+        const { bulkUpsertRemoteMaterials } = await import('./materialStorageService');
+        const remoteMaterials = Object.keys(histVal).map(k => ({
+          ...histVal[k],
+          id: k
+        }));
+        await bulkUpsertRemoteMaterials(userId, remoteMaterials);
+      }
     } catch (err) {
-      console.warn('[CloudSync] Failed to pull downstream conversations from Firebase:', err);
+      console.warn('[CloudSync] Failed to pull downstream changes from Firebase:', err);
     }
   }
 

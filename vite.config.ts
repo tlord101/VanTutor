@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => {
       plugins: [
         react(),
         Sitemap({
-          hostname: 'https://www.avelut.xyz', // Change this to your actual domain
+          hostname: 'https://www.avelut.xyz',
           generateRobotsTxt: false,
           dynamicRoutes: [
             '/',
@@ -34,10 +34,36 @@ export default defineConfig(({ command }) => {
         }
       },
       build: {
-        // Ensure source maps are generated for easier debugging
         sourcemap: false,
-        // Avoid chunk size warnings for large components
-        chunkSizeWarningLimit: 3000,
+        chunkSizeWarningLimit: 1200,
+        cssCodeSplit: true,
+        minify: 'esbuild',
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('firebase')) {
+                  return 'vendor-firebase';
+                }
+                if (id.includes('katex') || id.includes('rehype-katex') || id.includes('remark-math')) {
+                  return 'vendor-katex';
+                }
+                if (id.includes('framer-motion')) {
+                  return 'vendor-motion';
+                }
+                if (id.includes('@capacitor') || id.includes('@capawesome') || id.includes('@capgo')) {
+                  return 'vendor-capacitor';
+                }
+                if (id.includes('lucide-react')) {
+                  return 'vendor-icons';
+                }
+                if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('pdf-lib')) {
+                  return 'vendor-docs';
+                }
+              }
+            }
+          }
+        }
       }
     };
 });

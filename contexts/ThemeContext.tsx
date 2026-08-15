@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
+import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref as dbRef, update, get } from 'firebase/database';
@@ -14,15 +14,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setModeState] = useState<Mode>('light');
+  const [mode, setModeState] = useState<Mode>(() => readCachedJson<Mode>('app_mode', 'light'));
   const [userUid, setUserUid] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initial load from local storage as fallback/immediate
-    const savedMode = localStorage.getItem('app_mode') as Mode;
-
+    // Initial load from cache
+    const savedMode = readCachedJson<Mode>('app_mode', 'light');
     if (savedMode) setModeState(savedMode);
-
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -34,7 +32,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     const data = snapshot.val();
                     if (data.mode) {
                         setModeState(data.mode);
-                        localStorage.setItem('app_mode', data.mode);
+                        writeCachedJson('app_mode', data.mode, user.uid);
                     }
                 }
             } catch (err) {
@@ -70,7 +68,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setMode = (newMode: Mode) => {
     setModeState(newMode);
-    localStorage.setItem('app_mode', newMode);
+    writeCachedJson('app_mode', newMode, userUid || 'global');
     updateFirebasePref('mode', newMode);
   };
 

@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import { writeCachedJson } from './utils/cache';
 import type { FirebaseUser } from './firebase';
 import type { UserProfile, UserProgress, DashboardData, AppSettings } from './types';
 import {
@@ -119,9 +120,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                                 <VisualSolver
                                     userProfile={userProfile}
                                     onStartChat={(prompt, tutorialText) => {
-                                        if (typeof window !== 'undefined') {
-                                            window.localStorage.setItem('avelut_pending_tutorial_prompt', JSON.stringify({ prompt, tutorialText }));
-                                        }
+                                        writeCachedJson('avelut_pending_tutorial_prompt', { prompt, tutorialText });
                                         onNavigate?.('chat');
                                     }}
                                     triggerScanRef={triggerScanRef}

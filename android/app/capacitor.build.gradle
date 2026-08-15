@@ -9,6 +9,7 @@ android {
 
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
+    implementation project(':capacitor-community-sqlite')
     implementation project(':capacitor-firebase-authentication')
     implementation project(':capacitor-app')
     implementation project(':capacitor-browser')
@@ -16,10 +17,12 @@ dependencies {
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-keyboard')
     implementation project(':capacitor-push-notifications')
+    implementation project(':capacitor-share')
     implementation project(':capacitor-splash-screen')
     implementation project(':capacitor-status-bar')
     implementation project(':capacitor-toast')
     implementation project(':capawesome-team-capacitor-file-opener')
+    implementation project(':capawesome-capacitor-app-update')
     implementation project(':capgo-capacitor-updater')
     implementation project(':capacitor-plugin-send-intent')
 

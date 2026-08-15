@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { awardDailyStreak } from '../utils/streaks';
+import { readCachedJson, writeCachedJson, clearCachedKey } from '../utils/cache';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -144,17 +145,17 @@ const shouldHighlightForVisual = (text: string) => {
   return /(diagram|graph|illustration|process|cycle|structure|formula|equation|timeline|map|flow|drawing|visual|example)/i.test(normalized);
 };
 
-const InlineMarkdownText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }: { text: string; className?: string }) => (
+const InlineMarkdownText = React.memo<{ text: string; className?: string }>(({ text, className = '' }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm, remarkMath]}
     rehypePlugins={[rehypeKatex]}
     components={{
       p: ({ node, ...props }: any) => <span className={`whitespace-normal ${className}`} {...props} />,
-      strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-600" {...props} />,
+      strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-600 dark:text-emerald-400" {...props} />,
       em: ({ node, ...props }: any) => <em className="italic" {...props} />,
       code: ({ node, inline, ...props }: any) =>
         inline ? (
-          <code className="rounded bg-emerald-100 px-1 py-0.5 text-[0.8em] font-mono text-emerald-800" {...props} />
+          <code className="rounded bg-emerald-100 dark:bg-emerald-950/50 px-1 py-0.5 text-[0.8em] font-mono text-emerald-800 dark:text-emerald-300" {...props} />
         ) : (
           <code className="block overflow-x-auto rounded-2xl bg-slate-950 p-3 text-sm text-white" {...props} />
         ),
@@ -163,7 +164,7 @@ const InlineMarkdownText: React.FC<{ text: string; className?: string }> = ({ te
   >
     {text}
   </ReactMarkdown>
-);
+));
 
 const getHistoryFallbackTitle = (prompt: string, attachment: File | null) => (
   prompt || (attachment ? `Attachment: ${attachment.name}` : 'New Chat')
@@ -373,22 +374,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const [inputValue, setInputValue] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(`avelut_ai_active_chat_id_${userProfile.uid}`) || null;
-    } catch (e) {
-      return null;
-    }
+    return readCachedJson<string | null>(`avelut_ai_active_chat_id_${userProfile.uid}`, null);
   });
 
   useEffect(() => {
-    try {
-      if (activeHistoryId) {
-        localStorage.setItem(`avelut_ai_active_chat_id_${userProfile.uid}`, activeHistoryId);
-      } else {
-        localStorage.removeItem(`avelut_ai_active_chat_id_${userProfile.uid}`);
-      }
-    } catch (e) {
-      console.warn('Failed to cache active chat ID:', e);
+    if (activeHistoryId) {
+      writeCachedJson(`avelut_ai_active_chat_id_${userProfile.uid}`, activeHistoryId, userProfile.uid);
+    } else {
+      clearCachedKey(`avelut_ai_active_chat_id_${userProfile.uid}`);
     }
   }, [activeHistoryId, userProfile.uid]);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -603,20 +596,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   }, [activeHistoryId, history, messages.length]);
 
   const preparePendingPrompt = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    const stored = window.localStorage.getItem('avelut_pending_tutorial_prompt');
+    const stored = readCachedJson<{ prompt: string; tutorialText?: string } | null>('avelut_pending_tutorial_prompt', null);
     if (!stored) return null;
-    try {
-      const parsed = JSON.parse(stored);
-      return typeof parsed?.prompt === 'string' ? parsed.prompt : null;
-    } catch {
-      return null;
-    }
+    return typeof stored?.prompt === 'string' ? stored.prompt : null;
   }, []);
 
   useEffect(() => {
     if (!preparePendingPrompt) return;
-    window.localStorage.removeItem('avelut_pending_tutorial_prompt');
+    clearCachedKey('avelut_pending_tutorial_prompt');
     setActiveHistoryId(null);
     setMessages([]);
     setInputValue('');

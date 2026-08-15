@@ -24,6 +24,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import { TypingIndicator } from './TypingIndicator';
+import { getMultipleUserProfiles } from '../services/userProfileService';
 
 declare var __app_id: string;
 
@@ -481,32 +482,20 @@ const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, cour
     useEffect(() => {
         if (!userProfile) return;
         const partnersRef = dbRef(db, `study_partners/${userProfile.uid}`);
-        const unsubscribePartners = onValue(partnersRef, (snap) => {
-            setStudyPartners(snap.val() || {});
-        });
-
-        const usersRef = dbRef(db, 'users');
-        const unsubscribeUsers = onValue(usersRef, (snap) => {
+        const unsubscribePartners = onValue(partnersRef, async (snap) => {
             const data = snap.val() || {};
-            const list: UserProfile[] = Object.entries(data).map(([uid, u]: any) => ({
-                uid,
-                display_name: u.displayName || u.display_name || 'User',
-                photo_url: u.photoURL || u.photo_url || '',
-                subscription_status: u.subscription_status || 'free',
-                department_id: u.department_id || '',
-                level: u.level || '',
-                is_online: u.is_online || false,
-                last_seen: u.last_seen || 0,
-                current_streak: u.current_streak || 0,
-                last_activity_date: u.last_activity_date || 0,
-                notifications_enabled: u.notifications_enabled || false,
-            } as UserProfile));
-            setAllUsers(list);
+            setStudyPartners(data);
+            const partnerUids = Object.keys(data).filter(key => data[key] === true);
+            if (partnerUids.length > 0) {
+                const partnerProfiles = await getMultipleUserProfiles(partnerUids);
+                setAllUsers(partnerProfiles);
+            } else {
+                setAllUsers([]);
+            }
         });
 
         return () => {
             off(partnersRef, 'value', unsubscribePartners);
-            off(usersRef, 'value', unsubscribeUsers);
         };
     }, [userProfile]);
 
@@ -2264,21 +2253,14 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
     // Load pinned topics when userProfile becomes available
     useEffect(() => {
-        if (!userProfile || !window?.localStorage) return;
-        try {
-            const raw = window.localStorage.getItem(`pinned_topics_${userProfile.uid}`);
-            setPinnedTopics(raw ? JSON.parse(raw) : []);
-        } catch (e) {
-            console.warn('Failed to load pinned topics', e);
-            setPinnedTopics([]);
-        }
+        if (!userProfile) return;
+        const loaded = readCachedJson<Array<any>>(`pinned_topics_${userProfile.uid}`, []);
+        setPinnedTopics(loaded);
     }, [userProfile]);
 
     const savePinnedTopics = (next: Array<any>) => {
-        try {
-            window.localStorage.setItem(`pinned_topics_${userProfile.uid}`, JSON.stringify(next));
-        } catch (e) {
-            console.warn('Failed to save pinned topics', e);
+        if (userProfile?.uid) {
+            writeCachedJson(`pinned_topics_${userProfile.uid}`, next, userProfile.uid);
         }
         setPinnedTopics(next);
     };

@@ -14,6 +14,7 @@ import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { useTheme } from '../contexts/ThemeContext';
 import { Trash2, Send, Mic, FileText, Image as ImageIcon, Sticker } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
+import { getMultipleUserProfiles } from '../services/userProfileService';
 
 const REACTION_EMOJIS = ['🔥', '😂', '😍', '👏', '😮', '😭', '👍', '❤️'];
 
@@ -813,33 +814,17 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
   useEffect(() => {
     if (!firebaseUser) return;
-    const usersRef = dbRef(db, 'users');
-    const unsubscribe = onValue(usersRef, (snap) => {
-      const data = snap.val() || {};
-      setAllUsers(Object.entries(data).map(([uid, u]: any) => ({
-        uid,
-        display_name: u.displayName || u.display_name || 'User',
-        photo_url: u.photoURL || u.photo_url || '',
-        is_online: u.is_online || false,
-        last_seen: u.last_seen || 0,
-        subscription_status: u.subscription_status || 'free',
-        department_id: u.department_id || '',
-        level: u.level || '',
-        current_streak: u.current_streak || 0,
-        last_streak_date: u.last_streak_date || '',
-        last_activity_date: u.last_activity_date || 0,
-        notifications_enabled: u.notifications_enabled || false,
-        blocked_users: u.blocked_users || {}
-      })));
-    });
-    return () => off(usersRef, 'value', unsubscribe);
-  }, [firebaseUser]);
-
-  useEffect(() => {
-    if (!firebaseUser) return;
     const partnersRef = dbRef(db, `study_partners/${firebaseUser.uid}`);
-    const unsubscribePartners = onValue(partnersRef, (snap) => {
-      setStudyPartners(snap.val() || {});
+    const unsubscribePartners = onValue(partnersRef, async (snap) => {
+      const data = snap.val() || {};
+      setStudyPartners(data);
+      const partnerUids = Object.keys(data).filter(key => data[key] === true);
+      if (partnerUids.length > 0) {
+        const partnerProfiles = await getMultipleUserProfiles(partnerUids);
+        setAllUsers(partnerProfiles);
+      } else {
+        setAllUsers([]);
+      }
     });
 
     const requestsRef = dbRef(db, `partner_requests/${firebaseUser.uid}`);
@@ -1305,60 +1290,52 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const localTimestamp = Date.now();
     const tempId = `temp_img_${localTimestamp}`;
+    const localBlobUrl = URL.createObjectURL(file);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Data = e.target?.result as string;
-      if (!base64Data) return;
+    // 1. Construct optimistic message using lightweight Blob URL
+    const fullText = caption
+      ? `![Captured Image](${localBlobUrl})\n\n${caption}`
+      : `![Captured Image](${localBlobUrl})`;
 
-      // 1. Construct the markdown correctly for the optimistic UI
-      const fullText = caption
-        ? `![Captured Image](${base64Data})\n\n${caption}`
-        : `![Captured Image](${base64Data})`;
-
-      const pendingMessage = {
-        id: tempId,
-        senderId: firebaseUser.uid,
-        text: fullText,
-        type: 'image',
-        timestamp: localTimestamp,
-        isUploading: true
-        // Removed uploadProgress to prevent rapid React state thrashing
-      };
-
-      // 2. Add optimistic message to the chat stream immediately
-      setOptimisticMessages(prev => [...prev, pendingMessage]);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-
-      try {
-        // 3. Rename filename to a random number to prevent Firebase and markdown crashes
-        const ext = file.name ? file.name.split('.').pop() : 'jpg';
-        const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
-        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
-        const fileBucketRef = storageRef(storage, cloudPath);
-
-        // 4. Use uploadString with base64 to bypass Android Webview file permission constraints
-        const snapshot = await uploadString(fileBucketRef, base64Data, 'data_url');
-        const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-
-        // 5. Cleanup the local optimistic message
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-
-        // 6. Send the final, real payload to the chat
-        const finalFullText = caption
-          ? `![Captured Image](${fileDownloadUrl})\n\n${caption}`
-          : `![Captured Image](${fileDownloadUrl})`;
-
-        await sendMsg(finalFullText, 'image');
-
-      } catch (err) {
-        console.error("Image upload failed:", err);
-        addToast('Failed to start image upload.', 'error');
-        // Always clean up the stuck loading bubble if it fails
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-      }
+    const pendingMessage = {
+      id: tempId,
+      senderId: firebaseUser.uid,
+      text: fullText,
+      type: 'image',
+      timestamp: localTimestamp,
+      isUploading: true
     };
-    reader.readAsDataURL(file);
+
+    // 2. Add optimistic message to the chat stream immediately
+    setOptimisticMessages(prev => [...prev, pendingMessage]);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    try {
+      // 3. Rename filename to a random number to prevent Firebase and markdown crashes
+      const ext = file.name ? file.name.split('.').pop() : 'jpg';
+      const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
+      const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
+      const fileBucketRef = storageRef(storage, cloudPath);
+
+      // 4. Use uploadBytes directly
+      const snapshot = await uploadBytes(fileBucketRef, file);
+      const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+
+      // 5. Cleanup the local optimistic message
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+
+      // 6. Send the final, real payload to the chat
+      const finalFullText = caption
+        ? `![Captured Image](${fileDownloadUrl})\n\n${caption}`
+        : `![Captured Image](${fileDownloadUrl})`;
+
+      await sendMsg(finalFullText, 'image');
+
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      addToast('Failed to start image upload.', 'error');
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+    }
   };
 
   const startRecording = async (e: any) => {

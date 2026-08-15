@@ -71,6 +71,64 @@ CREATE TABLE IF NOT EXISTS app_state (
   sync_status TEXT DEFAULT 'synced'
 );
 
+CREATE INDEX IF NOT EXISTS idx_app_state_user ON app_state(user_id);
+
+CREATE TABLE IF NOT EXISTS exams (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  department_id TEXT,
+  exam_type TEXT,
+  score INTEGER,
+  total_questions INTEGER,
+  questions_json TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  sync_status TEXT DEFAULT 'pending',
+  is_deleted INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_exams_user ON exams(user_id, timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS flashcards (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  course_id TEXT,
+  department_id TEXT,
+  level TEXT,
+  cards_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  sync_status TEXT DEFAULT 'pending',
+  is_deleted INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_flashcards_user ON flashcards(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS past_questions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  department_id TEXT NOT NULL,
+  level TEXT NOT NULL,
+  course_id TEXT NOT NULL,
+  year TEXT NOT NULL,
+  questions_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pq_dept_level ON past_questions(department_id, level, course_id, year);
+
+CREATE TABLE IF NOT EXISTS user_materials (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  sync_status TEXT DEFAULT 'pending',
+  is_deleted INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_materials_user ON user_materials(user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS ai_semantic_cache (
   query_hash TEXT PRIMARY KEY,
   query_text TEXT NOT NULL,
@@ -234,6 +292,10 @@ const memoryFallbackStore: Record<string, any[]> = {
   conversations: [],
   messages: [],
   app_state: [],
+  exams: [],
+  flashcards: [],
+  past_questions: [],
+  user_materials: [],
   ai_semantic_cache: [],
   sync_queue: []
 };
@@ -251,6 +313,48 @@ function runFallbackQuery<T>(sql: string, params: any[]): T[] {
     let items = (memoryFallbackStore.messages || []).filter(m => !m.is_deleted);
     if (convoId) items = items.filter(m => m.conversation_id === convoId);
     return items.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)) as unknown as T[];
+  }
+  if (lower.includes('from exams')) {
+    const userId = params[0];
+    let items = (memoryFallbackStore.exams || []).filter(e => !e.is_deleted);
+    if (userId) items = items.filter(e => e.user_id === userId);
+    return items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) as unknown as T[];
+  }
+  if (lower.includes('from flashcards')) {
+    const userId = params[0];
+    let items = (memoryFallbackStore.flashcards || []).filter(f => !f.is_deleted);
+    if (userId) items = items.filter(f => f.user_id === userId);
+    return items.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)) as unknown as T[];
+  }
+  if (lower.includes('from past_questions')) {
+    let items = memoryFallbackStore.past_questions || [];
+    if (params.length >= 4) {
+      const [dept, lvl, course, yr] = params;
+      items = items.filter(pq => pq.department_id === dept && pq.level === lvl && pq.course_id === course && pq.year === yr);
+    } else if (params.length >= 2) {
+      const [dept, lvl] = params;
+      items = items.filter(pq => pq.department_id === dept && pq.level === lvl);
+    }
+    return items as unknown as T[];
+  }
+  if (lower.includes('from user_materials')) {
+    const userId = params[0];
+    let items = (memoryFallbackStore.user_materials || []).filter(m => !m.is_deleted);
+    if (userId) items = items.filter(m => m.user_id === userId);
+    return items.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)) as unknown as T[];
+  }
+  if (lower.includes('from app_state')) {
+    if (lower.includes('where key = ?')) {
+      const key = params[0];
+      const hit = (memoryFallbackStore.app_state || []).find(s => s.key === key);
+      return (hit ? [hit] : []) as unknown as T[];
+    }
+    if (lower.includes('where user_id = ?')) {
+      const userId = params[0];
+      const hits = (memoryFallbackStore.app_state || []).filter(s => s.user_id === userId);
+      return hits as unknown as T[];
+    }
+    return (memoryFallbackStore.app_state || []) as unknown as T[];
   }
   if (lower.includes('from ai_semantic_cache')) {
     const hash = params[0];
@@ -284,6 +388,46 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     else memoryFallbackStore.messages.push(item);
     return { changes: 1 };
   }
+  if (lower.includes('insert or replace into exams') || lower.includes('insert into exams')) {
+    const [id, user_id, department_id, exam_type, score, total_questions, questions_json, timestamp, sync_status, is_deleted] = params;
+    const existingIdx = memoryFallbackStore.exams.findIndex(e => e.id === id);
+    const item = { id, user_id, department_id, exam_type, score, total_questions, questions_json, timestamp, sync_status, is_deleted: is_deleted || 0 };
+    if (existingIdx >= 0) memoryFallbackStore.exams[existingIdx] = item;
+    else memoryFallbackStore.exams.push(item);
+    return { changes: 1 };
+  }
+  if (lower.includes('insert or replace into flashcards') || lower.includes('insert into flashcards')) {
+    const [id, user_id, title, course_id, department_id, level, cards_json, created_at, sync_status, is_deleted] = params;
+    const existingIdx = memoryFallbackStore.flashcards.findIndex(f => f.id === id);
+    const item = { id, user_id, title, course_id, department_id, level, cards_json, created_at, sync_status, is_deleted: is_deleted || 0 };
+    if (existingIdx >= 0) memoryFallbackStore.flashcards[existingIdx] = item;
+    else memoryFallbackStore.flashcards.push(item);
+    return { changes: 1 };
+  }
+  if (lower.includes('insert or replace into past_questions') || lower.includes('insert into past_questions')) {
+    const [id, user_id, department_id, level, course_id, year, questions_json, updated_at] = params;
+    const existingIdx = memoryFallbackStore.past_questions.findIndex(pq => pq.id === id);
+    const item = { id, user_id, department_id, level, course_id, year, questions_json, updated_at };
+    if (existingIdx >= 0) memoryFallbackStore.past_questions[existingIdx] = item;
+    else memoryFallbackStore.past_questions.push(item);
+    return { changes: 1 };
+  }
+  if (lower.includes('insert or replace into user_materials') || lower.includes('insert into user_materials')) {
+    const [id, user_id, type, title, data_json, created_at, sync_status, is_deleted] = params;
+    const existingIdx = memoryFallbackStore.user_materials.findIndex(m => m.id === id);
+    const item = { id, user_id, type, title, data_json, created_at, sync_status, is_deleted: is_deleted || 0 };
+    if (existingIdx >= 0) memoryFallbackStore.user_materials[existingIdx] = item;
+    else memoryFallbackStore.user_materials.push(item);
+    return { changes: 1 };
+  }
+  if (lower.includes('insert or replace into app_state') || lower.includes('insert into app_state')) {
+    const [key, user_id, category, payload_json, updated_at, sync_status] = params;
+    const existingIdx = memoryFallbackStore.app_state.findIndex(s => s.key === key);
+    const item = { key, user_id, category, payload_json, updated_at, sync_status };
+    if (existingIdx >= 0) memoryFallbackStore.app_state[existingIdx] = item;
+    else memoryFallbackStore.app_state.push(item);
+    return { changes: 1 };
+  }
   if (lower.includes('insert or replace into ai_semantic_cache')) {
     const [query_hash, query_text, course_key, context_type, result_json, hit_count, created_at, expires_at] = params;
     const idx = memoryFallbackStore.ai_semantic_cache.findIndex(c => c.query_hash === query_hash);
@@ -300,6 +444,11 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
   if (lower.includes('delete from sync_queue')) {
     const id = params[0];
     memoryFallbackStore.sync_queue = memoryFallbackStore.sync_queue.filter(q => q.id !== id);
+    return { changes: 1 };
+  }
+  if (lower.includes('delete from app_state')) {
+    const key = params[0];
+    memoryFallbackStore.app_state = memoryFallbackStore.app_state.filter(s => s.key !== key);
     return { changes: 1 };
   }
   return { changes: 0 };

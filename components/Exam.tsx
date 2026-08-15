@@ -13,6 +13,9 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { useToast } from '../hooks/useToast';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { saveLocalExam, getLocalExams, bulkUpsertRemoteExams } from '../services/examStorageService';
+import { saveLocalFlashcardDeck } from '../services/flashcardStorageService';
+import { saveLocalPastQuestions, getLocalPastQuestions, saveLocalPQSubjects, getLocalPQSubjects } from '../services/pastQuestionsStorageService';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CheckIcon } from './icons/CheckIcon';
@@ -92,6 +95,15 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
     });
 
     useEffect(() => {
+        // 1. Instantly load from local SQLite (zero latency offline)
+        getLocalExams(userProfile.uid).then(localExams => {
+            if (localExams && localExams.length > 0) {
+                setHistory(localExams);
+                setIsLoading(false);
+            }
+        }).catch(console.warn);
+
+        // 2. Listen to Firebase Realtime Database and synchronize down into SQLite
         const historyRef = dbRef(db, `exam_history/${userProfile.uid}`);
         const cacheKey = `avelut_exam_history_${userProfile.uid}`;
         const cached = readCachedJson<ExamHistoryItem[]>(cacheKey, []);
@@ -101,17 +113,21 @@ const ExamHistory: React.FC<{ userProfile: UserProfile, onReview: (exam: ExamHis
         const unsubscribe = onValue(historyRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // RTDB returns an object, we want an array sorted by timestamp descending
-                const firebaseList: ExamHistoryItem[] = Object.values(data);
-                writeCachedJson(cacheKey, firebaseList);
-                const offlineList = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
-                const merged = [...firebaseList, ...offlineList];
-                const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
-                unique.sort((a, b) => b.timestamp - a.timestamp);
-                setHistory(unique);
+                const firebaseList: ExamHistoryItem[] = Object.keys(data).map(key => ({
+                    ...data[key],
+                    id: key
+                }));
+                writeCachedJson(cacheKey, firebaseList, userProfile.uid);
+                bulkUpsertRemoteExams(userProfile.uid, firebaseList).catch(console.warn);
+                getLocalExams(userProfile.uid).then(updated => {
+                    setHistory(updated);
+                }).catch(() => {
+                    setHistory(firebaseList);
+                });
             } else {
-                setHistory([]);
-                writeCachedJson(cacheKey, []);
+                getLocalExams(userProfile.uid).then(local => {
+                    setHistory(local);
+                }).catch(() => setHistory([]));
             }
             setIsLoading(false);
         }, (error) => {
@@ -219,6 +235,15 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
 
   useEffect(() => {
     const cacheKey = `avelut_pq_subjects_${userProfile.department_id}_${userProfile.level}`;
+    
+    // Load from local SQLite cache first for instant offline access
+    getLocalPQSubjects(userProfile.department_id || '', userProfile.level || '').then(({ subjects, years }) => {
+        if (subjects && subjects.length > 0) {
+            setAvailablePQSubjects(subjects);
+            setAvailablePQYears(years);
+        }
+    }).catch(console.warn);
+
     const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}`);
     setIsPQLoading(true);
     get(pqRef).then(snap => {
@@ -226,7 +251,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             const data = snap.val();
             const subjects = Object.keys(data);
             setAvailablePQSubjects(subjects);
-            writeCachedJson(cacheKey, subjects);
+            writeCachedJson(cacheKey, subjects, userProfile.uid);
             
             // Build all available PQs
             const allPQs: {year: string, course_id: string, course_name: string}[] = [];
@@ -234,27 +259,28 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                 const yearsData = data[courseId];
                 if (yearsData) {
                     Object.keys(yearsData).forEach(year => {
-                        // find course name from availableCourses or just use ID
                         allPQs.push({
                             year,
                             course_id: courseId,
-                            course_name: courseId // we will update this when courses load or just map it in render
+                            course_name: courseId
                         });
                     });
                 }
             });
-            setAvailablePQYears(allPQs.sort((a,b) => parseInt(b.year) - parseInt(a.year)));
+            const sortedYears = allPQs.sort((a,b) => parseInt(b.year) - parseInt(a.year));
+            setAvailablePQYears(sortedYears);
+            saveLocalPQSubjects(userProfile.department_id || '', userProfile.level || '', subjects, sortedYears).catch(console.warn);
         } else {
             setAvailablePQSubjects([]);
             setAvailablePQYears([]);
-            writeCachedJson(cacheKey, []);
+            writeCachedJson(cacheKey, [], userProfile.uid);
         }
     }).catch(err => {
         console.error("Failed to fetch PQ subjects:", err);
     }).finally(() => {
         setIsPQLoading(false);
     });
-  }, [userProfile.department_id, userProfile.level]);
+  }, [userProfile.department_id, userProfile.level, userProfile.uid]);
 
   const userAnswersRef = useRef(userAnswers);
   useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
@@ -309,14 +335,35 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
   const startPQExam = async (courseId: string, year: string) => {
     setExamState('generating');
     try {
-        const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${courseId}/${year}`);
-        const snapshot = await get(pqRef);
-        if(!snapshot.exists()) throw new Error("No questions found for this course.");
-        
-        const questionsData = snapshot.val();
-        let allQuestions: Question[] = Object.values(questionsData);
+        // 1. Try to load from SQLite for offline practice
+        let allQuestions = await getLocalPastQuestions(
+            userProfile.department_id || '',
+            userProfile.level || '',
+            courseId,
+            year
+        );
 
-        if(allQuestions.length === 0) throw new Error("Question bank is empty.");
+        if (!allQuestions || allQuestions.length === 0) {
+            // 2. Fetch from Firebase and cache into SQLite for future offline use
+            const pqRef = dbRef(db, `past_questions/${userProfile.department_id}/${userProfile.level}/${courseId}/${year}`);
+            const snapshot = await get(pqRef);
+            if(!snapshot.exists()) throw new Error("No questions found for this course.");
+            
+            const questionsData = snapshot.val();
+            allQuestions = Object.values(questionsData);
+            if (allQuestions && allQuestions.length > 0) {
+                saveLocalPastQuestions(
+                    userProfile.uid,
+                    userProfile.department_id || '',
+                    userProfile.level || '',
+                    courseId,
+                    year,
+                    allQuestions
+                ).catch(console.warn);
+            }
+        }
+
+        if(!allQuestions || allQuestions.length === 0) throw new Error("Question bank is empty.");
 
         // Randomly pick 10 questions
         const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
@@ -383,7 +430,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           };
 
           const examResult: ExamHistoryItem = {
-              id: '', // Will be set by Firebase key or ignored by us
+              id: currentExamId || `exam_${Date.now()}`,
               user_id: userProfile.uid,
               department_id: userProfile.department_id || '',
               examType: examFormat,
@@ -399,11 +446,8 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
               })),
           };
 
-          // Override questions mapped isCorrect if it's theory since we evaluate inline
-          if (examFormat === 'theory') {
-              // We don't have all the exact evaluations, but we update score incrementally.
-              // We'll trust the currentScore. 
-          }
+          // Save directly into SQLite exams table for offline access and cloud sync
+          saveLocalExam(userProfile.uid, examResult, true).catch(console.error);
 
           const saveResults = async () => {
               try {
@@ -421,7 +465,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                   set(notificationRef, notificationData).catch(console.error);
               } catch (error) {
                   console.error("Failed to save exam results:", error);
-                  addToast("Could not save your exam results.", 'error');
+                  addToast("Could not save your exam results to server (saved offline in SQLite).", 'info');
               }
           };
 
@@ -432,7 +476,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           return 'completed';
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questions, userProfile.department_id, userProfile.uid, addToast]);
+  }, [questions, userProfile.department_id, userProfile.uid, currentExamId, examFormat, addToast]);
 
   useEffect(() => {
       if (examState !== 'in_progress' || timeLeft <= 0) {
@@ -519,6 +563,16 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
         setIsFlipped(false);
         deductAICredits(userProfile.uid, cost, 'Flashcard Generation', appSettings).catch(console.error);
         
+        // Save into SQLite flashcards table
+        saveLocalFlashcardDeck(userProfile.uid, {
+            title: `${safeCourseName} Flashcards`,
+            course_id: selectedCourseId,
+            department_id: userProfile.department_id || '',
+            level: userProfile.level || '',
+            cards: responseData.flashcards,
+        }).catch(console.error);
+
+        // Save into SQLite history materials table
         saveToHistory(userProfile.uid, {
             type: 'flashcards',
             title: `${safeCourseName} Flashcards`,
@@ -655,8 +709,9 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
             timestamp: Date.now(),
             questions: newQuestions.map((q: any) => ({ ...q, userAnswer: '', isCorrect: false })),
         };
-        const offlineExams = readCachedJson<ExamHistoryItem[]>(`avelut_offline_exams_${userProfile.uid}`, []);
-        writeCachedJson(`avelut_offline_exams_${userProfile.uid}`, [offlineExam, ...offlineExams]);
+        
+        // Save into SQLite exams table for full offline test readiness
+        saveLocalExam(userProfile.uid, offlineExam, true).catch(console.error);
 
         setQuestions(newQuestions);
         setTimeLeft(newQuestions.length * TIME_PER_QUESTION_SECONDS);

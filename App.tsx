@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
-import { writeCachedJson, clearCachedKey } from './utils/cache';
+import { writeCachedJson, clearCachedKey, initCacheFromSqlite } from './utils/cache';
 import { GoogleGenAI, Type } from '@google/genai'; 
 import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
@@ -242,39 +242,52 @@ const SharedImagePromptModal: React.FC<{
     if (!visible) return null;
 
     return (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-[28px] border border-white/20 bg-white p-5 shadow-2xl dark:bg-slate-900">
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-md rounded-[32px] border border-white/20 bg-white/95 dark:bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800 transition-all">
                 <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <p className="text-xs font-black uppercase tracking-[0.3em] text-sky-600">Visual Solver</p>
-                        <h3 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Use this image?</h3>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-sky-600 dark:text-sky-400">Visual Solver</p>
+                            <h3 className="mt-0.5 text-xl font-extrabold text-slate-900 dark:text-white">Image Detected</h3>
+                        </div>
                     </div>
                 </div>
 
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100/70 dark:border-slate-700/80 dark:bg-slate-800/80 shadow-inner">
                     {imagePreview ? (
-                        <img src={imagePreview} alt="Shared preview" className="h-56 w-full object-contain" />
+                        <img src={imagePreview} alt="Detected problem" className="h-56 w-full object-contain p-2" />
                     ) : (
-                        <div className="flex h-56 items-center justify-center text-sm font-semibold text-slate-500">Preview unavailable</div>
+                        <div className="flex h-56 items-center justify-center text-sm font-semibold text-slate-500">Preview loading...</div>
                     )}
                 </div>
 
-                <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">A photo was detected on your device. Open it in Visual Solver to analyze it, or dismiss this prompt.</p>
+                <p className="mt-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    A problem image was found in your clipboard or shared to Avelut. Scan it now to get a full step-by-step mathematical solution.
+                </p>
 
-                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        className="flex-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-4 py-3.5 text-sm font-bold text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95"
                     >
-                        Cancel
+                        Dismiss
                     </button>
                     <button
                         type="button"
                         onClick={onScan}
-                        className="flex-1 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition hover:bg-sky-700"
+                        className="flex-[1.5] flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-3.5 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-sky-600/30 transition-all hover:from-sky-500 hover:to-indigo-500 active:scale-95"
                     >
-                        Scan Image
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>Scan Image</span>
                     </button>
                 </div>
             </div>
@@ -431,9 +444,10 @@ const App: React.FC = () => {
     const userProfileRef = useRef<UserProfile | null>(null);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
 
-    // Initialize local SQLite database & clean expired AI cache on app startup
+    // Initialize local SQLite database, hydrate cache & clean expired AI cache on app startup
     useEffect(() => {
         getDatabaseConnection().then(() => {
+            initCacheFromSqlite().catch(() => {});
             cleanExpiredAICache().catch(() => {});
         }).catch(err => {
             console.warn('[App] SQLite initialization note:', err);
@@ -518,13 +532,19 @@ const App: React.FC = () => {
     });
 
     const handleSharedImageScan = useCallback(() => {
-        if (pendingSharedImage) {
-            localStorage.setItem('shared_image_intent', pendingSharedImage);
-        }
+        const imageToScan = pendingSharedImage;
         setShowSharedImagePrompt(false);
-        setActiveItemState('visual_solver');
-        window.dispatchEvent(new Event('shared_image_received'));
-    }, [pendingSharedImage]);
+        setPendingSharedImage(null);
+        setSharedImagePreview(null);
+
+        if (imageToScan) {
+            localStorage.setItem('shared_image_intent', imageToScan);
+            localStorage.setItem('auto_scan_shared_image', 'true');
+        }
+
+        setActiveItem('visual_solver');
+        window.dispatchEvent(new CustomEvent('visual_solver_trigger_scan', { detail: { image: imageToScan } }));
+    }, [pendingSharedImage, setActiveItem]);
 
     const handleSharedImageCancel = useCallback(() => {
         setShowSharedImagePrompt(false);
@@ -562,12 +582,14 @@ const App: React.FC = () => {
         if (!imageUri) return;
         try {
             if (imageUri.startsWith('content://') || imageUri.startsWith('file://')) {
-                const normalized = imageUri.replace(/^file:\/\//, '').replace(/^content:\/\//, '');
-                const fileData = await Filesystem.readFile({ path: normalized });
-                setSharedImagePreview(`data:image/jpeg;base64,${fileData.data}`);
-            } else if (imageUri.startsWith('data:image')) {
-                setSharedImagePreview(imageUri);
-            } else if (imageUri.startsWith('http')) {
+                if (Capacitor.isNativePlatform()) {
+                    setSharedImagePreview(Capacitor.convertFileSrc(imageUri));
+                } else {
+                    const normalized = imageUri.replace(/^file:\/\//, '').replace(/^content:\/\//, '');
+                    const fileData = await Filesystem.readFile({ path: normalized });
+                    setSharedImagePreview(`data:image/jpeg;base64,${fileData.data}`);
+                }
+            } else if (imageUri.startsWith('data:image') || imageUri.startsWith('blob:') || imageUri.startsWith('http')) {
                 setSharedImagePreview(imageUri);
             } else {
                 setSharedImagePreview(null);
@@ -595,17 +617,7 @@ const App: React.FC = () => {
         }
     }, [loadSharedImagePreview]);
 
-    // Helper to convert a Blob to a data URL
-    const blobToDataUrl = useCallback((blob: Blob): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    }, []);
-
-    // Attempt to detect an image in the clipboard when the app is opened or focused.
+    // Attempt to detect an image in the clipboard when the app is opened or focused without base64 bloat
     useEffect(() => {
         let mounted = true;
         const tryReadClipboardImage = async () => {
@@ -619,16 +631,15 @@ const App: React.FC = () => {
                     const imageType = item.types.find((t: string) => t.startsWith('image/'));
                     if (imageType) {
                         const blob = await item.getType(imageType);
-                        const dataUrl = await blobToDataUrl(blob);
-                        setPendingSharedImage(dataUrl);
-                        setSharedImagePreview(dataUrl);
+                        const blobUrl = URL.createObjectURL(blob);
+                        setPendingSharedImage(blobUrl);
+                        setSharedImagePreview(blobUrl);
                         setShowSharedImagePrompt(true);
                         return;
                     }
                 }
             } catch (err) {
                 // Reading clipboard may be blocked by browser without a user gesture; ignore failures.
-                // console.warn('Clipboard read failed', err);
             }
         };
 
@@ -639,16 +650,9 @@ const App: React.FC = () => {
         const onFocus = () => { void tryReadClipboardImage(); };
         window.addEventListener('focus', onFocus);
         return () => { mounted = false; window.removeEventListener('focus', onFocus); };
-    }, [blobToDataUrl]);
+    }, []);
 
-    useEffect(() => {
-        const handleSharedImage = () => {
-            setActiveItem('visual_solver');
-            setShowSharedImagePrompt(true);
-        };
-        window.addEventListener('shared_image_received', handleSharedImage);
-        return () => window.removeEventListener('shared_image_received', handleSharedImage);
-    }, [setActiveItem]);
+
 
     useEffect(() => {
         const handleGoBack = () => {

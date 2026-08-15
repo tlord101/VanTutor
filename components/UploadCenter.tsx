@@ -757,17 +757,26 @@ FORMAT: { "is_related": true, "unrelated_reason": "", "questions": [ { "question
   const handleExtractCoursesFromPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!ai || !e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    if (file.type !== 'application/pdf') return addToast('Please upload a PDF file.', 'error');
+    
+    // Support PDFs and common image formats (photos of printed course forms / timetables)
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(file.name);
+    
+    if (!isPdf && !isImage) {
+      return addToast('Please upload a PDF or image of your course form.', 'error');
+    }
 
     setIsExtractingCourses(true);
     try {
       const base64Chunk = await fileToBase64(file);
-      const prompt = `Analyze this PDF document. Extract all course names and course codes.
+      const mimeType = isPdf ? 'application/pdf' : (file.type || 'image/jpeg');
+      const prompt = `Analyze this course form, timetable, syllabus, or academic document carefully.
+Extract all course names and their corresponding course codes (for example: "Elementary Mathematics I" with code "MTH101", "Introduction to Programming" with code "CSC101").
 Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 
       const aiResponse = await attemptApiCall(() => ai.models.generateContent({
         model: geminiModel,
-        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: 'application/pdf', data: base64Chunk } }] }],
+        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Chunk } }] }],
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -792,16 +801,42 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
 
       const text = getResponseText(aiResponse);
       if (!text) throw new Error("Failed to get response from AI");
-      const data = JSON.parse(text);
-      if (data.courses && Array.isArray(data.courses)) {
-        setExtractedCourses(data.courses.map((c: any) => ({ ...c, selected: true, type: 'private' })));
-        addToast(`Extracted ${data.courses.length} courses`, 'success');
+      
+      // Robust JSON extraction handling any markdown wrappers
+      let cleanJson = text.trim();
+      const codeBlockMatch = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        cleanJson = codeBlockMatch[1].trim();
+      }
+      const firstBrace = cleanJson.indexOf('{');
+      const lastBrace = cleanJson.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+      }
+
+      const data = JSON.parse(cleanJson);
+      if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+        const validated = data.courses
+          .filter((c: any) => c && (c.course_name || c.name) && (c.course_code || c.code))
+          .map((c: any) => ({
+            course_name: String(c.course_name || c.name).trim(),
+            course_code: String(c.course_code || c.code).trim().toUpperCase(),
+            selected: true,
+            type: 'private' as const,
+          }));
+
+        if (validated.length === 0) {
+          throw new Error("No valid courses could be identified in the uploaded document.");
+        }
+
+        setExtractedCourses(validated);
+        addToast(`Extracted ${validated.length} courses successfully!`, 'success');
       } else {
-        throw new Error("No courses found in the document");
+        throw new Error("No courses found in the document. Please verify the document has clear course titles and codes.");
       }
     } catch (err: any) {
-      console.error(err);
-      addToast(err.message || 'Failed to extract courses', 'error');
+      console.error('Course form extraction error:', err);
+      addToast(err.message || 'Failed to extract courses from the document.', 'error');
     } finally {
       setIsExtractingCourses(false);
       if (e.target) e.target.value = '';
@@ -811,6 +846,9 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
   const handleSaveExtractedCourses = async () => {
     const coursesToSave = extractedCourses.filter(c => c.selected && c.course_name.trim() && c.course_code.trim());
     if (coursesToSave.length === 0) return addToast('No valid courses selected.', 'error');
+    if (!selectedSchoolId || !selectedCollegeId || !selectedDepartmentId) {
+      return addToast('Please select a school, college, and department first.', 'error');
+    }
 
     setIsExtractingCourses(true); // Re-use loading state
     try {
@@ -818,7 +856,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
       const college = schoolsData[selectedSchoolId]?.colleges?.[selectedCollegeId];
 
       coursesToSave.forEach(course => {
-        const courseId = course.course_code.trim().toLowerCase().replace(/\s+/g, '');
+        const courseId = course.course_code.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
         const courseData: Partial<Course> = {
           course_id: courseId,
           course_name: course.course_name.trim(),
@@ -1334,15 +1372,15 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                         <div className="space-y-8">
                           {/* File Upload Section */}
                           <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5">
-                            <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><UploadCloud className="w-4 h-4"/> Extract from PDF</h4>
-                            <p className="text-xs text-indigo-700/70 mb-4">Upload a syllabus or course outline PDF to automatically extract course codes and names.</p>
-                            <label className="flex items-center justify-center w-full py-3 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition cursor-pointer">
+                            <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><UploadCloud className="w-4 h-4"/> Extract from Course Form or Syllabus</h4>
+                            <p className="text-xs text-indigo-700/70 mb-4">Upload a course registration form, syllabus, or outline (PDF or photo) to automatically extract course codes and names.</p>
+                            <label className="flex items-center justify-center w-full py-3 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition cursor-pointer shadow-sm">
                               {isExtractingCourses ? (
-                                <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing PDF...</span>
+                                <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing Document...</span>
                               ) : (
-                                "Select PDF File"
+                                "Select Course Form (PDF or Photo)"
                               )}
-                              <input type="file" accept="application/pdf" className="hidden" onChange={handleExtractCoursesFromPdf} disabled={isExtractingCourses} />
+                              <input type="file" accept="application/pdf,image/*" className="hidden" onChange={handleExtractCoursesFromPdf} disabled={isExtractingCourses} />
                             </label>
                           </div>
 
