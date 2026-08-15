@@ -1,14 +1,23 @@
 name: Universal Release Build & Bump
 
 on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'package.json'
+      - 'android/app/build.gradle'
+      - 'README.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build Type (apk or aab)'
+        description: 'Build Type (apk, aab, or both)'
         required: true
-        default: 'aab'
+        default: 'both'
         type: choice
         options:
+          - both
           - apk
           - aab
 
@@ -66,13 +75,13 @@ jobs:
         working-directory: ./android
         run: chmod +x gradlew
 
-      - name: Build AAB
-        if: ${{ github.event.inputs.build_type == 'aab' }}
+      - name: Build AAB (Android App Bundle)
+        if: ${{ github.event.inputs.build_type == 'aab' || github.event.inputs.build_type == 'both' || github.event_name == 'push' || github.event.inputs.build_type == '' }}
         working-directory: ./android
         run: ./gradlew bundleRelease
 
-      - name: Build APK
-        if: ${{ github.event.inputs.build_type == 'apk' }}
+      - name: Build APK (Android Package)
+        if: ${{ github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == 'both' || github.event_name == 'push' || github.event.inputs.build_type == '' }}
         working-directory: ./android
         run: ./gradlew assembleRelease
 
@@ -83,14 +92,14 @@ jobs:
           file_pattern: 'package.json android/app/build.gradle'
 
       - name: Upload AAB Artifact
-        if: ${{ github.event.inputs.build_type == 'aab' }}
+        if: ${{ github.event.inputs.build_type == 'aab' || github.event.inputs.build_type == 'both' || github.event_name == 'push' || github.event.inputs.build_type == '' }}
         uses: actions/upload-artifact@v4
         with:
           name: app-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload APK Artifact
-        if: ${{ github.event.inputs.build_type == 'apk' }}
+        if: ${{ github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == 'both' || github.event_name == 'push' || github.event.inputs.build_type == '' }}
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
