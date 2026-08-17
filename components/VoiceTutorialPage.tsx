@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { readCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText } from '../utils/inference';
+import { GoogleGenAI } from '@google/genai';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import type { UserProfile, Course, Topic } from '../types';
@@ -8,6 +9,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+
+// Available natural Gemini TTS voices
+const GEMINI_TTS_VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede', 'Orbit', 'Zephyr', 'Leda'];
+const DEFAULT_VOICE = 'Charon'; // Deep, natural tutor voice
 
 interface VoiceTutorialSessionData {
     course: Course;
@@ -47,8 +52,11 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
     const [isMicListening, setIsMicListening] = useState(false);
     const [speechRate, setSpeechRate] = useState<number>(1.0);
     const [spokenTextBuffer, setSpokenTextBuffer] = useState('');
+    const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
+    const [isTtsLoading, setIsTtsLoading] = useState(false);
 
-    const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
     const recognitionRef = useRef<any>(null);
     const stepCountRef = useRef(1);
 
@@ -75,65 +83,150 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
         }
     }, [userProfile?.level]);
 
-    // Speech Synthesis helper
-    const speakText = useCallback((text: string) => {
-        if (!('speechSynthesis' in window) || isMuted) return;
+    // ─── Gemini TTS Audio Engine ─────────────────────────────────────────────
 
-        window.speechSynthesis.cancel();
+    const getAudioContext = useCallback((): AudioContext => {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        return audioContextRef.current;
+    }, []);
+
+    const stopAudio = useCallback(() => {
+        if (currentAudioSourceRef.current) {
+            try { currentAudioSourceRef.current.stop(); } catch (e) {}
+            currentAudioSourceRef.current = null;
+        }
         setIsSpeaking(false);
+    }, []);
 
-        if (!text) return;
+    // Stop audio on unmount
+    useEffect(() => {
+        return () => {
+            stopAudio();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch (e) {}
+            }
+        };
+    }, [stopAudio]);
 
-        // Clean out raw LaTeX delimiters for phonetic speech
-        const cleanSpoken = text
+    /**
+     * Converts raw 16-bit PCM (24kHz, mono) base64 data to a Web Audio AudioBuffer.
+     * Gemini TTS outputs 24kHz mono PCM16.
+     */
+    const pcmBase64ToAudioBuffer = useCallback(async (base64: string, ctx: AudioContext): Promise<AudioBuffer> => {
+        const binaryStr = atob(base64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+        const samples = bytes.length / 2;
+        const buffer = ctx.createBuffer(1, samples, 24000);
+        const channelData = buffer.getChannelData(0);
+        const view = new DataView(bytes.buffer);
+        for (let i = 0; i < samples; i++) {
+            channelData[i] = view.getInt16(i * 2, true) / 32768.0;
+        }
+        return buffer;
+    }, []);
+
+    /**
+     * Browser SpeechSynthesis fallback when Gemini TTS is unavailable.
+     */
+    const browserFallbackSpeak = useCallback((text: string, onEndCallback?: () => void) => {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = speechRate;
+        utterance.pitch = 1.0;
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google'))) || voices.find(v => v.lang.startsWith('en'));
+        if (preferred) utterance.voice = preferred;
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => { setIsSpeaking(false); if (onEndCallback) onEndCallback(); };
+        utterance.onerror = () => setIsSpeaking(false);
+        setIsSpeaking(true);
+        window.speechSynthesis.speak(utterance);
+    }, [speechRate]);
+
+    /**
+     * Calls Gemini TTS API and plays audio via Web Audio API.
+     * Falls back to browser TTS on error or missing API key.
+     */
+    const speakText = useCallback(async (text: string, onEndCallback?: () => void) => {
+        if (isMuted || !text) return;
+        stopAudio();
+        setIsTtsLoading(true);
+
+        const cleanText = text
             .replace(/\$\$([\s\S]*?)\$\$/g, ' formula on the board ')
             .replace(/\$([^\$]+)\$/g, '$1')
             .replace(/[#*`_~]/g, '')
             .trim();
 
-        const utterance = new SpeechSynthesisUtterance(cleanSpoken);
-        utterance.rate = speechRate;
-        utterance.pitch = 1.0;
+        // Resolve API key the same way as the rest of the app
+        const usePersonalToken = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
+        const apiKey = usePersonalToken
+            ? userProfile!.personal_api_key!.trim()
+            : (appSettings?.gemini_api_key?.trim() || '');
 
-        // Prefer natural English voices
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('David')))) || voices.find(v => v.lang.startsWith('en'));
-        if (preferredVoice) utterance.voice = preferredVoice;
+        if (!apiKey) {
+            setIsTtsLoading(false);
+            browserFallbackSpeak(cleanText, onEndCallback);
+            return;
+        }
 
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => {
-            setIsSpeaking(false);
-            // After speaking finishes, automatically activate mic listening if available
-            startMicListening();
-        };
-        utterance.onerror = () => setIsSpeaking(false);
+        try {
+            const ttsClient = new GoogleGenAI({ apiKey });
+            const response = await ttsClient.models.generateContent({
+                model: 'gemini-2.5-flash-preview-tts',
+                contents: [{ role: 'user', parts: [{ text: cleanText }] }],
+                config: {
+                    responseModalities: ['AUDIO'] as any,
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: selectedVoice }
+                        }
+                    }
+                }
+            });
 
-        speechUtteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
-    }, [isMuted, speechRate]);
+            const inlineData = response?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+            if (!inlineData?.data) throw new Error('No audio data in Gemini TTS response');
 
-    // Stop Speech on unmount
-    useEffect(() => {
-        return () => {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
-            if (recognitionRef.current) {
-                try { recognitionRef.current.stop(); } catch (e) {}
-            }
-        };
-    }, []);
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') await ctx.resume();
 
-    // Generate Step from AI using the same API key as the rest of the app
+            const audioBuffer = await pcmBase64ToAudioBuffer(inlineData.data, ctx);
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.playbackRate.value = speechRate;
+            source.connect(ctx.destination);
+            source.onended = () => {
+                setIsSpeaking(false);
+                currentAudioSourceRef.current = null;
+                if (onEndCallback) onEndCallback();
+            };
+            currentAudioSourceRef.current = source;
+            setIsTtsLoading(false);
+            setIsSpeaking(true);
+            source.start(0);
+        } catch (err: any) {
+            console.warn('Gemini TTS failed, falling back to browser TTS:', err);
+            setIsTtsLoading(false);
+            browserFallbackSpeak(cleanText, onEndCallback);
+        }
+    }, [isMuted, speechRate, selectedVoice, userProfile, appSettings, stopAudio, getAudioContext, pcmBase64ToAudioBuffer, browserFallbackSpeak]);
+
+    // ─── AI Step Generation ───────────────────────────────────────────────────
+
     const fetchNextStep = useCallback(async (userReply?: string) => {
         if (!sessionData) return;
 
         setIsLoadingStep(true);
+        stopAudio();
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        setIsSpeaking(false);
         setIsSaved(false);
 
-        // Use the same client as the rest of the app (respects personal API key if set)
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) {
             addToast('AI service is not configured.', 'error');
@@ -167,7 +260,7 @@ Output valid JSON ONLY with this exact schema:
 
         try {
             const result = await aiClient.models.generateContent({
-                model: 'gemini-3.1-flash-lite',
+                model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
                 config: {
                     responseMimeType: 'application/json',
@@ -180,21 +273,20 @@ Output valid JSON ONLY with this exact schema:
 
             const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
             const parsed: BlackboardStep = JSON.parse(cleanJson);
-            
-            // Instantly clear old board and display new step
+
             setCurrentStep(parsed);
             setStepHistory(prev => [...prev, parsed]);
             stepCountRef.current += 1;
 
-            // Trigger voice explanation
-            speakText(parsed.spokenExplanation);
+            // Speak with Gemini TTS; auto-start mic after it finishes
+            await speakText(parsed.spokenExplanation, () => startMicListening());
         } catch (err: any) {
             console.error('Voice Tutor Error:', err);
             addToast('Failed to load next step. Please try again.', 'error');
         } finally {
             setIsLoadingStep(false);
         }
-    }, [sessionData, appSettings, userProfile, addToast, speakText]);
+    }, [sessionData, appSettings, userProfile, addToast, speakText, stopAudio]);
 
     // Initial step trigger
     useEffect(() => {
@@ -262,23 +354,26 @@ Output valid JSON ONLY with this exact schema:
 
     const toggleMute = () => {
         if (!isMuted) {
+            stopAudio();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-            setIsSpeaking(false);
             setIsMuted(true);
         } else {
             setIsMuted(false);
-            if (currentStep) {
-                speakText(currentStep.spokenExplanation);
-            }
+            if (currentStep) void speakText(currentStep.spokenExplanation);
         }
     };
 
     const handleSpeedChange = () => {
         const speeds = [1.0, 1.25, 1.5];
         const nextIdx = (speeds.indexOf(speechRate) + 1) % speeds.length;
-        const newRate = speeds[nextIdx];
-        setSpeechRate(newRate);
-        addToast(`Voice speed set to ${newRate}x`, 'info');
+        setSpeechRate(speeds[nextIdx]);
+        addToast(`Voice speed set to ${speeds[nextIdx]}x`, 'info');
+    };
+
+    const handleVoiceChange = () => {
+        const nextIdx = (GEMINI_TTS_VOICES.indexOf(selectedVoice) + 1) % GEMINI_TTS_VOICES.length;
+        setSelectedVoice(GEMINI_TTS_VOICES[nextIdx]);
+        addToast(`Voice: ${GEMINI_TTS_VOICES[nextIdx]}`, 'info');
     };
 
     const handleSaveFormula = () => {
@@ -307,12 +402,26 @@ Output valid JSON ONLY with this exact schema:
                     </div>
                 </div>
 
-                {/* Voice Status & Speed Controls */}
+                {/* Voice Status & Controls */}
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFFDFB] border border-[#D9CCBC] rounded-full text-xs font-semibold text-[#4A3E31] shadow-xs">
-                        <span className={`w-2 h-2 rounded-full ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
-                        <span className="hidden sm:inline">{isSpeaking ? 'Tutor Speaking...' : 'Ready'}</span>
+                        {isTtsLoading
+                            ? <span className="w-2 h-2 rounded-full bg-[#D4A373] animate-pulse" />
+                            : <span className={`w-2 h-2 rounded-full ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
+                        }
+                        <span className="hidden sm:inline">
+                            {isTtsLoading ? 'Generating voice...' : isSpeaking ? 'Tutor Speaking...' : 'Ready'}
+                        </span>
                     </div>
+
+                    <button
+                        onClick={handleVoiceChange}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-bold text-[#4A3E31] transition-colors cursor-pointer shadow-xs"
+                        title="Switch Gemini AI voice"
+                    >
+                        <i className="bi bi-person-voice text-xs"></i>
+                        <span className="hidden sm:inline">{selectedVoice}</span>
+                    </button>
 
                     <button
                         onClick={handleSpeedChange}
@@ -393,6 +502,11 @@ Output valid JSON ONLY with this exact schema:
                             <i className="bi bi-mic-fill"></i>
                             <span>"{spokenTextBuffer}..."</span>
                         </p>
+                    ) : isTtsLoading ? (
+                        <p className="text-xs text-[#7A6B5C] font-medium flex items-center gap-2">
+                            <i className="bi bi-stars text-sm text-[#8B5A2B] animate-pulse"></i>
+                            Generating natural voice with Gemini AI...
+                        </p>
                     ) : currentStep && isSpeaking ? (
                         <p className="text-xs sm:text-sm text-[#4A3E31] font-medium italic line-clamp-2 flex items-center gap-2">
                             <i className="bi bi-volume-up text-sm text-[#8B5A2B]"></i>
@@ -412,7 +526,7 @@ Output valid JSON ONLY with this exact schema:
                             <button
                                 key={index}
                                 onClick={() => void fetchNextStep(suggestion)}
-                                disabled={isLoadingStep}
+                                disabled={isLoadingStep || isTtsLoading}
                                 className="px-4 py-3 bg-[#FFFDFB] hover:bg-[#F5EDE3] border-2 border-[#E5DACD] hover:border-[#D5C3AE] active:border-[#8B5A2B] text-[#2C241D] rounded-2xl text-xs sm:text-sm font-semibold text-left transition-all active:scale-[0.98] shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-2.5"
                             >
                                 <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#EFE5D8] border border-[#DFD1C0] text-[10px] font-bold text-[#8B5A2B] shrink-0">
@@ -424,13 +538,13 @@ Output valid JSON ONLY with this exact schema:
                     </div>
                 )}
 
-                {/* Bottom Milk Voice & Mic Controls Bar */}
+                {/* Bottom Voice & Mic Controls Bar */}
                 <div className="flex items-center justify-between bg-[#F4ECE2] border border-[#E5DACD] rounded-2xl px-5 py-3 shadow-sm">
-                    {/* Replay audio button */}
+                    {/* Replay */}
                     <button
-                        onClick={() => currentStep && speakText(currentStep.spokenExplanation)}
-                        disabled={isLoadingStep}
-                        className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3E] hover:text-[#2C241D] transition-colors cursor-pointer px-2.5 py-1.5 rounded-xl hover:bg-[#EBE0D2]"
+                        onClick={() => currentStep && void speakText(currentStep.spokenExplanation)}
+                        disabled={isLoadingStep || isTtsLoading}
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3E] hover:text-[#2C241D] transition-colors cursor-pointer px-2.5 py-1.5 rounded-xl hover:bg-[#EBE0D2] disabled:opacity-50"
                         title="Replay explanation"
                     >
                         <i className="bi bi-arrow-counterclockwise text-sm"></i>
@@ -440,8 +554,8 @@ Output valid JSON ONLY with this exact schema:
                     {/* Main Mic Button */}
                     <button
                         onClick={toggleMic}
-                        disabled={isLoadingStep}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 ${
+                        disabled={isLoadingStep || isTtsLoading || isSpeaking}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 ${
                             isMicListening
                                 ? 'bg-[#8B5A2B] text-white animate-pulse shadow-md'
                                 : 'bg-[#FFFDFB] hover:bg-[#EDE1D1] text-[#3D3328] border-2 border-[#D9CCBC]'
@@ -451,7 +565,7 @@ Output valid JSON ONLY with this exact schema:
                         <span>{isMicListening ? 'Listening...' : 'Tap to Speak'}</span>
                     </button>
 
-                    {/* Mute toggle button */}
+                    {/* Mute */}
                     <button
                         onClick={toggleMute}
                         className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3E] hover:text-[#2C241D] transition-colors cursor-pointer px-2.5 py-1.5 rounded-xl hover:bg-[#EBE0D2]"
