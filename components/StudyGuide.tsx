@@ -2132,11 +2132,6 @@ Student: "${tempInput}"
     );
 };
 
-export const StudyGuide: React.FC<StudyGuideProps> = (props) => (
-    <ErrorBoundary>
-        <StudyGuideContent {...props} />
-    </ErrorBoundary>
-);
 
 const CourseHeader: React.FC<{
     course: Course,
@@ -3111,5 +3106,10 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
             </div>
         </div>
     );
-};
+export const StudyGuide: React.FC<StudyGuideProps> = (props) => (
+    <ErrorBoundary>
+        <StudyGuideContent {...props} />
+    </ErrorBoundary>
+);
 
+export default StudyGuide;

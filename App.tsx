@@ -356,16 +356,23 @@ const normalizeRouteSegment = (segment: string): string => (segment || '').toLow
 
 const ALLOWED_ROUTE_ITEMS = new Set([
     'dashboard',
-    ...navigationItems.map(item => item.id),
+    'leaderboard',
+    'study_guide',
+    'visual_solver',
+    'chat',
     'messenger',
+    'exam',
+    'history',
+    'feedback',
     'settings',
     'user_profile',
     'billing',
     'help',
     'admin',
     'study_partners',
-    'voice_tutorial'
-].map(normalizeRouteSegment));
+    'voice_tutorial',
+    'notifications'
+]);
 
 const resolveActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
