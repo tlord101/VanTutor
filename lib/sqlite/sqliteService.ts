@@ -23,11 +23,12 @@ async function setupWebJeepSqlite(): Promise<void> {
     let jeepSqliteEl = document.querySelector('jeep-sqlite');
     if (!jeepSqliteEl) {
       jeepSqliteEl = document.createElement('jeep-sqlite');
+      jeepSqliteEl.setAttribute('wasmPath', '/assets');
       document.body.appendChild(jeepSqliteEl);
       await customElements.whenDefined('jeep-sqlite');
     }
   } catch (err) {
-    console.warn('[SQLite] jeep-sqlite initialization warning (may be running in test or node):', err);
+    console.warn('[SQLite] jeep-sqlite initialization warning (may be running in test or web fallback):', err);
   }
 }
 
@@ -210,7 +211,9 @@ export async function getDatabaseConnection(): Promise<SQLiteDBConnection | null
       console.log('[SQLite] Local database initialized successfully.');
       return dbConnection;
     } catch (error) {
-      console.error('[SQLite] Failed to initialize SQLite database:', error);
+      console.warn('[SQLite] SQLite unavailable or failed on web, activating fallback storage:', error);
+      dbConnection = null;
+      sqliteConnection = null;
       return null;
     } finally {
       isInitializing = false;
@@ -242,10 +245,13 @@ export async function runQuery<T = any>(sql: string, params: any[] = []): Promis
     if (!db) {
       return runFallbackQuery<T>(sql, params);
     }
+    const isConn = (await db.isDBOpen())?.result;
+    if (!isConn) {
+      return runFallbackQuery<T>(sql, params);
+    }
     const res = await db.query(sql, params);
     return (res.values as T[]) || [];
   } catch (error) {
-    console.error(`[SQLite] Query error (${sql}):`, error);
     return runFallbackQuery<T>(sql, params);
   }
 }
@@ -259,17 +265,21 @@ export async function runStatement(sql: string, params: any[] = []): Promise<{ c
     if (!db) {
       return runFallbackStatement(sql, params);
     }
+    const isConn = (await db.isDBOpen())?.result;
+    if (!isConn) {
+      return runFallbackStatement(sql, params);
+    }
     const res = await db.run(sql, params);
     await persistWebStore();
     return {
       changes: res.changes?.changes || 0,
-      lastId: res.changes?.lastId,
+      lastId: res.changes?.lastId || 0,
     };
   } catch (error) {
-    console.error(`[SQLite] Statement execution error (${sql}):`, error);
     return runFallbackStatement(sql, params);
   }
 }
+
 
 /**
  * Execute batch statements in transaction.
