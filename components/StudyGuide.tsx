@@ -3106,6 +3106,8 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
             </div>
         </div>
     );
+};
+
 export const StudyGuide: React.FC<StudyGuideProps> = (props) => (
     <ErrorBoundary>
         <StudyGuideContent {...props} />
@@ -3113,3 +3115,4 @@ export const StudyGuide: React.FC<StudyGuideProps> = (props) => (
 );
 
 export default StudyGuide;
+
