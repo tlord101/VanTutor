@@ -25,11 +25,13 @@ interface BlackboardStep {
 
 interface VoiceTutorialPageProps {
     userProfile?: UserProfile | null;
+    appSettings?: any;
     onNavigate?: (tab: string) => void;
 }
 
-export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfile, onNavigate }) => {
-    const { appSettings } = useAppSettings();
+export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfile, appSettings: propAppSettings, onNavigate }) => {
+    const { settings: hookAppSettings } = useAppSettings();
+    const appSettings = propAppSettings || hookAppSettings;
     const { addToast } = useToast();
 
     // Session Data
@@ -122,7 +124,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
         };
     }, []);
 
-    // Generate Step from AI using the App's Default Gemini API Key
+    // Generate Step from AI using the same API key as the rest of the app
     const fetchNextStep = useCallback(async (userReply?: string) => {
         if (!sessionData) return;
 
@@ -131,10 +133,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
         setIsSpeaking(false);
         setIsSaved(false);
 
-        // Always pass null for userProfile so it exclusively uses appSettings.gemini_api_key (app's default key)
-        const aiClient = createAvelutAI(appSettings, null);
+        // Use the same client as the rest of the app (respects personal API key if set)
+        const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) {
-            addToast('AI service is not configured with default key.', 'error');
+            addToast('AI service is not configured.', 'error');
             setIsLoadingStep(false);
             return;
         }
@@ -192,7 +194,7 @@ Output valid JSON ONLY with this exact schema:
         } finally {
             setIsLoadingStep(false);
         }
-    }, [sessionData, appSettings, addToast, speakText]);
+    }, [sessionData, appSettings, userProfile, addToast, speakText]);
 
     // Initial step trigger
     useEffect(() => {

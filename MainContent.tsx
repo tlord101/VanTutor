@@ -116,7 +116,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'study_guide':
                         return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} />;
                     case 'voice_tutorial':
-                        return <VoiceTutorialPage userProfile={userProfile} onNavigate={onNavigate} />;
+                        return <VoiceTutorialPage userProfile={userProfile} appSettings={appSettings} onNavigate={onNavigate} />;
                     case 'leaderboard':
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':

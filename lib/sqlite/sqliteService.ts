@@ -175,7 +175,8 @@ export async function getDatabaseConnection(): Promise<SQLiteDBConnection | null
       const isNative = Capacitor.isNativePlatform();
 
       if (!isNative) {
-        await setupWebJeepSqlite();
+        // In web browser environments, use the built-in fast fallback storage layer to prevent WebAssembly LinkErrors
+        return null;
       }
 
       sqliteConnection = new SQLiteConnection(CapacitorSQLite);
