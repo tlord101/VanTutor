@@ -35,6 +35,7 @@ const StudyPartners = lazy(() => import('./components/StudyPartners').then(modul
 const PublicProfile = lazy(() => import('./components/PublicProfile').then(module => ({ default: module.PublicProfile })));
 const Notifications = lazy(() => import('./components/Notifications').then(module => ({ default: module.Notifications })));
 const Feedback = lazy(() => import('./components/Feedback').then(module => ({ default: module.Feedback })));
+const VoiceTutorialPage = lazy(() => import('./components/VoiceTutorialPage').then(module => ({ default: module.VoiceTutorialPage })));
 
 // Per-route skeleton fallbacks — each matches the shape of its real UI
 const skeletonMap: Record<string, React.ReactNode> = {
@@ -112,15 +113,26 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'dashboard':
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'study_guide':
-                        return <StudyGuide userProfile={userProfile} userProgress={userProgress} />;
+                        return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} />;
+                    case 'voice_tutorial':
+                        return <VoiceTutorialPage userProfile={userProfile} onNavigate={onNavigate} />;
                     case 'leaderboard':
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':
                         return (
                                 <VisualSolver
                                     userProfile={userProfile}
-                                    onStartChat={(prompt, tutorialText) => {
-                                        writeCachedJson('avelut_pending_tutorial_prompt', { prompt, tutorialText });
+                                    onStartChat={(payload, tutorialText) => {
+                                        if (typeof payload === 'object' && payload !== null) {
+                                            writeCachedJson('avelut_pending_tutorial_prompt', payload);
+                                        } else {
+                                            writeCachedJson('avelut_pending_tutorial_prompt', {
+                                                id: 'visual_solver_detailed_tutorial',
+                                                source: 'visual_solver',
+                                                prompt: payload,
+                                                tutorialText
+                                            });
+                                        }
                                         onNavigate?.('chat');
                                     }}
                                     triggerScanRef={triggerScanRef}

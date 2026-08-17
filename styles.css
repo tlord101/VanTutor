@@ -500,4 +500,15 @@
   .backface-hidden {
     backface-visibility: hidden;
   }
+  .font-handwriting {
+    font-family: 'Kalam', 'Caveat', 'Patrick Hand', cursive, sans-serif;
+  }
 }
+
+/* Blackboard Canvas Texture */
+.blackboard-canvas {
+  background-color: #111827;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+

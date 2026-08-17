@@ -195,9 +195,10 @@ interface TutorialDisplayProps {
     tutorialText: string;
     onClose: () => void;
     userProfile: UserProfile;
+    onStartChat?: (payload: VisualSolverChatPayload | string, tutorialText?: string) => void;
 }
 
-const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile }) => {
+const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile, onStartChat }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollContentRef = useRef<HTMLDivElement>(null);
     const sheetRef = useRef<HTMLDivElement>(null);
@@ -642,6 +643,34 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                         </div>
 
                         <div className="mt-4 flex flex-col gap-2.5">
+                            {/* Ask AI Tutor in Chat */}
+                            {onStartChat && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowActionModal(false);
+                                        onStartChat({
+                                            id: 'visual_solver_detailed_tutorial',
+                                            source: 'visual_solver',
+                                            prompt: 'Please teach me how to solve this scanned problem in detail, bit by bit.',
+                                            image: scannedImage,
+                                            tutorialText
+                                        });
+                                    }}
+                                    className="flex items-center gap-3.5 rounded-2xl border border-sky-100 dark:border-sky-950/60 bg-gradient-to-r from-sky-50/70 to-indigo-50/70 dark:from-sky-950/40 dark:to-indigo-950/40 p-3.5 text-left transition-all hover:from-sky-100 dark:hover:from-sky-900/50 active:scale-[0.98]"
+                                >
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-600/30">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold text-sky-950 dark:text-sky-200">Teach me in AI Chat</h4>
+                                        <p className="text-xs text-sky-700 dark:text-sky-400">Step-by-step interactive tutor lesson</p>
+                                    </div>
+                                </button>
+                            )}
+
                             {/* Forward */}
                             <button
                                 type="button"
@@ -766,9 +795,18 @@ interface CropBox {
 }
 const MIN_CROP_SIZE = 0.2; // 20%
 
+export interface VisualSolverChatPayload {
+    id: string;
+    source: string;
+    prompt: string;
+    image?: string;
+    customPrompt?: string;
+    tutorialText?: string;
+}
+
 interface VisualSolverProps {
   userProfile: UserProfile;
-  onStartChat: (image: string, tutorialText: string) => void;
+  onStartChat?: (payload: VisualSolverChatPayload | string, tutorialText?: string) => void;
   triggerScanRef?: React.MutableRefObject<(() => void) | null>;
 }
 
@@ -908,7 +946,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         }
     }, [cameraState]);
 
-    const handleAnalyze = useCallback(async (imageOverride?: string) => {
+    const handleDetailedTutorial = useCallback((imageOverride?: string) => {
         const targetImage = imageOverride || scannedImage;
         if (!targetImage) return;
 
@@ -924,101 +962,22 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
             return;
         }
 
-        setCameraState('analyzing');
-        setError('');
-        
-        try {
-            const result = await attemptApiCall(async () => {
-                const { dataUrl: payloadDataUrl, mimeType } = await readImageAsDataUrl(targetImage);
-                const base64Data = payloadDataUrl.split(',')[1];
-                if (!base64Data) throw new Error("Could not extract image data.");
+        const userPrompt = customPrompt.trim()
+            ? `Please teach me how to solve this scanned problem step by step: ${customPrompt.trim()}`
+            : 'Please teach me how to solve this scanned problem in detail, bit by bit.';
 
-                let retrievedContext = "";
-                if (customPrompt) {
-                    try {
-                        const { searchPinecone } = await import('../utils/pinecone');
-                        const searchResult = await searchPinecone(customPrompt, undefined, 3, appSettings);
-                        if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
-                            retrievedContext = "\n\nRELEVANT TEXTBOOK EXCERPTS:\n" + searchResult.results.map((r: any) => r.text).join('\n\n');
-                        }
-                    } catch (err) {
-                        console.warn("RAG retrieval failed:", err);
-                    }
-                }
+        const payload: VisualSolverChatPayload = {
+            id: 'visual_solver_detailed_tutorial',
+            source: 'visual_solver',
+            prompt: userPrompt,
+            image: targetImage,
+            customPrompt: customPrompt || '',
+        };
 
-                const basePrompt = `You are an expert AI tutor and mathematician.
-Solve the problem shown in the image with maximum clarity, structured step-by-step reasoning, and clean LaTeX math notation.
-
-FORMATTING GUIDELINES:
-1. Break your explanation into clear, horizontal, readable paragraphs.
-2. Put every major mathematical derivation, equation, and calculation on its own dedicated block line using LaTeX block syntax: $$ ... $$.
-3. For multi-step calculations, display each transformation on a new line rather than chaining them into a long crowded equation.
-4. Bold and highlight key results, concepts, and formulas.
-5. Provide a clear final answer section at the end.
-
-STRUCTURE YOUR OUTPUT CLEARLY AS FOLLOWS:
-# Problem Breakdown
-## 📋 Summary
-[Concise overview of what is given and what needs to be solved]
-
-## 🔢 Step-by-Step Solution
-### 🔹 Step 1: [Step Title]
-[Clear explanation of the step]
-$$ [Formula / Calculation] $$
-
-### 🔹 Step 2: [Step Title]
-[Clear explanation of the step]
-$$ [Formula / Calculation] $$
-
-## ✅ Final Answer
-> **Answer:** [Final concise result]`;
-
-                const customInstruction = customPrompt ? `\n\nUser instructions: ${customPrompt}` : '';
-                const promptText = `${basePrompt}${customInstruction}${retrievedContext}`;
-
-                if (!aiClient) throw new Error('AI client not available');
-                const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
-                    config: {
-                        thinkingConfig: {
-                            thinkingLevel: 'HIGH',
-                        },
-                        temperature: 0.7,
-                    },
-                    contents: [{ role: 'user', parts: [
-                        { inlineData: { data: base64Data, mimeType } },
-                        { text: promptText }
-                    ]}],
-                });
-
-                const finalResult = getResponseText(aiResult);
-                if (!finalResult) throw new Error("AI returned an empty analysis.");
-
-                setAnalysisResult(finalResult);
-
-                onStartChat?.(
-                    `Teach me this scanned problem step by step in a friendly tutor style. Use simple language, explain the concept clearly, and include a small visual hint if useful.\n\nScanned problem context:\n${finalResult}`,
-                    finalResult
-                );
-
-                // Deduct credits as soon as we have a result
-                deductAICredits(userProfile.uid, cost, 'Visual Solver - Detailed', appSettings).catch(console.error);
-
-                // Allow UI to transition immediately after we have the data
-                setCameraState('showingTutorial');
-                return finalResult;
-            });
-
-            if (!result.success) {
-                addToast(result.message || "Failed to analyze the image. Please try again.", 'error');
-                setCameraState('preview');
-            }
-        } catch (err: any) {
-            console.error("Analysis failed:", err);
-            setError(err.message || "Failed to connect to the solver.");
-            setCameraState('preview');
+        if (onStartChat) {
+            onStartChat(payload);
         }
-    }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast, onStartChat]);
+    }, [scannedImage, customPrompt, userProfile, appSettings, onStartChat]);
 
     const handleQuickAnswer = useCallback(async (imageOverride?: string) => {
         const targetImage = imageOverride || scannedImage;
@@ -1188,7 +1147,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
             const image = e.detail?.image;
             if (image) {
                 setScannedImage(image);
-                void handleAnalyze(image);
+                void handleSolution(image);
             }
         };
 
@@ -1198,7 +1157,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
             cleanupCamera();
             window.removeEventListener('visual_solver_trigger_scan', handleDirectTriggerScan);
         };
-    }, [initializeCamera, cleanupCamera, addToast, handleAnalyze]);
+    }, [initializeCamera, cleanupCamera, addToast, handleSolution]);
 
     const handleScan = useCallback(() => {
         const video = videoRef.current;
@@ -1426,7 +1385,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                                             />
                                         </div>
                                         <button 
-                                            onClick={() => handleAnalyze()} 
+                                            onClick={() => handleDetailedTutorial()} 
                                             className="w-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-extrabold py-4 px-6 rounded-2xl hover:from-sky-500 hover:to-indigo-500 transition-all text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-xl shadow-sky-600/30 active:scale-95"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1467,6 +1426,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                         tutorialText={analysisResult}
                         onClose={handleRetake}
                         userProfile={userProfile}
+                        onStartChat={onStartChat}
                     />
                 );
 

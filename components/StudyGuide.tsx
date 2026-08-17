@@ -263,6 +263,7 @@ interface LearningInterfaceProps {
     course: Course;
     onClose: () => void;
     initialTopic?: { topic_id?: string; topic_context?: string; topic_name?: string } | null;
+    onNavigate?: (tab: string) => void;
 }
 
 const INVIDIOUS_INSTANCES = [
@@ -418,7 +419,7 @@ const InlineMathText: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, course, onClose, initialTopic }) => {
+const LearningInterface: React.FC<LearningInterfaceProps> = ({ userProfile, course, onClose, initialTopic, onNavigate }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
     const [input, setInput] = useState('');
@@ -1469,6 +1470,30 @@ Student: "${tempInput}"
                     )}
                     <button
                         onClick={() => {
+                            writeCachedJson('avelut_active_voice_tutorial', {
+                                course,
+                                topic: initialTopic || {
+                                    topic_id: selectedTopicId || 'core_concepts',
+                                    topic_name: selectedTopicName || 'Core Concepts & Principles',
+                                    topic_context: selectedTopicContext || ''
+                                },
+                                syllabusContext: textbookContext || ''
+                            });
+                            onNavigate?.('voice_tutorial');
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none shadow-sm"
+                        title="Start Interactive Voice Tutorial"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" x2="12" y1="19" y2="22"/>
+                        </svg>
+                        <span>Voice Tutorial</span>
+                    </button>
+
+                    <button
+                        onClick={() => {
                             setIsTutorialsOpen(true);
                             void fetchTutorials();
                         }}
@@ -2200,6 +2225,7 @@ const formatDuration = (seconds: number): string => {
 interface StudyGuideProps {
     userProfile: UserProfile;
     userProgress: UserProgress;
+    onNavigate?: (tab: string) => void;
 }
 // Error boundary to catch render-time exceptions and show a helpful message
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any; info?: any }> {
@@ -2240,7 +2266,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     }
 }
 
-const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgress }) => {
+const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onNavigate }) => {
     const [courses, setCourses] = useState<Course[]>(() => {
         const key = `avelut_courses_${userProfile?.uid || 'anon'}`;
         return readCachedJson<Course[]>(key, []);
@@ -2544,6 +2570,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 course={selectedCourse}
                 initialTopic={topicToOpen}
                 onClose={() => { setSelectedCourse(null); setTopicToOpen(null); }}
+                onNavigate={onNavigate}
             />
         );
     }
@@ -2992,13 +3019,13 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
     };
 
     return (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4 md:p-8 animate-fade-in">
+        <div className="fixed inset-0 bg-black z-50 animate-fade-in">
             <div
                 ref={playerContainerRef}
-                className="relative w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col group/player aspect-video"
+                className="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col group/player"
             >
                 {/* Header Overlay */}
-                <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 inset-x-0 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300">
+                <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 inset-x-0 z-20 opacity-100 transition-opacity duration-300">
                     <span className="text-white text-sm font-black tracking-wide truncate pr-4">{video.title}</span>
                     <button
                         onClick={handleClose}
@@ -3027,7 +3054,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ video, onClose })
                 </div>
 
                 {/* Custom Controls Panel */}
-                <div className="absolute bottom-0 inset-x-0 p-4 md:p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-3 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 select-none">
+                <div className="absolute bottom-0 inset-x-0 p-4 md:p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-3 z-20 opacity-100 group-hover/player:opacity-100 transition-opacity duration-300 select-none">
                     {/* Time Progress Line & Seek Slider */}
                     <div className="flex items-center gap-3 w-full">
                         <span className="text-xs font-mono text-slate-300">{formatTime(currentTime)}</span>

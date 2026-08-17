@@ -76,6 +76,28 @@ const base64ToBlob = (base64: string, mimeType: string): Blob => {
   return new Blob([byteArray], { type: mimeType });
 };
 
+const dataUrlToFile = (dataUrl: string, filename = 'scanned_problem.jpg'): File => {
+  if (!dataUrl.includes(',')) {
+    const byteString = atob(dataUrl);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new File([ab], filename, { type: 'image/jpeg' });
+  }
+  const arr = dataUrl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const byteString = atob(arr[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new File([ab], filename, { type: mime });
+};
+
 const createUniqueId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -596,9 +618,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   }, [activeHistoryId, history, messages.length]);
 
   const preparePendingPrompt = useMemo(() => {
-    const stored = readCachedJson<{ prompt: string; tutorialText?: string } | null>('avelut_pending_tutorial_prompt', null);
+    const stored = readCachedJson<{ id?: string; source?: string; prompt: string; image?: string; customPrompt?: string; tutorialText?: string } | null>('avelut_pending_tutorial_prompt', null);
     if (!stored) return null;
-    return typeof stored?.prompt === 'string' ? stored.prompt : null;
+    return stored;
   }, []);
 
   useEffect(() => {
@@ -608,10 +630,36 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     setMessages([]);
     setInputValue('');
     clearAttachment();
-    setStatusText('Opening a fresh tutor chat...');
+    setStatusText('Opening AI tutor for your problem...');
     setInputState(1);
+
+    const payload = preparePendingPrompt;
+    const promptText = typeof payload === 'string' ? payload : (payload.prompt || 'Teach me this problem step by step');
+    const imageUri = typeof payload === 'object' ? payload.image : undefined;
+    const isTutorial = typeof payload === 'object' && (payload.id === 'visual_solver_detailed_tutorial' || payload.source === 'visual_solver');
+
     const timer = window.setTimeout(() => {
-      void handleSend(preparePendingPrompt);
+      let filesToSend: File[] = [];
+      if (imageUri) {
+        try {
+          const file = dataUrlToFile(imageUri, 'scanned_problem.jpg');
+          filesToSend = [file];
+        } catch (err) {
+          console.error('Failed to convert scanned image to file:', err);
+        }
+      }
+
+      void handleSend(
+        promptText,
+        filesToSend,
+        {
+          id: typeof payload === 'object' ? (payload.id || 'visual_solver_detailed_tutorial') : 'visual_solver_detailed_tutorial',
+          source: typeof payload === 'object' ? (payload.source || 'visual_solver') : 'visual_solver',
+          isDetailedTutorial: isTutorial,
+          customPrompt: typeof payload === 'object' ? payload.customPrompt : undefined,
+          tutorialText: typeof payload === 'object' ? payload.tutorialText : undefined,
+        }
+      );
     }, 250);
     return () => window.clearTimeout(timer);
   }, [preparePendingPrompt]);
@@ -817,9 +865,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     void handleGenerateIllustration(message.text, message.id);
   };
 
-  const handleSend = async (messageText?: string) => {
+  const handleSend = async (
+    messageText?: string,
+    overrideFiles?: File[],
+    additionalContext?: { id?: string; source?: string; isDetailedTutorial?: boolean; customPrompt?: string; tutorialText?: string }
+  ) => {
     const prompt = (messageText || inputValue).trim();
-    const filesToSend = messageText ? [] : [...attachments];
+    const filesToSend = overrideFiles !== undefined ? overrideFiles : (messageText ? [] : [...attachments]);
     if ((!prompt && filesToSend.length === 0) || isSending) return;
 
     // Check message limits
@@ -1052,6 +1104,22 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           }
         }
 
+        const isTutorialMode = Boolean(additionalContext?.isDetailedTutorial || additionalContext?.id === 'visual_solver_detailed_tutorial');
+
+        const tutorialInstructions = isTutorialMode ? [
+          '*** SPECIAL MODE: VISUAL SOLVER DETAILED TUTORIAL (ID: visual_solver_detailed_tutorial) ***',
+          'The student scanned a problem image in Visual Solver and pressed "Detailed Tutorial".',
+          'YOUR PRIMARY OBJECTIVE: Act as an engaging, friendly 1-on-1 personal AI tutor and teach the student how to solve this exact problem IN DETAIL, STEP BY STEP, BIT BY BIT.',
+          'CRITICAL TUTORING RULES:',
+          '1. NEVER dump the whole solution or entire derivation all at once. The student wants to understand each step progressively.',
+          '2. In this FIRST response:',
+          '   - Warmly greet the student and state what is given in the problem and what goal we are solving for.',
+          '   - Teach ONLY Step 1 in full detail: write out the core formula/concept using clean LaTeX formatting ($$...$$) and explain the logic clearly in simple, friendly terms.',
+          '   - Conclude by asking the student a simple question or check-in to confirm they understand Step 1 before proceeding to Step 2.',
+          '3. In subsequent user replies, praise their progress and guide them through the next step bit by bit until the full solution is mastered.',
+          '4. Always maintain a warm, patient, and encouraging demeanor.',
+        ].join('\n') : '';
+
         const responseStream = await ai.models.generateContentStream({
           model: geminiModel || 'gemini-3.1-flash-lite',
           contents: [
@@ -1070,6 +1138,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     'If the concept would benefit from a diagram, graph, process map, formula picture, or simple visual example, add a short cue near the end like [VisualHint: Double tap this message to view a visual explanation].',
                     'At the very end of your response, attach exactly 2 to 3 short, context-specific suggestion pills to continue the conversation. Format them on a single line at the very end of the response as: [Suggestions: Option 1 | Option 2 | Option 3]',
                     'If the question needs calculations, show the steps clearly and neatly, praising their progress.',
+                    tutorialInstructions,
                     courseContext ? `COURSE CONTEXT:\n${courseContext}` : '',
                     retrievedContext,
                     storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
