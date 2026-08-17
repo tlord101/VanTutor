@@ -397,7 +397,7 @@ YOUR TASK FOR THIS PHASE:
 ${phaseInstructions[nextPhase]}
 
 STRICT RULES:
-1. boardLines: array of PLAIN TEXT lines (NO markdown, no LaTeX in board lines). Max 5 lines. Short, punchy, like a real blackboard.
+1. boardLines: array of strings. Max 5 lines. Short and punchy like a real blackboard. You MAY use LaTeX ($$...$$  for block formulas, $...$ for inline math within a line). For plain concept lines, write clear plain English.
 2. variables: ONLY include if there is a formula being taught. List each variable's symbol and plain-English meaning.
 3. spokenExplanation: Conversational, warm, spoken English only. NO LaTeX symbols. 2–4 sentences max. Always end with a question.
 4. suggestions: Exactly 3 realistic student responses. Last suggestion should always be "Can you explain that again?"
@@ -621,36 +621,52 @@ OUTPUT VALID JSON ONLY — NO explanation, NO markdown fences:
                         </div>
                     )}
 
-                    {/* Board lines — streamed in one at a time */}
+                    {/* Board lines — streamed in one at a time, all rendered with KaTeX */}
                     {!isLoading && visibleBoardLines.length > 0 ? (
                         <div className="space-y-2.5">
                             {visibleBoardLines.map((line, i) => {
-                                const isVariableLine = line.trimStart().startsWith('') && line.includes('→');
-                                const isFormula = line.startsWith('$$') || line.startsWith('\\');
+                                const isVariableLine = line.includes('→');
+                                const isBlockFormula = line.trim().startsWith('$$');
                                 return (
                                     <div
                                         key={`${i}-${line.slice(0, 20)}`}
                                         className="flex items-start gap-2 animate-fade-in"
-                                        style={{ animationDelay: '0ms' }}
                                     >
-                                        {!isVariableLine && !isFormula && (
-                                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#8B5A2B] shrink-0 opacity-70" />
+                                        {/* Bullet dot — skip for block formulas and variable lines */}
+                                        {!isVariableLine && !isBlockFormula && (
+                                            <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#8B5A2B] shrink-0 opacity-70" />
                                         )}
-                                        {isFormula ? (
-                                            <div className="font-handwriting text-2xl sm:text-3xl text-[#221B14] leading-relaxed w-full">
+
+                                        {isVariableLine ? (
+                                            // Variable breakdown: "F → Force in Newtons" — mono font
+                                            <div className="font-mono text-base sm:text-lg text-[#5A4020] leading-snug pl-4 w-full">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                                    rehypePlugins={[rehypeKatex]}
+                                                    components={{
+                                                        p: ({ node, ...props }) => <span {...props} />,
+                                                    }}
+                                                >{line.trim()}</ReactMarkdown>
+                                            </div>
+                                        ) : isBlockFormula ? (
+                                            // Block formula — large centered KaTeX
+                                            <div className="w-full text-center text-[#221B14] py-1 overflow-x-auto">
                                                 <ReactMarkdown
                                                     remarkPlugins={[remarkGfm, remarkMath]}
                                                     rehypePlugins={[rehypeKatex]}
                                                 >{line}</ReactMarkdown>
                                             </div>
-                                        ) : isVariableLine ? (
-                                            <p className="font-mono text-base sm:text-lg text-[#5A4020] leading-snug pl-4">
-                                                {line.trim()}
-                                            </p>
                                         ) : (
-                                            <p className="font-handwriting text-xl sm:text-2xl text-[#2A1F14] leading-snug tracking-wide">
-                                                {line}
-                                            </p>
+                                            // Regular line — handwriting font, with inline math support
+                                            <div className="font-handwriting text-xl sm:text-2xl text-[#2A1F14] leading-snug tracking-wide w-full">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                                    rehypePlugins={[rehypeKatex]}
+                                                    components={{
+                                                        p: ({ node, ...props }) => <span {...props} />,
+                                                    }}
+                                                >{line}</ReactMarkdown>
+                                            </div>
                                         )}
                                     </div>
                                 );
