@@ -512,3 +512,11 @@
   background-size: 24px 24px;
 }
 
+/* Milk Canvas Texture */
+.milk-canvas {
+  background-color: #FFFDF9;
+  background-image: radial-gradient(rgba(140, 120, 100, 0.08) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+

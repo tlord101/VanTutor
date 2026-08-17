@@ -8,7 +8,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Volume2, VolumeX, Mic, MicOff, RotateCcw, ArrowLeft, Bookmark, CheckCircle2 } from 'lucide-react';
 
 interface VoiceTutorialSessionData {
     course: Course;
@@ -25,7 +24,7 @@ interface BlackboardStep {
 }
 
 interface VoiceTutorialPageProps {
-    userProfile: UserProfile;
+    userProfile?: UserProfile | null;
     onNavigate?: (tab: string) => void;
 }
 
@@ -62,7 +61,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
                 course: {
                     course_id: 'general_tutorial',
                     course_name: 'Academic Tutorial',
-                    level: userProfile.level || 'University',
+                    level: userProfile?.level || 'University',
                     topics: []
                 },
                 topic: {
@@ -72,7 +71,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
                 }
             });
         }
-    }, [userProfile.level]);
+    }, [userProfile?.level]);
 
     // Speech Synthesis helper
     const speakText = useCallback((text: string) => {
@@ -123,7 +122,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
         };
     }, []);
 
-    // Generate Step from AI
+    // Generate Step from AI using the App's Default Gemini API Key
     const fetchNextStep = useCallback(async (userReply?: string) => {
         if (!sessionData) return;
 
@@ -132,9 +131,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
         setIsSpeaking(false);
         setIsSaved(false);
 
-        const aiClient = createAvelutAI(appSettings);
+        // Always pass null for userProfile so it exclusively uses appSettings.gemini_api_key (app's default key)
+        const aiClient = createAvelutAI(appSettings, null);
         if (!aiClient) {
-            addToast('AI service is not configured.', 'error');
+            addToast('AI service is not configured with default key.', 'error');
             setIsLoadingStep(false);
             return;
         }
@@ -285,93 +285,95 @@ Output valid JSON ONLY with this exact schema:
     };
 
     return (
-        <div className="flex flex-col flex-1 h-full w-full bg-slate-950 text-slate-100 overflow-hidden select-none">
-            {/* Top Dedicated Header */}
-            <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md z-30">
+        <div className="flex flex-col flex-1 h-full w-full bg-[#FAF7F2] text-[#2C241D] overflow-hidden select-none">
+            {/* Top Dedicated Milk Header */}
+            <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-[#E5DACD] bg-[#F4ECE2]/95 backdrop-blur-md z-30 shadow-xs">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => onNavigate ? onNavigate('study_guide') : window.history.back()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs font-bold active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-[#4A3E31] hover:text-[#2C241D] transition-all text-xs font-bold active:scale-95 cursor-pointer shadow-xs"
                         title="Back to Study Guide"
                     >
-                        <ArrowLeft className="w-4 h-4" />
+                        <i className="bi bi-arrow-left text-sm"></i>
                         <span className="hidden sm:inline">Back to Study Guide</span>
                     </button>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black tracking-widest uppercase text-emerald-400">Voice Tutorial</span>
-                        <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-[180px] sm:max-w-md">
+                        <span className="text-[10px] font-black tracking-widest uppercase text-[#8B5A2B]">Voice Tutorial</span>
+                        <h2 className="text-sm sm:text-base font-bold text-[#2C241D] truncate max-w-[180px] sm:max-w-md">
                             {sessionData?.course.course_name || 'Academic Course'}
                         </h2>
                     </div>
                 </div>
 
-                {/* Voice Status Chip */}
+                {/* Voice Status & Speed Controls */}
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-xs font-medium text-slate-300">
-                        <span className={`w-2 h-2 rounded-full ${isSpeaking ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                        <span className="hidden sm:inline">{isSpeaking ? 'Tutor Speaking...' : 'Listening / Ready'}</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFFDFB] border border-[#D9CCBC] rounded-full text-xs font-semibold text-[#4A3E31] shadow-xs">
+                        <span className={`w-2 h-2 rounded-full ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
+                        <span className="hidden sm:inline">{isSpeaking ? 'Tutor Speaking...' : 'Ready'}</span>
                     </div>
 
                     <button
                         onClick={handleSpeedChange}
-                        className="px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300 transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-mono font-bold text-[#4A3E31] transition-colors cursor-pointer shadow-xs"
                         title="Change voice speed"
                     >
-                        {speechRate}x
+                        <i className="bi bi-speedometer2 text-xs"></i>
+                        <span>{speechRate}x</span>
                     </button>
                 </div>
             </header>
 
-            {/* Main Blackboard Canvas Area */}
+            {/* Main Milk Blackboard Canvas Area */}
             <main className="flex-1 flex flex-col justify-between p-4 sm:p-8 max-w-4xl w-full mx-auto overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {/* Topic context tag */}
-                <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300 truncate">
-                        📖 {sessionData?.topic?.topic_name || 'Core Lesson'}
+                <div className="flex items-center justify-between mb-3 text-xs text-[#6B5E51]">
+                    <span className="font-semibold text-[#3D3328] truncate flex items-center gap-1.5">
+                        <i className="bi bi-journal-bookmark text-sm text-[#8B5A2B]"></i>
+                        <span>{sessionData?.topic?.topic_name || 'Core Lesson'}</span>
                     </span>
                     {currentStep && (
-                        <span className="font-mono text-emerald-400 font-bold">
+                        <span className="font-mono text-[#8B5A2B] font-bold px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0]">
                             Step {currentStep.stepNumber}
                         </span>
                     )}
                 </div>
 
-                {/* Blackboard Card */}
-                <div className="relative flex-1 flex flex-col justify-center blackboard-canvas border-2 border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl overflow-hidden min-h-[220px] sm:min-h-[280px]">
+                {/* Milk Blackboard Card */}
+                <div className="relative flex-1 flex flex-col justify-center milk-canvas border-2 border-[#E5D7C5] rounded-3xl p-6 sm:p-10 shadow-md overflow-hidden min-h-[220px] sm:min-h-[280px]">
                     {/* Bookmark to Formula sheet button */}
                     <button
                         onClick={handleSaveFormula}
-                        className={`absolute top-4 right-4 p-2 rounded-xl border transition-all cursor-pointer ${
+                        className={`absolute top-4 right-4 p-2.5 rounded-xl border transition-all cursor-pointer shadow-xs ${
                             isSaved 
-                                ? 'border-amber-500/50 bg-amber-500/10 text-amber-400' 
-                                : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-amber-300 hover:border-slate-700'
+                                ? 'border-[#D4A373] bg-[#FAF0E6] text-[#A0522D]' 
+                                : 'border-[#E0D2C0] bg-[#FFFDFB] text-[#7A6B5C] hover:text-[#8B5A2B] hover:border-[#D0C0AC]'
                         }`}
                         title="Save active formula to cheat-sheet"
                     >
-                        {isSaved ? <CheckCircle2 className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                        {isSaved ? <i className="bi bi-bookmark-check-fill text-base"></i> : <i className="bi bi-bookmark text-base"></i>}
                     </button>
 
                     {isLoadingStep ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-12">
-                            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                            <p className="text-sm font-handwriting text-slate-400 tracking-wide">Wiping board and writing next step...</p>
+                            <div className="w-8 h-8 border-2 border-[#C2B2A3] border-t-[#8B5A2B] rounded-full animate-spin" />
+                            <p className="text-base font-handwriting text-[#7A6B5C] tracking-wide">Wiping board and writing next step...</p>
                         </div>
                     ) : currentStep ? (
                         <div className="space-y-4 animate-fade-in">
-                            <h3 className="text-lg sm:text-xl font-bold font-handwriting text-emerald-400 border-b border-slate-800 pb-2">
+                            <h3 className="text-xl sm:text-2xl font-bold font-handwriting text-[#8B4513] border-b border-[#E8DCCF] pb-2">
                                 {currentStep.title}
                             </h3>
                             
-                            <div className="font-handwriting text-2xl sm:text-3xl text-emerald-50 leading-relaxed tracking-wide">
+                            <div className="font-handwriting text-2xl sm:text-3xl text-[#221B14] leading-relaxed tracking-wide">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[rehypeKatex]}
                                     components={{
                                         p: ({node, ...props}) => <p className="my-2" {...props} />,
-                                        ul: ({node, ...props}) => <ul className="space-y-2 my-3 list-disc list-inside" {...props} />,
-                                        li: ({node, ...props}) => <li className="text-slate-200" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="space-y-2 my-3 list-disc list-inside text-[#2A221A]" {...props} />,
+                                        li: ({node, ...props}) => <li className="text-[#2A221A]" {...props} />,
                                         code: ({node, inline, children, ...props}: any) => (
-                                            <span className="font-mono text-emerald-300 text-xl">{children}</span>
+                                            <span className="font-mono text-[#8B4513] bg-[#F4EDE4] px-1.5 py-0.5 rounded text-xl border border-[#E5DACD]">{children}</span>
                                         ),
                                     }}
                                 >
@@ -382,24 +384,26 @@ Output valid JSON ONLY with this exact schema:
                     ) : null}
                 </div>
 
-                {/* Spoken Text Hint or Spoken Transcription */}
+                {/* Spoken Text Hint or Transcription */}
                 <div className="my-4 min-h-[44px] flex items-center justify-center text-center px-4">
                     {isMicListening && spokenTextBuffer ? (
-                        <p className="text-sm font-medium text-emerald-300 animate-pulse">
-                            🎙️ "{spokenTextBuffer}..."
+                        <p className="text-sm font-medium text-[#8B5A2B] animate-pulse flex items-center gap-2">
+                            <i className="bi bi-mic-fill"></i>
+                            <span>"{spokenTextBuffer}..."</span>
                         </p>
                     ) : currentStep && isSpeaking ? (
-                        <p className="text-xs sm:text-sm text-slate-300 font-medium italic line-clamp-2">
-                            🔊 "{currentStep.spokenExplanation}"
+                        <p className="text-xs sm:text-sm text-[#4A3E31] font-medium italic line-clamp-2 flex items-center gap-2">
+                            <i className="bi bi-volume-up text-sm text-[#8B5A2B]"></i>
+                            <span>"{currentStep.spokenExplanation}"</span>
                         </p>
                     ) : (
-                        <p className="text-xs text-slate-500 font-medium">
+                        <p className="text-xs text-[#7A6B5C] font-medium">
                             Tap a suggestion below or speak your response
                         </p>
                     )}
                 </div>
 
-                {/* 3 Clickable Suggestion Options */}
+                {/* 3 Clickable Milk Suggestion Options */}
                 {currentStep && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
                         {currentStep.suggestions.map((suggestion, index) => (
@@ -407,9 +411,9 @@ Output valid JSON ONLY with this exact schema:
                                 key={index}
                                 onClick={() => void fetchNextStep(suggestion)}
                                 disabled={isLoadingStep}
-                                className="px-4 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 active:border-emerald-500 text-slate-200 hover:text-white rounded-2xl text-xs sm:text-sm font-medium text-left transition-all active:scale-[0.98] shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                                className="px-4 py-3 bg-[#FFFDFB] hover:bg-[#F5EDE3] border-2 border-[#E5DACD] hover:border-[#D5C3AE] active:border-[#8B5A2B] text-[#2C241D] rounded-2xl text-xs sm:text-sm font-semibold text-left transition-all active:scale-[0.98] shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-2.5"
                             >
-                                <span className="w-5 h-5 flex items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-400 shrink-0">
+                                <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#EFE5D8] border border-[#DFD1C0] text-[10px] font-bold text-[#8B5A2B] shrink-0">
                                     {index + 1}
                                 </span>
                                 <span className="truncate">{suggestion}</span>
@@ -418,16 +422,16 @@ Output valid JSON ONLY with this exact schema:
                     </div>
                 )}
 
-                {/* Bottom Voice & Mic Controls Bar */}
-                <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3 shadow-lg">
-                    {/* Replay audio */}
+                {/* Bottom Milk Voice & Mic Controls Bar */}
+                <div className="flex items-center justify-between bg-[#F4ECE2] border border-[#E5DACD] rounded-2xl px-5 py-3 shadow-sm">
+                    {/* Replay audio button */}
                     <button
                         onClick={() => currentStep && speakText(currentStep.spokenExplanation)}
                         disabled={isLoadingStep}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3E] hover:text-[#2C241D] transition-colors cursor-pointer px-2.5 py-1.5 rounded-xl hover:bg-[#EBE0D2]"
                         title="Replay explanation"
                     >
-                        <RotateCcw className="w-4 h-4" />
+                        <i className="bi bi-arrow-counterclockwise text-sm"></i>
                         <span className="hidden sm:inline">Replay</span>
                     </button>
 
@@ -435,24 +439,24 @@ Output valid JSON ONLY with this exact schema:
                     <button
                         onClick={toggleMic}
                         disabled={isLoadingStep}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md active:scale-95 ${
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 ${
                             isMicListening
-                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                                ? 'bg-[#8B5A2B] text-white animate-pulse shadow-md'
+                                : 'bg-[#FFFDFB] hover:bg-[#EDE1D1] text-[#3D3328] border-2 border-[#D9CCBC]'
                         }`}
                     >
-                        {isMicListening ? <Mic className="w-4 h-4 text-white" /> : <MicOff className="w-4 h-4 text-slate-400" />}
-                        <span>{isMicListening ? 'Mic Active (Listening)' : 'Tap to Speak'}</span>
+                        {isMicListening ? <i className="bi bi-mic-fill text-sm"></i> : <i className="bi bi-mic text-sm"></i>}
+                        <span>{isMicListening ? 'Listening...' : 'Tap to Speak'}</span>
                     </button>
 
-                    {/* Mute toggle */}
+                    {/* Mute toggle button */}
                     <button
                         onClick={toggleMute}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3E] hover:text-[#2C241D] transition-colors cursor-pointer px-2.5 py-1.5 rounded-xl hover:bg-[#EBE0D2]"
                         title={isMuted ? 'Unmute tutor' : 'Mute tutor'}
                     >
-                        {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
-                        <span className="hidden sm:inline">{isMuted ? 'Unmuted' : 'Mute'}</span>
+                        {isMuted ? <i className="bi bi-volume-mute-fill text-sm text-red-600"></i> : <i className="bi bi-volume-up text-sm"></i>}
+                        <span className="hidden sm:inline">{isMuted ? 'Unmute' : 'Mute'}</span>
                     </button>
                 </div>
             </main>
