@@ -539,27 +539,6 @@ const App: React.FC = () => {
         return item === 'admin' ? 'admin' : item;
     });
 
-    const handleSharedImageScan = useCallback(() => {
-        const imageToScan = pendingSharedImage;
-        setShowSharedImagePrompt(false);
-        setPendingSharedImage(null);
-        setSharedImagePreview(null);
-
-        if (imageToScan) {
-            localStorage.setItem('shared_image_intent', imageToScan);
-            localStorage.setItem('auto_scan_shared_image', 'true');
-        }
-
-        setActiveItem('visual_solver');
-        window.dispatchEvent(new CustomEvent('visual_solver_trigger_scan', { detail: { image: imageToScan } }));
-    }, [pendingSharedImage, setActiveItem]);
-
-    const handleSharedImageCancel = useCallback(() => {
-        setShowSharedImagePrompt(false);
-        setPendingSharedImage(null);
-        setSharedImagePreview(null);
-    }, []);
-
     const activeItemRef = useRef(activeItem);
     useEffect(() => {
         activeItemRef.current = activeItem;
@@ -584,6 +563,27 @@ const App: React.FC = () => {
                 window.history.pushState(null, '', newPath);
             }
         }
+    }, []);
+
+    const handleSharedImageScan = useCallback(() => {
+        const imageToScan = pendingSharedImage;
+        setShowSharedImagePrompt(false);
+        setPendingSharedImage(null);
+        setSharedImagePreview(null);
+
+        if (imageToScan) {
+            localStorage.setItem('shared_image_intent', imageToScan);
+            localStorage.setItem('auto_scan_shared_image', 'true');
+        }
+
+        setActiveItem('visual_solver');
+        window.dispatchEvent(new CustomEvent('visual_solver_trigger_scan', { detail: { image: imageToScan } }));
+    }, [pendingSharedImage, setActiveItem]);
+
+    const handleSharedImageCancel = useCallback(() => {
+        setShowSharedImagePrompt(false);
+        setPendingSharedImage(null);
+        setSharedImagePreview(null);
     }, []);
 
     const loadSharedImagePreview = useCallback(async (imageUri: string) => {
