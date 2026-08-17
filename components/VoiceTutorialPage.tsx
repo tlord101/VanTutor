@@ -58,6 +58,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({ userProfil
     const audioContextRef = useRef<AudioContext | null>(null);
     const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
     const recognitionRef = useRef<any>(null);
+    const spokenTextRef = useRef(''); // tracks live transcript to avoid stale closure in onend
     const stepCountRef = useRef(1);
 
     // Load Session from Cache on Mount
@@ -313,6 +314,7 @@ Output valid JSON ONLY with this exact schema:
             recognition.onstart = () => {
                 setIsMicListening(true);
                 setSpokenTextBuffer('');
+                spokenTextRef.current = '';
             };
 
             recognition.onresult = (event: any) => {
@@ -320,13 +322,16 @@ Output valid JSON ONLY with this exact schema:
                     .map((result: any) => result[0].transcript)
                     .join('');
                 setSpokenTextBuffer(transcript);
+                spokenTextRef.current = transcript; // keep ref in sync with live transcript
             };
 
             recognition.onend = () => {
                 setIsMicListening(false);
-                if (spokenTextBuffer.trim().length > 2) {
-                    void fetchNextStep(spokenTextBuffer.trim());
-                    setSpokenTextBuffer('');
+                const finalText = spokenTextRef.current;
+                spokenTextRef.current = '';
+                setSpokenTextBuffer('');
+                if (finalText.trim().length > 2) {
+                    void fetchNextStep(finalText.trim());
                 }
             };
 
@@ -339,7 +344,7 @@ Output valid JSON ONLY with this exact schema:
         } catch (e) {
             setIsMicListening(false);
         }
-    }, [spokenTextBuffer, fetchNextStep]);
+    }, [fetchNextStep]);
 
     const toggleMic = () => {
         if (isMicListening) {
