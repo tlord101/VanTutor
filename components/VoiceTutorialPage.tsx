@@ -193,6 +193,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // ── Board ────────────────────────────────────────────────────────────
     const [visibleBoardLines, setVisibleBoardLines] = useState<string[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
+    const [isLoadingUnit, setIsLoadingUnit] = useState(false); // AI generating board content
 
     // ── Audio / mic ──────────────────────────────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -589,7 +590,7 @@ BLUEPRINT REQUIREMENTS:
     }, [sessionData, userProfile, generateBlueprint]);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Present a specific unit
+    // Present a specific unit — calls AI with blueprint as strict guide
     // ─────────────────────────────────────────────────────────────────────────
     const presentUnit = useCallback(async (
         bp: LessonBlueprint,
@@ -600,32 +601,133 @@ BLUEPRINT REQUIREMENTS:
 
         const concept = bp.concepts[cIdx];
         if (!concept) {
-            // All done — show overall summary
             setIsDone(true);
             setVisibleBoardLines(['🎓 Topic Complete!', bp.overallSummary]);
             void speakText(`Well done! ${bp.overallSummary} You have mastered this topic!`);
             return;
         }
 
-        const boardLines  = getBoardLines(concept, sStep);
-        const spokenWords = getSpokenText(concept, sStep);
-        const sugg        = getSuggestions(sStep);
+        setSuggestions(getSuggestions(sStep));
+        setIsLoadingUnit(true);
+        setVisibleBoardLines([]);
 
-        setSuggestions(sugg);
+        // Save progress immediately
+        writeCachedJson(progressKeyRef.current, { conceptIdx: cIdx, subStep: sStep }, userProfile?.uid || 'anon');
 
-        // Stream board
-        streamBoardLines(boardLines);
+        // ── Sub-step instructions for the AI ──────────────────────────────
+        const subStepInstructions: Record<SubStep, string> = {
+            definition:
+                `Teach the DEFINITION of "${concept.conceptName}".
+- boardLines[0]: the concept name as a clear title.
+- boardLines[1-3]: the definition broken into 1-3 short punchy lines. Plain English, no jargon.
+- spokenExplanation: Warm introduction. State the definition conversationally. Explain why it matters. End with a question to check understanding.`,
 
-        // Save progress
-        const prog: TutorialProgress = { conceptIdx: cIdx, subStep: sStep };
-        writeCachedJson(progressKeyRef.current, prog, userProfile?.uid || 'anon');
+            formula:
+                `Teach the FORMULA for "${concept.conceptName}".
+Blueprint formula: ${concept.formula}
+Blueprint variables: ${JSON.stringify(concept.variables)}
+- boardLines[0]: the LaTeX formula exactly as given in the blueprint ($$...$$).
+- boardLines[1-N]: each variable as "symbol  →  plain meaning" — one per line.
+- spokenExplanation: Tell the student to look at the board. Explain the formula in plain words — say what each symbol REPRESENTS physically, not the LaTeX. Do NOT read LaTeX aloud. End with a question about what they notice.`,
 
-        // Speak then activate mic
-        await speakText(spokenWords, () => {
-            if (isActiveRef.current) startMicListening();
-        });
+            intuition:
+                `Teach the PHYSICAL INTUITION for "${concept.conceptName}".
+Blueprint intuition: "${concept.intuitionNote}"
+- boardLines[0]: "Intuition" as a label.
+- boardLines[1-3]: 2-3 lines capturing the core physical intuition — what it FEELS like, not equations.
+- spokenExplanation: Deliver the intuition warmly. Add a memorable real-world analogy or everyday example. Make the student feel it physically. End with a question connecting it to their experience.`,
+
+            example_1:
+                `Teach WORKED EXAMPLE 1 for "${concept.conceptName}".
+Blueprint example: ${JSON.stringify(concept.example1)}
+- boardLines[0]: the problem statement.
+- boardLines[1-3]: the working steps (use LaTeX for maths if needed: e.g. $a = F/m$).
+- boardLines[4]: the final answer with units.
+- spokenExplanation: Read the problem aloud. Walk each step slowly — explain WHY you do it, not just what. Call out any algebra or unit conversions. End by asking if they followed.`,
+
+            example_2:
+                `Teach WORKED EXAMPLE 2 (harder) for "${concept.conceptName}".
+Blueprint example: ${JSON.stringify(concept.example2)}
+- boardLines[0]: the harder problem statement.
+- boardLines[1-3]: working steps with LaTeX where useful.
+- boardLines[4]: final answer with units.
+- spokenExplanation: Explain what makes this harder than Example 1. Walk through the solution. Point out the key difference. End by asking if they can see the pattern.`,
+
+            pitfalls:
+                `Teach COMMON PITFALLS for "${concept.conceptName}".
+Blueprint pitfalls: ${JSON.stringify(concept.commonPitfalls)}
+- boardLines[0]: "Common Pitfalls" as a header.
+- boardLines[1-N]: one pitfall per line, phrased as a warning (e.g. "Don't confuse mass with weight").
+- spokenExplanation: Warn the student directly about each pitfall. Be clear and emphatic. Explain WHY students make each mistake and how to avoid it. End by asking if they've fallen into any of these.`,
+
+            summary:
+                `Teach the SUMMARY for "${concept.conceptName}".
+Blueprint summary points: ${JSON.stringify(concept.summaryPoints)}
+- boardLines[0]: "${concept.conceptName} — Key Points" as a title.
+- boardLines[1-N]: the summary points, concise and clear.
+- spokenExplanation: Recap what was covered in 2-3 sentences. Reinforce the most important formula or principle. Build excitement for the next concept. End by asking if they're ready to continue.`,
+        };
+
+        const aiPrompt = `You are AVELUT Voice Tutor — a warm, expert classroom teacher delivering a live blackboard lesson.
+You MUST follow the lesson blueprint EXACTLY. Do NOT introduce new content or change the facts.
+
+LESSON BLUEPRINT — CURRENT CONCEPT:
+${JSON.stringify(concept, null, 2)}
+
+CURRENT TEACHING SUB-STEP: ${sStep}
+
+YOUR TASK FOR THIS SUB-STEP:
+${subStepInstructions[sStep]}
+
+STRICT OUTPUT RULES:
+1. boardLines: Array of strings, max ${MAX_BOARD_LINES} items. LaTeX allowed — use $$...$$ for block formulas, $...$ for inline math. Variable lines use "symbol  →  meaning" format. No markdown other than LaTeX.
+2. spokenExplanation: Natural conversational spoken English ONLY. No LaTeX. 2-4 sentences. Always end with a question.
+3. Follow the blueprint data EXACTLY — do not change the formula, examples, or facts.
+4. Output valid JSON ONLY — no explanation, no markdown fences.
+
+{"boardLines": ["line 1", "line 2"], "spokenExplanation": "Natural spoken explanation ending with a question."}`;
+
+        try {
+            const aiClient = createAvelutAI(appSettings, userProfile || null);
+            if (!aiClient || !isActiveRef.current) {
+                // Fallback: derive content from blueprint directly
+                setIsLoadingUnit(false);
+                streamBoardLines(getBoardLines(concept, sStep));
+                await speakText(getSpokenText(concept, sStep), () => { if (isActiveRef.current) startMicListening(); });
+                return;
+            }
+
+            const result = await aiClient.models.generateContent({
+                model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
+                config: { responseMimeType: 'application/json', temperature: 0.5 },
+            });
+
+            if (!isActiveRef.current) return;
+
+            const raw = getResponseText(result);
+            if (!raw) throw new Error('Empty unit response');
+
+            const parsed: { boardLines: string[]; spokenExplanation: string } =
+                JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+            setIsLoadingUnit(false);
+            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
+
+            await speakText(parsed.spokenExplanation, () => {
+                if (isActiveRef.current) startMicListening();
+            });
+
+        } catch (err) {
+            console.warn('[PresentUnit] AI error, using blueprint fallback:', err);
+            if (!isActiveRef.current) return;
+            setIsLoadingUnit(false);
+            // Graceful fallback: derive directly from blueprint
+            streamBoardLines(getBoardLines(concept, sStep));
+            await speakText(getSpokenText(concept, sStep), () => { if (isActiveRef.current) startMicListening(); });
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [speakText, streamBoardLines, startMicListening, userProfile]);
+    }, [speakText, streamBoardLines, startMicListening, userProfile, appSettings]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Handle student reply (voice or tap)
@@ -842,6 +944,15 @@ BLUEPRINT REQUIREMENTS:
 
                     {/* ── Blackboard ─────────────────────────────────────── */}
                     <div className="relative flex-1 min-h-[200px] sm:min-h-[260px] flex flex-col justify-start milk-canvas border-2 border-[#E5D7C5] rounded-3xl p-5 sm:p-8 shadow-md overflow-hidden">
+
+                        {isLoadingUnit && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#FAF7F2]/80 backdrop-blur-xs rounded-3xl z-10">
+                                <div className="w-8 h-8 border-2 border-[#C2B2A3] border-t-[#8B5A2B] rounded-full animate-spin" />
+                                <p className="text-sm font-handwriting text-[#7A6B5C] tracking-wide animate-pulse">
+                                    Writing on board...
+                                </p>
+                            </div>
+                        )}
 
                         {!blueprint && !isGeneratingBlueprint && (
                             <div className="flex items-center justify-center h-full opacity-30">
