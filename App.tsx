@@ -442,6 +442,30 @@ const App: React.FC = () => {
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const userProfileRef = useRef<UserProfile | null>(null);
+
+    // ==========================================
+    // STABLE PROFILE PATTERN
+    // ==========================================
+    // Creates a stable reference of the profile that isolates layout components
+    // from high-frequency heartbeat updates like last_seen and is_online.
+    const stableProfile = useMemo(() => {
+        if (!userProfile) return null;
+        const { last_seen: _ls, is_online: _io, last_activity_date: _lad, ...stable } = userProfile;
+        return stable as UserProfile;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        userProfile?.uid,
+        userProfile?.display_name,
+        userProfile?.photo_url,
+        userProfile?.level,
+        userProfile?.subscription_status,
+        userProfile?.department_id,
+        userProfile?.school_id,
+        userProfile?.college_id,
+        userProfile?.notifications_enabled,
+        userProfile?.is_admin
+    ]);
+
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
 
     // Initialize local SQLite database, hydrate cache & clean expired AI cache on app startup
@@ -1360,14 +1384,14 @@ const App: React.FC = () => {
 
 
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await firebaseSignOut(firebaseAuth);
         } catch (error: any) {
             console.error("Logout failed:", error.message || error);
             addToast(error.message || "Failed to log out.", "error");
         }
-    };
+    }, [addToast]);
 
     const handleOnboardingComplete = async (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => {
         if (!user) return;
@@ -1719,7 +1743,7 @@ const App: React.FC = () => {
             <Sidebar
                 activeItem={activeItem}
                 onItemClick={setActiveItem}
-                userProfile={userProfile}
+                userProfile={stableProfile}
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
                 onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
@@ -1735,7 +1759,7 @@ const App: React.FC = () => {
                     onMessengerClick={() => setActiveItem('messenger')}
                     onCalendarClick={() => setIsCalendarOpen(true)}
                     unreadMessagesCount={unreadMessagesCount}
-                    userProfile={userProfile}
+                        userProfile={stableProfile ?? undefined}
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
@@ -1750,12 +1774,12 @@ const App: React.FC = () => {
                         : "flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav isolate"
                     }
                 >
-                    {userProfile && (
+                        {stableProfile && (
                         <MainContent
                             key={activeItem}
                             activeItem={activeItem}
                             user={user}
-                            userProfile={userProfile}
+                                userProfile={stableProfile}
                             appSettings={appSettings}
                             userProgress={userProgress}
                             dashboardData={dashboardData}
@@ -1800,7 +1824,7 @@ const App: React.FC = () => {
                   }
               }}
               isVisible={activeItem !== 'chat' && !customHeaderConfig?.hideBottomNav}
-              userProfile={userProfile}
+              userProfile={stableProfile}
             />
             <GuidedTour 
                 steps={tourSteps}
