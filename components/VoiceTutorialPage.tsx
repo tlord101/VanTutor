@@ -176,7 +176,8 @@ Output valid JSON ONLY with this exact schema:
             const text = getResponseText(result);
             if (!text) throw new Error('Empty response from Voice Tutor.');
 
-            const parsed: BlackboardStep = JSON.parse(text);
+            const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const parsed: BlackboardStep = JSON.parse(cleanJson);
             
             // Instantly clear old board and display new step
             setCurrentStep(parsed);
@@ -458,3 +459,5 @@ Output valid JSON ONLY with this exact schema:
         </div>
     );
 };
+
+export default VoiceTutorialPage;

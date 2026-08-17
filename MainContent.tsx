@@ -35,7 +35,7 @@ const StudyPartners = lazy(() => import('./components/StudyPartners').then(modul
 const PublicProfile = lazy(() => import('./components/PublicProfile').then(module => ({ default: module.PublicProfile })));
 const Notifications = lazy(() => import('./components/Notifications').then(module => ({ default: module.Notifications })));
 const Feedback = lazy(() => import('./components/Feedback').then(module => ({ default: module.Feedback })));
-const VoiceTutorialPage = lazy(() => import('./components/VoiceTutorialPage').then(module => ({ default: module.VoiceTutorialPage })));
+const VoiceTutorialPage = lazy(() => import('./components/VoiceTutorialPage').then(module => ({ default: module.default || module.VoiceTutorialPage })));
 
 // Per-route skeleton fallbacks — each matches the shape of its real UI
 const skeletonMap: Record<string, React.ReactNode> = {
@@ -48,6 +48,7 @@ const skeletonMap: Record<string, React.ReactNode> = {
     history:        <div className="max-w-7xl mx-auto px-4 py-8"><HistorySkeleton /></div>,
     messenger:      <MessengerSkeleton />,
     feedback:       <PageSkeleton />,
+    voice_tutorial: <PageSkeleton />,
 };
 
 const getSkeletonFallback = (activeItem: string): React.ReactNode => {

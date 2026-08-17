@@ -363,7 +363,8 @@ const ALLOWED_ROUTE_ITEMS = new Set([
     'billing',
     'help',
     'admin',
-    'study_partners'
+    'study_partners',
+    'voice_tutorial'
 ].map(normalizeRouteSegment));
 
 const resolveActiveItemFromPath = (pathname: string): string => {
@@ -1745,7 +1746,7 @@ const App: React.FC = () => {
                 <div 
                     id="main-scroll-container"
                     className={
-                        activeItem === 'chat' || activeItem === 'messenger'
+                        activeItem === 'chat' || activeItem === 'messenger' || activeItem === 'voice_tutorial'
                         ? "flex-1 min-h-0 overflow-hidden flex flex-col"
                         : "flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav isolate"
                     }
