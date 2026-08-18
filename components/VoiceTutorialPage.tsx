@@ -5,6 +5,12 @@ import { GoogleGenAI } from '@google/genai';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import type { UserProfile, Course, Topic } from '../types';
+import {
+    getStudentCognitiveProfile,
+    recordConceptProgress,
+    recordSessionCompletion,
+    StudentCognitiveProfile,
+} from '../services/tutorMemoryService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -687,9 +693,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // ─────────────────────────────────────────────────────────────────────────
     // Blueprint generation (Deep, Bit-by-Bit Master Pedagogical Blueprint)
     // ─────────────────────────────────────────────────────────────────────────
-    const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData): Promise<LessonBlueprint | null> => {
+    const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
         setIsGeneratingBlueprint(true);
-        setBlueprintGenStep('Analysing topic...');
+        setBlueprintGenStep('Analysing topic & student memory...');
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) { setIsGeneratingBlueprint(false); return null; }
@@ -698,7 +704,15 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const topicName  = session.topic?.topic_name || 'Core Concepts';
         const level      = session.course.level || 'University';
 
-        setBlueprintGenStep('Designing comprehensive bit-by-bit lesson plan...');
+        setBlueprintGenStep('Designing personalized bit-by-bit lesson plan...');
+
+        const memoryContext = studentMem?.lastTopicTaught
+            ? `STUDENT COGNITIVE MEMORY & HISTORY:
+- Last Taught Topic: "${studentMem.lastTopicTaught.topicName}" in ${studentMem.lastTopicTaught.courseName}
+- Mastered Concepts: ${studentMem.overallMasteries.slice(-5).join(', ') || 'Foundational topics'}
+- Areas of Past Struggle / Pitfalls: ${studentMem.overallWeakPoints.slice(-5).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit conversions & boundary conditions'}
+- Preferred Learning Style: Step-by-step physical intuition, concrete numerical state tables before algebra.`
+            : `STUDENT COGNITIVE MEMORY: New student or fresh topic. Maintain intuitive, step-by-step pacing.`;
 
         const prompt = `You are AVELUT Master STEM Curriculum Designer. You follow the "Intuition First, Math Second, Bit-by-Bit" pedagogy:
 1. Slow Down & Teach Bit-by-Bit: Never rush or give compressed 1-sentence summaries. Thoroughly explain what terms mean and how things work in the real world.
@@ -708,6 +722,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 5. Clear Distinctions & Golden Rules: Explicitly contrast confusing twin terms (e.g. Distance vs. Displacement, Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
 6. Full Problem Statements & Interactive Pacing: When giving examples, ALWAYS write the FULL, CLEAR question text (do not compress into shorthand). Break down given data, state the principle, substitute numbers, and interpret the physical result.
 7. Visual Representation: Labeled diagrams, force vectors with arrows, geometry sketches.
+
+${memoryContext}
 
 Course: "${courseName}"
 Topic: "${topicName}"
@@ -769,7 +785,7 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
     }, [appSettings, userProfile, addToast]);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Session bootstrap — load or generate blueprint, restore progress
+    // Session bootstrap — load or generate blueprint, restore progress & memory
     // ─────────────────────────────────────────────────────────────────────────
     const bootstrapSession = useCallback(async () => {
         if (!sessionData) return;
@@ -777,17 +793,20 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         const uid   = userProfile?.uid || 'anon';
         const cid   = sessionData.course?.course_id  || 'general';
         const tid   = sessionData.topic?.topic_id    || 'core';
-        const bpKey = `vt_blueprint_v5_${uid}_${cid}_${tid}`;
-        const prKey = `vt_progress_v5_${uid}_${cid}_${tid}`;
+        const bpKey = `vt_blueprint_v6_${uid}_${cid}_${tid}`;
+        const prKey = `vt_progress_v6_${uid}_${cid}_${tid}`;
         blueprintKeyRef.current = bpKey;
         progressKeyRef.current  = prKey;
+
+        // Load student cognitive memory profile
+        const studentMem = await getStudentCognitiveProfile(uid);
 
         // 1. Load blueprint from cache
         let bp = readCachedJson<LessonBlueprint | null>(bpKey, null);
 
         if (!bp) {
             // 2. Generate blueprint
-            bp = await generateBlueprint(sessionData);
+            bp = await generateBlueprint(sessionData, studentMem);
             if (!bp || !isActiveRef.current) return;
             writeCachedJson(bpKey, bp, uid);
         }
@@ -814,17 +833,19 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
-        // 4. Start teaching
-        await presentUnit(bp, startConceptIdx, startSubStep);
+        // 4. Start teaching with memory context
+        await presentUnit(bp, startConceptIdx, startSubStep, studentMem, true);
     }, [sessionData, userProfile, generateBlueprint]);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Present a specific unit
+    // Present a specific unit — with memory recall & precision SVG rendering
     // ─────────────────────────────────────────────────────────────────────────
     const presentUnit = useCallback(async (
         bp: LessonBlueprint,
         cIdx: number,
         sStep: SubStep,
+        studentMem?: StudentCognitiveProfile | null,
+        isSessionStart?: boolean,
     ) => {
         if (!isActiveRef.current) return;
 
@@ -852,15 +873,24 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         // Save progress immediately
         writeCachedJson(progressKeyRef.current, { conceptIdx: cIdx, subStep: sStep }, userProfile?.uid || 'anon');
 
+        // Build cognitive memory prompt snippet
+        const memoryOpeningInstruction = (isSessionStart && cIdx === 0 && sStep === 'definition' && studentMem?.lastTopicTaught)
+            ? `MEMORY-BASED OPENING (CRITICAL):
+The student previously completed topic "${studentMem.lastTopicTaught.topicName}" where they struggled with: ${studentMem.lastTopicTaught.struggledKeyPoints?.join(', ') || studentMem.overallWeakPoints?.join(', ') || 'key boundary conditions'}.
+Open the spokenExplanation warmly with personal tutor memory:
+"Welcome back! Last time we nailed down ${studentMem.lastTopicTaught.topicName}, but we noticed ${studentMem.lastTopicTaught.struggledKeyPoints?.[0] || 'the calculation details'} was tricky. Today, we're taking ${concept.conceptName} step-by-step so it becomes second nature... [Then transition into relatable opening question for ${concept.conceptName}]"`
+            : '';
+
         // ── Sub-step instructions for the AI ("Intuition First, Math Second, Bit-by-Bit") ──
         const subStepInstructions: Record<SubStep, string> = {
             definition:
                 `Teach the DEFINITION of "${concept.conceptName}" thoroughly using Relatable Question & Intuitive Foundation.
+${memoryOpeningInstruction}
 Relatable Question: ${concept.relatableQuestion || `When you hear the word "${concept.conceptName}", what comes to mind?`}
-- spokenExplanation: (4-6 sentences, slow & engaging). Open warmly with the relatable question. Define the key concept in everyday physical terms before introducing any equations. Explain what each word means and why it matters in real life. End by asking a check question.
+- spokenExplanation: (4-6 sentences, slow & engaging). Open warmly (with memory if applicable), deliver the relatable question, and define the key concept in everyday physical terms before introducing equations. Explain what each word means and why it matters in real life. End with a check question.
 - boardLines[0]: "${concept.conceptName}" as title.
 - boardLines[1-3]: The definition broken into 1-3 punchy, plain English lines.
-- diagramSvg: Simple physical sketch.
+- diagramSvg: Simple physical sketch or labeled coordinate axis.
 - positiveReplyLabel: "Yes, makes sense →"
 - negativeReplyLabel: "No, explain again ↺"`,
 
@@ -933,13 +963,25 @@ ${JSON.stringify(concept, null, 2)}
 CURRENT TEACHING SUB-STEP: ${sStep}
 TASK: ${subStepInstructions[sStep]}
 
+SVG VISUAL DRAWING RULES (Ultra Precise, Accurate & Detailed):
+- Must be a valid SVG string with viewBox="0 0 380 200", xmlns="http://www.w3.org/2000/svg"
+- Precision Engineering Details:
+  * Outlines & structural bodies: stroke="#8B4513" or stroke="#5A3E22", stroke-width="2.5", fill="#F4ECE2"
+  * Dimension lines & labels: Clean dimension lines with markers at ends, text centered (e.g. "L = 3.0 m", "d = 50 mm")
+  * Force & Load vectors: Bold red stroke="#C53030", stroke-width="3", with arrowheads and force values (e.g. "P = 219.3 kN", "F = 50 N")
+  * Velocity & Motion vectors: Bold blue stroke="#2B6CB0", stroke-width="3"
+  * Reaction forces / Equilibrium: Emerald stroke="#276749"
+  * Labels & Annotations: Clear readable text, font-family="sans-serif", font-weight="bold", fill="#3D2817"
+
 STRICT OUTPUT RULES (Valid JSON ONLY):
 1. boardLines: Array of strings, max ${MAX_BOARD_LINES} items.
 2. spokenExplanation: Natural conversational spoken English ONLY (no LaTeX).
-3. positiveReplyLabel: Text for the forward/affirmative button (e.g. "Yes, makes sense →").
-4. positiveReplyText: Spoken response if tapped.
-5. negativeReplyLabel: Text for the back/negative button (e.g. "Explain again ↺").
-6. negativeReplyText: Spoken inquiry if tapped.
+3. diagramSvg: Ultra-precise SVG string or null.
+4. tableMarkdown: Markdown table string or null.
+5. positiveReplyLabel: Text for the forward/affirmative button (e.g. "Yes, makes sense →").
+6. positiveReplyText: Spoken response if tapped.
+7. negativeReplyLabel: Text for the back/negative button (e.g. "Explain again ↺").
+8. negativeReplyText: Spoken inquiry if tapped.
 `;
 
         try {
@@ -1018,7 +1060,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
     }, [speakText, streamBoardLines, userProfile, appSettings]);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Handle student reply
+    // Handle student reply — update persistent memory as learning unfolds
     // ─────────────────────────────────────────────────────────────────────────
     const handleStudentReply = useCallback(async (reply: string) => {
         if (!blueprint || !isActiveRef.current) return;
@@ -1030,6 +1072,17 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
         setTextInput('');
 
         const wantsRepeat = /again|repeat|explain|didn.t|don.t|slow|what|why|no|clarif/i.test(reply);
+
+        const uid       = userProfile?.uid || 'anon';
+        const tid       = sessionData?.topic?.topic_id || 'core';
+        const tName     = sessionData?.topic?.topic_name || 'Core Principles';
+        const cName     = sessionData?.course?.course_name || 'Academic Tutorial';
+        const currentC  = blueprint.concepts[conceptIdxRef.current];
+
+        // Track cognitive progress in persistent memory
+        if (currentC) {
+            void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, !wantsRepeat);
+        }
 
         let newConceptIdx = conceptIdxRef.current;
         let newSubStep    = subStepRef.current;
@@ -1045,6 +1098,10 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(null);
                 setActiveVisualCaption(null);
+
+                // Save session completion into student cognitive memory
+                void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
+
                 void speakText(`Excellent work! ${blueprint.overallSummary} You have completed this topic!`);
                 return;
             }
@@ -1056,7 +1113,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
         setSubStep(newSubStep);
 
         await presentUnit(blueprint, newConceptIdx, newSubStep);
-    }, [blueprint, speakText, presentUnit]);
+    }, [blueprint, speakText, presentUnit, userProfile, sessionData]);
 
     useEffect(() => {
         handleStudentReplyRef.current = handleStudentReply;
