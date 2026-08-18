@@ -484,8 +484,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const uid  = userProfile?.uid || 'anon';
         const cid  = sessionData.course?.course_id  || 'general';
         const tid  = sessionData.topic?.topic_id    || 'core';
-        blueprintKeyRef.current = `vt_blueprint_${uid}_${cid}_${tid}`;
-        progressKeyRef.current  = `vt_progress_${uid}_${cid}_${tid}`;
+        blueprintKeyRef.current = `vt_blueprint_v4_${uid}_${cid}_${tid}`;
+        progressKeyRef.current  = `vt_progress_v4_${uid}_${cid}_${tid}`;
     }, [sessionData, userProfile]);
 
     // ── Load / generate blueprint once session is ready ───────────────────
@@ -556,7 +556,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 }
             };
             rec.onresult = (e: any) => {
-                const t = Array.from(e.results).map((r: any) => r[0].transcript).join('');
+                const t = Array.from(e.results).map((r: any) => r[0].transcript).join(' ').trim();
                 spokenTextRef.current = t;
                 if (isActiveRef.current) setMicDisplay(t);
             };
@@ -566,14 +566,17 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 const final = spokenTextRef.current.trim();
                 spokenTextRef.current = '';
                 setMicDisplay('');
-                if (final.length > 2) void handleStudentReply(final);
+                if (final.length > 0) {
+                    addToast(`Heard: "${final}"`, 'info');
+                    void handleStudentReply(final);
+                }
             };
             rec.onerror = () => { if (isActiveRef.current) setIsMicListening(false); };
             recognitionRef.current = rec;
             rec.start();
         } catch (_) { setIsMicListening(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [addToast]);
 
     const browserSpeak = useCallback((text: string, onEnd?: () => void) => {
         if (!('speechSynthesis' in window)) {
