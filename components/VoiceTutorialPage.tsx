@@ -723,11 +723,11 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         const prompt = `You are AVELUT Master STEM Curriculum Designer. You follow the "Intuition First, Math Second" teaching methodology:
 1. Step-by-Step, Foundational: Start with basic, relatable questions (e.g. "When you hear the word distance, what do you think of?").
-2. Real-World Physical Analogies: Compare tangible everyday scenarios (e.g. sports car vs. truck 0-60, ball dropped off a cliff, box on a rug).
+2. Real-World Physical Analogies: Compare tangible everyday scenarios (e.g. sports car vs. truck 0-60, ball dropped off a cliff, column buckling under roof weight).
 3. Concrete Progression Tables Over Abstract Math: Build step-by-step or second-by-second numerical state tables showing how quantities evolve before showing algebraic formulas.
 4. Clear Distinctions & Golden Rules: Explicitly contrast confusing twin terms (e.g. Distance vs. Displacement, Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
-5. Interactive Mini-Puzzles: Thought experiments before the reveal (e.g. "If an object moves East with negative acceleration, is it speeding up or slowing down?").
-6. Visual Representation: Labeled number lines, force boxes with vector arrows, trajectory sketches.
+5. Full Problem Statements & Interactive Pacing: When giving examples, ALWAYS write the FULL, CLEAR question text (do not compress into shorthand like "Example: Steel column (E=200 GPa...)"). The teacher will read the question aloud, break down the physical situation, and solve step-by-step.
+6. Visual Representation: Labeled diagrams, force vectors with arrows, geometry sketches.
 
 Course: "${courseName}"
 Topic: "${topicName}"
@@ -747,28 +747,37 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
       "progressionTable": "| Time (t) | Velocity (v) | What is happening? |\\n| :---: | :---: | :--- |\\n| 0 s | 12 m/s | Starting speed |\\n| 1 s | 16 m/s | Added +4 m/s |\\n| 2 s | 20 m/s | Added +4 m/s |",
       "formula": "$$LaTeX formula$$ or null",
       "variables": [
-        {"symbol": "a", "meaning": "Acceleration — the rate velocity changes every second", "unit": "m/s²"}
+        {"symbol": "a", "meaning": "Acceleration — rate velocity changes per second", "unit": "m/s²"}
       ],
       "keyDistinction": "Clear distinction between this and its commonly confused counterpart (e.g. Speed vs. Velocity)",
       "goldenRule": "Memorable Golden Rule (e.g. 'Distance is always positive; displacement can be positive, negative, or zero.')",
       "example1": {
-        "problem": "An object moves East at 20 m/s with an acceleration of -4 m/s² West. Is it speeding up or slowing down? Find its velocity after 3 seconds.",
-        "solution": ["Identify: v_i = 20 m/s, a = -4 m/s², t = 3 s", "Check signs: velocity is positive (East), acceleration is negative (West) → opposite signs mean SLOWING DOWN", "Apply formula: v_f = v_i + at = 20 + (-4)(3) = 20 - 12", "Calculate: v_f = 8 m/s East"],
-        "answer": "8 m/s East (Slowing down)"
+        "problem": "A 3.0 m steel column with pinned ends (K = 1.0) has a modulus of elasticity E = 200 GPa and moment of inertia I = 10 × 10⁻⁶ m⁴. Determine the critical Euler buckling load P_cr.",
+        "solution": [
+          "Given: E = 200 × 10⁹ Pa, I = 10 × 10⁻⁶ m⁴, L = 3.0 m, K = 1.0",
+          "Formula: P_cr = \\frac{\\pi^2 E I}{(K L)^2}",
+          "Substitute: P_cr = \\frac{\\pi^2 (200 \\times 10^9)(10 \\times 10^{-6})}{(1.0 \\times 3.0)^2} = \\frac{1,973,920}{9}",
+          "Result: P_cr \\approx 219.3\\text{ kN}"
+        ],
+        "answer": "219.3 kN"
       },
       "example2": {
-        "problem": "Layered problem with incline, friction, or multi-step condition",
-        "solution": ["Step 1", "Step 2", "Step 3"],
-        "answer": "Final answer with units"
+        "problem": "Same column, but now both ends are fixed (K = 0.5). How does fixing the ends change the critical buckling capacity?",
+        "solution": [
+          "Given: K = 0.5 (fixed-fixed), other properties unchanged",
+          "Effective Length: L_e = K L = 0.5 × 3.0 = 1.5 m",
+          "Calculate: P_cr = \\frac{\\pi^2 E I}{(1.5)^2} = 4 \\times 219.3\\text{ kN}",
+          "Result: P_cr \\approx 877.3\\text{ kN} (4× stronger against buckling)"
+        ],
+        "answer": "877.3 kN (4× stronger)"
       },
       "commonPitfalls": [
-        "Confusing deceleration with negative acceleration without checking velocity direction",
-        "Forgetting units"
+        "Forgetting to convert GPa to Pa (×10⁹) or mm⁴ to m⁴",
+        "Using the wrong effective length factor K"
       ],
       "summaryPoints": [
-        "Acceleration is the change in velocity per second",
-        "Opposite signs between velocity and acceleration always mean slowing down",
-        "Formulas are simply shortcuts for step-by-step progression tables"
+        "Euler buckling occurs under compressive axial load before material yield",
+        "Fixing column ends significantly increases buckling resistance"
       ],
       "diagramSvg": null,
       "tableMarkdown": null
@@ -915,22 +924,34 @@ Golden Rule: ${concept.goldenRule || 'Important rule to remember'}
 - tableMarkdown: Provide a side-by-side comparison table (e.g. Distance vs. Displacement).`,
 
             example_1:
-                `Teach WORKED EXAMPLE 1 (Interactive Mini-Puzzle) for "${concept.conceptName}".
-Blueprint example: ${JSON.stringify(concept.example1)}
-- spokenExplanation: Read the problem as an interactive mini-puzzle. Ask the student to think about the physical direction/sign before calculating. Then slowly walk through each line of working. Refer to the board. End by asking if they followed each step.
-- boardLines[0]: Problem statement.
-- boardLines[1-3]: Step-by-step working lines with LaTeX.
-- boardLines[4]: Final answer with units.
-- diagramSvg: Annotated diagram with the numbers from the problem.`,
+                `Teach WORKED EXAMPLE 1 for "${concept.conceptName}".
+Blueprint Problem Statement: "${concept.example1.problem}"
+Blueprint Solution Steps: ${JSON.stringify(concept.example1.solution)}
+CRITICAL TEACHING STRUCTURE:
+1. First, clearly state the FULL problem statement.
+2. The teacher MUST read the entire problem statement aloud to the student, explain the physical scenario, and tell the student what quantity we are looking for.
+3. Then, solve step-by-step:
+   - Line 1: Given values & unit conversions
+   - Line 2: The formula & principle chosen
+   - Line 3: Mathematical substitution and intermediate calculation
+   - Line 4: Final answer with units and real-world physical meaning
+- boardLines[0]: "Example: ${concept.example1.problem}"
+- boardLines[1-4]: The 4 clean working steps.
+- spokenExplanation: "Let's read this problem on the board: [Read problem statement]. Here is how we think about it: [explain physical setup]. First, we write down our given values... Then we apply the formula... giving us our final answer of ${concept.example1.answer}. Does every step make sense?"
+- diagramSvg: Labeled diagram showing the physical scenario with numbers from the problem.`,
 
             example_2:
-                `Teach WORKED EXAMPLE 2 (Layered Challenge Problem) for "${concept.conceptName}".
-Blueprint example: ${JSON.stringify(concept.example2)}
-- spokenExplanation: Explain what makes this challenge problem harder (e.g. adding friction, an angle, opposite signs, or multiple stages). Walk through the solution cleanly. Point out the key difference.
-- boardLines[0]: Challenge problem statement.
-- boardLines[1-3]: Step-by-step calculation steps.
-- boardLines[4]: Final answer with units.
-- diagramSvg: Updated diagram reflecting the harder condition.`,
+                `Teach WORKED EXAMPLE 2 (Harder / Challenge Variant) for "${concept.conceptName}".
+Blueprint Problem Statement: "${concept.example2.problem}"
+Blueprint Solution Steps: ${JSON.stringify(concept.example2.solution)}
+CRITICAL TEACHING STRUCTURE:
+1. Clearly state the FULL challenge problem statement on the board.
+2. The teacher reads the question aloud and explains what makes this variant harder (e.g. boundary conditions, friction, negative sign, angle).
+3. Then solve step-by-step with clear working lines.
+- boardLines[0]: "Challenge: ${concept.example2.problem}"
+- boardLines[1-4]: The 4 clean calculation steps with LaTeX.
+- spokenExplanation: "Now let's look at a challenge problem: [Read problem statement]. What makes this harder is [explain condition change]. Let's solve it step-by-step: [walk through steps]. Notice our final result: ${concept.example2.answer}. Can you see how that condition changed the outcome?"
+- diagramSvg: Updated diagram showing the harder condition.`,
 
             summary:
                 `Teach the SUMMARY for "${concept.conceptName}".
@@ -944,7 +965,8 @@ Golden Rule: ${concept.goldenRule || ''}
 
         const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
 You embody the legendary "Intuition First, Math Second" teaching methodology:
-- Never show abstract math without physical intuition or concrete tables first.
+- When presenting examples/problems, ALWAYS state and read the FULL question before solving.
+- Never dump raw math without explaining the physical reasoning and given data first.
 - Always use conversational, engaging, classroom teacher English (no robotic jargon).
 - Use the board to draw diagrams, second-by-second progression tables, and clean LaTeX formulas.
 - Always refer to what you are drawing or writing on the board.
@@ -1342,15 +1364,17 @@ STRICT OUTPUT RULES:
                         {visibleBoardLines.length > 0 && (
                             <div className="flex flex-col h-full gap-3">
                                 {/* Title / Header (first line) */}
-                                <div className="font-bold font-handwriting text-xl sm:text-2xl text-[#8B4513] w-full border-b border-[#E8DCCF] pb-1.5 flex items-center justify-between">
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm, remarkMath]}
-                                        rehypePlugins={[rehypeKatex]}
-                                        components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                    >{visibleBoardLines[0]}</ReactMarkdown>
+                                <div className="w-full border-b border-[#E8DCCF] pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                    <div className="font-bold font-handwriting text-lg sm:text-2xl text-[#8B4513] leading-snug flex-1">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm, remarkMath]}
+                                            rehypePlugins={[rehypeKatex]}
+                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                        >{visibleBoardLines[0]}</ReactMarkdown>
+                                    </div>
 
                                     {hasVisualElement && (
-                                        <span className="text-[10px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#EFE5D8] text-[#8B5A2B] border border-[#DFD1C0]">
+                                        <span className="text-[10px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#EFE5D8] text-[#8B5A2B] border border-[#DFD1C0] self-start sm:self-auto shrink-0">
                                             {activeDiagramSvg ? '🎨 Diagram' : '📊 Table'}
                                         </span>
                                     )}
@@ -1366,15 +1390,31 @@ STRICT OUTPUT RULES:
                                             const isBlockFormula  = line.trim().startsWith('$$');
                                             const isPitfallHeader = line === 'Common Pitfalls';
                                             const isSummaryHeader = line.includes('— Summary') || line === '🎓 Topic Complete!';
-                                            const isIntHeader     = line === 'Intuition';
+                                            const isIntHeader     = line === 'Intuition' || line.includes('Physical Intuition');
+
+                                            // Detect step prefixes for worked examples (Given, Formula, Substitute, Calculate, Result)
+                                            const stepMatch = line.match(/^(Given|Formula|Substitute|Calculate|Calculation|Apply|Result|Identify|Step\s*\d+)\s*:\s*(.*)$/i);
 
                                             return (
                                                 <div key={`${idx}-${line.slice(0, 15)}`} className="flex items-start gap-2 animate-fade-in">
-                                                    {!isVarLine && !isBlockFormula && !isPitfallHeader && !isSummaryHeader && !isIntHeader && (
+                                                    {!isVarLine && !isBlockFormula && !isPitfallHeader && !isSummaryHeader && !isIntHeader && !stepMatch && (
                                                         <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#8B5A2B] shrink-0 opacity-70" />
                                                     )}
 
-                                                    {isBlockFormula ? (
+                                                    {stepMatch ? (
+                                                        <div className="w-full flex items-start gap-2 py-0.5">
+                                                            <span className="mt-0.5 px-2 py-0.5 rounded-md bg-[#EFE5D8] border border-[#DFD1C0] font-sans text-[10px] font-bold uppercase tracking-wider text-[#8B5A2B] shrink-0">
+                                                                {stepMatch[1]}
+                                                            </span>
+                                                            <div className="font-handwriting text-base sm:text-lg text-[#2A1F14] leading-snug flex-1 overflow-x-auto">
+                                                                <ReactMarkdown
+                                                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                                                    rehypePlugins={[rehypeKatex]}
+                                                                    components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                                                                >{stepMatch[2]}</ReactMarkdown>
+                                                            </div>
+                                                        </div>
+                                                    ) : isBlockFormula ? (
                                                         <div className="w-full text-center text-[#221B14] py-1.5 overflow-x-auto bg-[#F7EFE6]/60 rounded-xl border border-[#E5DACD]/50 px-2 my-1">
                                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                                                                 {line}
