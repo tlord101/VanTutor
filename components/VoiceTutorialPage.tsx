@@ -422,7 +422,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isMuted, setIsMuted] = useState(false);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [isMicListening, setIsMicListening] = useState(false);
-    const [speechRate, setSpeechRate] = useState(1.0);
+    const [speechRate, setSpeechRate] = useState(1.15);
     const [textInput, setTextInput] = useState('');
 
     // ── Navigation ───────────────────────────────────────────────────────
@@ -585,22 +585,24 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const utt = new SpeechSynthesisUtterance(text);
         utt.rate  = speechRate;
         const vs  = window.speechSynthesis.getVoices();
-        const v   = vs.find(v => v.lang.startsWith('en') && v.name.includes('Google'))
+        const v   = vs.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online')))
                  || vs.find(v => v.lang.startsWith('en'));
         if (v) utt.voice = v;
-        utt.onstart = () => { if (isActiveRef.current) { setIsSpeaking(true); setIsPaused(false); } };
+        utt.onstart = () => { if (isActiveRef.current) { setIsSpeaking(true); setIsPaused(false); setIsTtsLoading(false); } };
         utt.onend   = () => {
             if (isActiveRef.current) {
                 setIsSpeaking(false);
                 setIsPaused(false);
+                setIsTtsLoading(false);
                 onEnd?.();
                 // Auto-activate microphone immediately when teacher finishes talking!
                 startMicListening();
             }
         };
-        utt.onerror = () => { if (isActiveRef.current) { setIsSpeaking(false); setIsPaused(false); } };
+        utt.onerror = () => { if (isActiveRef.current) { setIsSpeaking(false); setIsPaused(false); setIsTtsLoading(false); } };
         setIsSpeaking(true);
         setIsPaused(false);
+        setIsTtsLoading(false);
         window.speechSynthesis.speak(utt);
     }, [speechRate, startMicListening]);
 
@@ -611,8 +613,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
         stopAudioImmediate();
-        setIsTtsLoading(true);
         setIsPaused(false);
+        setIsTtsLoading(false);
         lastSpokenTextRef.current = text;
 
         const clean = text
@@ -621,62 +623,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             .replace(/[#*`_~]/g, '')
             .trim();
 
-        const usePersonal = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
-        const apiKey = usePersonal
-            ? userProfile!.personal_api_key!.trim()
-            : (appSettings?.gemini_api_key?.trim() || '');
-
-        if (!apiKey) { setIsTtsLoading(false); browserSpeak(clean, onEnd); return; }
-
-        try {
-            const tts = new GoogleGenAI({ apiKey });
-            const res = await tts.models.generateContent({
-                model: 'gemini-2.5-flash-preview-tts',
-                contents: [{ role: 'user', parts: [{ text: clean }] }],
-                config: {
-                    responseModalities: ['AUDIO'] as any,
-                    speechConfig: {
-                        voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
-                    },
-                },
-            });
-
-            if (!isActiveRef.current) return;
-
-            const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-            if (!inlineData?.data) throw new Error('no audio data');
-
-            const ctx    = getAudioCtx();
-            if (ctx.state === 'suspended') await ctx.resume();
-            const abuf   = await pcm16ToAudioBuffer(inlineData.data, ctx);
-            const src    = ctx.createBufferSource();
-            src.buffer         = abuf;
-            src.playbackRate.value = speechRate;
-            src.connect(ctx.destination);
-            src.onended = () => {
-                if (isActiveRef.current) {
-                    setIsSpeaking(false);
-                    setIsPaused(false);
-                    currentAudioRef.current = null;
-                    onEnd?.();
-                    // Auto-activate microphone immediately when teacher finishes talking!
-                    startMicListening();
-                }
-            };
-            currentAudioRef.current = src;
-            setIsTtsLoading(false);
-            if (isActiveRef.current) {
-                setIsSpeaking(true);
-                setIsPaused(false);
-            }
-            src.start(0);
-        } catch (err) {
-            console.warn('[TTS] fallback:', err);
-            if (!isActiveRef.current) return;
-            setIsTtsLoading(false);
-            browserSpeak(clean, onEnd);
-        }
-    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, browserSpeak, startMicListening]);
+        // High-speed instantaneous speech (<50ms start time)
+        browserSpeak(clean, onEnd);
+    }, [isMuted, browserSpeak, startMicListening]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Board streaming
@@ -1343,8 +1292,8 @@ STRICT OUTPUT RULES:
                         </div>
                     )}
 
-                    {/* ── Visual Blackboard ───────────────────────────────── */}
-                    <div className="relative flex-1 min-h-[220px] sm:min-h-[280px] flex flex-col justify-start milk-canvas border-2 border-[#E5D7C5] rounded-3xl p-4 sm:p-7 shadow-md overflow-hidden">
+                    {/* ── Visual Blackboard (Scrollable for full diagrams & tables) ── */}
+                    <div className="relative flex-1 min-h-[220px] sm:min-h-[280px] max-h-[calc(100vh-280px)] flex flex-col justify-start milk-canvas border-2 border-[#E5D7C5] rounded-3xl p-4 sm:p-6 shadow-md overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#D4C3B3]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
 
                         {isLoadingUnit && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#FAF7F2]/85 backdrop-blur-xs rounded-3xl z-20">
@@ -1364,7 +1313,7 @@ STRICT OUTPUT RULES:
                         {visibleBoardLines.length > 0 && (
                             <div className="flex flex-col h-full gap-3">
                                 {/* Title / Header (first line) */}
-                                <div className="w-full border-b border-[#E8DCCF] pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                <div className="w-full border-b border-[#E8DCCF] pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 shrink-0">
                                     <div className="font-bold font-handwriting text-lg sm:text-2xl text-[#8B4513] leading-snug flex-1">
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkMath]}
@@ -1426,7 +1375,7 @@ STRICT OUTPUT RULES:
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                            >{line.trim()}</ReactMarkdown>
+                                                                >{line.trim()}</ReactMarkdown>
                                                         </div>
                                                     ) : (isPitfallHeader || isSummaryHeader || isIntHeader) ? (
                                                         <p className={`font-bold text-xs uppercase tracking-widest ${isPitfallHeader ? 'text-amber-800' : 'text-[#8B5A2B]'} w-full pt-1`}>
@@ -1452,7 +1401,7 @@ STRICT OUTPUT RULES:
 
                                     {/* Right Column: Visual Diagram / Table */}
                                     {hasVisualElement && (
-                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#FFFDF9]/90 border border-[#E2D4C3] shadow-xs relative group animate-fade-in overflow-hidden">
+                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#FFFDF9]/90 border border-[#E2D4C3] shadow-xs relative group animate-fade-in">
                                             {activeDiagramSvg && (
                                                 <div className="w-full flex flex-col items-center">
                                                     {/* Expand button */}
@@ -1467,7 +1416,7 @@ STRICT OUTPUT RULES:
                                                     {/* Animated SVG Container */}
                                                     <div
                                                         key={`svg-${diagramKey}`}
-                                                        className="w-full max-h-[180px] sm:max-h-[210px] flex items-center justify-center board-diagram-animated py-1"
+                                                        className="w-full max-h-[220px] sm:max-h-[260px] flex items-center justify-center board-diagram-animated py-1 overflow-visible"
                                                         dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                                                     />
 
@@ -1509,50 +1458,21 @@ STRICT OUTPUT RULES:
                         </div>
                     )}
 
-                    {/* ── Unified Input Card with Attached 3 Suggestion Pills ── */}
+                    {/* ── Unified Input Card with Attached Continue Button ── */}
                     <div className="shrink-0 flex flex-col gap-2 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-2.5 sm:p-3.5 shadow-sm backdrop-blur-md">
 
-                        {/* ── The 3 Categorized Suggestion Pills (Answer, Question, Explore) ── */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 w-full">
-                            {suggestions.map((pill, i) => {
-                                const isAnswer   = pill.type === 'answer';
-                                const isQuestion = pill.type === 'question';
-
-                                const pillStyle = isAnswer
-                                    ? 'bg-[#F2FAF4] hover:bg-[#E3F5E7] border-emerald-300 text-[#1D542B]'
-                                    : isQuestion
-                                    ? 'bg-[#F0F7FD] hover:bg-[#E1F0FC] border-sky-300 text-[#164E78]'
-                                    : 'bg-[#FFF9EE] hover:bg-[#FDF0D5] border-amber-300 text-[#7A4B13]';
-
-                                const iconClass = isAnswer
-                                    ? 'bi bi-check2-circle text-emerald-600'
-                                    : isQuestion
-                                    ? 'bi bi-question-circle text-sky-600'
-                                    : 'bi bi-stars text-amber-600';
-
-                                return (
-                                    <button
-                                        key={i}
-                                        onClick={() => void handleStudentReply(pill.text)}
-                                        disabled={isGeneratingBlueprint || isTtsLoading}
-                                        className={`px-3 py-2 border rounded-2xl text-xs font-semibold text-left transition-all active:scale-[0.98] shadow-2xs disabled:opacity-40 cursor-pointer flex items-center gap-2 ${pillStyle}`}
-                                    >
-                                        <i className={`${iconClass} text-xs shrink-0`}></i>
-                                        <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="text-[9px] font-bold uppercase tracking-wider opacity-70">
-                                                {pill.label}
-                                            </span>
-                                            <span className="truncate text-xs font-medium leading-tight">
-                                                {pill.text}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        {/* ── Prominent Continue Pill Button with Forward Arrow ── */}
+                        <button
+                            onClick={() => void handleStudentReply("I understand, let's continue")}
+                            disabled={isGeneratingBlueprint || isTtsLoading}
+                            className="w-full py-2.5 px-4 rounded-2xl bg-[#8B5A2B] hover:bg-[#764920] active:bg-[#5C3817] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                        >
+                            <span>Continue to Next Step</span>
+                            <i className="bi bi-arrow-right text-sm font-bold"></i>
+                        </button>
 
                         {/* ── Input Bar with Pause AI, Text Input, Mic & Send ── */}
-                        <div className="flex items-center gap-1.5 sm:gap-2 w-full pt-1">
+                        <div className="flex items-center gap-1.5 sm:gap-2 w-full pt-0.5">
                             {/* Pause / Resume AI Voice button */}
                             <button
                                 onClick={togglePauseAI}
