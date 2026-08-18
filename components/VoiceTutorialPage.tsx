@@ -154,17 +154,37 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     }
 
     if (!cleaned.includes('viewBox')) {
-        cleaned = cleaned.replace(/<svg/i, '<svg viewBox="0 0 400 220"');
+        cleaned = cleaned.replace(/<svg/i, '<svg viewBox="0 0 420 220"');
     }
     if (!cleaned.includes('xmlns=')) {
         cleaned = cleaned.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+
+    // Ensure standard engineering arrow markers exist if referenced
+    if (cleaned.includes('marker-end') && !cleaned.includes('<defs>')) {
+        const defs = `<defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2B6CB0" />
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#C53030" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#276749" />
+    </marker>
+  </defs>`;
+        cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
     }
 
     return cleaned;
 }
 
 /**
- * Generate procedural fallback diagrams and second-by-second progression tables when offline or AI doesn't provide one.
+ * Generate procedural fallback diagrams and progression tables when offline or AI doesn't provide one.
+ * Engineered for high-precision visual clarity across mechanics, kinematics, calculus, circuits, geometry, and chemistry.
  */
 function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramSvg: string | null; tableMarkdown: string | null; caption?: string } {
     const textContext = `${concept.conceptName} ${concept.keyDefinition} ${concept.formula || ''} ${concept.intuitionNote}`.toLowerCase();
@@ -206,8 +226,9 @@ function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramS
         }
     }
 
-    if (textContext.includes('force') || textContext.includes('newton') || textContext.includes('friction') || textContext.includes('motion') || textContext.includes('mass') || textContext.includes('accel')) {
-        const svg = `<svg viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg">
+    // ── 1. Dynamics & Free-Body Force Diagram ──
+    if (textContext.includes('force') || textContext.includes('newton') || textContext.includes('friction') || textContext.includes('mass') || textContext.includes('gravity') || textContext.includes('weight')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
@@ -218,46 +239,161 @@ function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramS
     <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#C53030" />
     </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#276749" />
+    </marker>
   </defs>
-  <line x1="30" y1="160" x2="350" y2="160" stroke="#8B4513" stroke-width="3" stroke-linecap="round" />
-  <rect x="130" y="80" width="120" height="80" rx="8" fill="#F4ECE2" stroke="#5A3E22" stroke-width="2.5" />
-  <text x="190" y="125" font-family="sans-serif" font-size="16" font-weight="bold" fill="#3D2817" text-anchor="middle">Mass m</text>
-  <line x1="250" y1="120" x2="330" y2="120" stroke="#2B6CB0" stroke-width="3.5" marker-end="url(#arrow-blue)" />
-  <text x="290" y="110" font-family="sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0">F_applied</text>
-  <line x1="130" y1="150" x2="60" y2="150" stroke="#C53030" stroke-width="3" marker-end="url(#arrow-red)" />
-  <text x="75" y="142" font-family="sans-serif" font-size="12" font-weight="bold" fill="#C53030">f_friction</text>
-  <line x1="190" y1="80" x2="190" y2="30" stroke="#276749" stroke-width="2.5" marker-end="url(#arrow)" />
-  <text x="198" y="45" font-family="sans-serif" font-size="12" font-weight="bold" fill="#276749">F_N</text>
-  <line x1="190" y1="160" x2="190" y2="195" stroke="#8B4513" stroke-width="2.5" marker-end="url(#arrow)" />
-  <text x="198" y="190" font-family="sans-serif" font-size="12" font-weight="bold" fill="#8B4513">F_g = mg</text>
+  <!-- Surface -->
+  <line x1="30" y1="165" x2="390" y2="165" stroke="#8B5A2B" stroke-width="3" stroke-linecap="round" />
+  <line x1="50" y1="173" x2="40" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="100" y1="173" x2="90" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="150" y1="173" x2="140" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="200" y1="173" x2="190" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="250" y1="173" x2="240" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="300" y1="173" x2="290" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <line x1="350" y1="173" x2="340" y2="183" stroke="#C2B2A3" stroke-width="2" />
+
+  <!-- Mass Block -->
+  <rect x="150" y="85" width="120" height="80" rx="8" fill="#F4ECE2" stroke="#5A3E22" stroke-width="2.5" />
+  <text x="210" y="130" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#3D2817" text-anchor="middle">Mass m</text>
+
+  <!-- Force Applied (Right) -->
+  <line x1="270" y1="125" x2="365" y2="125" stroke="#2B6CB0" stroke-width="3.5" marker-end="url(#arrow-blue)" />
+  <text x="325" y="112" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0">F_applied →</text>
+
+  <!-- Friction Force (Left) -->
+  <line x1="150" y1="155" x2="65" y2="155" stroke="#C53030" stroke-width="3" marker-end="url(#arrow-red)" />
+  <text x="75" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">← f_friction</text>
+
+  <!-- Normal Force (Up) -->
+  <line x1="210" y1="85" x2="210" y2="25" stroke="#276749" stroke-width="2.8" marker-end="url(#arrow-green)" />
+  <text x="220" y="45" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#276749">F_N (Normal)</text>
+
+  <!-- Gravity Force (Down) -->
+  <line x1="210" y1="165" x2="210" y2="212" stroke="#8B4513" stroke-width="2.8" marker-end="url(#arrow)" />
+  <text x="220" y="205" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#8B4513">F_g = mg</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Free-Body Force Diagram' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Free-Body Force & Equilibrium Diagram' };
     }
 
-    if (textContext.includes('triang') || textContext.includes('sin') || textContext.includes('cos') || textContext.includes('angle') || textContext.includes('pythag')) {
-        const svg = `<svg viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg">
-  <polygon points="60,170 300,170 300,40" fill="#F4ECE2" stroke="#8B4513" stroke-width="3" />
-  <rect x="275" y="145" width="25" height="25" fill="none" stroke="#8B4513" stroke-width="1.5" />
-  <text x="175" y="188" font-family="sans-serif" font-size="13" font-weight="bold" fill="#5A3E22" text-anchor="middle">Adjacent (b)</text>
-  <text x="315" y="110" font-family="sans-serif" font-size="13" font-weight="bold" fill="#5A3E22">Opposite (a)</text>
-  <text x="160" y="95" font-family="sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0" transform="rotate(-28 160 95)">Hypotenuse (c)</text>
-  <path d="M 100,170 A 40,40 0 0,0 95,150" fill="none" stroke="#C53030" stroke-width="2" />
-  <text x="110" y="162" font-family="sans-serif" font-size="13" font-weight="bold" fill="#C53030">θ</text>
+    // ── 2. Kinematics: Velocity-Time & Slope Model ──
+    if (textContext.includes('accel') || textContext.includes('kinematics') || textContext.includes('speed') || textContext.includes('velocity') || textContext.includes('motion')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
+    </marker>
+  </defs>
+  <!-- Axes -->
+  <line x1="50" y1="180" x2="380" y2="180" stroke="#8B4513" stroke-width="2.5" marker-end="url(#arrow)" />
+  <line x1="50" y1="180" x2="50" y2="25" stroke="#8B4513" stroke-width="2.5" marker-end="url(#arrow)" />
+  <text x="385" y="185" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">Time (t)</text>
+  <text x="55" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">Velocity (v)</text>
+
+  <!-- Area under curve (Displacement) -->
+  <polygon points="50,140 320,50 320,180 50,180" fill="#2B6CB0" fill-opacity="0.12" />
+  <text x="180" y="165" font-family="system-ui, sans-serif" font-size="12" font-style="italic" fill="#2B6CB0">Area = Displacement (Δx)</text>
+
+  <!-- Velocity Line -->
+  <line x1="50" y1="140" x2="320" y2="50" stroke="#2B6CB0" stroke-width="3.5" />
+  <circle cx="50" cy="140" r="5" fill="#2B6CB0" />
+  <text x="20" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#2B6CB0">v_i</text>
+  <circle cx="320" cy="50" r="5" fill="#C53030" />
+  <text x="330" y="52" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">v_f</text>
+
+  <!-- Slope Rise/Run Triangle -->
+  <line x1="170" y1="100" x2="270" y2="100" stroke="#C53030" stroke-width="1.8" stroke-dasharray="4,3" />
+  <line x1="270" y1="100" x2="270" y2="67" stroke="#C53030" stroke-width="1.8" stroke-dasharray="4,3" />
+  <text x="210" y="115" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#C53030">Δt (Run)</text>
+  <text x="278" y="87" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#C53030">Δv (Rise)</text>
+  <text x="135" y="70" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#C53030">Slope = a = Δv / Δt</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Right Triangle Trigonometric Model' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Kinematics: Velocity-Time Graph & Acceleration Slope' };
     }
 
-    if (textContext.includes('slope') || textContext.includes('deriv') || textContext.includes('tangent') || textContext.includes('rate') || textContext.includes('calculus')) {
-        const svg = `<svg viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg">
-  <line x1="40" y1="180" x2="360" y2="180" stroke="#8B4513" stroke-width="2" />
-  <line x1="40" y1="180" x2="40" y2="20" stroke="#8B4513" stroke-width="2" />
-  <path d="M 50,165 Q 160,150 220,90 T 340,30" fill="none" stroke="#2B6CB0" stroke-width="3.5" />
-  <line x1="140" y1="170" x2="300" y2="30" stroke="#C53030" stroke-width="2" stroke-dasharray="5,4" />
-  <circle cx="220" cy="100" r="5" fill="#C53030" />
-  <text x="232" y="105" font-family="sans-serif" font-size="12" font-weight="bold" fill="#C53030">Point (x, y)</text>
-  <text x="180" y="188" font-family="monospace" font-size="12" font-weight="bold" fill="#2B6CB0">f(x) curve</text>
+    // ── 3. Geometry & Trigonometry Right Triangle ──
+    if (textContext.includes('triang') || textContext.includes('sin') || textContext.includes('cos') || textContext.includes('tan') || textContext.includes('angle') || textContext.includes('pythag') || textContext.includes('geometry')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <!-- Triangle Polygon -->
+  <polygon points="70,175 330,175 330,35" fill="#F4ECE2" stroke="#8B4513" stroke-width="3" />
+  
+  <!-- Right Angle Square -->
+  <rect x="305" y="150" width="25" height="25" fill="none" stroke="#8B4513" stroke-width="2" />
+  
+  <!-- Labels -->
+  <text x="200" y="195" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22" text-anchor="middle">Adjacent Side (b)</text>
+  <text x="345" y="110" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22">Opposite (a)</text>
+  <text x="175" y="90" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#2B6CB0" transform="rotate(-28 175 90)">Hypotenuse (c)</text>
+  
+  <!-- Angle Arc θ -->
+  <path d="M 115,175 A 45,45 0 0,0 108,152" fill="none" stroke="#C53030" stroke-width="2.5" />
+  <text x="125" y="165" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#C53030">θ</text>
+  
+  <!-- Formula Pill -->
+  <rect x="70" y="15" width="200" height="30" rx="6" fill="#FFFDF9" stroke="#DFD1C0" />
+  <text x="80" y="35" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">a² + b² = c²  |  sin θ = a / c</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Function Curve & Tangent Slope' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Right Triangle Trigonometric & Geometric Model' };
+    }
+
+    // ── 4. Calculus: Tangent Line & Derivative Slope ──
+    if (textContext.includes('slope') || textContext.includes('deriv') || textContext.includes('tangent') || textContext.includes('rate') || textContext.includes('calculus') || textContext.includes('integral')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
+    </marker>
+  </defs>
+  <!-- Axes -->
+  <line x1="45" y1="185" x2="385" y2="185" stroke="#8B4513" stroke-width="2" marker-end="url(#arrow)" />
+  <line x1="45" y1="185" x2="45" y2="25" stroke="#8B4513" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="390" y="190" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">x</text>
+  <text x="50" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">f(x)</text>
+
+  <!-- Curve f(x) -->
+  <path d="M 60,170 Q 180,160 240,95 T 370,30" fill="none" stroke="#2B6CB0" stroke-width="3.5" />
+  <text x="320" y="30" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0">y = f(x)</text>
+
+  <!-- Tangent Line -->
+  <line x1="140" y1="175" x2="330" y2="35" stroke="#C53030" stroke-width="2.5" stroke-dasharray="6,4" />
+  <circle cx="235" cy="105" r="5" fill="#C53030" />
+  <text x="248" y="110" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">Point (x₀, f(x₀))</text>
+
+  <rect x="60" y="40" width="180" height="32" rx="6" fill="#FFFDF9" stroke="#E5DACD" />
+  <text x="70" y="61" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">Tangent Slope m = f'(x₀)</text>
+</svg>`;
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Calculus: Function Curve & Instantaneous Tangent Rate' };
+    }
+
+    // ── 5. Electricity & Circuits ──
+    if (textContext.includes('circuit') || textContext.includes('resistor') || textContext.includes('voltage') || textContext.includes('current') || textContext.includes('ohm')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2B6CB0" />
+    </marker>
+  </defs>
+  <!-- Wire loop -->
+  <rect x="70" y="45" width="280" height="130" rx="10" fill="none" stroke="#5A3E22" stroke-width="3" />
+  
+  <!-- Battery Source on Left -->
+  <rect x="60" y="90" width="20" height="40" fill="#FAF7F2" stroke="none" />
+  <line x1="60" y1="100" x2="80" y2="100" stroke="#C53030" stroke-width="4" />
+  <line x1="66" y1="120" x2="74" y2="120" stroke="#5A3E22" stroke-width="3" />
+  <text x="35" y="103" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#C53030">+</text>
+  <text x="35" y="125" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22">-</text>
+  <text x="25" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#5A3E22">Voltage (V)</text>
+
+  <!-- Resistor on Top -->
+  <rect x="170" y="35" width="80" height="20" fill="#FAF7F2" stroke="none" />
+  <path d="M 170,45 L 180,35 L 195,55 L 210,35 L 225,55 L 240,35 L 250,45" fill="none" stroke="#8B4513" stroke-width="3" />
+  <text x="185" y="25" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#8B4513">Resistor (R)</text>
+
+  <!-- Current Arrow in Center -->
+  <path d="M 180,110 A 30,30 0 1,1 230,110" fill="none" stroke="#2B6CB0" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+  <text x="175" y="130" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#2B6CB0">Current I = V / R</text>
+</svg>`;
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ohm\'s Law DC Circuit Loop Model' };
     }
 
     if (step === 'summary') {
@@ -413,6 +549,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const subStepRef         = useRef<SubStep>('definition');
     const audioContextRef    = useRef<AudioContext | null>(null);
     const currentAudioRef    = useRef<AudioBufferSourceNode | null>(null);
+    const playSessionIdRef   = useRef<number>(0);
     const recognitionRef     = useRef<any>(null);
     const spokenTextRef      = useRef('');
     const lastSpokenTextRef  = useRef('');
@@ -477,6 +614,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // Audio helpers
     // ─────────────────────────────────────────────────────────────────────────
     function stopAudioImmediate() {
+        playSessionIdRef.current++;
         if (currentAudioRef.current) {
             try { currentAudioRef.current.stop(); } catch (_) {}
             currentAudioRef.current = null;
@@ -584,7 +722,38 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         window.speechSynthesis.speak(utt);
     }, [speechRate, startMicListening]);
 
-    // ── Gemini Live Voice Natural Speech Engine ──────────────────────────────
+    // ── Sentence Splitter for Ultra-Low Latency Speech Streaming ─────────────
+    const splitSpeechSentences = useCallback((rawText: string): string[] => {
+        const clean = rawText
+            .replace(/\$\$([\s\S]*?)\$\$/g, ' as shown on the board ')
+            .replace(/\$([^\$]+)\$/g, '$1')
+            .replace(/[#*`_~]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!clean) return [];
+
+        // Match complete sentences ending in . ! ? or newline
+        const parts = clean.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [clean];
+        const sentences: string[] = [];
+
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            // Split overly long sentences (>150 characters) at punctuation marks for instant TTFB
+            if (trimmed.length > 150) {
+                const subChunks = trimmed.match(/[^,;:—]+(?:[,;:—]+(?=\s|$)|$)/g) || [trimmed];
+                for (const sub of subChunks) {
+                    const subTrimmed = sub.trim();
+                    if (subTrimmed) sentences.push(subTrimmed);
+                }
+            } else {
+                sentences.push(trimmed);
+            }
+        }
+        return sentences.length > 0 ? sentences : [clean];
+    }, []);
+
+    // ── Gemini Live Voice Sentence-Pipelined Streaming Speech Engine ─────────
     const speakText = useCallback(async (text: string, onEnd?: () => void): Promise<void> => {
         if (!isActiveRef.current || isMuted || !text) {
             onEnd?.();
@@ -596,11 +765,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         setIsTtsLoading(true);
         lastSpokenTextRef.current = text;
 
-        const clean = text
-            .replace(/\$\$([\s\S]*?)\$\$/g, '[formula on board]')
-            .replace(/\$([^\$]+)\$/g, '$1')
-            .replace(/[#*`_~]/g, '')
-            .trim();
+        const sessionId = ++playSessionIdRef.current;
+        const sentences = splitSpeechSentences(text);
+        if (sentences.length === 0) {
+            setIsTtsLoading(false);
+            onEnd?.();
+            return;
+        }
 
         const usePersonal = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
         const apiKey = usePersonal
@@ -609,59 +780,120 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         if (!apiKey) {
             setIsTtsLoading(false);
-            browserSpeak(clean, onEnd);
+            browserSpeak(sentences.join(' '), onEnd);
             return;
         }
 
         try {
             const tts = new GoogleGenAI({ apiKey });
-            const res = await tts.models.generateContent({
-                model: 'gemini-2.5-flash-preview-tts',
-                contents: [{ role: 'user', parts: [{ text: clean }] }],
-                config: {
-                    responseModalities: ['AUDIO'] as any,
-                    speechConfig: {
-                        voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
-                    },
-                },
-            });
-
-            if (!isActiveRef.current) return;
-
-            const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-            if (!inlineData?.data) throw new Error('no audio data');
-
-            const ctx    = getAudioCtx();
+            const ctx = getAudioCtx();
             if (ctx.state === 'suspended') await ctx.resume();
-            const abuf   = await pcm16ToAudioBuffer(inlineData.data, ctx);
-            const src    = ctx.createBufferSource();
-            src.buffer         = abuf;
-            src.playbackRate.value = speechRate;
-            src.connect(ctx.destination);
-            src.onended = () => {
-                if (isActiveRef.current) {
-                    setIsSpeaking(false);
-                    setIsPaused(false);
-                    setIsTtsLoading(false);
-                    currentAudioRef.current = null;
-                    onEnd?.();
-                    startMicListening();
-                }
+
+            // Cache for fetched audio buffers by sentence index
+            const bufferPromiseMap = new Map<number, Promise<AudioBuffer | null>>();
+
+            const fetchSentenceAudio = (index: number): Promise<AudioBuffer | null> => {
+                if (bufferPromiseMap.has(index)) return bufferPromiseMap.get(index)!;
+                const promise = (async (): Promise<AudioBuffer | null> => {
+                    if (index >= sentences.length) return null;
+                    const sentenceText = sentences[index];
+                    try {
+                        const res = await tts.models.generateContent({
+                            model: 'gemini-2.5-flash-preview-tts',
+                            contents: [{ role: 'user', parts: [{ text: sentenceText }] }],
+                            config: {
+                                responseModalities: ['AUDIO'] as any,
+                                speechConfig: {
+                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
+                                },
+                            },
+                        });
+
+                        if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return null;
+                        const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                        if (!inlineData?.data) return null;
+                        return await pcm16ToAudioBuffer(inlineData.data, ctx);
+                    } catch (e) {
+                        console.warn(`[Gemini TTS] Sentence ${index} fetch error:`, e);
+                        return null;
+                    }
+                })();
+                bufferPromiseMap.set(index, promise);
+                return promise;
             };
-            currentAudioRef.current = src;
-            setIsTtsLoading(false);
-            if (isActiveRef.current) {
+
+            // Initiate sentence 0 and pre-fetch sentence 1 immediately
+            void fetchSentenceAudio(0);
+            if (sentences.length > 1) void fetchSentenceAudio(1);
+
+            let currentIndex = 0;
+
+            const playNextSentence = async () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+
+                if (currentIndex >= sentences.length) {
+                    if (isActiveRef.current && playSessionIdRef.current === sessionId) {
+                        setIsSpeaking(false);
+                        setIsPaused(false);
+                        setIsTtsLoading(false);
+                        currentAudioRef.current = null;
+                        onEnd?.();
+                        startMicListening();
+                    }
+                    return;
+                }
+
+                const sentenceIdx = currentIndex;
+
+                // Pipeline pre-fetch for upcoming sentences
+                if (sentenceIdx + 1 < sentences.length) void fetchSentenceAudio(sentenceIdx + 1);
+                if (sentenceIdx + 2 < sentences.length) void fetchSentenceAudio(sentenceIdx + 2);
+
+                const buffer = await fetchSentenceAudio(sentenceIdx);
+
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+
+                if (!buffer) {
+                    if (sentenceIdx === 0) {
+                        console.warn('[Gemini TTS] Initial sentence failed, falling back to natural browser synthesis');
+                        setIsTtsLoading(false);
+                        browserSpeak(sentences.slice(currentIndex).join(' '), onEnd);
+                        return;
+                    }
+                    // Skip to next sentence if one intermediate sentence had a network error
+                    currentIndex++;
+                    void playNextSentence();
+                    return;
+                }
+
+                setIsTtsLoading(false);
                 setIsSpeaking(true);
                 setIsPaused(false);
-            }
-            src.start(0);
+
+                const src = ctx.createBufferSource();
+                src.buffer = buffer;
+                src.playbackRate.value = speechRate;
+                src.connect(ctx.destination);
+                currentAudioRef.current = src;
+
+                src.onended = () => {
+                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                    currentIndex++;
+                    void playNextSentence();
+                };
+
+                src.start(0);
+            };
+
+            void playNextSentence();
+
         } catch (err) {
-            console.warn('[Gemini TTS] Fallback to natural browser synthesis:', err);
-            if (!isActiveRef.current) return;
+            console.warn('[Gemini TTS] Pipelining error, falling back to browser synthesis:', err);
+            if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
             setIsTtsLoading(false);
-            browserSpeak(clean, onEnd);
+            browserSpeak(sentences.join(' '), onEnd);
         }
-    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, browserSpeak, startMicListening]);
+    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, splitSpeechSentences, browserSpeak, startMicListening]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Board streaming
@@ -963,21 +1195,24 @@ ${JSON.stringify(concept, null, 2)}
 CURRENT TEACHING SUB-STEP: ${sStep}
 TASK: ${subStepInstructions[sStep]}
 
-SVG VISUAL DRAWING RULES (Ultra Precise, Accurate & Detailed):
-- Must be a valid SVG string with viewBox="0 0 380 200", xmlns="http://www.w3.org/2000/svg"
+SVG VISUAL DRAWING RULES (Ultra-Precise, Detailed & Scientifically Accurate):
+- Must be a valid SVG string with viewBox="0 0 420 220", xmlns="http://www.w3.org/2000/svg"
+- Use proper <defs> with arrow markers (#arrow for brown/neutral, #arrow-red for forces/loads, #arrow-blue for velocities/motion/current, #arrow-green for reactions/equilibrium).
 - Precision Engineering Details:
-  * Outlines & structural bodies: stroke="#8B4513" or stroke="#5A3E22", stroke-width="2.5", fill="#F4ECE2"
-  * Dimension lines & labels: Clean dimension lines with markers at ends, text centered (e.g. "L = 3.0 m", "d = 50 mm")
-  * Force & Load vectors: Bold red stroke="#C53030", stroke-width="3", with arrowheads and force values (e.g. "P = 219.3 kN", "F = 50 N")
-  * Velocity & Motion vectors: Bold blue stroke="#2B6CB0", stroke-width="3"
-  * Reaction forces / Equilibrium: Emerald stroke="#276749"
-  * Labels & Annotations: Clear readable text, font-family="sans-serif", font-weight="bold", fill="#3D2817"
+  * Bodies / Containers / Objects: fill="#F4ECE2", stroke="#5A3E22", stroke-width="2.5", rx="8"
+  * Primary Forces / Loads / Critical Vectors: stroke="#C53030", stroke-width="3", marker-end="url(#arrow-red)", with clear force values (e.g. "F = 45 N", "mg = 98 N")
+  * Velocity / Motion / Flow / Displacement: stroke="#2B6CB0", stroke-width="3", marker-end="url(#arrow-blue)", with values (e.g. "v = 12 m/s", "I = 2.5 A")
+  * Reactions / Equilibrium / Normals: stroke="#276749", stroke-width="2.8", marker-end="url(#arrow-green)" (e.g. "F_N = 98 N")
+  * Ground / Surface / Axes: stroke="#8B5A2B", stroke-width="2.5" with hatch marks for ground or arrowheads for axes
+  * Dimension & Angle annotations: Clean dashed extension lines (#8B5A2B), angle arcs with "θ = 30°" or clear variable letters
+  * High-legibility text: font-family="system-ui, -apple-system, sans-serif", font-weight="bold", fill="#3D2817", font-size="12px" to "14px"
+- Ensure diagram directly illustrates the exact problem, quantities, variables, and scenario of the current sub-step.
 
 STRICT OUTPUT RULES (Valid JSON ONLY):
 1. boardLines: Array of strings, max ${MAX_BOARD_LINES} items.
 2. spokenExplanation: Natural conversational spoken English ONLY (no LaTeX).
-3. diagramSvg: Ultra-precise SVG string or null.
-4. tableMarkdown: Markdown table string or null.
+3. diagramSvg: Ultra-precise, detailed SVG string with viewBox="0 0 420 220" or null.
+4. tableMarkdown: Clean markdown table string or null.
 5. positiveReplyLabel: Text for the forward/affirmative button (e.g. "Yes, makes sense →").
 6. positiveReplyText: Spoken response if tapped.
 7. negativeReplyLabel: Text for the back/negative button (e.g. "Explain again ↺").
