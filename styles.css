@@ -519,4 +519,82 @@
   background-size: 20px 20px;
 }
 
+/* Animated Board Diagram & Strokes */
+@keyframes drawBoardStroke {
+  0% {
+    stroke-dashoffset: 1200;
+    opacity: 0.1;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.board-diagram-animated path,
+.board-diagram-animated line,
+.board-diagram-animated circle,
+.board-diagram-animated rect,
+.board-diagram-animated polyline,
+.board-diagram-animated polygon,
+.board-diagram-animated ellipse {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: drawBoardStroke 1.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.board-diagram-animated text {
+  animation: fadeInBoardText 0.7s ease-out 0.6s forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInBoardText {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Milk Canvas Board Table Styling */
+.milk-canvas table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0.6rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1.5px solid #D9CCBC;
+  background-color: rgba(255, 253, 249, 0.9);
+  box-shadow: 0 2px 6px rgba(139, 90, 43, 0.05);
+}
+
+.milk-canvas th {
+  background-color: #EDE2D4;
+  color: #5A3E22;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1.5px solid #D9CCBC;
+  text-align: left;
+}
+
+.milk-canvas td {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.88rem;
+  color: #382A1E;
+  border-bottom: 1px solid #EFE5D8;
+}
+
+.milk-canvas tr:last-child td {
+  border-bottom: none;
+}
+
+.milk-canvas tr:nth-child(even) td {
+  background-color: rgba(244, 236, 226, 0.45);
+}
+
+
 
