@@ -39,18 +39,23 @@ interface BlueprintVariable { symbol: string; meaning: string; unit?: string; }
 interface BlueprintExample  { problem: string; solution: string[]; answer: string; }
 
 interface BlueprintConcept {
-    conceptName:    string;
-    keyDefinition:  string;
-    formula:        string | null;
-    variables:      BlueprintVariable[];
-    intuitionNote:  string;
-    example1:       BlueprintExample;
-    example2:       BlueprintExample;
-    commonPitfalls: string[];
-    summaryPoints:  string[];
-    diagramSvg?:    string | null;
-    tableMarkdown?: string | null;
-    diagramCaption?: string;
+    conceptName:        string;
+    relatableQuestion?: string;      // "When you hear the word distance, what do you think of?"
+    keyDefinition:      string;
+    realWorldAnalogy?:  string;      // Sports car vs. truck, ball dropped off sea cliff
+    intuitionNote:      string;
+    progressionTable?:  string;      // Second-by-second / step-by-step state table before formula
+    formula:            string | null;
+    variables:          BlueprintVariable[];
+    keyDistinction?:    string;      // Distance vs. Displacement, Speed vs. Velocity
+    goldenRule?:        string;      // "Distance is always positive; displacement can be positive, negative, or zero"
+    example1:           BlueprintExample;
+    example2:           BlueprintExample;
+    commonPitfalls:     string[];
+    summaryPoints:      string[];
+    diagramSvg?:        string | null;
+    tableMarkdown?:     string | null;
+    diagramCaption?:    string;
 }
 
 interface LessonBlueprint {
@@ -83,10 +88,8 @@ interface VoiceTutorialPageProps {
 function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     if (!rawSvg || typeof rawSvg !== 'string') return null;
     let cleaned = rawSvg.trim();
-    // Strip markdown code fences if model returned them
     cleaned = cleaned.replace(/^```(?:xml|svg|html)?\s*/i, '').replace(/```$/i, '').trim();
 
-    // Extract <svg ... </svg> if wrapped with additional text
     const match = cleaned.match(/<svg[\s\S]*?<\/svg>/i);
     if (match) {
         cleaned = match[0];
@@ -94,7 +97,6 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
         return null;
     }
 
-    // Ensure responsive attributes and proper viewBox
     if (!cleaned.includes('viewBox')) {
         cleaned = cleaned.replace(/<svg/i, '<svg viewBox="0 0 400 220"');
     }
@@ -106,16 +108,53 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
 }
 
 /**
- * Generate procedural fallback diagrams and tables for academic concepts when offline or AI doesn't provide one.
+ * Generate procedural fallback diagrams and second-by-second progression tables when offline or AI doesn't provide one.
  */
 function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramSvg: string | null; tableMarkdown: string | null; caption?: string } {
     const textContext = `${concept.conceptName} ${concept.keyDefinition} ${concept.formula || ''} ${concept.intuitionNote}`.toLowerCase();
 
-    // 1. Markdown Table for formulas and variables
-    if (step === 'formula' && concept.variables && concept.variables.length > 0) {
-        const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | ${v.unit || 'SI unit'} |`).join('\n');
-        const tableMarkdown = `| Symbol | Variable / Property | Unit |\n| :--- | :--- | :--- |\n${rows}`;
-        return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Variables Reference` };
+    // 1. Concrete Second-by-Second Progression Table (Table over abstract math)
+    if (step === 'formula') {
+        if (textContext.includes('accel') || textContext.includes('speed') || textContext.includes('motion') || textContext.includes('velocity')) {
+            const tableMarkdown = `| Time ($t$) | Velocity ($v$) | What is happening? |
+| :---: | :---: | :--- |
+| **0 s** | **12 m/s** | Initial speed ($v_i$) |
+| **1 s** | **16 m/s** | Added $+4\\text{ m/s}$ ($a = 4\\text{ m/s}^2$) |
+| **2 s** | **20 m/s** | Added $+4\\text{ m/s}$ |
+| **3 s** | **24 m/s** | Final speed ($v_f$) |`;
+            return { diagramSvg: null, tableMarkdown, caption: 'Second-by-Second Progression Table' };
+        }
+
+        if (concept.variables && concept.variables.length > 0) {
+            const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | ${v.unit || 'SI unit'} |`).join('\n');
+            const tableMarkdown = `| Symbol | Variable / Property | Unit |\n| :--- | :--- | :--- |\n${rows}`;
+            return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Variables Reference` };
+        }
+    }
+
+    // 2. Crucial Distinctions / Golden Rule comparison matrix
+    if (step === 'pitfalls') {
+        if (textContext.includes('distance') || textContext.includes('displacement')) {
+            const tableMarkdown = `| Property | Distance | Displacement |
+| :--- | :--- | :--- |
+| **Type** | Scalar (Magnitude only) | Vector (Magnitude + Direction) |
+| **Sign** | **Always positive ($+$)** | **Can be $(+)$, $(-)$, or $0$** |
+| **Meaning** | Total path traveled | Net straight-line change |`;
+            return { diagramSvg: null, tableMarkdown, caption: 'Key Distinction: Distance vs. Displacement' };
+        }
+        if (textContext.includes('speed') || textContext.includes('velocity')) {
+            const tableMarkdown = `| Property | Speed | Velocity |
+| :--- | :--- | :--- |
+| **Type** | Scalar | Vector |
+| **Formula** | $\\text{Distance} / \\text{Time}$ | $\\text{Displacement} / \\text{Time}$ |
+| **Direction** | Direction does not matter | **Direction is essential** |`;
+            return { diagramSvg: null, tableMarkdown, caption: 'Key Distinction: Speed vs. Velocity' };
+        }
+        if (concept.variables && concept.variables.length > 0) {
+            const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | ${v.unit || 'SI unit'} |`).join('\n');
+            const tableMarkdown = `| Property / Symbol | Meaning | Standard Unit |\n| :--- | :--- | :--- |\n${rows}`;
+            return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Key Distinctions` };
+        }
     }
 
     // 2. Physics / Mechanics / Force Diagram (Free-body diagram)
@@ -682,7 +721,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         setBlueprintGenStep('Building visual lesson plan...');
 
-        const prompt = `You are AVELUT Curriculum Designer. Create a comprehensive, structured lesson blueprint for a visual + voice blackboard AI tutor capable of drawing diagrams, shapes, illustrations, and structured tables.
+        const prompt = `You are AVELUT Master STEM Curriculum Designer. You follow the "Intuition First, Math Second" teaching methodology:
+1. Step-by-Step, Foundational: Start with basic, relatable questions (e.g. "When you hear the word distance, what do you think of?").
+2. Real-World Physical Analogies: Compare tangible everyday scenarios (e.g. sports car vs. truck 0-60, ball dropped off a cliff, box on a rug).
+3. Concrete Progression Tables Over Abstract Math: Build step-by-step or second-by-second numerical state tables showing how quantities evolve before showing algebraic formulas.
+4. Clear Distinctions & Golden Rules: Explicitly contrast confusing twin terms (e.g. Distance vs. Displacement, Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
+5. Interactive Mini-Puzzles: Thought experiments before the reveal (e.g. "If an object moves East with negative acceleration, is it speeding up or slowing down?").
+6. Visual Representation: Labeled number lines, force boxes with vector arrows, trajectory sketches.
 
 Course: "${courseName}"
 Topic: "${topicName}"
@@ -690,54 +735,50 @@ Student Level: ${level}
 
 Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown fences.
 
-BLUEPRINT REQUIREMENTS:
-- Include 2–4 key concepts depending on topic complexity
-- Each concept must have: definition, formula (or null), variables, intuition, two worked examples, pitfalls, summary
-- Formulas must be LaTeX strings: e.g. "$$F = ma$$" or "$$v = \\frac{d}{t}$$"
-- variables: list symbol, meaning, and standard unit if applicable
-- example1 = standard problem, example2 = harder variant (add friction, incline, multi-step etc.)
-- solution arrays: each string is ONE step of the working (max 4 steps)
-- commonPitfalls: 2–3 specific student mistakes for this concept
-- summaryPoints: 2–3 key takeaway lines
-- diagramSvg: If this concept benefits from a visual diagram (e.g. physics free-body, geometric shape, graph, circuit, chemical structure, flowchart), include a valid, clean SVG string with viewBox="0 0 380 200" and warm sepia tones (#8B4513, #2B6CB0, #C53030, #5A3E22). Otherwise null.
-- tableMarkdown: If comparison or variable matrix is helpful, include a clean Markdown table. Otherwise null.
-
 {
   "overview": "2-3 sentence overview of what the student will learn",
   "concepts": [
     {
       "conceptName": "Short name (2-5 words)",
-      "keyDefinition": "Clear, simple 1-2 sentence definition",
+      "relatableQuestion": "Everyday intuitive question to open the topic (e.g. 'When you hear acceleration, what comes to mind?')",
+      "keyDefinition": "Clear, simple definition grounded in physical meaning, plain English",
+      "realWorldAnalogy": "Concrete physical analogy or scenario (e.g. truck vs. sports car 0 to 60 mph)",
+      "intuitionNote": "What this concept feels like physically in everyday life.",
+      "progressionTable": "| Time (t) | Velocity (v) | What is happening? |\\n| :---: | :---: | :--- |\\n| 0 s | 12 m/s | Starting speed |\\n| 1 s | 16 m/s | Added +4 m/s |\\n| 2 s | 20 m/s | Added +4 m/s |",
       "formula": "$$LaTeX formula$$ or null",
       "variables": [
-        {"symbol": "F", "meaning": "Force in Newtons", "unit": "N"}
+        {"symbol": "a", "meaning": "Acceleration — the rate velocity changes every second", "unit": "m/s²"}
       ],
-      "intuitionNote": "Real-world physical intuition in 1-2 sentences.",
+      "keyDistinction": "Clear distinction between this and its commonly confused counterpart (e.g. Speed vs. Velocity)",
+      "goldenRule": "Memorable Golden Rule (e.g. 'Distance is always positive; displacement can be positive, negative, or zero.')",
       "example1": {
-        "problem": "A 5 kg box is pushed with 20 N. Find acceleration.",
-        "solution": ["Identify: F = 20 N, m = 5 kg", "Apply: a = F/m = 20/5", "Calculate: a = 4 m/s²"],
-        "answer": "4 m/s²"
+        "problem": "An object moves East at 20 m/s with an acceleration of -4 m/s² West. Is it speeding up or slowing down? Find its velocity after 3 seconds.",
+        "solution": ["Identify: v_i = 20 m/s, a = -4 m/s², t = 3 s", "Check signs: velocity is positive (East), acceleration is negative (West) → opposite signs mean SLOWING DOWN", "Apply formula: v_f = v_i + at = 20 + (-4)(3) = 20 - 12", "Calculate: v_f = 8 m/s East"],
+        "answer": "8 m/s East (Slowing down)"
       },
       "example2": {
-        "problem": "Same box on a surface with μ = 0.3. Find net acceleration.",
-        "solution": ["Find friction: f = μmg = 0.3 × 5 × 10 = 15 N", "Net force: F_net = 20 - 15 = 5 N", "Apply: a = F_net/m = 5/5 = 1 m/s²"],
-        "answer": "1 m/s²"
+        "problem": "Layered problem with incline, friction, or multi-step condition",
+        "solution": ["Step 1", "Step 2", "Step 3"],
+        "answer": "Final answer with units"
       },
       "commonPitfalls": [
-        "Forgetting to subtract friction from applied force"
+        "Confusing deceleration with negative acceleration without checking velocity direction",
+        "Forgetting units"
       ],
       "summaryPoints": [
-        "Newton's 2nd Law: F = ma links force, mass and acceleration"
+        "Acceleration is the change in velocity per second",
+        "Opposite signs between velocity and acceleration always mean slowing down",
+        "Formulas are simply shortcuts for step-by-step progression tables"
       ],
       "diagramSvg": null,
       "tableMarkdown": null
     }
   ],
-  "overallSummary": "1–2 sentence closing remark about the full topic"
+  "overallSummary": "1–2 sentence closing summary of the topic"
 }`;
 
         try {
-            setBlueprintGenStep('Generating lesson content...');
+            setBlueprintGenStep('Generating intuitive lesson plan...');
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -836,71 +877,77 @@ BLUEPRINT REQUIREMENTS:
         // Save progress immediately
         writeCachedJson(progressKeyRef.current, { conceptIdx: cIdx, subStep: sStep }, userProfile?.uid || 'anon');
 
-        // ── Sub-step instructions for the AI ──────────────────────────────
+        // ── Sub-step instructions for the AI ("Intuition First, Math Second") ──
         const subStepInstructions: Record<SubStep, string> = {
             definition:
-                `Teach the DEFINITION of "${concept.conceptName}".
-- boardLines[0]: the concept name as a clear title.
-- boardLines[1-3]: the definition broken into 1-3 short punchy lines. Plain English, no jargon.
-- diagramSvg / tableMarkdown: If a visual shape, diagram, or table clarifies this concept (e.g. geometric shape, physics setup, comparison table), provide it.
-- spokenExplanation: Warm introduction. State the definition conversationally. Explain why it matters. Refer to any visual on the board if applicable. End with a question to check understanding.`,
-
-            formula:
-                `Teach the FORMULA for "${concept.conceptName}".
-Blueprint formula: ${concept.formula}
-Blueprint variables: ${JSON.stringify(concept.variables)}
-- boardLines[0]: the LaTeX formula exactly as given in the blueprint ($$...$$).
-- boardLines[1-N]: each variable as "symbol  →  plain meaning" — one per line.
-- tableMarkdown: Provide a structured Markdown table of variables, symbols, and SI units (or comparison).
-- diagramSvg: If a visual diagram or labeled triangle/vector clarifies the formula, include it in diagramSvg.
-- spokenExplanation: Tell the student to look at the board and formula/diagram. Explain what each symbol represents physically. Do NOT read raw LaTeX. End with a question.`,
+                `Teach the DEFINITION of "${concept.conceptName}" using Relatable Question & Intuitive Foundation.
+Relatable Question: ${concept.relatableQuestion || `When you hear the word "${concept.conceptName}", what comes to mind?`}
+- spokenExplanation: Open warmly with the relatable question. Explain the concept in everyday physical terms before introducing any equations. Explain why it matters in real life. End by checking if that definition makes intuitive sense.
+- boardLines[0]: "${concept.conceptName}" as title.
+- boardLines[1-3]: The definition broken into 1-3 punchy, plain English lines.
+- diagramSvg: If a simple physical sketch (number line, moving car, coordinate axis) helps, include it.`,
 
             intuition:
-                `Teach the PHYSICAL INTUITION for "${concept.conceptName}".
-Blueprint intuition: "${concept.intuitionNote}"
-- boardLines[0]: "Intuition" as a label.
-- boardLines[1-3]: 2-3 lines capturing the core physical intuition.
-- diagramSvg: Create a vivid, clean illustration or annotated diagram representing this physical intuition (e.g. slopes, forces, fluid levels, circuits, waves).
-- spokenExplanation: Deliver the intuition warmly with a memorable real-world analogy. Refer directly to the diagram drawn on the board. End with a question.`,
+                `Teach the PHYSICAL INTUITION & REAL-WORLD ANALOGY for "${concept.conceptName}".
+Analogy: ${concept.realWorldAnalogy || concept.intuitionNote}
+- spokenExplanation: Deliver the physical analogy vividly (e.g. sports car vs. truck, ball dropped off cliff, walking on a track). Make the student physically visualize what is happening. Refer directly to the diagram drawn on the board.
+- boardLines[0]: "💡 Physical Intuition" as header.
+- boardLines[1-3]: 2-3 lines capturing the physical feel and takeaway of the analogy.
+- diagramSvg: Provide a clean SVG illustration with colored arrows (e.g. Velocity in blue, Forces in red, mass boxes).`,
 
-            example_1:
-                `Teach WORKED EXAMPLE 1 for "${concept.conceptName}".
-Blueprint example: ${JSON.stringify(concept.example1)}
-- boardLines[0]: the problem statement.
-- boardLines[1-3]: the working steps (use LaTeX for maths if needed: e.g. $a = F/m$).
-- boardLines[4]: the final answer with units.
-- diagramSvg: If a diagram illustrates the example (e.g. free body diagram with numbers, geometric figure, circuit), include it.
-- spokenExplanation: Read the problem aloud. Walk each step slowly. Reference the board working and diagram. End by asking if they followed.`,
-
-            example_2:
-                `Teach WORKED EXAMPLE 2 (harder) for "${concept.conceptName}".
-Blueprint example: ${JSON.stringify(concept.example2)}
-- boardLines[0]: the harder problem statement.
-- boardLines[1-3]: working steps with LaTeX where useful.
-- boardLines[4]: final answer with units.
-- diagramSvg: Provide an updated diagram reflecting the harder condition (e.g. adding friction arrow, inclined angle θ, multi-step circuit).
-- spokenExplanation: Explain what makes this harder than Example 1. Walk through the solution. End by asking if they can see the pattern.`,
+            formula:
+                `Teach the FORMULA for "${concept.conceptName}" via a CONCRETE PROGRESSION TABLE (Table First, Math Second).
+Progression Table: ${concept.progressionTable || 'Second-by-second numerical table'}
+Blueprint formula: ${concept.formula}
+Blueprint variables: ${JSON.stringify(concept.variables)}
+- spokenExplanation: Tell the student to look at the table on the board. Walk through the numbers second-by-second (e.g. "Notice that each second, speed increases by 4..."). THEN explain that the formula on the board is simply the algebraic shortcut for this table. Explain what each symbol represents physically. Do NOT read raw LaTeX.
+- tableMarkdown: Provide the clean second-by-second or step-by-step progression table.
+- boardLines[0]: The LaTeX formula ($$...$$).
+- boardLines[1-N]: Each variable as "symbol  →  plain meaning (units)".`,
 
             pitfalls:
-                `Teach COMMON PITFALLS for "${concept.conceptName}".
-Blueprint pitfalls: ${JSON.stringify(concept.commonPitfalls)}
-- boardLines[0]: "Common Pitfalls" as a header.
-- boardLines[1-N]: one pitfall per line, phrased as a warning (e.g. "Don't confuse mass with weight").
-- tableMarkdown: Provide a DO vs. DON'T comparison table if applicable.
-- spokenExplanation: Warn the student directly about each pitfall. Be clear and emphatic. End by asking if they've fallen into any of these.`,
+                `Teach CRUCIAL DISTINCTIONS & GOLDEN RULES for "${concept.conceptName}".
+Key Distinction: ${concept.keyDistinction || 'Twin concept comparison (e.g. Distance vs. Displacement, Speed vs. Velocity)'}
+Golden Rule: ${concept.goldenRule || 'Important rule to remember'}
+- spokenExplanation: Highlight the most common mistake students make. Point out the exact difference between the twin terms. Emphasize the Golden Rule clearly. Ask if they have ever fallen into this trap.
+- boardLines[0]: "⚠️ Crucial Distinction & Golden Rule" as header.
+- boardLines[1-N]: The golden rules and warnings formatted clearly.
+- tableMarkdown: Provide a side-by-side comparison table (e.g. Distance vs. Displacement).`,
+
+            example_1:
+                `Teach WORKED EXAMPLE 1 (Interactive Mini-Puzzle) for "${concept.conceptName}".
+Blueprint example: ${JSON.stringify(concept.example1)}
+- spokenExplanation: Read the problem as an interactive mini-puzzle. Ask the student to think about the physical direction/sign before calculating. Then slowly walk through each line of working. Refer to the board. End by asking if they followed each step.
+- boardLines[0]: Problem statement.
+- boardLines[1-3]: Step-by-step working lines with LaTeX.
+- boardLines[4]: Final answer with units.
+- diagramSvg: Annotated diagram with the numbers from the problem.`,
+
+            example_2:
+                `Teach WORKED EXAMPLE 2 (Layered Challenge Problem) for "${concept.conceptName}".
+Blueprint example: ${JSON.stringify(concept.example2)}
+- spokenExplanation: Explain what makes this challenge problem harder (e.g. adding friction, an angle, opposite signs, or multiple stages). Walk through the solution cleanly. Point out the key difference.
+- boardLines[0]: Challenge problem statement.
+- boardLines[1-3]: Step-by-step calculation steps.
+- boardLines[4]: Final answer with units.
+- diagramSvg: Updated diagram reflecting the harder condition.`,
 
             summary:
                 `Teach the SUMMARY for "${concept.conceptName}".
 Blueprint summary points: ${JSON.stringify(concept.summaryPoints)}
-- boardLines[0]: "${concept.conceptName} — Key Points" as a title.
-- boardLines[1-N]: the summary points, concise and clear.
-- tableMarkdown: Provide a recap matrix summarizing key formulas, rules, and units.
-- spokenExplanation: Recap what was covered in 2-3 sentences. Reinforce the most important formula or diagram. End by asking if they're ready to continue.`,
+Golden Rule: ${concept.goldenRule || ''}
+- spokenExplanation: Recap what was learned in 2-3 inspiring sentences. Reinforce the golden rule and the formula shortcut. Celebrate their progress and ask if they are ready for the next concept.
+- boardLines[0]: "${concept.conceptName} — Key Takeaways" as title.
+- boardLines[1-N]: The summary points and golden rule.
+- tableMarkdown: A quick summary matrix if useful.`,
         };
 
-        const aiPrompt = `You are AVELUT Voice & Visual Tutor — a warm, expert classroom teacher delivering an interactive visual blackboard lesson.
-You have the ability to write text on the board, draw animated vector SVG diagrams & shapes, and render structured Markdown tables.
-You MUST follow the lesson blueprint EXACTLY. Do NOT introduce contradictory facts.
+        const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
+You embody the legendary "Intuition First, Math Second" teaching methodology:
+- Never show abstract math without physical intuition or concrete tables first.
+- Always use conversational, engaging, classroom teacher English (no robotic jargon).
+- Use the board to draw diagrams, second-by-second progression tables, and clean LaTeX formulas.
+- Always refer to what you are drawing or writing on the board.
 
 LESSON BLUEPRINT — CURRENT CONCEPT:
 ${JSON.stringify(concept, null, 2)}
@@ -911,14 +958,13 @@ YOUR TASK FOR THIS SUB-STEP:
 ${subStepInstructions[sStep]}
 
 VISUAL DRAWING & TABLE INSTRUCTIONS:
-- diagramSvg: Valid SVG string with viewBox="0 0 380 200" (or null if not applicable). Use warm theme colors:
+- diagramSvg: Valid SVG string with viewBox="0 0 380 200" (or null). Use warm theme colors:
   * Outlines & shapes: "#8B4513", "#5A3E22", "#3D2817"
-  * Accents & arrows: "#2B6CB0", "#C53030", "#276749", "#D97706"
+  * Accents & vectors: "#2B6CB0" (velocity), "#C53030" (force/accel), "#276749", "#D97706"
   * Fills: "#F4ECE2", "#EDE2D4" or "none"
   * Text labels: font-family="sans-serif", font-weight="bold", fill="#3D2817"
-  * Use <marker> for arrowheads if drawing vectors or flowcharts.
-- tableMarkdown: Clean Markdown table (or null if not applicable).
-- diagramCaption: Short descriptive title for the visual (e.g. "Free-Body Force Diagram", "Trigonometric Right Triangle").
+- tableMarkdown: Clean Markdown table (especially for second-by-second progression or distinctions).
+- diagramCaption: Short descriptive title.
 
 STRICT OUTPUT RULES:
 1. boardLines: Array of strings, max ${MAX_BOARD_LINES} items. LaTeX allowed ($$...$$ for blocks, $...$ inline).
