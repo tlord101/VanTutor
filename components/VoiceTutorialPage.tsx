@@ -117,7 +117,13 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
 /**
  * Robust JSON parser specifically engineered for LLM generated JSON that may contain
  * unescaped LaTeX backslashes (\frac, \Delta, \alpha, \text, \approx), markdown fences,
- * or stray formatting.
+/**
+ * Robust JSON parser capable of handling:
+ * 1. Markdown code blocks (```json ... ```)
+ * 2. Unescaped LaTeX backslashes (\sigma, \Delta, \frac, \nabla, \alpha, etc.)
+ * 3. Literal newlines or tabs inside JSON strings
+ * 4. Trailing commas
+ * 5. Truncated JSON responses (auto-closes quotes and braces)
  */
 export function robustParseJson<T = any>(raw: string): T {
     if (!raw || typeof raw !== 'string') {
@@ -125,54 +131,114 @@ export function robustParseJson<T = any>(raw: string): T {
     }
     let cleaned = raw.replace(/^```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
     
-    // Extract JSON substring between first { and last }
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
+    // Extract JSON substring between first { or [ and last } or ]
+    const firstBrace = cleaned.search(/[\{\[]/);
+    const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }
 
+    // Attempt 1: Direct JSON.parse
     try {
         return JSON.parse(cleaned) as T;
-    } catch {
-        // Strategy 1: Escape unescaped backslashes (e.g. LaTeX \text, \frac, \Delta, \vec, \alpha)
-        // Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
-        try {
-            const sanitized = cleaned.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
-            return JSON.parse(sanitized) as T;
-        } catch {
-            // Strategy 2: Walk through strings and repair invalid escapes / unescaped newlines
-            try {
-                let inString = false;
-                let escaped = false;
-                let repaired = '';
-                for (let i = 0; i < cleaned.length; i++) {
-                    const char = cleaned[i];
-                    if (char === '"' && !escaped) {
-                        inString = !inString;
-                        repaired += char;
-                    } else if (inString && char === '\\') {
-                        const nextChar = cleaned[i + 1];
-                        if (nextChar && '\"\\/bfnrtu'.includes(nextChar)) {
-                            repaired += char;
+    } catch (_) {}
+
+    // Attempt 2: Advanced character-by-character sanitize with LaTeX escape handler
+    try {
+        let inString = false;
+        let isEscaped = false;
+        let out = '';
+
+        for (let i = 0; i < cleaned.length; i++) {
+            const ch = cleaned[i];
+
+            if (inString) {
+                if (ch === '"' && !isEscaped) {
+                    inString = false;
+                    out += ch;
+                } else if (ch === '\\' && !isEscaped) {
+                    const next = cleaned[i + 1] || '';
+                    // Standard valid JSON escapes
+                    if (next === '"' || next === '\\' || next === '/') {
+                        out += '\\' + next;
+                        i++;
+                    } else if (next === 'u' && /^[0-9a-fA-F]{4}/.test(cleaned.slice(i + 2, i + 6))) {
+                        out += '\\u' + cleaned.slice(i + 2, i + 6);
+                        i += 5;
+                    } else if (/^[bfnrt]/.test(next)) {
+                        // Check if it's a LaTeX command starting with b, f, n, r, t (e.g. \frac, \nabla, \text, \rho, \beta, \begin)
+                        const remainder = cleaned.slice(i + 1, i + 15);
+                        if (/^(frac|nabla|text|times|theta|tau|tan|rho|right|nu|neq|neg|normal|beta|begin|bar|bot|bf|bold|box|bullet|approx|gamma)/i.test(remainder)) {
+                            out += '\\\\' + next;
                         } else {
-                            repaired += '\\\\';
+                            out += '\\' + next;
                         }
-                    } else if (inString && (char === '\n' || char === '\r')) {
-                        repaired += '\\n';
-                    } else if (inString && char === '\t') {
-                        repaired += '\\t';
+                        i++;
                     } else {
-                        repaired += char;
+                        // Any other LaTeX/escaped character like \sigma, \Delta, \vec, \alpha, \int, \sum, \partial, etc.
+                        out += '\\\\' + next;
+                        i++;
                     }
-                    escaped = char === '\\' && !escaped;
+                } else if (ch === '\n') {
+                    out += '\\n';
+                } else if (ch === '\r') {
+                    out += '\\r';
+                } else if (ch === '\t') {
+                    out += '\\t';
+                } else {
+                    out += ch;
                 }
-                return JSON.parse(repaired) as T;
-            } catch (err) {
-                console.error('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 400));
-                throw err;
+                isEscaped = false;
+            } else {
+                if (ch === '"') {
+                    inString = true;
+                    out += ch;
+                } else {
+                    out += ch;
+                }
             }
         }
+
+        // Clean trailing commas before closing braces/brackets
+        const withoutTrailingCommas = out.replace(/,\s*([\}\]])/g, '$1');
+        return JSON.parse(withoutTrailingCommas) as T;
+    } catch (_) {}
+
+    // Attempt 3: Regex replacer function fixing all single backslashes
+    try {
+        const sanitized = cleaned
+            .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, () => '\\\\')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t')
+            .replace(/,\s*([\}\]])/g, '$1');
+        return JSON.parse(sanitized) as T;
+    } catch (_) {}
+
+    // Attempt 4: Auto-balance unclosed quotes and braces if truncated
+    try {
+        let openBraces = (cleaned.match(/\{/g) || []).length - (cleaned.match(/\}/g) || []).length;
+        let openBrackets = (cleaned.match(/\[/g) || []).length - (cleaned.match(/\]/g) || []).length;
+        let openQuotes = (cleaned.match(/(?<!\\)"/g) || []).length % 2 !== 0;
+
+        let patched = cleaned;
+        if (openQuotes) patched += '"';
+        while (openBrackets > 0) {
+            patched += ']';
+            openBrackets--;
+        }
+        while (openBraces > 0) {
+            patched += '}';
+            openBraces--;
+        }
+
+        const sanitized = patched
+            .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, () => '\\\\')
+            .replace(/,\s*([\}\]])/g, '$1');
+        return JSON.parse(sanitized) as T;
+    } catch (err) {
+        console.error('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 400));
+        throw err;
     }
 }
 
