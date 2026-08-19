@@ -139,39 +139,68 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                 <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     <tr>
                                         <th className="px-6 py-4">Reference</th>
-                                        <th className="px-6 py-4">User Email</th>
+                                        <th className="px-6 py-4">Student</th>
+                                        <th className="px-6 py-4">Item / Pack</th>
                                         <th className="px-6 py-4">Amount</th>
-                                        <th className="px-6 py-4">Tier</th>
                                         <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4 text-right">Date</th>
+                                        <th className="px-6 py-4 text-right">Date & Time</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-sm">
-                                    {filteredPayments.map((log, i) => (
-                                        <tr key={i} className="hover:bg-slate-50 transition">
-                                            <td className="px-6 py-4 font-mono text-xs text-slate-600">{log.reference}</td>
-                                            <td className="px-6 py-4 font-semibold  dark:text-white">{log.user_email}</td>
-                                            <td className="px-6 py-4 font-bold  dark:text-white">₦{(Number(log.amount) || 0).toLocaleString()}</td>
-                                            <td className="px-6 py-4 uppercase text-xs font-black text-emerald-600">{log.tier_id}</td>
-                                            <td className="px-6 py-4">
-                                                {(!log.status || log.status === 'success' || log.status === 'successful') ? (
-                                                    <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-black uppercase w-max">
-                                                        <CheckCircle className="w-3 h-3" /> Success
+                                    {filteredPayments.map((log, i) => {
+                                        const itemName = log.purchase_type === 'subscription'
+                                            ? `${(log.plan_key || log.tier_id || 'Subscription').toUpperCase()} Plan`
+                                            : `${log.credit_amount || log.amount || ''} Extra Credits`;
+                                        const isSuccess = (!log.status || log.status === 'success' || log.status === 'successful');
+                                        const isPending = log.status === 'initiated' || log.status === 'pending';
+
+                                        return (
+                                            <tr key={i} className="hover:bg-slate-50 transition">
+                                                <td className="px-6 py-4 font-mono text-xs text-slate-600 select-all">
+                                                    {log.reference || log.id || '—'}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-bold dark:text-white leading-tight">
+                                                        {log.user_name || log.metadata?.user_name || 'Student'}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">
+                                                        {log.user_email || log.email || '—'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                        {itemName}
                                                     </span>
-                                                ) : (
-                                                    <span className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-md text-[10px] font-black uppercase w-max">
-                                                        <div className="w-3 h-3 rounded-full border-2 border-red-500 flex items-center justify-center text-[8px] font-bold">!</div> Failed
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right text-slate-500 font-medium">
-                                                {new Date(log.timestamp).toLocaleString()}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="px-6 py-4 font-bold dark:text-white">
+                                                    ₦{(Number(log.amount) || 0).toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {isSuccess ? (
+                                                        <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-emerald-200">
+                                                            <CheckCircle className="w-3.5 h-3.5" /> Success
+                                                        </span>
+                                                    ) : isPending ? (
+                                                        <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-amber-200">
+                                                            <Activity className="w-3.5 h-3.5" /> Pending
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1 text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-red-200">
+                                                            <div className="w-3.5 h-3.5 rounded-full border-2 border-red-500 flex items-center justify-center text-[8px] font-bold">!</div> Failed
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right text-slate-500 font-medium text-xs">
+                                                    {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {filteredPayments.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-bold">No transactions found.</td>
+                                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-bold">
+                                                No transactions recorded.
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>

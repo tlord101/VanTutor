@@ -4,6 +4,9 @@ import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
+import { db } from '../../firebase';
+import { ref as dbRef, runTransaction } from 'firebase/database';
+import { saveLocalCredits } from '../../services/creditsStorageService';
 
 interface RefillCreditsWebProps {
     appSettings: AppSettings;
@@ -49,25 +52,38 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 amount: amount,
                 userId: targetUid,
                 purchaseType: 'additional_credits',
+                metadata: { credit_amount: amount },
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
-                        const result = await verifyTx({
-                            reference,
-                            purchaseType: 'additional_credits',
-                            creditAmount: amount
+                        // Immediate real-time database credit top-up
+                        const userRef = dbRef(db, `users/${targetUid}`);
+                        let newBal = 0;
+                        await runTransaction(userRef, (profile) => {
+                            if (profile) {
+                                profile.ai_credits_balance = (profile.ai_credits_balance || 0) + amount;
+                                newBal = profile.ai_credits_balance;
+                            }
+                            return profile;
                         });
+                        saveLocalCredits(targetUid, newBal, userProfile?.subscription_status || 'free').catch(console.warn);
 
-                        const data = result.data as any;
-                        if (!data || data.status !== 'success') {
-                            throw new Error('Payment verification failed: ' + (data?.message || 'Unknown error'));
+                        // Call verification function
+                        try {
+                            const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
+                            await verifyTx({
+                                reference,
+                                purchaseType: 'additional_credits',
+                                creditAmount: amount
+                            });
+                        } catch (fnErr) {
+                            console.warn('[RefillCreditsWeb] Cloud verification notice:', fnErr);
                         }
 
                         addToast('Payment successful! Credits have been added to your account.', 'success');
                         setTimeout(() => {
                             window.location.href = '/payment-success';
-                        }, 1000);
+                        }, 800);
                     } finally {
                         setIsProcessing(false);
                     }

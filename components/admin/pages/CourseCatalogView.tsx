@@ -1101,18 +1101,95 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             )}
                         </div>
 
+                        {/* Topics Management in Department Course View */}
+                        <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <h4 className="font-black text-lg dark:text-white flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-indigo-500" /> Topics ({(selectedManagerCourse.topics || []).length})
+                                </h4>
+                                {(selectedManagerCourse.topics || []).length > 0 && (
+                                    <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTopicIds.length > 0 && selectedTopicIds.length === (selectedManagerCourse.topics || []).length}
+                                            onChange={toggleSelectAllTopics}
+                                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                        Select all
+                                    </label>
+                                )}
+                            </div>
+
+                            {(selectedManagerCourse.topics || []).length > 0 ? (
+                                <div className="space-y-3">
+                                    {(selectedManagerCourse.topics || []).map((topic: any) => {
+                                        const isSelected = selectedTopicIds.includes(topic.topic_id);
+                                        return (
+                                            <label
+                                                key={topic.topic_id}
+                                                className={`flex items-start gap-3 p-4 rounded-2xl border transition cursor-pointer ${isSelected ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:border-indigo-200'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleGlobalTopicSelection(topic.topic_id)}
+                                                    className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <p className="font-bold text-slate-800 truncate">{topic.topic_name}</p>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{topic.topic_id}</span>
+                                                    </div>
+                                                    {(topic.topic_context || topic.start_point || topic.end_point) && (
+                                                        <p className="mt-1 text-sm text-slate-500 line-clamp-2">
+                                                            {topic.topic_context || [topic.start_point, topic.end_point].filter(Boolean).join(' - ')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                            {selectedTopicIds.length} topic{selectedTopicIds.length === 1 ? '' : 's'} selected
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => handleRemoveDuplicateTopicsForCourse(selectedManagerCourse)}
+                                                className="px-4 py-3 rounded-xl bg-amber-50 text-amber-700 font-black uppercase tracking-widest text-xs hover:bg-amber-100 transition flex items-center gap-2 cursor-pointer"
+                                            >
+                                                <Sparkles className="w-4 h-4" /> Remove Duplicate Topics
+                                            </button>
+                                            <button
+                                                disabled={!selectedTopicIds.length}
+                                                onClick={() => handleDeleteCourseTopics(selectedManagerCourse, selectedTopicIds)}
+                                                className="px-5 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Delete Selected Topics
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-500">
+                                    No topics are attached to this course yet.
+                                </div>
+                            )}
+                        </div>
+
                         <div className="pt-8 border-t border-slate-100 flex flex-wrap justify-end gap-3">
                             <button
                                 onClick={() => handleRemoveDuplicateTopicsForCourse(selectedManagerCourse)}
-                                className="px-6 py-3 rounded-xl bg-amber-50 text-amber-700 font-black uppercase tracking-widest text-xs hover:bg-amber-100 transition flex items-center gap-2"
+                                className="px-6 py-3 rounded-xl bg-amber-50 text-amber-700 font-black uppercase tracking-widest text-xs hover:bg-amber-100 transition flex items-center gap-2 cursor-pointer"
                             >
                                 <Sparkles className="w-4 h-4" /> Remove Duplicate Topics
                             </button>
                             <button
                                 onClick={() => handleDeleteCourseFromDepartment(selectedManagerCourse, true)}
-                                className="px-6 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2"
+                                className="px-6 py-3 rounded-xl bg-red-50 text-red-600 font-black uppercase tracking-widest text-xs hover:bg-red-100 transition flex items-center gap-2 cursor-pointer"
                             >
-                                <Trash2 className="w-4 h-4" /> Global Delete
+                                <Trash2 className="w-4 h-4" /> Global Delete Course
                             </button>
                         </div>
                     </div>

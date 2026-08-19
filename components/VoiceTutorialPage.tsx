@@ -21,6 +21,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import katex from 'katex';
+import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
+import { LimitExceededModal } from './LimitExceededModal';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TUTOR_VOICE = 'Charon';
@@ -502,6 +504,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
     const [blueprintGenStep, setBlueprintGenStep] = useState('');
     const [showScannedImageModal, setShowScannedImageModal] = useState(false);
+    const [showLimitModal, setShowLimitModal] = useState(false);
+    const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
 
     // ── Teaching Position ────────────────────────────────────────────────
     const [conceptIdx, setConceptIdx] = useState(0);
@@ -1279,6 +1283,20 @@ OUTPUT VALID JSON ONLY:
   "negativeReplyText": "Spoken text if student taps question button"
 }`;
 
+        const cost = getFeatureCost('study_guide_lesson', appSettings);
+        if (userProfile) {
+            const limitCheck = checkAICredits(userProfile, cost, appSettings);
+            if (!limitCheck.allowed) {
+                setIsLoadingUnit(false);
+                setLimitModalData({
+                    balance: limitCheck.balance,
+                    cost: limitCheck.cost,
+                });
+                setShowLimitModal(true);
+                return;
+            }
+        }
+
         try {
             const aiClient = createAvelutAI(appSettings, userProfile || null);
             if (!aiClient || !isActiveRef.current) {
@@ -1304,6 +1322,10 @@ OUTPUT VALID JSON ONLY:
 
             const parsed: UnitPresentationResponse =
                 JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+            if (userProfile?.uid) {
+                deductAICredits(userProfile.uid, cost, 'Study Guide - Board Step', appSettings).catch(console.warn);
+            }
 
             setIsLoadingUnit(false);
             streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
@@ -2175,6 +2197,15 @@ OUTPUT VALID JSON ONLY:
                     </div>
                 </div>
             )}
+
+            {/* ── Limit Exceeded Modal (Upgrade Account / Buy Credits) ────────── */}
+            <LimitExceededModal
+                isOpen={showLimitModal}
+                onClose={() => setShowLimitModal(false)}
+                cost={limitModalData.cost}
+                balance={limitModalData.balance}
+                onNavigate={onNavigate}
+            />
         </div>
     );
 };

@@ -2,6 +2,7 @@ import { db } from '../firebase';
 import { ref as dbRef, push, set, update, get, runTransaction } from 'firebase/database';
 import type { UserProfile, AppSettings } from '../types';
 import { DEFAULT_USAGE_SETTINGS, DEFAULT_APP_SETTINGS } from './appSettings';
+import { saveLocalCredits, recordLocalCreditDeduction } from '../services/creditsStorageService';
 
 // Load Paystack script dynamically
 const loadPaystackScript = (): Promise<boolean> => {
@@ -24,6 +25,7 @@ interface PaystackPurchaseOptions {
   email: string;
   amount: number;
   userId: string;
+  userName?: string;
   purchaseType: 'subscription' | 'additional_credits';
   metadata?: any;
   onSuccess: (reference: string) => Promise<void>;
@@ -33,7 +35,7 @@ interface PaystackPurchaseOptions {
 }
 
 export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) => {
-  const { publicKey, email, amount, userId, purchaseType, metadata, onSuccess, onCancel, onError, addToast } = options;
+  const { publicKey, email, amount, userId, userName, purchaseType, metadata, onSuccess, onCancel, onError, addToast } = options;
 
   let paymentLogRef: any = null;
   try {
@@ -41,10 +43,13 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
     await set(paymentLogRef, {
       id: paymentLogRef.key,
       user_id: userId,
+      user_name: userName || metadata?.user_name || 'Student',
       user_email: email,
       email: email,
       amount: amount,
       purchase_type: purchaseType,
+      plan_key: metadata?.plan_key || (purchaseType === 'subscription' ? 'basic' : null),
+      credit_amount: metadata?.credit_amount || null,
       metadata: metadata || {},
       status: 'initiated',
       timestamp: Date.now(),
@@ -233,7 +238,14 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
     });
 
     if (result.committed) {
-      // Log usage
+      const updatedProfile = result.snapshot.val();
+      const updatedBalance = updatedProfile?.ai_credits_balance ?? 0;
+      const subStatus = updatedProfile?.subscription_status || 'free';
+      
+      saveLocalCredits(userId, updatedBalance, subStatus).catch(console.warn);
+      recordLocalCreditDeduction(userId, cost, featureName).catch(console.warn);
+
+      // Log usage in cloud
       const usageLogRef = push(dbRef(db, `usage_logs/credits/${userId}`));
       await set(usageLogRef, {
         feature: featureName,

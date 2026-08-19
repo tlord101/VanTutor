@@ -36,10 +36,10 @@ export const DEFAULT_USAGE_SETTINGS = {
     },
   },
   feature_costs: {
-    visual_solve: 4,
+    visual_solve: 3,
     chat_interaction: 1,
     flashcard_generation: 3,
-    ai_quiz_generation: 2,
+    ai_quiz_generation: 3,
     study_guide_lesson: 1,
     study_guide_extraction: 10,
   },
