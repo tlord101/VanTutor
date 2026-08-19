@@ -905,6 +905,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         stopAudioImmediate();
         setIsPaused(false);
         setIsTtsLoading(true);
+        setIsSpeaking(false);
         lastSpokenTextRef.current = text;
 
         const sessionId = ++playSessionIdRef.current;
@@ -917,11 +918,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        // On-Device Kitten TTS Voice Synthesis (Zero Cloud API Queries, Zero Quota Consumption)
-        setIsTtsLoading(false);
-        setIsSpeaking(true);
-        setIsPaused(false);
-
         const player = kittenTts.speak(cleanedText, {
             cleanText: true,
             onStart: () => {
@@ -933,6 +929,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(false);
                 setIsPaused(false);
+                setIsTtsLoading(false);
                 currentAudioRef.current = null;
                 onEnd?.();
                 startMicListening();
@@ -941,6 +938,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(false);
                 setIsPaused(false);
+                setIsTtsLoading(false);
                 currentAudioRef.current = null;
                 onEnd?.();
                 startMicListening();
@@ -950,48 +948,16 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         currentAudioRef.current = player as any;
     }, [isMuted, startMicListening]);
 
-    // ── Board Line Streaming (Smooth Bit-by-Bit Chalk Reveal Paced with Speech) ─
-    const streamBoardLines = useCallback((lines: string[], spokenText?: string) => {
+    // ── Board Line Loading (Loads full organized board content at once) ────────
+    const streamBoardLines = useCallback((lines: string[]) => {
         clearAllStreamTimers();
-        setVisibleBoardLines([]);
-        setIsStreaming(true);
-
         if (!lines || lines.length === 0) {
+            setVisibleBoardLines([]);
             setIsStreaming(false);
             return;
         }
-
-        // Calculate smooth pacing synchronized with natural speech duration (~55ms per character)
-        const totalDurationMs = spokenText ? Math.max(3500, spokenText.length * 55) : lines.length * 2200;
-        const lineIntervalMs = Math.max(1500, Math.min(3200, Math.floor(totalDurationMs / Math.max(lines.length, 1))));
-
-        let displayed: string[] = [];
-        let idx = 0;
-
-        const tick = () => {
-            if (!isActiveRef.current) return;
-            if (idx >= lines.length) {
-                setIsStreaming(false);
-                return;
-            }
-            if (displayed.length >= MAX_BOARD_LINES) {
-                displayed = [];
-                setVisibleBoardLines([]);
-            }
-            displayed.push(lines[idx]);
-            setVisibleBoardLines([...displayed]);
-            idx++;
-            if (idx < lines.length) {
-                const t = setTimeout(tick, lineIntervalMs);
-                streamTimersRef.current.push(t);
-            } else {
-                setIsStreaming(false);
-            }
-        };
-
-        // Reveal the first headline/anchor line after a short initial pause
-        const initialDelay = setTimeout(tick, 400);
-        streamTimersRef.current.push(initialDelay);
+        setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
+        setIsStreaming(false);
     }, []);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {
@@ -2130,6 +2096,22 @@ OUTPUT VALID JSON ONLY:
                                     {SUB_STEP_LABEL[subStep]}
                                 </span>
                             </div>
+
+                            {/* ── Voice Preparation Loading Bar ── */}
+                            {isTtsLoading && (
+                                <div className="w-full flex flex-col gap-1.5 p-3 rounded-2xl bg-[#22272E]/95 border border-amber-400/40 shadow-lg animate-fade-in shrink-0">
+                                    <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
+                                        <span className="flex items-center gap-2">
+                                            <i className="bi bi-soundwave text-sm animate-pulse text-amber-400"></i>
+                                            <span>Avelut is preparing {selectedVoice} voice...</span>
+                                        </span>
+                                        <span className="text-[11px] font-mono font-medium text-slate-400 animate-pulse">Loading audio...</span>
+                                    </div>
+                                    <div className="w-full bg-slate-800/90 rounded-full h-1.5 overflow-hidden border border-white/10">
+                                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full animate-pulse transition-all" />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* ── Blackboard Content Area ── */}
                             {visibleBoardLines.length > 0 && (
