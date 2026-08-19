@@ -123,18 +123,11 @@ export const MainContent: React.FC<MainContentProps> = ({
                         return (
                                 <VisualSolver
                                     userProfile={userProfile}
-                                    onStartChat={(payload, tutorialText) => {
+                                    onStartChat={(payload) => {
                                         if (typeof payload === 'object' && payload !== null) {
-                                            writeCachedJson('avelut_pending_tutorial_prompt', payload);
-                                        } else {
-                                            writeCachedJson('avelut_pending_tutorial_prompt', {
-                                                id: 'visual_solver_detailed_tutorial',
-                                                source: 'visual_solver',
-                                                prompt: payload,
-                                                tutorialText
-                                            });
+                                            writeCachedJson('avelut_active_voice_tutorial', payload);
                                         }
-                                        onNavigate?.('chat');
+                                        onNavigate?.('study_guide');
                                     }}
                                     triggerScanRef={triggerScanRef}
                                 />

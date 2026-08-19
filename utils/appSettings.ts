@@ -6,7 +6,7 @@ export const DEFAULT_USAGE_SETTINGS = {
   tiers: {
     free: {
       tier_id: 'free',
-      display_name: 'Forever Free',
+      display_name: 'Free trial',
       description: 'Fundamental study tools with standard constraints. Good for **upto 1 hour of studytime**.',
       price_ngn: 0,
       credit_allocation: 15,

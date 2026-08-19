@@ -1,4 +1,4 @@
-name: Universal Release Build & Bump
+name: BUILD AAB/APK FILES
 
 on:
   push:

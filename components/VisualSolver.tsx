@@ -5,6 +5,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { createAvelutAI, getResponseText } from '../utils/inference';
+import { writeCachedJson } from '../utils/cache';
 import type { UserProfile } from '../types';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -224,6 +225,32 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
             onClose();
         }, 180);
     }, [onClose]);
+
+    const handleDetailedTutorial = useCallback(() => {
+        if (!onStartChat) return;
+        const sessionData = {
+            course: {
+                course_id: 'visual_problem_solving',
+                course_name: 'Visual Problem Tutorial',
+                level: userProfile?.level || 'Academic',
+                topics: [{
+                    topic_id: 'scanned_problem_breakdown',
+                    topic_name: 'Scanned Problem Breakdown',
+                    topic_context: tutorialText ? tutorialText.slice(0, 300) : 'Step-by-step interactive lesson based on scanned image',
+                }],
+            },
+            topic: {
+                topic_id: 'scanned_problem_breakdown',
+                topic_name: 'Scanned Problem Breakdown',
+                topic_context: tutorialText ? tutorialText.slice(0, 300) : 'Step-by-step interactive lesson based on scanned image',
+            },
+            image: scannedImage,
+            customPrompt: tutorialText || '',
+            source: 'visual_solver'
+        };
+        writeCachedJson('avelut_active_voice_tutorial', sessionData);
+        onStartChat(sessionData);
+    }, [onStartChat, userProfile, tutorialText, scannedImage]);
 
     const handleDragStart = (clientY: number) => {
         const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? window.innerHeight;
@@ -643,30 +670,24 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                         </div>
 
                         <div className="mt-4 flex flex-col gap-2.5">
-                            {/* Ask AI Tutor in Chat */}
+                            {/* Start Interactive Voice Tutorial */}
                             {onStartChat && (
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setShowActionModal(false);
-                                        onStartChat({
-                                            id: 'visual_solver_detailed_tutorial',
-                                            source: 'visual_solver',
-                                            prompt: 'Please teach me how to solve this scanned problem in detail, bit by bit.',
-                                            image: scannedImage,
-                                            tutorialText
-                                        });
+                                        void handleDetailedTutorial();
                                     }}
-                                    className="flex items-center gap-3.5 rounded-2xl border border-sky-100 dark:border-sky-950/60 bg-gradient-to-r from-sky-50/70 to-indigo-50/70 dark:from-sky-950/40 dark:to-indigo-950/40 p-3.5 text-left transition-all hover:from-sky-100 dark:hover:from-sky-900/50 active:scale-[0.98]"
+                                    className="flex items-center gap-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950/60 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/40 p-3.5 text-left transition-all hover:from-emerald-100 dark:hover:from-emerald-900/50 active:scale-[0.98]"
                                 >
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-600/30">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
                                         </svg>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-bold text-sky-950 dark:text-sky-200">Teach me in AI Chat</h4>
-                                        <p className="text-xs text-sky-700 dark:text-sky-400">Step-by-step interactive tutor lesson</p>
+                                        <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">Start Voice Tutorial</h4>
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-400">Step-by-step spoken lesson with blackboard math</p>
                                     </div>
                                 </button>
                             )}
@@ -946,7 +967,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         }
     }, [cameraState]);
 
-    const handleDetailedTutorial = useCallback((imageOverride?: string) => {
+    const handleDetailedTutorial = useCallback(async (imageOverride?: string) => {
         const targetImage = imageOverride || scannedImage;
         if (!targetImage) return;
 
@@ -962,22 +983,41 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
             return;
         }
 
-        const userPrompt = customPrompt.trim()
-            ? `Please teach me how to solve this scanned problem step by step: ${customPrompt.trim()}`
-            : 'Please teach me how to solve this scanned problem in detail, bit by bit.';
+        try {
+            const { dataUrl: normalizedImage } = await readImageAsDataUrl(targetImage);
 
-        const payload: VisualSolverChatPayload = {
-            id: 'visual_solver_detailed_tutorial',
-            source: 'visual_solver',
-            prompt: userPrompt,
-            image: targetImage,
-            customPrompt: customPrompt || '',
-        };
+            const sessionData = {
+                course: {
+                    course_id: 'visual_problem_solving',
+                    course_name: 'Visual Problem Tutorial',
+                    level: userProfile?.level || 'Academic',
+                    topics: [{
+                        topic_id: 'scanned_problem_breakdown',
+                        topic_name: customPrompt ? `Problem: ${customPrompt.slice(0, 35)}` : 'Scanned Problem Breakdown',
+                        topic_context: customPrompt || 'Scanned visual problem breakdown and step-by-step resolution',
+                    }],
+                },
+                topic: {
+                    topic_id: 'scanned_problem_breakdown',
+                    topic_name: customPrompt ? `Problem: ${customPrompt.slice(0, 35)}` : 'Scanned Problem Breakdown',
+                    topic_context: customPrompt || 'Scanned visual problem breakdown and step-by-step resolution',
+                },
+                image: normalizedImage,
+                customPrompt: customPrompt || '',
+                source: 'visual_solver'
+            };
 
-        if (onStartChat) {
-            onStartChat(payload);
+            writeCachedJson('avelut_active_voice_tutorial', sessionData);
+            deductAICredits(userProfile.uid, cost, 'Visual Solver - Voice Tutorial', appSettings).catch(console.error);
+
+            if (onStartChat) {
+                onStartChat(sessionData);
+            }
+        } catch (err: any) {
+            console.error('Failed to prepare voice tutorial from scan:', err);
+            addToast('Could not process scanned image for tutorial', 'error');
         }
-    }, [scannedImage, customPrompt, userProfile, appSettings, onStartChat]);
+    }, [scannedImage, customPrompt, userProfile, appSettings, onStartChat, addToast]);
 
     const handleQuickAnswer = useCallback(async (imageOverride?: string) => {
         const targetImage = imageOverride || scannedImage;

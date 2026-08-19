@@ -64,10 +64,46 @@ export const SUB_STEP_LABEL: Record<SubStep, string> = {
 };
 
 // ── Types ────────────────────────────────────────────────────────────────────
-interface VoiceTutorialSessionData {
+export interface VoiceTutorialSessionData {
     course: Course;
     topic?: Topic | null;
+    syllabusContext?: string;
+    image?: string | null;
+    customPrompt?: string | null;
+    source?: string;
 }
+
+const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUrl: string; mimeType: string }> => {
+    if (typeof input === 'string') {
+        if (input.startsWith('data:')) {
+            const mimeType = input.split(';')[0].split(':')[1] || 'image/jpeg';
+            return { dataUrl: input, mimeType };
+        }
+        if (input.startsWith('blob:') || input.startsWith('http://') || input.startsWith('https://')) {
+            try {
+                const response = await fetch(input);
+                const blob = await response.blob();
+                return readImageAsDataUrl(blob);
+            } catch (err) {
+                console.warn('Failed to fetch image blob/url:', err);
+            }
+        }
+        return { dataUrl: input, mimeType: 'image/jpeg' };
+    }
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                const mimeType = (input as any).type || 'image/jpeg';
+                resolve({ dataUrl: reader.result, mimeType });
+            } else {
+                reject(new Error('Failed to read image as data URL'));
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(input);
+    });
+};
 
 interface BlueprintVariable {
     symbol: string;
@@ -141,10 +177,12 @@ interface DialogueTurn {
     boardSummary?: string;
 }
 
-interface VoiceTutorialPageProps {
+export interface VoiceTutorialPageProps {
     userProfile?:  UserProfile | null;
     appSettings?:  any;
     onNavigate?:   (tab: string) => void;
+    initialSessionData?: VoiceTutorialSessionData | null;
+    onBack?:       () => void;
 }
 
 // ── Dynamic Action Button Helpers ─────────────────────────────────────────────
@@ -451,16 +489,19 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     userProfile,
     appSettings: propAppSettings,
     onNavigate,
+    initialSessionData,
+    onBack,
 }) => {
     const { settings: hookAppSettings } = useAppSettings();
     const appSettings = propAppSettings || hookAppSettings;
     const { addToast } = useToast();
 
     // ── Session & State ──────────────────────────────────────────────────
-    const [sessionData, setSessionData] = useState<VoiceTutorialSessionData | null>(null);
+    const [sessionData, setSessionData] = useState<VoiceTutorialSessionData | null>(initialSessionData || null);
     const [blueprint, setBlueprint] = useState<LessonBlueprint | null>(null);
     const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
     const [blueprintGenStep, setBlueprintGenStep] = useState('');
+    const [showScannedImageModal, setShowScannedImageModal] = useState(false);
 
     // ── Teaching Position ────────────────────────────────────────────────
     const [conceptIdx, setConceptIdx] = useState(0);
@@ -526,6 +567,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
     // ── Load Session Data ─────────────────────────────────────────────────
     useEffect(() => {
+        if (initialSessionData?.course) {
+            setSessionData(initialSessionData);
+            return;
+        }
         const stored = readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null);
         if (stored?.course) {
             setSessionData(stored);
@@ -544,7 +589,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 },
             });
         }
-    }, [userProfile?.level]);
+    }, [initialSessionData, userProfile?.level]);
 
     // ── Bootstrap session ─────────────────────────────────────────────────
     useEffect(() => {
@@ -881,16 +926,17 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // ── Master Blueprint Generation (Bit-by-Bit, Multi-Board & Step-by-Step) ─
     const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
         setIsGeneratingBlueprint(true);
-        setBlueprintGenStep('Analyzing topic & student cognitive history...');
+        setBlueprintGenStep('Analyzing problem & learning objectives...');
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) { setIsGeneratingBlueprint(false); return null; }
 
-        const courseName = session.course.course_name;
+        const courseName = session.course?.course_name || 'Academic Tutorial';
         const topicName  = session.topic?.topic_name || 'Core Concepts';
-        const level      = session.course.level || 'University';
+        const level      = session.course?.level || userProfile?.level || 'University';
+        const hasImage   = Boolean(session.image);
 
-        setBlueprintGenStep('Structuring deep multi-board lesson progression...');
+        setBlueprintGenStep(hasImage ? 'Analyzing scanned problem image & structuring step-by-step breakdown...' : 'Structuring deep multi-board lesson progression...');
 
         const memoryContext = studentMem?.lastTopicTaught
             ? `STUDENT HISTORY:
@@ -900,11 +946,22 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 - Pedagogy: Intuition first, state progression tables before formulas, and 1-step-per-board problem solving.`
             : `STUDENT: New session. Maintain crystal-clear intuitive pacing.`;
 
-        const prompt = `You are AVELUT Master STEM Curriculum Architect.
+        const imageInstructions = hasImage ? `
+*** SPECIAL MODE: SCANNED PROBLEM VISUAL TUTORIAL ***
+The student uploaded an image of a problem/diagram they want to be taught.
+1. Inspect the provided image in detail: equations, diagrams, given values, variables, and the questions asked.
+2. Custom User Notes / Focus: "${session.customPrompt || 'Teach me how to solve this step by step'}"
+3. The lesson concepts and worked example MUST BE BUILT DIRECTLY AROUND SOLVING AND UNDERSTANDING THE SCANNED PROBLEM IN THE IMAGE.
+4. Explain the physical and mathematical intuition behind the problem first.
+5. In the worked example ('example'): Set the problem to be the EXACT problem from the scanned image with all givens, unknowns, Step 1 (Principle & formula choice), Step 2 (Substitution & calculation), and Step 3 (Final result, units, and physical check).
+` : '';
+
+        const prompt = `You are AVELUT Master STEM Curriculum Architect & Voice Tutorial Instructor.
 Design a thorough, bit-by-bit lesson blueprint for:
 Course: "${courseName}"
 Topic: "${topicName}"
 Level: ${level}
+${imageInstructions}
 ${memoryContext}
 
 PEDAGOGICAL REQUIREMENTS:
@@ -978,9 +1035,23 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
 
         try {
             setBlueprintGenStep('Designing interactive curriculum...');
+            const parts: any[] = [];
+            if (session.image) {
+                try {
+                    const { dataUrl, mimeType } = await readImageAsDataUrl(session.image);
+                    const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+                    if (base64Data) {
+                        parts.push({ inlineData: { data: base64Data, mimeType: mimeType || 'image/jpeg' } });
+                    }
+                } catch (imgErr) {
+                    console.warn('[Blueprint] Failed to format image for AI:', imgErr);
+                }
+            }
+            parts.push({ text: prompt });
+
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                contents: [{ role: 'user', parts }],
                 config: { responseMimeType: 'application/json', temperature: 0.4 },
             });
             const raw = getResponseText(result);
@@ -1591,9 +1662,14 @@ OUTPUT VALID JSON ONLY:
         }
 
         await new Promise(r => setTimeout(r, 80));
-        if (onNavigate) onNavigate('study_guide');
-        else window.history.back();
-    }, [blueprint, userProfile, onNavigate, sessionData]);
+        if (onBack) {
+            onBack();
+        } else if (onNavigate) {
+            onNavigate('study_guide');
+        } else {
+            window.history.back();
+        }
+    }, [blueprint, userProfile, onBack, onNavigate, sessionData]);
 
     const currentTopicIdx = sessionData?.course?.topics?.findIndex(
         t => t.topic_id === sessionData?.topic?.topic_id
@@ -1691,6 +1767,17 @@ OUTPUT VALID JSON ONLY:
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                    {sessionData?.image && (
+                        <button
+                            onClick={() => setShowScannedImageModal(true)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-100 hover:bg-sky-200 dark:bg-sky-950/80 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-200 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                            title="View scanned problem"
+                        >
+                            <i className="bi bi-image text-xs"></i>
+                            <span className="hidden sm:inline">Scanned Problem</span>
+                        </button>
+                    )}
+
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
                         {isTtsLoading ? (
                             <span className="w-2 h-2 rounded-full bg-[#8B5A2B] animate-ping shrink-0" />
@@ -2050,6 +2137,41 @@ OUTPUT VALID JSON ONLY:
                             className="w-full flex items-center justify-center p-4 bg-[#22272E] rounded-2xl border border-[#373E47]"
                             dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                         />
+                    </div>
+                </div>
+            )}
+
+            {/* ── Scanned Problem Image Modal ────────────────────────────────── */}
+            {showScannedImageModal && sessionData?.image && (
+                <div
+                    onClick={() => setShowScannedImageModal(false)}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 max-w-2xl w-full max-h-[88vh] shadow-2xl flex flex-col gap-3 relative cursor-default"
+                    >
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                                <i className="bi bi-image text-sky-500"></i>
+                                <span>Original Scanned Problem</span>
+                            </h3>
+                            <button
+                                onClick={() => setShowScannedImageModal(false)}
+                                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto flex items-center justify-center bg-black/5 dark:bg-black/40 rounded-2xl p-2 max-h-[62vh]">
+                            <img src={sessionData.image} alt="Scanned problem" className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-md" />
+                        </div>
+                        {sessionData.customPrompt && (
+                            <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">Instructions: </span>
+                                {sessionData.customPrompt}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
