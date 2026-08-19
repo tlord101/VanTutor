@@ -26,7 +26,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { kittenTts } from '../services/kittenTtsService';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const TUTOR_VOICE = 'Charon';
+const TUTOR_VOICE = 'Rosie';
 const MAX_BOARD_LINES = 6;
 const LINE_STREAM_MS = 300;
 
@@ -1842,7 +1842,7 @@ OUTPUT VALID JSON ONLY:
                             <span className={`w-2 h-2 rounded-full shrink-0 ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
                         )}
                         <span className="hidden sm:inline">
-                            {isTtsLoading ? 'Generating Natural Voice...' : isPaused ? 'Paused' : isSpeaking ? 'Speaking' : 'Charon'}
+                            {isTtsLoading ? 'Generating Rosie Voice...' : isPaused ? 'Paused' : isSpeaking ? 'Speaking' : 'Rosie'}
                         </span>
                     </div>
 
@@ -1922,7 +1922,7 @@ OUTPUT VALID JSON ONLY:
 
             {/* ── Main teaching area ────────────────────────────────────── */}
             {!isGeneratingBlueprint && !isDone && (
-                <main className="flex-1 flex flex-col p-3 sm:p-5 max-w-5xl w-full mx-auto gap-2.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-[calc(140px+env(safe-area-inset-bottom,0px))] md:pb-4">
+                <main className="flex-1 flex flex-col p-2.5 sm:p-4 max-w-5xl w-full mx-auto gap-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-[calc(76px+env(safe-area-inset-bottom,0px))] md:pb-3">
 
                     {/* Concept breadcrumb */}
                     {currentConcept && (
@@ -1938,7 +1938,7 @@ OUTPUT VALID JSON ONLY:
                     )}
 
                     {/* ── Charcoal Blackboard (Typical Blackboard Look) ── */}
-                    <div className="relative flex-1 min-h-[250px] sm:min-h-[310px] max-h-[calc(100vh-270px)] flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
+                    <div className="relative flex-1 min-h-[265px] sm:min-h-[325px] max-h-[calc(100vh-250px)] flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
 
                         {isModelDownloading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#181C20]/95 backdrop-blur-md rounded-3xl z-30 p-6 text-center">
@@ -2088,7 +2088,7 @@ OUTPUT VALID JSON ONLY:
                     )}
 
                     {/* ── Expanded Full-Width Input Card ── */}
-                    <div className="shrink-0 flex flex-col gap-2.5 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-3 sm:p-4 shadow-md backdrop-blur-md w-full">
+                    <div className="shrink-0 flex flex-col gap-2 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-2.5 sm:p-3.5 shadow-md backdrop-blur-md w-full">
 
                         {/* ── Dual Dynamic Contextual Buttons ── */}
                         <div className="flex items-center gap-2 w-full">
