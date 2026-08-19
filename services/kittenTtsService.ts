@@ -5,8 +5,34 @@
  */
 
 export enum KittenVoice {
+    Bella = 'Bella',
+    Kiki = 'Kiki',
     Rosie = 'Rosie',
+    Leo = 'Leo',
+    Bruno = 'Bruno',
+    Luna = 'Luna',
+    Hugo = 'Hugo',
+    Jasper = 'Jasper',
 }
+
+export interface VoiceMetadata {
+    id: KittenVoice;
+    name: string;
+    gender: 'female' | 'male';
+    tone: string;
+    sampleText: string;
+}
+
+export const KITTEN_VOICE_LIST: VoiceMetadata[] = [
+    { id: KittenVoice.Rosie, name: 'Rosie', gender: 'female', tone: 'Warm & Natural', sampleText: "Hi! I'm Rosie, your friendly interactive tutor." },
+    { id: KittenVoice.Bella, name: 'Bella', gender: 'female', tone: 'Clear & Expressive', sampleText: "Hi there! I'm Bella. Let's break down this concept together." },
+    { id: KittenVoice.Luna, name: 'Luna', gender: 'female', tone: 'Calm & Precise', sampleText: "Greetings, I am Luna. Ready for today's lesson?" },
+    { id: KittenVoice.Kiki, name: 'Kiki', gender: 'female', tone: 'Brisk & Energetic', sampleText: "Hey! I'm Kiki. Let's master this topic step by step!" },
+    { id: KittenVoice.Jasper, name: 'Jasper', gender: 'male', tone: 'Confident & Articulate', sampleText: "Hello! I'm Jasper. Let's solve this problem together." },
+    { id: KittenVoice.Bruno, name: 'Bruno', gender: 'male', tone: 'Deep & Steady', sampleText: "Welcome, I'm Bruno. Let's explore the physical intuition." },
+    { id: KittenVoice.Hugo, name: 'Hugo', gender: 'male', tone: 'Clear & Dynamic', sampleText: "Hi! I'm Hugo. Let's walk through the worked example." },
+    { id: KittenVoice.Leo, name: 'Leo', gender: 'male', tone: 'Focused & Modern', sampleText: "Hey, I'm Leo. Let's dive straight into the key principles." },
+];
 
 export interface KittenModelStatus {
     isDownloaded: boolean;
@@ -23,7 +49,14 @@ export const KITTEN_API_ENDPOINT = 'https://api.kittenml.com/v1/audio/speech';
 export const KITTEN_MODEL_NAME = 'kitten-tts-mini-0.8'; // 24 kHz high-fidelity model
 
 export const KITTEN_VOICE_ALIASES: Record<KittenVoice, string> = {
+    [KittenVoice.Bella]: 'Bella',
+    [KittenVoice.Kiki]: 'Kiki',
     [KittenVoice.Rosie]: 'Rosie',
+    [KittenVoice.Leo]: 'Leo',
+    [KittenVoice.Bruno]: 'Bruno',
+    [KittenVoice.Luna]: 'Luna',
+    [KittenVoice.Hugo]: 'Hugo',
+    [KittenVoice.Jasper]: 'Jasper',
 };
 
 class KittenTtsService {
@@ -34,6 +67,7 @@ class KittenTtsService {
     private listeners: Array<(status: KittenModelStatus) => void> = [];
     private currentUtterance: SpeechSynthesisUtterance | null = null;
     private currentAudioElement: HTMLAudioElement | null = null;
+    private previewAudioElement: HTMLAudioElement | null = null;
     private activePlaybackSessionId = 0;
     private cachedVoices: SpeechSynthesisVoice[] = [];
     private audioBlobCache = new Map<string, string>(); // Cache key: text -> objectUrl
@@ -89,12 +123,18 @@ class KittenTtsService {
         try {
             const raw = localStorage.getItem(KITTEN_STORAGE_KEY);
             if (raw) {
-                this.isDownloaded = true;
-                this.selectedVoice = KittenVoice.Rosie;
+                const parsed = JSON.parse(raw);
+                if (parsed.selectedVoice && Object.values(KittenVoice).includes(parsed.selectedVoice)) {
+                    this.selectedVoice = parsed.selectedVoice;
+                }
             }
         } catch {
-            this.isDownloaded = true;
+            this.selectedVoice = KittenVoice.Rosie;
         }
+    }
+
+    public getSelectedVoice(): KittenVoice {
+        return this.selectedVoice;
     }
 
     public getStatus(): KittenModelStatus {
@@ -103,14 +143,22 @@ class KittenTtsService {
             isDownloading: false,
             progress: 100,
             error: null,
-            modelName: 'KittenTTS Mini 0.8 (24 kHz Rosie Cloud)',
-            selectedVoice: KittenVoice.Rosie,
+            modelName: `KittenTTS Mini 0.8 (24 kHz ${this.selectedVoice})`,
+            selectedVoice: this.selectedVoice,
         };
     }
 
-    public setVoice(voice: KittenVoice = KittenVoice.Rosie) {
-        this.selectedVoice = KittenVoice.Rosie;
-        this.notify();
+    public setVoice(voice: KittenVoice) {
+        if (Object.values(KittenVoice).includes(voice)) {
+            this.selectedVoice = voice;
+            try {
+                localStorage.setItem(KITTEN_STORAGE_KEY, JSON.stringify({
+                    selectedVoice: this.selectedVoice,
+                    timestamp: Date.now(),
+                }));
+            } catch {}
+            this.notify();
+        }
     }
 
     public subscribe(listener: (status: KittenModelStatus) => void): () => void {
@@ -240,8 +288,9 @@ class KittenTtsService {
     /**
      * Fetches 24 kHz MP3 audio for a given sentence directly from https://api.kittenml.com/v1/audio/speech
      */
-    private async fetchKittenMLAudio(sentence: string, speed = 1.0): Promise<string | null> {
-        const cacheKey = `${sentence}__${speed}`;
+    private async fetchKittenMLAudio(sentence: string, speed = 1.0, voice?: KittenVoice): Promise<string | null> {
+        const voiceToUse = voice || this.selectedVoice;
+        const cacheKey = `${voiceToUse}__${sentence}__${speed}`;
         if (this.audioBlobCache.has(cacheKey)) {
             return this.audioBlobCache.get(cacheKey)!;
         }
@@ -262,7 +311,7 @@ class KittenTtsService {
                 headers,
                 body: JSON.stringify({
                     model: KITTEN_MODEL_NAME, // 'kitten-tts-mini-0.8' (24 kHz)
-                    voice: 'Rosie',
+                    voice: voiceToUse,
                     input: sentence,
                     response_format: 'mp3',
                     speed: speed || 1.0,
@@ -284,25 +333,58 @@ class KittenTtsService {
         }
     }
 
-    private getRosieVoice(): SpeechSynthesisVoice | null {
+    private getVoiceForCharacter(voiceName: KittenVoice): SpeechSynthesisVoice | null {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
         const voices = this.cachedVoices.length > 0 ? this.cachedVoices : window.speechSynthesis.getVoices();
         if (!voices || voices.length === 0) return null;
 
-        const rosieMatch = voices.find(v => /rosie/i.test(v.name));
-        if (rosieMatch) return rosieMatch;
+        // Direct name match
+        const exactMatch = voices.find(v => v.name.toLowerCase().includes(voiceName.toLowerCase()));
+        if (exactMatch) return exactMatch;
 
-        const naturalFemale = voices.find(v => 
-            v.lang.startsWith('en') &&
-            /(natural|female|sonia|jenny|aria|samantha|victoria|karen|serena|libby|fiona|moira|zira|google\s+uk\s+english\s+female|google\s+us\s+english)/i.test(v.name)
-        );
-        if (naturalFemale) return naturalFemale;
+        const isMale = [KittenVoice.Jasper, KittenVoice.Bruno, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceName);
+
+        if (isMale) {
+            const maleMatch = voices.find(v => 
+                v.lang.startsWith('en') &&
+                /(male|guy|david|george|ryan|james|richard|mark|brian|christopher|oliver|steffan|natural)/i.test(v.name)
+            );
+            if (maleMatch) return maleMatch;
+        } else {
+            const femaleMatch = voices.find(v => 
+                v.lang.startsWith('en') &&
+                /(female|woman|girl|rosie|bella|kiki|luna|sonia|jenny|aria|samantha|victoria|karen|serena|libby|fiona|moira|zira|natural)/i.test(v.name)
+            );
+            if (femaleMatch) return femaleMatch;
+        }
 
         return voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
     }
 
     /**
-     * Synthesize and speak text sentence-by-sentence using Rosie 24 kHz model.
+     * Preview sample audio for any of the 8 KittenTTS voices
+     */
+    public previewVoice(
+        voice: KittenVoice,
+        options?: {
+            onStart?: () => void;
+            onEnd?: () => void;
+            onError?: (err: any) => void;
+        }
+    ): { stop: () => void } {
+        const meta = KITTEN_VOICE_LIST.find(v => v.id === voice) || KITTEN_VOICE_LIST[0];
+        return this.speak(meta.sampleText, {
+            voice,
+            rate: 1.0,
+            cleanText: false,
+            onStart: options?.onStart,
+            onEnd: options?.onEnd,
+            onError: options?.onError,
+        });
+    }
+
+    /**
+     * Synthesize and speak text sentence-by-sentence using selected KittenTTS 24 kHz voice.
      * Uses KittenML Speech API with parallel prefetching for zero-latency instant start.
      */
     public speak(
@@ -331,6 +413,7 @@ class KittenTtsService {
             return { stop: () => {} };
         }
 
+        const voiceToUse = options?.voice || this.selectedVoice;
         const sessionId = ++this.activePlaybackSessionId;
         let sentenceIndex = 0;
         let isStopped = false;
@@ -358,8 +441,8 @@ class KittenTtsService {
 
         // Prefetch helper for next sentences
         const prefetchSentence = (idx: number) => {
-            if (idx < sentences.length && this.getApiKey()) {
-                void this.fetchKittenMLAudio(sentences[idx], options?.rate || 1.0);
+            if (idx < sentences.length) {
+                void this.fetchKittenMLAudio(sentences[idx], options?.rate || 1.0, voiceToUse);
             }
         };
 
@@ -380,7 +463,7 @@ class KittenTtsService {
             prefetchSentence(sentenceIndex + 1);
 
             // 1. Attempt KittenML Cloud 24 kHz Speech API
-            const audioUrl = await this.fetchKittenMLAudio(currentSentence, options?.rate || 1.0);
+            const audioUrl = await this.fetchKittenMLAudio(currentSentence, options?.rate || 1.0, voiceToUse);
             if (isStopped || this.activePlaybackSessionId !== sessionId) return;
 
             if (audioUrl) {
@@ -425,10 +508,10 @@ class KittenTtsService {
                 try {
                     const utterance = new SpeechSynthesisUtterance(currentSentence);
                     utterance.rate = options?.rate || 1.05;
-                    utterance.pitch = 1.02;
+                    utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.95 : 1.02;
 
-                    const rosieVoice = this.getRosieVoice();
-                    if (rosieVoice) utterance.voice = rosieVoice;
+                    const matchedVoice = this.getVoiceForCharacter(voiceToUse);
+                    if (matchedVoice) utterance.voice = matchedVoice;
 
                     utterance.onstart = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
@@ -458,7 +541,7 @@ class KittenTtsService {
                     window.speechSynthesis.speak(utterance);
                     return;
                 } catch (err) {
-                    console.warn('[RosieTTS] Utterance error:', err);
+                    console.warn('[KittenTTS] Utterance error:', err);
                 }
             }
 

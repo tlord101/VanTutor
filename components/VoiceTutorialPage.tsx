@@ -23,12 +23,18 @@ import rehypeKatex from 'rehype-katex';
 import katex from 'katex';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
-import { kittenTts } from '../services/kittenTtsService';
+import { kittenTts, KittenVoice, KITTEN_VOICE_LIST } from '../services/kittenTtsService';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const TUTOR_VOICE = 'Rosie';
 const MAX_BOARD_LINES = 6;
 const LINE_STREAM_MS = 300;
+
+const SPEED_PRESETS = [
+    { label: 'Slow', rate: 0.8 },
+    { label: '1x', rate: 1.0 },
+    { label: 'Normal', rate: 1.2 },
+    { label: '1.5x', rate: 1.5 },
+];
 
 // ── Pedagogical Multi-Board Step Ordering (9 Boards per Concept) ─────────────
 export type SubStep =
@@ -611,6 +617,18 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
     const [micDisplay, setMicDisplay] = useState('');
+    const [selectedVoice, setSelectedVoice] = useState<KittenVoice>(() => kittenTts.getSelectedVoice());
+    const [showVoiceModal, setShowVoiceModal] = useState(false);
+    const [previewingVoice, setPreviewingVoice] = useState<KittenVoice | null>(null);
+    const previewPlayerRef = useRef<{ stop: () => void } | null>(null);
+
+    // ── Subscribe to voice updates ────────────────────────────────────────
+    useEffect(() => {
+        const unsubscribe = kittenTts.subscribe((status) => {
+            setSelectedVoice(status.selectedVoice);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // ── Refs ─────────────────────────────────────────────────────────────
     const fileInputRef       = useRef<HTMLInputElement | null>(null);
@@ -1698,10 +1716,53 @@ OUTPUT VALID JSON ONLY:
     };
 
     const handleSpeedChange = () => {
-        const speeds = [1.0, 1.15, 1.35];
-        const next   = speeds[(speeds.indexOf(speechRate) + 1) % speeds.length];
-        setSpeechRate(next);
-        addToast(`Speed: ${next}x`, 'info');
+        const currentIdx = SPEED_PRESETS.findIndex(s => s.rate === speechRate);
+        const next = SPEED_PRESETS[(currentIdx + 1) % SPEED_PRESETS.length] || SPEED_PRESETS[1];
+        setSpeechRate(next.rate);
+        addToast(`Speed: ${next.label} (${next.rate}x)`, 'info');
+    };
+
+    const handlePreviewVoice = (voiceId: KittenVoice, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (previewingVoice === voiceId) {
+            if (previewPlayerRef.current) {
+                previewPlayerRef.current.stop();
+                previewPlayerRef.current = null;
+            }
+            setPreviewingVoice(null);
+            return;
+        }
+
+        stopAudioImmediate();
+        if (previewPlayerRef.current) {
+            previewPlayerRef.current.stop();
+            previewPlayerRef.current = null;
+        }
+
+        setPreviewingVoice(voiceId);
+        const player = kittenTts.previewVoice(voiceId, {
+            onStart: () => setPreviewingVoice(voiceId),
+            onEnd: () => {
+                setPreviewingVoice(null);
+                previewPlayerRef.current = null;
+            },
+            onError: () => {
+                setPreviewingVoice(null);
+                previewPlayerRef.current = null;
+            },
+        });
+        previewPlayerRef.current = player;
+    };
+
+    const handleSelectVoice = (voiceId: KittenVoice) => {
+        if (previewPlayerRef.current) {
+            previewPlayerRef.current.stop();
+            previewPlayerRef.current = null;
+        }
+        setPreviewingVoice(null);
+        kittenTts.setVoice(voiceId);
+        setSelectedVoice(voiceId);
+        addToast(`Voice switched to ${voiceId}`, 'success');
     };
 
     const handleGoBack = useCallback(async () => {
@@ -1835,26 +1896,45 @@ OUTPUT VALID JSON ONLY:
                         </button>
                     )}
 
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
+                    {/* 1. Voice Selection Dropdown Button */}
+                    <button
+                        onClick={() => setShowVoiceModal(prev => !prev)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] hover:bg-[#E5D7C5] border border-[#DFD1C0] text-xs font-bold text-[#5A4D3E] shadow-2xs transition-all cursor-pointer active:scale-95"
+                        title="Choose Tutor Voice (8 KittenTTS Models)"
+                    >
+                        <i className="bi bi-mic-fill text-[#8B5A2B] text-xs"></i>
+                        <span>{selectedVoice}</span>
+                        <i className={`bi bi-chevron-${showVoiceModal ? 'up' : 'down'} text-[10px] text-[#8B5A2B]`}></i>
+                    </button>
+
+                    {/* 2. Speed Preset Toggle Button (Slow 0.8x, 1x, Normal 1.2x, 1.5x) */}
+                    <button
+                        onClick={handleSpeedChange}
+                        className="px-2.5 py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-bold text-[#4A3E31] cursor-pointer shadow-xs transition-colors active:scale-95"
+                        title="Toggle Speed (Slow, 1x, Normal, 1.5x)"
+                    >
+                        <span>{SPEED_PRESETS.find(s => s.rate === speechRate)?.label || `${speechRate}x`}</span>
+                    </button>
+
+                    {/* 3. Live State Status Badge */}
+                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
                         {isTtsLoading ? (
                             <span className="w-2 h-2 rounded-full bg-[#8B5A2B] animate-ping shrink-0" />
                         ) : (
                             <span className={`w-2 h-2 rounded-full shrink-0 ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
                         )}
-                        <span className="hidden sm:inline">
-                            {isTtsLoading ? 'Generating Rosie Voice...' : isPaused ? 'Paused' : isSpeaking ? 'Speaking' : 'Rosie'}
+                        <span>
+                            {isTtsLoading ? `Generating ${selectedVoice}...` : isPaused ? 'Paused' : isSpeaking ? 'Speaking' : selectedVoice}
                         </span>
                     </div>
 
+                    {/* 4. Mute Button */}
                     <button
                         onClick={toggleMute}
                         className="p-1.5 sm:px-2 sm:py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-bold text-[#4A3E31] cursor-pointer shadow-xs transition-colors"
+                        title={isMuted ? 'Unmute' : 'Mute'}
                     >
                         <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-red-600' : 'bi-volume-up'} text-sm`}></i>
-                    </button>
-
-                    <button onClick={handleSpeedChange} className="px-2 py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-mono font-bold text-[#4A3E31] cursor-pointer shadow-xs transition-colors">
-                        {speechRate}x
                     </button>
                 </div>
             </header>
@@ -2254,6 +2334,120 @@ OUTPUT VALID JSON ONLY:
                                 {sessionData.customPrompt}
                             </p>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Voice Selection Dropdown Modal (8 KittenTTS Voices) ───────── */}
+            {showVoiceModal && (
+                <div
+                    onClick={() => {
+                        if (previewPlayerRef.current) {
+                            previewPlayerRef.current.stop();
+                            previewPlayerRef.current = null;
+                        }
+                        setPreviewingVoice(null);
+                        setShowVoiceModal(false);
+                    }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-[#FAF7F2] border border-[#E5DACD] rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-[#2C241D] animate-scale-in max-h-[90vh] overflow-y-auto [scrollbar-width:thin]"
+                    >
+                        <div className="flex items-center justify-between border-b border-[#E5DACD] pb-3 shrink-0">
+                            <div>
+                                <h3 className="font-extrabold text-base text-[#2C241D] flex items-center gap-2">
+                                    <i className="bi bi-mic-fill text-[#8B5A2B]"></i>
+                                    <span>Select AI Tutor Voice</span>
+                                </h3>
+                                <p className="text-xs text-[#7A6B5C] mt-0.5">
+                                    8 High-Fidelity 24 kHz KittenTTS Models · Click ▶ to preview
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (previewPlayerRef.current) {
+                                        previewPlayerRef.current.stop();
+                                        previewPlayerRef.current = null;
+                                    }
+                                    setPreviewingVoice(null);
+                                    setShowVoiceModal(false);
+                                }}
+                                className="w-8 h-8 rounded-full bg-[#EFE5D8] hover:bg-[#E5D7C5] text-[#5A4D3E] flex items-center justify-center cursor-pointer transition-colors"
+                            >
+                                <i className="bi bi-x-lg text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-1">
+                            {KITTEN_VOICE_LIST.map((v) => {
+                                const isSelected = selectedVoice === v.id;
+                                const isPreviewing = previewingVoice === v.id;
+
+                                return (
+                                    <div
+                                        key={v.id}
+                                        onClick={() => handleSelectVoice(v.id)}
+                                        className={`flex flex-col justify-between p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs ${
+                                            isSelected
+                                                ? 'bg-[#EFE5D8] border-[#8B5A2B] ring-2 ring-[#8B5A2B]/20'
+                                                : 'bg-[#FFFDFB] hover:bg-[#F6EFE6] border-[#DFD1C0]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                                                    v.gender === 'female' ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
+                                                }`}>
+                                                    {v.name[0]}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="font-extrabold text-sm text-[#2C241D] block truncate">
+                                                        {v.name}
+                                                    </span>
+                                                    <span className="text-[10px] text-[#7A6B5C] block truncate">
+                                                        {v.tone}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {isSelected && (
+                                                <span className="px-2 py-0.5 rounded-full bg-[#8B5A2B] text-white text-[10px] font-extrabold shrink-0">
+                                                    Active
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[#EFE5D8]">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handlePreviewVoice(v.id, e)}
+                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                                                    isPreviewing
+                                                        ? 'bg-amber-600 text-white animate-pulse'
+                                                        : 'bg-[#EAE0D2] hover:bg-[#DFD1C0] text-[#5A4D3E]'
+                                                }`}
+                                                title={`Preview ${v.name} voice`}
+                                            >
+                                                <i className={`bi ${isPreviewing ? 'bi-stop-fill text-xs' : 'bi-play-fill text-sm'}`}></i>
+                                                <span>{isPreviewing ? 'Stop' : 'Preview'}</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectVoice(v.id)}
+                                                className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors ${
+                                                    isSelected ? 'text-[#8B5A2B]' : 'text-[#7A6B5C] hover:text-[#2C241D]'
+                                                }`}
+                                            >
+                                                {isSelected ? '✓ Selected' : 'Choose'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             )}
