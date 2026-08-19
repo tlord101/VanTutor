@@ -13,6 +13,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
+import { kittenTts, KittenModelStatus } from '../services/kittenTtsService';
 
 // --- UTILITIES ---
 const normalizeLevelValue = (value?: string): string => {
@@ -245,6 +246,17 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     ));
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showKittenBanner, setShowKittenBanner] = useState(() => kittenTts.shouldShowFirstTimeNotice());
+    const [kittenStatus, setKittenStatus] = useState<KittenModelStatus>(() => kittenTts.getStatus());
+
+    // Subscribe to Kitten TTS voice model download status and trigger background caching
+    useEffect(() => {
+        const unsubscribe = kittenTts.subscribe(setKittenStatus);
+        if (!kittenTts.getStatus().isDownloaded) {
+            void kittenTts.startBackgroundDownload();
+        }
+        return () => unsubscribe();
+    }, []);
 
     // Check for incoming voice tutorial session (e.g. from Visual Scanner Detailed Tutorial)
     useEffect(() => {
@@ -856,6 +868,51 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
             {/* Courses List */}
             <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8">
+                {/* Kitten TTS Background Voice Model Notification Banner */}
+                {showKittenBanner && (
+                    <div className="max-w-4xl mx-auto mb-5 p-4 rounded-3xl bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 border border-emerald-500/30 text-white shadow-xl flex items-center justify-between gap-4 animate-scale-in">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400 shadow-inner">
+                                <Sparkles className="w-5 h-5 animate-pulse" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-extrabold text-sm text-emerald-300">
+                                        {kittenStatus.isDownloaded ? 'Ultra-Fast Voice Engine Ready' : 'Downloading Voice Model in Background'}
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        Kitten TTS
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                                    {kittenStatus.isDownloaded
+                                        ? 'Ultra-fast on-device Kitten TTS voice is active for all interactive Blackboard lessons.'
+                                        : 'Avelut is caching the ultra-fast voice model (25MB). You can continue studying or switch apps — it downloads seamlessly in the background.'}
+                                </p>
+                                {!kittenStatus.isDownloaded && (
+                                    <div className="w-full max-w-xs bg-slate-800/80 rounded-full h-1.5 mt-2.5 overflow-hidden border border-white/5">
+                                        <div 
+                                            className="bg-gradient-to-r from-emerald-400 to-teal-400 h-1.5 rounded-full transition-all duration-300" 
+                                            style={{ width: `${kittenStatus.progress}%` }} 
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowKittenBanner(false);
+                                kittenTts.markFirstTimeNoticeShown();
+                            }}
+                            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                            title="Dismiss"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+
                 {isLoading ? (
                     <StudyGuideSkeleton />
                 ) : filteredCourses.length > 0 ? (
