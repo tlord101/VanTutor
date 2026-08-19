@@ -108,6 +108,68 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
     });
 };
 
+/**
+ * Robust JSON parser specifically engineered for LLM generated JSON that may contain
+ * unescaped LaTeX backslashes (\frac, \Delta, \alpha, \text, \approx), markdown fences,
+ * or stray formatting.
+ */
+export function robustParseJson<T = any>(raw: string): T {
+    if (!raw || typeof raw !== 'string') {
+        throw new Error('Empty JSON input');
+    }
+    let cleaned = raw.replace(/^```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
+    
+    // Extract JSON substring between first { and last }
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+
+    try {
+        return JSON.parse(cleaned) as T;
+    } catch {
+        // Strategy 1: Escape unescaped backslashes (e.g. LaTeX \text, \frac, \Delta, \vec, \alpha)
+        // Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+        try {
+            const sanitized = cleaned.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+            return JSON.parse(sanitized) as T;
+        } catch {
+            // Strategy 2: Walk through strings and repair invalid escapes / unescaped newlines
+            try {
+                let inString = false;
+                let escaped = false;
+                let repaired = '';
+                for (let i = 0; i < cleaned.length; i++) {
+                    const char = cleaned[i];
+                    if (char === '"' && !escaped) {
+                        inString = !inString;
+                        repaired += char;
+                    } else if (inString && char === '\\') {
+                        const nextChar = cleaned[i + 1];
+                        if (nextChar && '\"\\/bfnrtu'.includes(nextChar)) {
+                            repaired += char;
+                        } else {
+                            repaired += '\\\\';
+                        }
+                    } else if (inString && (char === '\n' || char === '\r')) {
+                        repaired += '\\n';
+                    } else if (inString && char === '\t') {
+                        repaired += '\\t';
+                    } else {
+                        repaired += char;
+                    }
+                    escaped = char === '\\' && !escaped;
+                }
+                return JSON.parse(repaired) as T;
+            } catch (err) {
+                console.error('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 400));
+                throw err;
+            }
+        }
+    }
+}
+
 interface BlueprintVariable {
     symbol: string;
     meaning: string;
@@ -1024,7 +1086,7 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
             });
             const raw = getResponseText(result);
             if (!raw) throw new Error('empty blueprint response');
-            const bp: LessonBlueprint = JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+            const bp: LessonBlueprint = robustParseJson<LessonBlueprint>(raw);
             setIsGeneratingBlueprint(false);
             return bp;
         } catch (err) {
