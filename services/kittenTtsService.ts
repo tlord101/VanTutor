@@ -28,7 +28,20 @@ const KITTEN_STORAGE_KEY = 'avelut_kitten_voice_model_status';
 const KITTEN_NOTICE_SHOWN_KEY = 'avelut_kitten_first_time_notice_shown';
 const KITTEN_CACHE_NAME = 'avelut-kitten-tts-v1';
 export const KITTEN_MODEL_REPO = 'KittenML/kitten-tts-nano-0.8-int8';
-export const KITTEN_MODEL_URL = `https://huggingface.co/${KITTEN_MODEL_REPO}/resolve/main/model.onnx`;
+export const KITTEN_MODEL_URL = `https://huggingface.co/${KITTEN_MODEL_REPO}/resolve/main/kitten_tts_nano_v0_8.onnx`;
+export const KITTEN_CONFIG_URL = `https://huggingface.co/${KITTEN_MODEL_REPO}/resolve/main/config.json`;
+export const KITTEN_VOICES_URL = `https://huggingface.co/${KITTEN_MODEL_REPO}/resolve/main/voices.npz`;
+
+export const KITTEN_VOICE_ALIASES: Record<KittenVoice, string> = {
+    [KittenVoice.Bella]: 'expr-voice-2-f',
+    [KittenVoice.Jasper]: 'expr-voice-2-m',
+    [KittenVoice.Luna]: 'expr-voice-3-f',
+    [KittenVoice.Bruno]: 'expr-voice-3-m',
+    [KittenVoice.Rosie]: 'expr-voice-4-f',
+    [KittenVoice.Hugo]: 'expr-voice-4-m',
+    [KittenVoice.Kiki]: 'expr-voice-5-f',
+    [KittenVoice.Leo]: 'expr-voice-5-m',
+};
 
 class KittenTtsService {
     private isDownloading = false;
