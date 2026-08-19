@@ -754,6 +754,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
     // ── Board State ──────────────────────────────────────────────────────
     const [visibleBoardLines, setVisibleBoardLines] = useState<string[]>([]);
+    const [activeWritingIndex, setActiveWritingIndex] = useState<number>(-1);
     const [isStreaming, setIsStreaming] = useState(false);
     const [isLoadingUnit, setIsLoadingUnit] = useState(false);
     const [activeDiagramSvg, setActiveDiagramSvg] = useState<string | null>(null);
@@ -801,6 +802,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const diagnosticAnswersRef      = useRef<{ questionIdx: number; correct: boolean; dimension: string }[]>([]);
     const activeDiagnosticIdxRef    = useRef(0);
     const activeLearningQuestionRef = useRef<LearningQuestion | null>(null);
+
+    const pendingBoardLinesRef      = useRef<string[]>([]);
+    const pendingVisualsRef         = useRef<{ svg: string | null; table: string | null; caption: string | null }>({ svg: null, table: null, caption: null });
 
     const audioContextRef           = useRef<AudioContext | null>(null);
     const currentAudioRef           = useRef<AudioBufferSourceNode | null>(null);
@@ -1017,23 +1021,113 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             .trim();
     };
 
-    const speakText = useCallback(async (text: string, onEnd?: () => void): Promise<void> => {
-        if (!isActiveRef.current || isMuted || !text) {
+    // ── Progressive Line-by-Line Chalk Reveal (Synchronized with Voice) ────────
+    const revealLinesProgressively = useCallback((lines: string[], spokenText?: string) => {
+        clearAllStreamTimers();
+        if (!lines || lines.length === 0) {
+            setVisibleBoardLines([]);
+            setIsStreaming(false);
+            setActiveWritingIndex(-1);
+            return;
+        }
+
+        setIsStreaming(true);
+        const wordCount = spokenText ? spokenText.split(/\s+/).length : 25;
+        const totalEstMs = Math.max(3000, wordCount * 360);
+        const lineCount = lines.length;
+        const lineIntervalMs = Math.max(1800, Math.min(4200, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+
+        // Reveal Line 0 immediately with chalk active indicator
+        setVisibleBoardLines([lines[0]]);
+        setActiveWritingIndex(0);
+
+        // Schedule subsequent lines bit-by-bit
+        for (let i = 1; i < lineCount; i++) {
+            const timer = setTimeout(() => {
+                if (!isActiveRef.current) return;
+                setVisibleBoardLines(lines.slice(0, i + 1));
+                setActiveWritingIndex(i);
+            }, i * lineIntervalMs);
+            streamTimersRef.current.push(timer);
+        }
+
+        // Settle all lines into clean chalk white when complete
+        const finishTimer = setTimeout(() => {
+            if (!isActiveRef.current) return;
+            setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
+            setIsStreaming(false);
+            setActiveWritingIndex(-1);
+        }, lineCount * lineIntervalMs);
+        streamTimersRef.current.push(finishTimer);
+    }, [clearAllStreamTimers]);
+
+    const streamBoardLines = useCallback((lines: string[], spokenText?: string) => {
+        clearAllStreamTimers();
+        pendingBoardLinesRef.current = lines.slice(0, MAX_BOARD_LINES);
+        if (isMuted || !isTtsLoading) {
+            revealLinesProgressively(pendingBoardLinesRef.current, spokenText);
+        } else {
+            setVisibleBoardLines([]);
+            setIsStreaming(true);
+            setActiveWritingIndex(-1);
+        }
+    }, [clearAllStreamTimers, isMuted, isTtsLoading, revealLinesProgressively]);
+
+    const speakText = useCallback(async (
+        text: string,
+        onEnd?: () => void,
+        linesToReveal?: string[]
+    ): Promise<void> => {
+        if (!isActiveRef.current || !text) {
             onEnd?.();
             if (!isMuted) startMicListening();
             return;
         }
+
+        const lines = (linesToReveal && linesToReveal.length > 0)
+            ? linesToReveal.slice(0, MAX_BOARD_LINES)
+            : pendingBoardLinesRef.current;
+        pendingBoardLinesRef.current = lines;
+
         stopAudioImmediate();
+        clearAllStreamTimers();
         setIsPaused(false);
+        lastSpokenTextRef.current = text;
+
+        if (isMuted) {
+            setIsTtsLoading(false);
+            setIsSpeaking(false);
+            revealLinesProgressively(lines, text);
+
+            if (pendingVisualsRef.current.svg) {
+                setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                setActiveTableMarkdown(null);
+                setActiveVisualCaption(pendingVisualsRef.current.caption);
+                setDiagramKey(k => k + 1);
+            } else if (pendingVisualsRef.current.table) {
+                setActiveDiagramSvg(null);
+                setActiveTableMarkdown(pendingVisualsRef.current.table);
+                setActiveVisualCaption(pendingVisualsRef.current.caption);
+                setDiagramKey(k => k + 1);
+            }
+            onEnd?.();
+            return;
+        }
+
+        // Voice is preparing: hide board lines and visuals to prevent premature text display
         setIsTtsLoading(true);
         setIsSpeaking(false);
-        lastSpokenTextRef.current = text;
+        setVisibleBoardLines([]);
+        setActiveWritingIndex(-1);
+        setActiveDiagramSvg(null);
+        setActiveTableMarkdown(null);
 
         const sessionId = ++playSessionIdRef.current;
         const cleanedText = cleanSpokenTextForTTS(text);
 
         if (!cleanedText) {
             setIsTtsLoading(false);
+            revealLinesProgressively(lines, text);
             onEnd?.();
             startMicListening();
             return;
@@ -1045,6 +1139,21 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);
                 setIsTtsLoading(false);
+
+                // Voice has started speaking: begin progressive line-by-line chalk write-in
+                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+
+                if (pendingVisualsRef.current.svg) {
+                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                    setActiveTableMarkdown(null);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                    setDiagramKey(k => k + 1);
+                } else if (pendingVisualsRef.current.table) {
+                    setActiveDiagramSvg(null);
+                    setActiveTableMarkdown(pendingVisualsRef.current.table);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                    setDiagramKey(k => k + 1);
+                }
             },
             onEnd: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -1052,6 +1161,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
+
+                // Ensure all lines are revealed and active writing marker clears
+                setVisibleBoardLines(pendingBoardLinesRef.current);
+                setIsStreaming(false);
+                setActiveWritingIndex(-1);
+
                 onEnd?.();
                 startMicListening();
             },
@@ -1061,25 +1176,22 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
+
+                // Fallback progressive reveal
+                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                if (pendingVisualsRef.current.svg) {
+                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                } else if (pendingVisualsRef.current.table) {
+                    setActiveTableMarkdown(pendingVisualsRef.current.table);
+                }
+
                 onEnd?.();
                 startMicListening();
             },
         });
 
         currentAudioRef.current = player as any;
-    }, [isMuted, startMicListening]);
-
-    // ── Board Line Loading (Loads full organized board content at once) ────────
-    const streamBoardLines = useCallback((lines: string[]) => {
-        clearAllStreamTimers();
-        if (!lines || lines.length === 0) {
-            setVisibleBoardLines([]);
-            setIsStreaming(false);
-            return;
-        }
-        setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
-        setIsStreaming(false);
-    }, []);
+    }, [isMuted, startMicListening, clearAllStreamTimers, revealLinesProgressively]);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {
         if (!bp || typeof bp !== 'object') {
@@ -1755,21 +1867,15 @@ OUTPUT VALID JSON ONLY:
 
             const parsed: UnitPresentationResponse = robustParseJson<UnitPresentationResponse>(raw);
 
-            if (userProfile?.uid) {
-                deductAICredits(userProfile.uid, cost, 'Study Guide - Adaptive Phase', appSettings).catch(console.warn);
-            }
+            const sanitized = sanitizeSvg(parsed.diagramSvg || concept?.diagramSvg);
+            const table = parsed.tableMarkdown || concept?.tableMarkdown;
 
-            setIsLoadingUnit(false);
-            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
-
-            dialogueHistoryRef.current.push({
-                role: 'tutor',
-                text: parsed.spokenExplanation,
-                boardSummary: parsed.boardLines.join(' | '),
-            });
-            if (dialogueHistoryRef.current.length > 8) {
-                dialogueHistoryRef.current = dialogueHistoryRef.current.slice(-8);
-            }
+            pendingVisualsRef.current = {
+                svg: sanitized || null,
+                table: (table && table.trim().includes('|')) ? table : null,
+                caption: parsed.diagramCaption || `${concept?.conceptName || 'Lesson'} Visual`,
+            };
+            pendingBoardLinesRef.current = parsed.boardLines.slice(0, MAX_BOARD_LINES);
 
             if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
                 const pos = { label: parsed.positiveReplyLabel, text: parsed.positiveReplyText };
@@ -1780,37 +1886,27 @@ OUTPUT VALID JSON ONLY:
                 setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
             }
 
-            const sanitized = sanitizeSvg(parsed.diagramSvg || concept?.diagramSvg);
-            const table = parsed.tableMarkdown || concept?.tableMarkdown;
-
-            if (sanitized) {
-                setActiveDiagramSvg(sanitized);
-                setActiveTableMarkdown(null);
-                setActiveVisualCaption(parsed.diagramCaption || `${concept?.conceptName} Diagram`);
-                setDiagramKey(k => k + 1);
-            } else if (table && table.trim().includes('|')) {
-                setActiveDiagramSvg(null);
-                setActiveTableMarkdown(table);
-                setActiveVisualCaption(parsed.diagramCaption || `${concept?.conceptName} Table`);
-                setDiagramKey(k => k + 1);
-            } else {
-                setActiveDiagramSvg(null);
-                setActiveTableMarkdown(null);
-                setActiveVisualCaption(null);
+            dialogueHistoryRef.current.push({
+                role: 'tutor',
+                text: parsed.spokenExplanation,
+                boardSummary: parsed.boardLines.join(' | '),
+            });
+            if (dialogueHistoryRef.current.length > 8) {
+                dialogueHistoryRef.current = dialogueHistoryRef.current.slice(-8);
             }
 
-            await speakText(parsed.spokenExplanation);
+            setIsLoadingUnit(false);
+            await speakText(parsed.spokenExplanation, undefined, parsed.boardLines.slice(0, MAX_BOARD_LINES));
 
         } catch (err) {
             console.warn('[PresentUnit] presentation fallback:', err);
             if (!isActiveRef.current) return;
             setIsLoadingUnit(false);
             const fallbackConcept = concept || bp.concepts[0];
-            streamBoardLines(getBoardLines(fallbackConcept, currentPhase, diagIdx));
-            setActiveDiagramSvg(null);
-            setActiveTableMarkdown(null);
-            setActiveVisualCaption(null);
-            await speakText(getSpokenText(fallbackConcept, currentPhase, diagIdx));
+            const fallbackLines = getBoardLines(fallbackConcept, currentPhase, diagIdx);
+            pendingBoardLinesRef.current = fallbackLines;
+            pendingVisualsRef.current = { svg: null, table: null, caption: null };
+            await speakText(getSpokenText(fallbackConcept, currentPhase, diagIdx), undefined, fallbackLines);
         }
     }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
 
@@ -1861,7 +1957,7 @@ OUTPUT VALID JSON ONLY:
 
             const spokenHint = `Here is a clue: ${nextH.activeHintText} Take your time and give it a shot.`;
             dialogueHistoryRef.current.push({ role: 'tutor', text: spokenHint, boardSummary: hintLines.join(' | ') });
-            await speakText(spokenHint);
+            await speakText(spokenHint, undefined, hintLines);
             return;
         }
 
@@ -2516,24 +2612,32 @@ OUTPUT VALID JSON ONLY:
                                 </span>
                             </div>
 
-                            {/* ── Voice Preparation Loading Bar ── */}
+                            {/* ── Voice Preparation Loading Screen (Centered with Animated Bar) ── */}
                             {isTtsLoading && (
-                                <div className="w-full flex flex-col gap-1.5 p-3 rounded-2xl bg-[#22272E]/95 border border-amber-400/40 shadow-lg animate-fade-in shrink-0">
-                                    <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
-                                        <span className="flex items-center gap-2">
-                                            <i className="bi bi-soundwave text-sm animate-pulse text-amber-400"></i>
-                                            <span>Avelut is preparing {selectedVoice} voice...</span>
+                                <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center animate-fade-in my-auto">
+                                    <div className="w-16 h-16 rounded-3xl bg-[#22272E] border border-amber-400/40 flex items-center justify-center shadow-xl relative">
+                                        <i className="bi bi-soundwave text-3xl text-amber-400 animate-pulse"></i>
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
                                         </span>
-                                        <span className="text-[11px] font-mono font-medium text-slate-400 animate-pulse">Loading audio...</span>
                                     </div>
-                                    <div className="w-full bg-slate-800/90 rounded-full h-1.5 overflow-hidden border border-white/10">
+                                    <div className="space-y-1 max-w-sm">
+                                        <h3 className="text-lg font-bold font-handwriting tracking-wide text-amber-200">
+                                            Avelut is preparing {selectedVoice} voice...
+                                        </h3>
+                                        <p className="text-xs text-slate-300">
+                                            Synchronizing on-device audio · Text will reveal line-by-line in sync with speech.
+                                        </p>
+                                    </div>
+                                    <div className="w-full max-w-xs bg-slate-800/90 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
                                         <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full animate-pulse transition-all" />
                                     </div>
                                 </div>
                             )}
 
-                            {/* ── Blackboard Content Area ── */}
-                            {visibleBoardLines.length > 0 && (
+                            {/* ── Blackboard Content Area (Progressive Chalk Write-In) ── */}
+                            {!isTtsLoading && visibleBoardLines.length > 0 && (
                                 <div className={`flex-1 w-full ${hasVisualElement ? 'grid grid-cols-1 lg:grid-cols-12 gap-4 items-start' : 'space-y-3'}`}>
 
                                     <div className={`${hasVisualElement ? 'lg:col-span-6 space-y-3' : 'space-y-3.5'}`}>
@@ -2541,17 +2645,17 @@ OUTPUT VALID JSON ONLY:
                                             const isVarLine       = line.includes('→');
                                             const isBlockFormula  = line.trim().startsWith('$$');
                                             const stepMatch       = line.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
-                                            const isLatestActive  = idx === visibleBoardLines.length - 1 && isStreaming;
+                                            const isWritingActive = (idx === activeWritingIndex || (idx === visibleBoardLines.length - 1 && isStreaming)) && isStreaming;
 
                                             return (
                                                 <div
                                                     key={`${idx}-${line.slice(0, 15)}`}
                                                     className={`flex items-start gap-2.5 transition-all duration-700 ease-out animate-fade-in ${
-                                                        isLatestActive ? 'border-l-2 border-amber-400/80 pl-2 bg-amber-400/5 rounded-r-xl' : ''
+                                                        isWritingActive ? 'border-l-2 border-amber-400 pl-3 bg-amber-400/10 rounded-r-xl shadow-xs' : ''
                                                     }`}
                                                 >
                                                     {!isVarLine && !isBlockFormula && !stepMatch && (
-                                                        <span className={`mt-2.5 w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0 ${isLatestActive ? 'animate-ping' : 'opacity-80'}`} />
+                                                        <span className={`mt-2.5 w-1.5 h-1.5 rounded-full ${isWritingActive ? 'bg-amber-400 animate-ping' : 'bg-amber-300 opacity-80'} shrink-0`} />
                                                     )}
 
                                                     {stepMatch ? (
@@ -2565,6 +2669,9 @@ OUTPUT VALID JSON ONLY:
                                                                     rehypePlugins={[rehypeKatex]}
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
+                                                                {isWritingActive && (
+                                                                    <span className="inline-block w-2 h-4 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ) : isBlockFormula ? (
@@ -2579,7 +2686,10 @@ OUTPUT VALID JSON ONLY:
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
+                                                            >{formatLatexMath(line.trim())}</ReactMarkdown>
+                                                            {isWritingActive && (
+                                                                <span className="inline-block w-2 h-3 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed tracking-wide w-full">
@@ -2588,6 +2698,9 @@ OUTPUT VALID JSON ONLY:
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line)}</ReactMarkdown>
+                                                            {isWritingActive && (
+                                                                <span className="inline-block w-2 h-4 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
