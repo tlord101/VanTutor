@@ -240,8 +240,19 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [topicPickerCourse, setTopicPickerCourse] = useState<Course | null>(null);
     const [topicToOpen, setTopicToOpen] = useState<Topic | null>(null);
+    const [activeExternalSession, setActiveExternalSession] = useState<VoiceTutorialSessionData | null>(() => (
+        readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null)
+    ));
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Check for incoming voice tutorial session (e.g. from Visual Scanner Detailed Tutorial)
+    useEffect(() => {
+        const cachedSession = readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null);
+        if (cachedSession) {
+            setActiveExternalSession(cachedSession);
+        }
+    }, []);
 
     const [filter, setFilter] = useState(() => ({
         searchTerm: '',
@@ -533,16 +544,14 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     });
 
     // ── ACTIVE TUTORIAL VIEW (VOICE & BLACKBOARD LEARNING) ──
-    if (selectedCourse) {
-        const topic = topicToOpen || (Array.isArray(selectedCourse.topics) && selectedCourse.topics.length > 0 ? selectedCourse.topics[0] : {
-            topic_id: 'core_principles',
-            topic_name: 'Core Principles & Overview',
-            topic_context: `Overview and principles of ${selectedCourse.course_name}`,
-        });
-
-        const activeSessionData: VoiceTutorialSessionData = {
-            course: selectedCourse,
-            topic: topic,
+    if (activeExternalSession || selectedCourse) {
+        const activeSessionData: VoiceTutorialSessionData = activeExternalSession || {
+            course: selectedCourse!,
+            topic: topicToOpen || (Array.isArray(selectedCourse!.topics) && selectedCourse!.topics.length > 0 ? selectedCourse!.topics[0] : {
+                topic_id: 'core_principles',
+                topic_name: 'Core Principles & Overview',
+                topic_context: `Overview and principles of ${selectedCourse!.course_name}`,
+            }),
             syllabusContext: '',
         };
 
@@ -554,6 +563,8 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 onBack={() => {
                     setSelectedCourse(null);
                     setTopicToOpen(null);
+                    setActiveExternalSession(null);
+                    writeCachedJson('avelut_active_voice_tutorial', null);
                 }}
                 onNavigate={onNavigate}
             />
