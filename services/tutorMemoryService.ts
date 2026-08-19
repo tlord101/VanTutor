@@ -1,4 +1,5 @@
 import { readCachedJson, writeCachedJson } from '../utils/cache';
+import type { DimensionalMastery } from './masteryModel';
 
 export interface StudentTopicMemory {
     topicId: string;
@@ -9,6 +10,7 @@ export interface StudentTopicMemory {
     struggledConcepts: string[];
     commonPitfalls: string[];
     notes: string[];
+    dimensionalMasteries?: Record<string, DimensionalMastery>;
 }
 
 export interface StudentCognitiveProfile {
@@ -26,6 +28,8 @@ export interface StudentCognitiveProfile {
     preferredPacing: 'fast' | 'detailed_step_by_step' | 'visual_first';
     totalSessionsCompleted: number;
     topics: Record<string, StudentTopicMemory>;
+    conceptMasteries?: Record<string, DimensionalMastery>;
+    difficultyPreference?: number;
 }
 
 const DEFAULT_PROFILE = (uid: string): StudentCognitiveProfile => ({
@@ -35,6 +39,8 @@ const DEFAULT_PROFILE = (uid: string): StudentCognitiveProfile => ({
     preferredPacing: 'detailed_step_by_step',
     totalSessionsCompleted: 0,
     topics: {},
+    conceptMasteries: {},
+    difficultyPreference: 2,
 });
 
 /**
@@ -45,7 +51,10 @@ export async function getStudentCognitiveProfile(uid: string): Promise<StudentCo
     const key = `avelut_tutor_cognitive_memory_${uid}`;
     const cached = readCachedJson<StudentCognitiveProfile>(key, DEFAULT_PROFILE(uid));
     if (cached && cached.uid) {
-        return cached;
+        return {
+            ...DEFAULT_PROFILE(uid),
+            ...cached,
+        };
     }
     return DEFAULT_PROFILE(uid);
 }
@@ -57,6 +66,43 @@ export async function saveStudentCognitiveProfile(profile: StudentCognitiveProfi
     if (!profile || !profile.uid) return;
     const key = `avelut_tutor_cognitive_memory_${profile.uid}`;
     await writeCachedJson(key, profile, profile.uid);
+}
+
+/**
+ * Records dimensional mastery for a specific concept.
+ */
+export async function recordConceptDimensionalMastery(
+    uid: string,
+    topicId: string,
+    conceptName: string,
+    mastery: DimensionalMastery
+): Promise<void> {
+    const profile = await getStudentCognitiveProfile(uid);
+    if (!profile.conceptMasteries) {
+        profile.conceptMasteries = {};
+    }
+    profile.conceptMasteries[conceptName] = mastery;
+
+    if (!profile.topics[topicId]) {
+        profile.topics[topicId] = {
+            topicId,
+            topicName: topicId,
+            courseName: 'Academic Tutorial',
+            lastVisited: Date.now(),
+            masteredConcepts: [],
+            struggledConcepts: [],
+            commonPitfalls: [],
+            notes: [],
+            dimensionalMasteries: {},
+        };
+    }
+
+    if (!profile.topics[topicId].dimensionalMasteries) {
+        profile.topics[topicId].dimensionalMasteries = {};
+    }
+    profile.topics[topicId].dimensionalMasteries![conceptName] = mastery;
+
+    await saveStudentCognitiveProfile(profile);
 }
 
 /**

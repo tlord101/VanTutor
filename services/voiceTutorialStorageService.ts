@@ -12,6 +12,10 @@ export interface LocalVoiceTutorialRecord {
   blueprint_json: string;
   updated_at: number;
   sync_status?: string;
+  phase_path_json?: string;
+  mastery_json?: string;
+  difficulty_level?: number;
+  repair_count?: number;
 }
 
 /**
@@ -19,6 +23,13 @@ export interface LocalVoiceTutorialRecord {
  */
 function getRecordId(userId: string, courseId: string, topicId: string): string {
   return `vt_${userId}_${courseId}_${topicId}`;
+}
+
+export interface AdaptiveProgressPayload {
+  phasePath?: string[];
+  mastery?: any;
+  difficultyLevel?: number;
+  repairCount?: number;
 }
 
 /**
@@ -31,7 +42,8 @@ export async function saveLocalVoiceTutorialProgress(
   conceptIdx: number,
   subStep: string,
   isCompleted: boolean,
-  blueprint: any
+  blueprint: any,
+  adaptiveData?: AdaptiveProgressPayload
 ): Promise<void> {
   const uid = userId || 'anon';
   const cid = courseId || 'general';
@@ -42,10 +54,18 @@ export async function saveLocalVoiceTutorialProgress(
   const completedFlag = isCompleted ? 1 : 0;
 
   // 1. Instant synchronous local cache write
-  const bpKey = `vt_blueprint_v6_${uid}_${cid}_${tid}`;
-  const prKey = `vt_progress_v6_${uid}_${cid}_${tid}`;
+  const bpKey = `vt_blueprint_v7_${uid}_${cid}_${tid}`;
+  const prKey = `vt_progress_v7_${uid}_${cid}_${tid}`;
   await writeCachedJson(bpKey, typeof blueprint === 'object' ? blueprint : JSON.parse(blueprintJson || '{}'), uid);
-  await writeCachedJson(prKey, { conceptIdx, subStep, isCompleted }, uid);
+  await writeCachedJson(prKey, {
+    conceptIdx,
+    subStep,
+    isCompleted,
+    phasePath: adaptiveData?.phasePath,
+    mastery: adaptiveData?.mastery,
+    difficultyLevel: adaptiveData?.difficultyLevel,
+    repairCount: adaptiveData?.repairCount,
+  }, uid);
 
   // 2. Persistent SQLite write
   try {
@@ -83,12 +103,35 @@ export async function getLocalVoiceTutorialProgress(
   subStep: string;
   isCompleted: boolean;
   blueprint: any | null;
+  phasePath?: string[];
+  mastery?: any;
+  difficultyLevel?: number;
+  repairCount?: number;
 } | null> {
   const uid = userId || 'anon';
   const cid = courseId || 'general';
   const tid = topicId || 'core';
 
-  // 1. Try SQLite
+  // 1. Try Cache First for fastest instant restore
+  const bpKey = `vt_blueprint_v7_${uid}_${cid}_${tid}`;
+  const prKey = `vt_progress_v7_${uid}_${cid}_${tid}`;
+  const cachedBp = readCachedJson<any | null>(bpKey, null);
+  const cachedPr = readCachedJson<any | null>(prKey, null);
+
+  if (cachedBp) {
+    return {
+      conceptIdx: cachedPr?.conceptIdx ?? 0,
+      subStep: cachedPr?.subStep || 'diagnostic',
+      isCompleted: cachedPr?.isCompleted || false,
+      blueprint: cachedBp,
+      phasePath: cachedPr?.phasePath,
+      mastery: cachedPr?.mastery,
+      difficultyLevel: cachedPr?.difficultyLevel,
+      repairCount: cachedPr?.repairCount,
+    };
+  }
+
+  // 2. Try SQLite
   try {
     const sql = `
       SELECT id, user_id, course_id, topic_id, concept_idx, sub_step, is_completed, blueprint_json, updated_at
@@ -108,28 +151,13 @@ export async function getLocalVoiceTutorialProgress(
 
       return {
         conceptIdx: row.concept_idx ?? 0,
-        subStep: row.sub_step || 'definition',
+        subStep: row.sub_step || 'diagnostic',
         isCompleted: row.is_completed === 1,
         blueprint: bp,
       };
     }
   } catch (err) {
     console.warn('[SQLite] Error reading voice tutorial progress:', err);
-  }
-
-  // 2. Fallback to cache
-  const bpKey = `vt_blueprint_v6_${uid}_${cid}_${tid}`;
-  const prKey = `vt_progress_v6_${uid}_${cid}_${tid}`;
-  const cachedBp = readCachedJson<any | null>(bpKey, null);
-  const cachedPr = readCachedJson<{ conceptIdx: number; subStep: string; isCompleted?: boolean } | null>(prKey, null);
-
-  if (cachedBp) {
-    return {
-      conceptIdx: cachedPr?.conceptIdx ?? 0,
-      subStep: cachedPr?.subStep || 'definition',
-      isCompleted: cachedPr?.isCompleted || false,
-      blueprint: cachedBp,
-    };
   }
 
   return null;

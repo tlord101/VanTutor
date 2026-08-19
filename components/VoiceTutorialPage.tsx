@@ -29,41 +29,48 @@ import { kittenTts, KittenVoice, KITTEN_VOICE_LIST } from '../services/kittenTts
 const MAX_BOARD_LINES = 6;
 const LINE_STREAM_MS = 300;
 
-// ── Pedagogical Multi-Board Step Ordering (9 Boards per Concept) ─────────────
-export type SubStep =
-    | 'intuition_hook'        // Board 1: Real-world motivation & relatable opening question
-    | 'physical_meaning'      // Board 2: Deep conceptual definition & physical intuition
-    | 'formula_table'         // Board 3: Progression table & LaTeX formula breakdown
-    | 'distinctions_pitfalls' // Board 4: Twin-term distinctions & golden rules
-    | 'example_problem'       // Board 5: Worked Example setup (full statement & givens)
-    | 'example_step1'         // Board 6: Worked Example Step 1 (Principle & formula choice)
-    | 'example_step2'         // Board 7: Worked Example Step 2 (Substitution & calculation)
-    | 'example_step3'         // Board 8: Worked Example Step 3 (Final result & units/check)
-    | 'concept_recap';        // Board 9: Concept wrap-up & readiness check
+// ── Adaptive Teaching Phases (capabilities, not fixed sequence) ───────────────
+import type { TutorPhase, DiagnosticDimensionResult, RepairStrategy } from '../services/adaptivePathEngine';
+import { generatePhasePath, adaptPath, selectRepairStrategy, scoreDiagnosticAnswers, REPAIR_STRATEGY_INSTRUCTIONS } from '../services/adaptivePathEngine';
+import { DimensionalMastery, defaultMastery, updateMastery, generateMasteryNarration, evaluateReadiness, PhaseResult, MisconceptionType } from '../services/masteryModel';
+import { evaluateLocally, evaluateWithAI, isHintRequest, EvaluationResult } from '../services/answerEvaluator';
+import { createInitialHintState, getNextHint, HintState } from '../services/hintEngine';
+import { createInitialDifficultyState, recordQuestionPerformance, DifficultyState } from '../services/difficultyController';
+import { calculateInitialReview, saveSpacedReviewItem } from '../services/spacedReviewService';
+import { recordConceptDimensionalMastery } from '../services/tutorMemoryService';
+import type { LearningQuestion, QuestionDifficulty } from '../types/learningQuestion';
 
-export const SUB_STEP_ORDER: SubStep[] = [
-    'intuition_hook',
-    'physical_meaning',
-    'formula_table',
-    'distinctions_pitfalls',
-    'example_problem',
-    'example_step1',
-    'example_step2',
-    'example_step3',
-    'concept_recap',
-];
+export type { TutorPhase };
 
-export const SUB_STEP_LABEL: Record<SubStep, string> = {
-    intuition_hook:        '🌱 1. Real-World Hook',
-    physical_meaning:      '📌 2. Core Meaning',
-    formula_table:         '📐 3. Formula & State Table',
-    distinctions_pitfalls: '⚠️ 4. Key Distinctions',
-    example_problem:       '✏️ 5. Problem Setup',
-    example_step1:         '🔍 6. Step 1: Principle',
-    example_step2:         '🧮 7. Step 2: Calculation',
-    example_step3:         '🎯 8. Step 3: Final Result',
-    concept_recap:         '🎓 9. Concept Recap',
+/** @deprecated — backward-compatible alias for SubStep during migration */
+export type SubStep = TutorPhase;
+
+export const INTERACTIVE_PHASES: Set<TutorPhase> = new Set([
+    'diagnostic', 'predict', 'guided_practice',
+    'independent_practice', 'misconception', 'transfer', 'retrieval', 'synthesis',
+]);
+
+export const PHASE_LABEL: Record<TutorPhase, string> = {
+    diagnostic:           '🔍 Diagnostic',
+    concept_map:          '🗺️ Concept Map',
+    intuition:            '🌱 Intuition',
+    concept_core:         '📌 Core Concept',
+    predict:              '🤔 Predict',
+    formalize:            '📐 Formalize',
+    multi_represent:      '🔄 Representations',
+    guided_practice:      '✏️ Guided Practice',
+    independent_practice: '🎯 Independent Practice',
+    misconception:        '⚠️ Misconception Check',
+    transfer:             '🔀 Transfer',
+    retrieval:            '🧠 Retrieval',
+    mastery_decision:     '🎓 Mastery Check',
+    repair:               '🔧 Repair',
+    synthesis:            '🧩 Synthesis',
 };
+
+/** @deprecated — kept for backward-compat; phases are now runtime-generated */
+export const SUB_STEP_LABEL = PHASE_LABEL;
+export const SUB_STEP_ORDER: TutorPhase[] = ['diagnostic'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface VoiceTutorialSessionData {
@@ -108,9 +115,6 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
 };
 
 /**
- * Robust JSON parser specifically engineered for LLM generated JSON that may contain
- * unescaped LaTeX backslashes (\frac, \Delta, \alpha, \text, \approx), markdown fences,
-/**
  * Robust JSON parser capable of handling:
  * 1. Markdown code blocks (```json ... ```)
  * 2. Unescaped LaTeX backslashes (\sigma, \Delta, \frac, \nabla, \alpha, etc.)
@@ -151,7 +155,6 @@ export function robustParseJson<T = any>(raw: string): T {
                     out += ch;
                 } else if (ch === '\\' && !isEscaped) {
                     const next = cleaned[i + 1] || '';
-                    // Standard valid JSON escapes
                     if (next === '"' || next === '\\' || next === '/') {
                         out += '\\' + next;
                         i++;
@@ -159,7 +162,6 @@ export function robustParseJson<T = any>(raw: string): T {
                         out += '\\u' + cleaned.slice(i + 2, i + 6);
                         i += 5;
                     } else if (/^[bfnrt]/.test(next)) {
-                        // Check if it's a LaTeX command starting with b, f, n, r, t (e.g. \frac, \nabla, \text, \rho, \beta, \begin)
                         const remainder = cleaned.slice(i + 1, i + 15);
                         if (/^(frac|nabla|text|times|theta|tau|tan|rho|right|nu|neq|neg|normal|beta|begin|bar|bot|bf|bold|box|bullet|approx|gamma)/i.test(remainder)) {
                             out += '\\\\' + next;
@@ -168,7 +170,6 @@ export function robustParseJson<T = any>(raw: string): T {
                         }
                         i++;
                     } else {
-                        // Any other LaTeX/escaped character like \sigma, \Delta, \vec, \alpha, \int, \sum, \partial, etc.
                         out += '\\\\' + next;
                         i++;
                     }
@@ -192,7 +193,6 @@ export function robustParseJson<T = any>(raw: string): T {
             }
         }
 
-        // Clean trailing commas before closing braces/brackets
         const withoutTrailingCommas = out.replace(/,\s*([\}\]])/g, '$1');
         return JSON.parse(withoutTrailingCommas) as T;
     } catch (_) {}
@@ -235,13 +235,13 @@ export function robustParseJson<T = any>(raw: string): T {
     }
 }
 
-interface BlueprintVariable {
+export interface BlueprintVariable {
     symbol: string;
     meaning: string;
     unit?: string;
 }
 
-interface BlueprintStep {
+export interface BlueprintStep {
     stepNumber: number;
     title: string;
     principle?: string;
@@ -253,7 +253,7 @@ interface BlueprintStep {
     mathExpression: string;
 }
 
-interface BlueprintExample {
+export interface BlueprintExample {
     problem: string;
     givens: { symbol: string; value: string; unit?: string }[];
     find: string;
@@ -262,20 +262,52 @@ interface BlueprintExample {
     step3: BlueprintStep;
     answer: string;
     physicalTakeaway: string;
+    hints?: [string, string, string, string];
 }
 
-interface BlueprintConcept {
+export interface DiagnosticQuestionItem {
+    id: string;
+    question: string;
+    type: 'multiple_choice' | 'numeric' | 'open_ended';
+    options?: string[];
+    correctAnswer: string;
+    dimension: 'prerequisiteKnowledge' | 'conceptualUnderstanding' | 'proceduralFluency' | 'transferAbility';
+    difficulty: QuestionDifficulty;
+    prerequisiteConcept: string;
+    hints?: [string, string, string, string];
+}
+
+export interface BlueprintConcept {
     conceptName:        string;
+    // ── Diagnostic Materials ──
+    diagnosticQuestions?: DiagnosticQuestionItem[];
+    // ── Intuition & Mental Model ──
     relatableQuestion:  string;
     realWorldScenario:  string;
     keyDefinition:      string;
     physicalMeaning:    string;
     progressionTable:   string;
+    // ── Formalization ──
     formula:            string | null;
     variables:          BlueprintVariable[];
     keyDistinction:     string;
     goldenRule:         string;
+    // ── Prediction ──
+    predictionScenario?: string;
+    predictionQuestion?: string;
+    predictionAnswer?:   string;
+    // ── Socratic Guided & Independent Practice ──
     example:            BlueprintExample;
+    guidedSocraticQuestions?: string[];
+    independentProblem?: BlueprintExample;
+    // ── Misconception & Edge Cases ──
+    misconceptionStatement?: string;
+    misconceptionExplanation?: string;
+    // ── Transfer & Retrieval ──
+    transferProblem?:   string;
+    transferAnswer?:    string;
+    retrievalPrompts?:  string[];
+    // ── Summary & Visuals ──
     commonPitfalls:     string[];
     summaryPoints:      string[];
     diagramSvg?:        string | null;
@@ -283,13 +315,24 @@ interface BlueprintConcept {
     diagramCaption?:    string;
 }
 
-interface LessonBlueprint {
+export interface SynthesisProblem {
+    problem: string;
+    integratedConcepts: string[];
+    givens: { symbol: string; value: string; unit?: string }[];
+    expectedAnswer: string;
+    explanation: string;
+    hints: [string, string, string, string];
+}
+
+export interface LessonBlueprint {
+    title:          string;
     overview:       string;
     concepts:       BlueprintConcept[];
+    synthesisProblem?: SynthesisProblem;
     overallSummary: string;
 }
 
-interface UnitPresentationResponse {
+export interface UnitPresentationResponse {
     boardLines: string[];
     spokenExplanation: string;
     diagramSvg?: string | null;
@@ -301,7 +344,7 @@ interface UnitPresentationResponse {
     negativeReplyText?: string;
 }
 
-interface DialogueTurn {
+export interface DialogueTurn {
     role: 'tutor' | 'student';
     text: string;
     boardSummary?: string;
@@ -315,56 +358,86 @@ export interface VoiceTutorialPageProps {
     onBack?:       () => void;
 }
 
-// ── Dynamic Action Button Helpers ─────────────────────────────────────────────
-function getDefaultActions(step: SubStep): {
+// ── Dynamic Action Button Helpers for All 15 Adaptive Phases ──────────────────
+function getDefaultActions(step: TutorPhase): {
     positive: { label: string; text: string };
     negative: { label: string; text: string };
 } {
     switch (step) {
-        case 'intuition_hook':
+        case 'diagnostic':
             return {
-                positive: { label: "Makes sense, define it →", text: "I understand the real-world idea, let's look at the definition." },
+                positive: { label: "Submit Answer →", text: "I've submitted my answer." },
+                negative: { label: "I'm not sure ↺", text: "I don't know the answer to this diagnostic question." },
+            };
+        case 'concept_map':
+            return {
+                positive: { label: "Explore Intuition →", text: "I see the roadmap, let's explore the real-world intuition." },
+                negative: { label: "Explain Roadmap ↺", text: "Could you clarify what we'll cover in this topic?" },
+            };
+        case 'intuition':
+            return {
+                positive: { label: "Makes sense, define it →", text: "I understand the real-world idea, let's look at the core meaning." },
                 negative: { label: "Another real-world example ↺", text: "Can you give another real-world scenario?" },
             };
-        case 'physical_meaning':
+        case 'concept_core':
             return {
-                positive: { label: "Understood, show formula →", text: "The physical meaning is clear, show me the equation and state table." },
-                negative: { label: "Explain in simpler terms ↺", text: "Can you explain the physical meaning in simpler terms?" },
+                positive: { label: "Let me predict →", text: "The physical meaning is clear, test me with a prediction." },
+                negative: { label: "Simpler terms ↺", text: "Can you explain the core meaning in simpler terms?" },
             };
-        case 'formula_table':
+        case 'predict':
             return {
-                positive: { label: "Table & math clear, next →", text: "I follow the state table and formula, what are the key distinctions?" },
+                positive: { label: "Check my prediction →", text: "Here is what I predict will happen." },
+                negative: { label: "Give me a hint 💡", text: "Can you give me a hint on what might happen?" },
+            };
+        case 'formalize':
+            return {
+                positive: { label: "Formula clear, let's practice →", text: "I follow the equation and variables, let's solve a problem together." },
                 negative: { label: "Explain variables & units ↺", text: "Can you walk through the variables and units once more?" },
             };
-        case 'distinctions_pitfalls':
+        case 'multi_represent':
             return {
-                positive: { label: "Noted trap, let's solve! →", text: "I understand the distinction and golden rule, let's solve an example problem." },
-                negative: { label: "Why is this confusing? ↺", text: "Why do students commonly get confused here?" },
+                positive: { label: "Representations clear →", text: "The graphs and symbols are clear, let's practice." },
+                negative: { label: "Explain the visual ↺", text: "Can you walk through this visual representation again?" },
             };
-        case 'example_problem':
+        case 'guided_practice':
             return {
-                positive: { label: "Givens clear, start Step 1 →", text: "I understand the given values and what we are finding, show Step 1." },
-                negative: { label: "Re-read question slowly ↺", text: "Can you re-read the problem statement and clarify the givens?" },
+                positive: { label: "Submit Step →", text: "Here is my reasoning for this step." },
+                negative: { label: "Need a hint 💡", text: "I need a hint for this step." },
             };
-        case 'example_step1':
+        case 'independent_practice':
             return {
-                positive: { label: "Formula chosen, do calculation →", text: "The formula selection makes sense, let's calculate the numbers in Step 2." },
-                negative: { label: "Why this formula? ↺", text: "Why did we pick this specific formula instead of another?" },
+                positive: { label: "Submit My Solution →", text: "I've solved it independently, please check my work." },
+                negative: { label: "Give me a hint 💡", text: "Could you give me a hint to get started?" },
             };
-        case 'example_step2':
+        case 'misconception':
             return {
-                positive: { label: "Calculation followed, see answer →", text: "I followed the substitution and math, let's verify the final result." },
-                negative: { label: "Redo calculation step slowly ↺", text: "Can you redo the calculation step more slowly?" },
+                positive: { label: "I can explain why →", text: "I know why this statement is incorrect." },
+                negative: { label: "Explain the trap ↺", text: "Why do students fall into this common misconception?" },
             };
-        case 'example_step3':
+        case 'repair':
             return {
-                positive: { label: "Result verified, recap concept →", text: "The final answer and units make complete sense, let's recap." },
-                negative: { label: "Explain the unit check ↺", text: "Could you explain why the unit came out this way?" },
+                positive: { label: "Aha! Now I get it →", text: "That explanation makes complete sense now." },
+                negative: { label: "Still slightly unclear ↺", text: "Could you explain from another angle?" },
             };
-        case 'concept_recap':
+        case 'transfer':
             return {
-                positive: { label: "Mastered! Next Concept →", text: "I have mastered this concept, let's move to the next concept!" },
-                negative: { label: "Recap main takeaway once more ↺", text: "Could you recap the main takeaway once more?" },
+                positive: { label: "Apply principle →", text: "Here is how this applies to the new situation." },
+                negative: { label: "Give context hint 💡", text: "How does our principle relate to this new context?" },
+            };
+        case 'retrieval':
+            return {
+                positive: { label: "Recall Concept →", text: "Here is the concept explained from memory." },
+                negative: { label: "Prompt my memory ↺", text: "Give me a starting prompt to jog my memory." },
+            };
+        case 'mastery_decision':
+            return {
+                positive: { label: "Next Concept →", text: "I'm ready to advance!" },
+                negative: { label: "Review Weak Points ↺", text: "Can we reinforce the parts I was shaky on?" },
+            };
+        case 'synthesis':
+            return {
+                positive: { label: "Submit Synthesis Solution →", text: "Here is my complete solution combining the concepts." },
+                negative: { label: "Synthesis Hint 💡", text: "Give me a hint on how to connect these principles." },
             };
         default:
             return { positive: { label: "Continue →", text: "Continue" }, negative: { label: "Explain ↺", text: "Explain" } };
@@ -411,7 +484,6 @@ function renderKatexInSvg(svgString: string): string {
             textAlign = 'right';
         }
 
-        // In SVG <text>, y is the baseline. Offset vertically to center the foreignObject box.
         const foY = origY - 30;
 
         let formattedContent = rawContent;
@@ -476,147 +548,163 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
         cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
     }
 
-    // Render KaTeX mathematical formulas inside SVG labels
     cleaned = renderKatexInSvg(cleaned);
-
     return cleaned;
 }
 
-// Visuals (SVG diagrams, Markdown tables) are dynamically generated exclusively by the AI in real time.
-
 // ── Pure Board Content Generators for Fallback ────────────────────────────────
-function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
+function getBoardLines(concept: BlueprintConcept, step: TutorPhase, activeDiagIdx = 0): string[] {
     switch (step) {
-        case 'intuition_hook':
+        case 'diagnostic': {
+            const diag = concept.diagnosticQuestions?.[activeDiagIdx];
+            if (diag) {
+                const lines = [`**Diagnostic Check** (${diag.dimension}):`, diag.question];
+                if (diag.options && diag.options.length > 0) {
+                    diag.options.forEach((opt, i) => lines.push(`${String.fromCharCode(65 + i)}) ${opt}`));
+                }
+                return lines;
+            }
             return [
-                `**Question**: ${concept.relatableQuestion}`,
-                `**Physical Scenario**: ${concept.realWorldScenario || 'Everyday real-world situation'}`,
+                `**Diagnostic Check**: ${concept.conceptName}`,
+                `Before we begin, how would you define or calculate ${concept.conceptName}?`,
+            ];
+        }
+        case 'concept_map':
+            return [
+                `**Topic Roadmap**: ${concept.conceptName}`,
+                `**Core Goal**: Master physical intuition, governing laws, and problem solving.`,
+                `**Key Distinctions**: ${concept.keyDistinction || 'Direction, units, and boundaries.'}`,
+            ];
+        case 'intuition':
+            return [
+                `**Real-World Question**: ${concept.relatableQuestion}`,
+                `**Physical Scenario**: ${concept.realWorldScenario || 'Everyday physical phenomenon'}`,
                 `**Intuitive Meaning**: ${concept.physicalMeaning || concept.keyDefinition}`,
             ];
-        case 'physical_meaning':
+        case 'concept_core':
             return [
-                concept.keyDefinition,
-                `**Physical Significance**: ${concept.physicalMeaning || concept.keyDefinition}`,
+                `**Core Definition**: ${concept.keyDefinition}`,
+                `**Physical Principle**: ${concept.physicalMeaning || concept.keyDefinition}`,
+                `**Golden Rule**: ${concept.goldenRule || 'Consistent physical behavior.'}`,
             ];
-        case 'formula_table': {
-            const lines = [];
+        case 'predict':
+            return [
+                `**Predictive Challenge**: ${concept.predictionScenario || concept.realWorldScenario || 'Think about this system.'}`,
+                `**Question**: ${concept.predictionQuestion || concept.relatableQuestion || 'What happens next?'}`,
+                `*State your prediction before we reveal the mathematical model.*`,
+            ];
+        case 'formalize': {
+            const lines: string[] = [];
             if (concept.formula) lines.push(concept.formula);
             if (concept.variables && concept.variables.length > 0) {
                 concept.variables.slice(0, 4).forEach(v => {
                     lines.push(`$${v.symbol}$ $\\rightarrow$ ${v.meaning} ($${v.unit || '\\text{SI}'}$)`);
                 });
             }
-            return lines;
+            return lines.length > 0 ? lines : [`$$${concept.conceptName} = f(x)$$`];
         }
-        case 'distinctions_pitfalls':
+        case 'multi_represent':
             return [
-                `**Key Distinction**: ${concept.keyDistinction || 'Pay close attention to direction and sign convention.'}`,
-                `**Golden Rule**: ${concept.goldenRule || (concept.summaryPoints?.[0] || 'Understand the core physical meaning.')}`,
-                concept.commonPitfalls?.[0] ? `**Watch Out**: ${concept.commonPitfalls[0]}` : '',
-            ].filter(Boolean);
-        case 'example_problem': {
-            const ex = concept.example || {
-                problem: `Calculate the fundamental values for ${concept.conceptName}.`,
-                givens: [{ symbol: 'x', value: '10', unit: 'units' }],
-                find: `The primary value of ${concept.conceptName}`,
-            };
-            const lines = [
-                `**Problem**: ${ex.problem || `Calculate the properties of ${concept.conceptName}.`}`,
+                `**Multiple Representations of ${concept.conceptName}**:`,
+                `• **Verbal**: ${concept.keyDefinition}`,
+                `• **Symbolic**: ${concept.formula || 'Governing algebraic form'}`,
+                `• **Rule**: ${concept.goldenRule || 'Core invariant'}`,
             ];
-            if (ex.givens && ex.givens.length > 0) {
-                lines.push(`**Given**: ` + ex.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', '));
-            }
-            if (ex.find) {
-                lines.push(`**Find**: ${ex.find}`);
-            }
-            return lines;
-        }
-        case 'example_step1': {
-            const s1 = concept.example?.step1;
-            return [
-                `**Step 1 — Principle & Formula**: ${s1?.explanation || 'Relate given values to target unknown.'}`,
-                s1?.mathExpression ? `$$${s1.mathExpression}$$` : (s1?.formula ? `$$${s1.formula}$$` : (concept.formula ? `$$${concept.formula}$$` : `$$v_f = v_i + at$$`)),
-            ];
-        }
-        case 'example_step2': {
-            const s2 = concept.example?.step2;
-            return [
-                `**Step 2 — Calculation**: ${s2?.explanation || 'Substitute known numerical values.'}`,
-                s2?.mathExpression ? `$$${s2.mathExpression}$$` : `$$v_f = 0 + (2\\text{ m/s}^2)(5\\text{ s}) = 10\\text{ m/s}$$`,
-            ];
-        }
-        case 'example_step3': {
+        case 'guided_practice': {
             const ex = concept.example;
             return [
-                `**Step 3 — Final Result**: $$${ex?.answer || '10\\text{ units}'}$$`,
-                `**Unit & Physical Check**: ${ex?.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}`,
+                `**Guided Socratic Example**: ${ex?.problem || `Calculate ${concept.conceptName}`}`,
+                `**Given**: ` + (ex?.givens?.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') || 'Knowns'),
+                `**Target**: Find ${ex?.find || 'the unknown quantity'}`,
             ];
         }
-        case 'concept_recap':
+        case 'independent_practice': {
+            const ind = concept.independentProblem || concept.example;
             return [
-                `**Golden Rule**: ${concept.goldenRule || 'Core physical concept locked in.'}`,
-                concept.formula ? `$$${concept.formula}$$` : '',
-                `**Key Takeaway**: ${concept.summaryPoints?.[0] || 'Concept mastered.'}`,
-            ].filter(Boolean);
+                `**Independent Problem (Solve on your own)**:`,
+                ind?.problem || `Calculate the parameters for ${concept.conceptName}.`,
+                `*Try solving without looking at previous steps. Ask for a hint if stuck.*`,
+            ];
+        }
+        case 'misconception':
+            return [
+                `**Common Pitfall & Trap**:`,
+                `"${concept.misconceptionStatement || concept.commonPitfalls?.[0] || 'Students often confuse the sign or direction.'}"`,
+                `*Do you agree or disagree? Explain why.*`,
+            ];
+        case 'repair':
+            return [
+                `**Targeted Conceptual Repair**: ${concept.conceptName}`,
+                `Let's look at this from a different angle.`,
+                `**Golden Rule**: ${concept.goldenRule || 'Observe the fundamental balance.'}`,
+            ];
+        case 'transfer':
+            return [
+                `**Transfer Challenge (New Context)**:`,
+                concept.transferProblem || `How does ${concept.conceptName} apply when boundary conditions change?`,
+                `*Apply the same underlying principle to this novel scenario.*`,
+            ];
+        case 'retrieval':
+            return [
+                `**Memory Retrieval Check**:`,
+                concept.retrievalPrompts?.[0] || `Without notes: State the core rule and formula for ${concept.conceptName}.`,
+            ];
+        case 'mastery_decision':
+            return [
+                `**Concept Mastery Review**: ${concept.conceptName}`,
+                `Evaluating conceptual understanding, procedure, transfer, and retrieval.`,
+            ];
+        case 'synthesis':
+            return [
+                `**Topic Synthesis Problem**: Integrated Cross-Concept Challenge`,
+                `Combine your understanding of all concepts to solve this university-level problem.`,
+            ];
         default:
             return [`${concept.conceptName}`];
     }
 }
 
-function getSpokenText(concept: BlueprintConcept, step: SubStep): string {
+function getSpokenText(concept: BlueprintConcept, step: TutorPhase, activeDiagIdx = 0): string {
     const name = concept.conceptName;
     const ex = concept.example;
     switch (step) {
-        case 'intuition_hook':
-            return `Let us start with ${name}. Think about this question: ${concept.relatableQuestion || 'What happens when forces or variables interact?'} Picture ${concept.realWorldScenario || 'a real world situation'}. What comes to mind?`;
-        case 'physical_meaning':
-            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition || 'It defines how the system behaves under standard conditions.'}. Notice how it connects to our everyday experience. Does this definition feel clear?`;
-        case 'formula_table':
-            return `Look at the board. Here is how we quantify ${name}. Notice how the numbers progress step by step in our table, and how the equation gives us the mathematical shortcut. How do these variables relate to one another?`;
-        case 'distinctions_pitfalls':
-            return `Before we solve an example, let us look at the most common trap students fall into. ${concept.keyDistinction || 'Pay close attention to the difference between these quantities.'} Remember our golden rule: ${concept.goldenRule || 'Stay consistent with physical units and signs.'}. Does this make sense?`;
-        case 'example_problem':
-            return `Let us work through an example step by step. Here is our problem on the board: ${ex?.problem || `Find the key parameters for ${name}`}. We have identified our given values and what we are looking for. Are you ready to see Step 1?`;
-        case 'example_step1':
-            return `Step 1: First, we identify our governing principle and formula. ${ex?.step1?.explanation || 'We choose the equation that relates our knowns to our unknown.'} Take a look at the board. Does this formula choice make sense?`;
-        case 'example_step2':
-            return `Step 2: Now we substitute our given values into the formula and calculate. ${ex?.step2?.explanation || 'Substituting the numbers step by step gives us our result.'} Look at the calculation on the board. Did you follow each calculation step?`;
-        case 'example_step3':
-            return `Step 3: Here is our final answer: ${ex?.answer || 'Verified result'}. Notice that the units check out and the physical meaning matches our intuition. ${ex?.physicalTakeaway || ''} How do you feel about this solution?`;
-        case 'concept_recap':
-            return `Excellent work! You have mastered ${name}. Remember: ${concept.goldenRule || 'Physical principles remain constant across systems.'}. Are you ready to proceed to the next concept?`;
+        case 'diagnostic': {
+            const diag = concept.diagnosticQuestions?.[activeDiagIdx];
+            return diag
+                ? `Let's start with a quick diagnostic check. ${diag.question} What do you think?`
+                : `Before we explore ${name}, what is your current understanding of how it works?`;
+        }
+        case 'concept_map':
+            return `Here is our roadmap for ${name}. We will build physical intuition, construct the mathematical model, and practice until you've reached full mastery.`;
+        case 'intuition':
+            return `Let us explore ${name}. Think about this: ${concept.relatableQuestion || 'What happens when physical quantities interact?'} Picture ${concept.realWorldScenario || 'a real situation'}. What comes to mind?`;
+        case 'concept_core':
+            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition}. Notice how it connects directly to our everyday physical intuition.`;
+        case 'predict':
+            return `Before we look at the math, make a prediction. ${concept.predictionScenario || 'In this setup'}, ${concept.predictionQuestion || 'what do you think will happen?'} State your prediction!`;
+        case 'formalize':
+            return `Now look at the board. Here is the mathematical formula for ${name}. Notice how each variable represents a specific physical quantity. Let's look at the symbols.`;
+        case 'multi_represent':
+            return `Notice how ${name} looks across different representations: in words, as an equation, and visually on the board. Each view gives you a deeper mental model.`;
+        case 'guided_practice':
+            return `Let's work through this problem together. Here is our setup on the board: ${ex?.problem || `Find the key parameters for ${name}`}. What principle or equation should we apply first?`;
+        case 'independent_practice':
+            return `Now it's your turn to solve a problem independently. Take your time, calculate the result, and let me know your answer. If you get stuck, simply ask for a hint!`;
+        case 'misconception':
+            return `Here is a classic trap many students fall into: ${concept.misconceptionStatement || 'a common mistake'}. Do you agree with this statement, or what is wrong with it?`;
+        case 'repair':
+            return `Let us clarify this misunderstanding with a new perspective. Look at the board as we break down the exact relationship.`;
+        case 'transfer':
+            return `Great! Now let's see if you can transfer this principle to a completely different context: ${concept.transferProblem || 'a new physical application'}. How would you approach this?`;
+        case 'retrieval':
+            return `To lock this concept into long-term memory: Without looking at your notes, how would you explain ${name} and its governing formula in your own words?`;
+        case 'mastery_decision':
+            return `Let's review your mastery profile across conceptual reasoning, procedural fluency, and transfer ability.`;
+        case 'synthesis':
+            return `Outstanding! You have mastered all individual concepts. Now, let us tackle an integrated synthesis problem that brings all these principles together!`;
         default:
             return '';
     }
-}
-
-function nextSubStep(
-    cIdx: number,
-    sStep: SubStep,
-    blueprint: LessonBlueprint
-): { conceptIdx: number; subStep: SubStep; done: boolean } {
-    const currentStepIdx = SUB_STEP_ORDER.indexOf(sStep);
-    let nextIdx = currentStepIdx + 1;
-
-    while (nextIdx < SUB_STEP_ORDER.length) {
-        const candidate = SUB_STEP_ORDER[nextIdx];
-        const concept = blueprint.concepts[cIdx];
-        if (candidate === 'formula_table' && !concept?.formula && (!concept?.variables || concept.variables.length === 0)) {
-            nextIdx++;
-        } else {
-            break;
-        }
-    }
-
-    if (nextIdx < SUB_STEP_ORDER.length) {
-        return { conceptIdx: cIdx, subStep: SUB_STEP_ORDER[nextIdx], done: false };
-    }
-
-    const nextConceptIdx = cIdx + 1;
-    if (nextConceptIdx >= blueprint.concepts.length) {
-        return { conceptIdx: cIdx, subStep: 'concept_recap', done: true };
-    }
-    return { conceptIdx: nextConceptIdx, subStep: 'intuition_hook', done: false };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -642,17 +730,26 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
 
-    // ── Teaching Position ────────────────────────────────────────────────
+    // ── Teaching Position & Adaptive State Machine ────────────────────────
     const [conceptIdx, setConceptIdx] = useState(0);
-    const [subStep, setSubStep] = useState<SubStep>('intuition_hook');
+    const [subStep, setSubStep] = useState<TutorPhase>('diagnostic');
+    const [activePhasePath, setActivePhasePath] = useState<TutorPhase[]>(['diagnostic']);
+    const [phaseIdx, setPhaseIdx] = useState(0);
+    const [conceptMastery, setConceptMastery] = useState<DimensionalMastery>(() => defaultMastery());
+    const [difficultyState, setDifficultyState] = useState<DifficultyState>(() => createInitialDifficultyState(2));
+    const [hintState, setHintState] = useState<HintState>(() => createInitialHintState('init'));
+    const [repairAttempt, setRepairAttempt] = useState(0);
+    const [repairStrategiesUsed, setRepairStrategiesUsed] = useState<RepairStrategy[]>([]);
+    const [activeDiagnosticIdx, setActiveDiagnosticIdx] = useState(0);
+    const [activeLearningQuestion, setActiveLearningQuestion] = useState<LearningQuestion | null>(null);
     const [isDone, setIsDone] = useState(false);
 
     // ── Dynamic Action Buttons ───────────────────────────────────────────
     const [positiveAction, setPositiveAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('intuition_hook').positive
+        getDefaultActions('diagnostic').positive
     );
     const [negativeAction, setNegativeAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('intuition_hook').negative
+        getDefaultActions('diagnostic').negative
     );
 
     // ── Board State ──────────────────────────────────────────────────────
@@ -689,20 +786,44 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     }, []);
 
     // ── Refs ─────────────────────────────────────────────────────────────
-    const fileInputRef       = useRef<HTMLInputElement | null>(null);
-    const isActiveRef        = useRef(true);
-    const hasStartedRef      = useRef(false);
-    const conceptIdxRef      = useRef(0);
-    const subStepRef         = useRef<SubStep>('intuition_hook');
-    const audioContextRef    = useRef<AudioContext | null>(null);
-    const currentAudioRef    = useRef<AudioBufferSourceNode | null>(null);
-    const playSessionIdRef   = useRef<number>(0);
-    const recognitionRef     = useRef<any>(null);
-    const spokenTextRef      = useRef('');
-    const lastSpokenTextRef  = useRef('');
-    const handleStudentReplyRef = useRef<(reply: string, image?: { base64: string; mimeType: string } | null) => Promise<void>>(() => Promise.resolve());
-    const streamTimersRef    = useRef<ReturnType<typeof setTimeout>[]>([]);
-    const dialogueHistoryRef = useRef<DialogueTurn[]>([]);
+    const fileInputRef              = useRef<HTMLInputElement | null>(null);
+    const isActiveRef               = useRef(true);
+    const hasStartedRef             = useRef(false);
+    const conceptIdxRef             = useRef(0);
+    const subStepRef                = useRef<TutorPhase>('diagnostic');
+    const activePhasePathRef        = useRef<TutorPhase[]>(['diagnostic']);
+    const phaseIdxRef               = useRef(0);
+    const conceptMasteryRef         = useRef<DimensionalMastery>(defaultMastery());
+    const difficultyStateRef        = useRef<DifficultyState>(createInitialDifficultyState(2));
+    const hintStateRef              = useRef<HintState>(createInitialHintState('init'));
+    const repairAttemptRef          = useRef(0);
+    const repairStrategiesUsedRef   = useRef<RepairStrategy[]>([]);
+    const diagnosticAnswersRef      = useRef<{ questionIdx: number; correct: boolean; dimension: string }[]>([]);
+    const activeDiagnosticIdxRef    = useRef(0);
+    const activeLearningQuestionRef = useRef<LearningQuestion | null>(null);
+
+    const audioContextRef           = useRef<AudioContext | null>(null);
+    const currentAudioRef           = useRef<AudioBufferSourceNode | null>(null);
+    const playSessionIdRef          = useRef<number>(0);
+    const recognitionRef            = useRef<any>(null);
+    const spokenTextRef             = useRef('');
+    const lastSpokenTextRef         = useRef('');
+    const handleStudentReplyRef     = useRef<(reply: string, image?: { base64: string; mimeType: string } | null) => Promise<void>>(() => Promise.resolve());
+    const streamTimersRef           = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const dialogueHistoryRef        = useRef<DialogueTurn[]>([]);
+
+    // Keep state refs in sync
+    useEffect(() => { conceptIdxRef.current = conceptIdx; }, [conceptIdx]);
+    useEffect(() => { subStepRef.current = subStep; }, [subStep]);
+    useEffect(() => { activePhasePathRef.current = activePhasePath; }, [activePhasePath]);
+    useEffect(() => { phaseIdxRef.current = phaseIdx; }, [phaseIdx]);
+    useEffect(() => { conceptMasteryRef.current = conceptMastery; }, [conceptMastery]);
+    useEffect(() => { difficultyStateRef.current = difficultyState; }, [difficultyState]);
+    useEffect(() => { hintStateRef.current = hintState; }, [hintState]);
+    useEffect(() => { repairAttemptRef.current = repairAttempt; }, [repairAttempt]);
+    useEffect(() => { repairStrategiesUsedRef.current = repairStrategiesUsed; }, [repairStrategiesUsed]);
+    useEffect(() => { activeDiagnosticIdxRef.current = activeDiagnosticIdx; }, [activeDiagnosticIdx]);
+    useEffect(() => { activeLearningQuestionRef.current = activeLearningQuestion; }, [activeLearningQuestion]);
 
     // ── Unmount / Cleanup ─────────────────────────────────────────────────
     useEffect(() => {
@@ -963,60 +1084,155 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     function normalizeBlueprint(bp: any): LessonBlueprint {
         if (!bp || typeof bp !== 'object') {
             return {
-                title: 'Foundational Tutorial',
-                overview: 'Step-by-step interactive lesson.',
+                title: 'Adaptive STEM Tutorial',
+                overview: 'Adaptive, student-driven interactive lesson.',
                 concepts: [],
+                overallSummary: 'Comprehensive tutorial completed.',
             };
         }
         const rawConcepts = Array.isArray(bp.concepts) ? bp.concepts : [];
         const concepts: BlueprintConcept[] = rawConcepts.map((c: any, i: number) => {
             const cName = c.conceptName || `Concept ${i + 1}`;
             const ex = c.example || {};
+            const ind = c.independentProblem || ex;
+            const diags: DiagnosticQuestionItem[] = Array.isArray(c.diagnosticQuestions) && c.diagnosticQuestions.length > 0
+                ? c.diagnosticQuestions.map((d: any, dIdx: number) => ({
+                    id: d.id || `diag_${i}_${dIdx}`,
+                    question: d.question || `What is your understanding of ${cName}?`,
+                    type: d.type || (d.options ? 'multiple_choice' : 'open_ended'),
+                    options: Array.isArray(d.options) ? d.options : undefined,
+                    correctAnswer: d.correctAnswer || cName,
+                    dimension: d.dimension || (dIdx === 0 ? 'prerequisiteKnowledge' : dIdx === 1 ? 'conceptualUnderstanding' : 'proceduralFluency'),
+                    difficulty: (d.difficulty || 2) as QuestionDifficulty,
+                    prerequisiteConcept: d.prerequisiteConcept || cName,
+                    hints: Array.isArray(d.hints) && d.hints.length === 4 ? d.hints : [
+                        `Think about the physical meaning of ${cName}.`,
+                        `Consider what law connects these quantities.`,
+                        `Look at the equation relating the variables.`,
+                        `Substitute the given values into the formula.`
+                    ],
+                }))
+                : [
+                    {
+                        id: `diag_${i}_0`,
+                        question: `Before we explore ${cName}, how would you describe what happens physically when forces or variables interact?`,
+                        type: 'open_ended',
+                        correctAnswer: c.keyDefinition || cName,
+                        dimension: 'prerequisiteKnowledge',
+                        difficulty: 2,
+                        prerequisiteConcept: 'Foundations',
+                        hints: [
+                            `Think about everyday physical objects.`,
+                            `Consider how energy or forces transfer.`,
+                            `Focus on cause and effect.`,
+                            `State the basic relationship.`
+                        ],
+                    }
+                ];
+
             return {
                 conceptName: cName,
+                diagnosticQuestions: diags,
                 relatableQuestion: c.relatableQuestion || `What happens in real physical situations involving ${cName}?`,
                 realWorldScenario: c.realWorldScenario || `Everyday practical interaction with ${cName}`,
                 keyDefinition: c.keyDefinition || `Fundamental definition and role of ${cName}`,
                 physicalMeaning: c.physicalMeaning || c.keyDefinition || `Physical intuition and meaning of ${cName}`,
+                progressionTable: c.progressionTable || '| State | Value | Meaning |\n| :---: | :---: | :--- |\n| Initial | 0 | Rest |',
                 formula: c.formula || '',
                 variables: Array.isArray(c.variables) ? c.variables : [],
-                progressionTable: c.progressionTable || { headers: ['State', 'Value', 'Meaning'], rows: [['Initial', '0', 'Rest']] },
-                keyDistinction: c.keyDistinction || 'Pay attention to units, direction, and conventions.',
-                goldenRule: c.goldenRule || 'Physical laws remain consistent.',
-                summaryPoints: Array.isArray(c.summaryPoints) && c.summaryPoints.length > 0 ? c.summaryPoints : ['Core principle mastered.'],
-                commonPitfalls: Array.isArray(c.commonPitfalls) ? c.commonPitfalls : [],
+                keyDistinction: c.keyDistinction || 'Pay attention to units, direction, and boundary limits.',
+                goldenRule: c.goldenRule || 'Physical laws remain consistent across coordinate frames.',
+                predictionScenario: c.predictionScenario || c.realWorldScenario || `Consider a physical system where ${cName} changes.`,
+                predictionQuestion: c.predictionQuestion || `If we double the input, what will happen to the output?`,
+                predictionAnswer: c.predictionAnswer || `It scales proportionally according to the governing formula.`,
                 example: {
                     problem: ex.problem || `Calculate the governing parameters for ${cName}.`,
                     givens: Array.isArray(ex.givens) ? ex.givens : [{ symbol: 'x', value: '10', unit: 'units' }],
                     find: ex.find || `The primary value of ${cName}`,
                     step1: {
+                        stepNumber: 1,
                         title: ex.step1?.title || 'Identify Principle & Formula',
                         explanation: ex.step1?.explanation || 'Relate knowns to unknown.',
                         formula: ex.step1?.formula || c.formula || 'y = f(x)',
                         mathExpression: ex.step1?.mathExpression || c.formula || 'y = f(x)',
                     },
                     step2: {
+                        stepNumber: 2,
                         title: ex.step2?.title || 'Substitute Values & Calculate',
                         explanation: ex.step2?.explanation || 'Substitute known numerical values.',
                         mathExpression: ex.step2?.mathExpression || 'y = 10',
                     },
+                    step3: {
+                        stepNumber: 3,
+                        title: ex.step3?.title || 'Final Result & Verification',
+                        explanation: ex.step3?.explanation || 'Verify units and physical meaning.',
+                        mathExpression: ex.step3?.mathExpression || ex.answer || '10\\text{ units}',
+                    },
                     answer: ex.answer || '10\\text{ units}',
                     physicalTakeaway: ex.physicalTakeaway || 'Result is dimensionally consistent.',
+                    hints: Array.isArray(ex.hints) && ex.hints.length === 4 ? ex.hints : [
+                        `Identify which quantity is given and what we need to find.`,
+                        `Select the governing equation connecting our knowns.`,
+                        `Rearrange the equation for the target unknown.`,
+                        `Substitute values and verify the final units.`
+                    ],
                 },
+                guidedSocraticQuestions: Array.isArray(c.guidedSocraticQuestions) && c.guidedSocraticQuestions.length > 0
+                    ? c.guidedSocraticQuestions
+                    : ['Which principle or formula should we apply first?', 'What happens when we substitute our known values?', 'What does this final number tell us physically?'],
+                independentProblem: {
+                    problem: ind.problem || `A system operates with ${cName}. Calculate the resulting unknown parameter.`,
+                    givens: Array.isArray(ind.givens) ? ind.givens : [{ symbol: 'm', value: '5', unit: 'kg' }],
+                    find: ind.find || `The resulting state`,
+                    step1: ind.step1 || { stepNumber: 1, title: 'Principle', explanation: 'Formulate relation', mathExpression: 'F = ma' },
+                    step2: ind.step2 || { stepNumber: 2, title: 'Calculation', explanation: 'Compute value', mathExpression: 'a = 4' },
+                    step3: ind.step3 || { stepNumber: 3, title: 'Result', explanation: 'Dimension check', mathExpression: '4\\text{ m/s}^2' },
+                    answer: ind.answer || '4\\text{ m/s}^2',
+                    physicalTakeaway: ind.physicalTakeaway || 'Physical consistency confirmed.',
+                    hints: Array.isArray(ind.hints) && ind.hints.length === 4 ? ind.hints : [
+                        `Start by listing your given variables and required target.`,
+                        `Apply the universal formula we derived.`,
+                        `Isolate the target variable algebraically.`,
+                        `Perform arithmetic carefully and check standard SI units.`
+                    ],
+                },
+                misconceptionStatement: c.misconceptionStatement || `Heavier objects always accelerate faster regardless of applied force.`,
+                misconceptionExplanation: c.misconceptionExplanation || `Mass provides inertia which resists acceleration ($a = F/m$), so greater mass reduces acceleration for a given force.`,
+                transferProblem: c.transferProblem || `How would this principle apply in an orbital or submerged fluid environment?`,
+                transferAnswer: c.transferAnswer || `The same conservation and force balance laws hold with buoyant or gravitational field adjustments.`,
+                retrievalPrompts: Array.isArray(c.retrievalPrompts) && c.retrievalPrompts.length > 0
+                    ? c.retrievalPrompts
+                    : [`State the governing formula for ${cName} and explain what each variable represents physically.`],
+                commonPitfalls: Array.isArray(c.commonPitfalls) ? c.commonPitfalls : ['Forgetting vector direction', 'Mixing units'],
+                summaryPoints: Array.isArray(c.summaryPoints) && c.summaryPoints.length > 0 ? c.summaryPoints : ['Concept locked in.'],
             };
         });
 
         return {
-            title: bp.title || 'Interactive Lesson',
-            overview: bp.overview || 'Comprehensive step-by-step tutorial.',
+            title: bp.title || 'Adaptive STEM Tutorial',
+            overview: bp.overview || 'Adaptive student-driven tutorial.',
             concepts,
+            synthesisProblem: bp.synthesisProblem || {
+                problem: `Integrate the core principles learned in this topic to solve for the overall equilibrium of the system.`,
+                integratedConcepts: concepts.map(c => c.conceptName),
+                givens: [{ symbol: 'K', value: '100', unit: 'N/m' }],
+                expectedAnswer: 'Verified result',
+                explanation: 'Combines multiple laws across all concepts.',
+                hints: [
+                    `Break the complex problem into sub-systems matching our learned concepts.`,
+                    `Apply the first concept equation to find the intermediate state.`,
+                    `Substitute intermediate results into the second governing law.`,
+                    `Verify overall dimensional consistency and physical limits.`
+                ],
+            },
+            overallSummary: bp.overallSummary || 'Topic successfully completed with demonstrated mastery.',
         };
     }
 
-    // ── Master Blueprint Generation (Bit-by-Bit, Multi-Board & Step-by-Step) ─
+    // ── Master Adaptive Blueprint Generation ──────────────────────────────────
     const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
         setIsGeneratingBlueprint(true);
-        setBlueprintGenStep('Analyzing problem & learning objectives...');
+        setBlueprintGenStep('Designing adaptive curriculum & diagnostic checks...');
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) { setIsGeneratingBlueprint(false); return null; }
@@ -1026,28 +1242,24 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const level      = session.course?.level || userProfile?.level || 'University';
         const hasImage   = Boolean(session.image);
 
-        setBlueprintGenStep(hasImage ? 'Analyzing scanned problem image & structuring step-by-step breakdown...' : 'Structuring deep multi-board lesson progression...');
+        setBlueprintGenStep(hasImage ? 'Analyzing scanned problem image & structuring adaptive stages...' : 'Constructing adaptive pedagogical diagnostic and practice modules...');
 
         const memoryContext = studentMem?.lastTopicTaught
-            ? `STUDENT HISTORY:
+            ? `STUDENT COGNITIVE HISTORY:
 - Last Topic: "${studentMem.lastTopicTaught.topicName}"
-- Known Masteries: ${studentMem.overallMasteries.slice(-4).join(', ') || 'Foundations'}
-- Struggles: ${studentMem.overallWeakPoints.slice(-4).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit consistency'}
-- Pedagogy: Intuition first, state progression tables before formulas, and 1-step-per-board problem solving.`
-            : `STUDENT: New session. Maintain crystal-clear intuitive pacing.`;
+- Demonstrated Masteries: ${studentMem.overallMasteries.slice(-4).join(', ') || 'Foundations'}
+- Struggles: ${studentMem.overallWeakPoints.slice(-4).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit consistency'}`
+            : `STUDENT: New learner session.`;
 
         const imageInstructions = hasImage ? `
-*** SPECIAL MODE: SCANNED PROBLEM VISUAL TUTORIAL ***
-The student uploaded an image of a problem/diagram they want to be taught.
-1. Inspect the provided image in detail: equations, diagrams, given values, variables, and the questions asked.
-2. Custom User Notes / Focus: "${session.customPrompt || 'Teach me how to solve this step by step'}"
-3. The lesson concepts and worked example MUST BE BUILT DIRECTLY AROUND SOLVING AND UNDERSTANDING THE SCANNED PROBLEM IN THE IMAGE.
-4. Explain the physical and mathematical intuition behind the problem first.
-5. In the worked example ('example'): Set the problem to be the EXACT problem from the scanned image with all givens, unknowns, Step 1 (Principle & formula choice), Step 2 (Substitution & calculation), and Step 3 (Final result, units, and physical check).
+*** SCANNED PROBLEM ADAPTIVE TUTORIAL ***
+The student uploaded an image of a problem/diagram.
+1. Inspect image in detail: equations, geometry, givens, target unknowns.
+2. Build the lesson concepts, diagnostics, guided example, and independent practice DIRECTLY around the scanned problem.
 ` : '';
 
-        const prompt = `You are AVELUT Master STEM Curriculum Architect & Voice Tutorial Instructor.
-Design a thorough, bit-by-bit lesson blueprint for:
+        const prompt = `You are AVELUT Master STEM Curriculum Architect & Adaptive Learning Engine.
+Design an intelligent, adaptive lesson blueprint for:
 Course: "${courseName}"
 Topic: "${topicName}"
 Level: ${level}
@@ -1055,76 +1267,91 @@ ${imageInstructions}
 ${memoryContext}
 
 PEDAGOGICAL REQUIREMENTS:
-1. Simplest Words Possible (CRITICAL): Use the simplest, most intuitive everyday words to explain every concept. Eliminate unnecessary academic jargon. If a technical term must be taught, define it immediately using a concrete real-world physical object.
-2. Real-World Physical Object Analogies (MANDATORY): Always use familiar physical objects to describe and define abstract concepts.
-   - For example, to define systems (open vs. closed vs. isolated system), use a room with open vs closed windows/doors, or a cup of hot tea (open cup vs lid on top vs thermos flask).
-   - For circuits, use a water loop with a pump and valve.
-   - For momentum/inertia, use a loaded shopping cart vs an empty cart.
-   - For forces and kinematics, use a moving car or a ball tossed in the air.
-3. Multi-Board Depth (3+ boards per concept): Do not rush concepts into a single slide. Break each concept into deep intuitive stages.
-4. Step-by-Step Problem Solving (1 step per board): When giving worked examples, break the solution into 3 distinct steps:
-   - step1: Principle & Formula selection (Why this formula?)
-   - step2: Substitution & Math calculation (1 step calculation)
-   - step3: Final Result & Unit verification (What does this number mean physically?)
-5. LaTeX / KaTeX Typography: Format all math symbols, formulas, variables, subscripts, powers, and units in valid LaTeX delimiters ($...$ or $$...$$). E.g. $v_f = v_i + at$, $a = 2\\text{ m/s}^2$, $10^5$, $\\sqrt{2gh}$, $F_{\\text{net}}$.
-6. State Progression Tables: Concrete numerical state tables showing how quantities evolve step-by-step.
-7. Twin-Term Distinctions: Explicitly contrast confusing pairs (e.g. Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
+1. Simplest Words Possible: Explain intuitively in everyday English before formal math.
+2. Concrete Real-World Analogies: Always ground abstract laws in familiar physical objects.
+3. Diagnostic Questions (2-3 per concept): Design concise diagnostic questions that test prerequisite knowledge, conceptual understanding, and formula application. Include multiple_choice or numeric format with options and 4 progressive hints.
+4. Prediction Challenges: Include a prediction scenario for each concept where the student predicts what happens before seeing the math.
+5. Socratic Worked Example & Independent Practice: Each concept must have a worked example (3 clear steps) AND a separate independent practice problem with 4 progressive hints.
+6. Misconception Traps: Explicitly craft common misunderstandings for the student to defend against.
+7. Topic Synthesis Problem: Create 1 integrated problem combining all concepts in this topic.
+8. Valid LaTeX Math: Format all math in LaTeX ($...$ or $$...$$).
 
-OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
+OUTPUT VALID JSON ONLY:
 {
+  "title": "${topicName} - Adaptive Tutorial",
   "overview": "2-3 sentence engaging overview",
   "concepts": [
     {
-      "conceptName": "Short Concept Name (2-5 words)",
-      "relatableQuestion": "Everyday intuitive question (e.g. 'When you step on the gas pedal, what actually changes?')",
-      "realWorldScenario": "Concrete everyday scenario (e.g. sports car 0 to 60 mph on highway ramp)",
-      "keyDefinition": "Clear, deep physical definition with LaTeX math",
-      "physicalMeaning": "Physical intuition and why it behaves this way in the physical world",
-      "progressionTable": "| Time ($t$) | Velocity ($v$) | What is happening? |\\n| :---: | :---: | :--- |\\n| **0 s** | **12 m/s** | Initial speed ($v_i$) |\\n| **1 s** | **16 m/s** | Added $+4\\text{ m/s}$ ($a = 4\\text{ m/s}^2$) |\\n| **2 s** | **20 m/s** | Added $+4\\text{ m/s}$ |",
-      "formula": "$$LaTeX equation$$ or null",
-      "variables": [
-        {"symbol": "a", "meaning": "Acceleration — rate of velocity change per second", "unit": "\\text{m/s}^2"}
+      "conceptName": "Short Concept Name",
+      "diagnosticQuestions": [
+        {
+          "id": "diag_0_0",
+          "question": "Clear diagnostic question with LaTeX math",
+          "type": "multiple_choice",
+          "options": ["Option A", "Option B", "Option C", "Option D"],
+          "correctAnswer": "Option A",
+          "dimension": "prerequisiteKnowledge",
+          "difficulty": 2,
+          "prerequisiteConcept": "Foundations",
+          "hints": ["Hint 1: Conceptual clue", "Hint 2: Relevant law", "Hint 3: Governing formula", "Hint 4: Step calculation"]
+        }
       ],
-      "keyDistinction": "Crucial distinction from its commonly confused counterpart (e.g. Speed vs. Velocity)",
-      "goldenRule": "Memorable Golden Rule (e.g. 'Acceleration tells you how velocity changes each second; velocity tells you how position changes.')",
+      "relatableQuestion": "Everyday intuitive question",
+      "realWorldScenario": "Concrete everyday scenario",
+      "keyDefinition": "Clear physical definition with LaTeX math",
+      "physicalMeaning": "Physical intuition of why it behaves this way",
+      "progressionTable": "| State | Value | Meaning |\\n| :---: | :---: | :--- |\\n| Initial | 0 | Rest |",
+      "formula": "$$LaTeX equation$$",
+      "variables": [{"symbol": "a", "meaning": "Acceleration", "unit": "\\text{m/s}^2"}],
+      "keyDistinction": "Crucial distinction from commonly confused counterpart",
+      "goldenRule": "Memorable Golden Rule",
+      "predictionScenario": "Concrete physical setup",
+      "predictionQuestion": "What happens when you increase the input?",
+      "predictionAnswer": "Direct proportional change according to formula",
       "example": {
-        "problem": "Clear, complete problem statement with given numbers in LaTeX (e.g. A train accelerates from rest at $2\\text{ m/s}^2$ for $5\\text{ s}$. Find its final velocity.)",
-        "givens": [
-          {"symbol": "v_i", "value": "0\\text{ m/s}"},
-          {"symbol": "a", "value": "2\\text{ m/s}^2"},
-          {"symbol": "t", "value": "5\\text{ s}"}
-        ],
-        "find": "Final velocity $v_f$",
-        "step1": {
-          "stepNumber": 1,
-          "title": "Identify Principle & Formula",
-          "explanation": "Since acceleration is constant, we use the first kinematic equation connecting velocity, acceleration, and time.",
-          "mathExpression": "v_f = v_i + at"
-        },
-        "step2": {
-          "stepNumber": 2,
-          "title": "Substitute Values & Calculate",
-          "explanation": "Substitute the initial velocity $v_i = 0\\text{ m/s}$, acceleration $a = 2\\text{ m/s}^2$, and time $t = 5\\text{ s}$.",
-          "mathExpression": "v_f = 0 + (2\\text{ m/s}^2)(5\\text{ s}) = 10\\text{ m/s}"
-        },
-        "step3": {
-          "stepNumber": 3,
-          "title": "Final Result & Unit Verification",
-          "explanation": "The train reaches $10\\text{ m/s}$, gaining $2\\text{ m/s}$ every second for 5 seconds.",
-          "mathExpression": "v_f = 10\\text{ m/s}"
-        },
+        "problem": "Clear problem statement with givens",
+        "givens": [{"symbol": "v_i", "value": "0", "unit": "\\text{m/s}"}],
+        "find": "Target unknown",
+        "step1": {"stepNumber": 1, "title": "Formula Selection", "explanation": "Choose equation", "mathExpression": "v_f = v_i + at"},
+        "step2": {"stepNumber": 2, "title": "Substitution", "explanation": "Calculate values", "mathExpression": "v_f = 0 + (2)(5) = 10"},
+        "step3": {"stepNumber": 3, "title": "Result & Units", "explanation": "Physical verification", "mathExpression": "v_f = 10\\text{ m/s}"},
         "answer": "10\\text{ m/s}",
-        "physicalTakeaway": "Every second of acceleration added $2\\text{ m/s}$ of speed."
+        "physicalTakeaway": "Every second added speed.",
+        "hints": ["Identify knowns", "Select formula", "Substitute numbers", "Check SI units"]
       },
-      "commonPitfalls": ["Forgetting direction in vector quantities", "Mixing up units"],
-      "summaryPoints": ["Key point 1", "Key point 2"]
+      "guidedSocraticQuestions": ["Which equation relates our knowns?", "What is the numerical substitution?", "What are the final units?"],
+      "independentProblem": {
+        "problem": "Independent problem for student to solve alone",
+        "givens": [{"symbol": "m", "value": "10", "unit": "\\text{kg}"}],
+        "find": "Target quantity",
+        "step1": {"stepNumber": 1, "title": "Law", "explanation": "State law", "mathExpression": "F = ma"},
+        "step2": {"stepNumber": 2, "title": "Math", "explanation": "Compute", "mathExpression": "a = 5"},
+        "step3": {"stepNumber": 3, "title": "Check", "explanation": "Verify", "mathExpression": "5\\text{ m/s}^2"},
+        "answer": "5\\text{ m/s}^2",
+        "physicalTakeaway": "Consistent with Newton's second law",
+        "hints": ["Identify given values", "Use governing equation", "Isolate unknown", "Calculate result"]
+      },
+      "misconceptionStatement": "Common student misconception statement",
+      "misconceptionExplanation": "Detailed scientific reason why it is false",
+      "transferProblem": "Application of principle to novel context",
+      "transferAnswer": "Explanation of how principle applies in new context",
+      "retrievalPrompts": ["Explain formula and physical meaning from memory"],
+      "commonPitfalls": ["Sign errors", "Unit mismatch"],
+      "summaryPoints": ["Point 1", "Point 2"]
     }
   ],
-  "overallSummary": "1-2 sentence closing summary of the topic"
+  "synthesisProblem": {
+    "problem": "Integrated multi-concept university problem",
+    "integratedConcepts": ["Concept 1", "Concept 2"],
+    "givens": [{"symbol": "F", "value": "50", "unit": "\\text{N}"}],
+    "expectedAnswer": "Complete numerical result",
+    "explanation": "Step-by-step cross-concept solution",
+    "hints": ["Deconstruct sub-systems", "Apply first law", "Link intermediate state", "Verify total balance"]
+  },
+  "overallSummary": "Comprehensive summary of topic mastery."
 }`;
 
         try {
-            setBlueprintGenStep('Designing interactive curriculum...');
             const parts: any[] = [];
             if (session.image) {
                 try {
@@ -1142,10 +1369,10 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts }],
-                config: { responseMimeType: 'application/json', temperature: 0.4 },
+                config: { responseMimeType: 'application/json', temperature: 0.35 },
             });
             const raw = getResponseText(result);
-            if (!raw) throw new Error('empty blueprint response');
+            if (!raw) throw new Error('Empty blueprint response');
             const bp: LessonBlueprint = robustParseJson<LessonBlueprint>(raw);
             setIsGeneratingBlueprint(false);
             return bp;
@@ -1173,23 +1400,47 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
             const rawBp = await generateBlueprint(sessionData, studentMem);
             if (!rawBp || !isActiveRef.current) return;
             bp = normalizeBlueprint(rawBp);
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition_hook', false, bp);
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, bp, {
+                phasePath: ['diagnostic'],
+                mastery: defaultMastery(),
+                difficultyLevel: 2,
+            });
         }
 
         if (!isActiveRef.current || !bp) return;
         setBlueprint(bp);
 
         let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
-        let startSubStep: SubStep = (sqliteRecord?.subStep as SubStep) || 'intuition_hook';
+        let startPhase: TutorPhase = (sqliteRecord?.subStep as TutorPhase) || 'diagnostic';
+        let savedPath: TutorPhase[] = (sqliteRecord?.phasePath as TutorPhase[]) || ['diagnostic'];
+        let savedMastery: DimensionalMastery = sqliteRecord?.mastery || defaultMastery();
+        let savedDifficulty: DifficultyState = createInitialDifficultyState((sqliteRecord?.difficultyLevel || 2) as QuestionDifficulty);
 
         if (startConceptIdx >= bp.concepts.length) {
             startConceptIdx = 0;
-            startSubStep = 'intuition_hook';
+            startPhase = 'diagnostic';
+            savedPath = ['diagnostic'];
         }
 
+        setConceptIdx(startConceptIdx);
+        setSubStep(startPhase);
+        setActivePhasePath(savedPath);
+        setPhaseIdx(0);
+        setConceptMastery(savedMastery);
+        setDifficultyState(savedDifficulty);
+
         conceptIdxRef.current = startConceptIdx;
-        subStepRef.current    = startSubStep;
-        const defaultActs = getDefaultActions(startSubStep);
+        subStepRef.current    = startPhase;
+        activePhasePathRef.current = savedPath;
+        phaseIdxRef.current   = 0;
+        conceptMasteryRef.current = savedMastery;
+        difficultyStateRef.current = savedDifficulty;
+
+        const defaultActs = getDefaultActions(startPhase);
+        positiveActionRef.current = defaultActs.positive;
+        setPositiveAction(defaultActs.positive);
+        setNegativeAction(defaultActs.negative);
+
         // Enforce: Do not continue unless Kitten TTS voice model finishes download
         if (!kittenTts.getStatus().isDownloaded) {
             setIsModelDownloading(true);
@@ -1202,33 +1453,35 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
             setIsModelDownloading(false);
         }
 
-        await presentUnit(bp, startConceptIdx, startSubStep, studentMem, true);
+        await presentUnit(bp, startConceptIdx, startPhase, 0, studentMem, true);
     }, [sessionData, userProfile, generateBlueprint]);
 
-    // ── Present Unit (Deep Multi-Board & Step-by-Step) ────────────────────────
+    // ── Present Unit (Adaptive Phased Engine) ──────────────────────────────────
     const presentUnit = useCallback(async (
         bp: LessonBlueprint,
         cIdx: number,
-        sStep: SubStep,
+        currentPhase: TutorPhase,
+        diagIdx = 0,
         studentMem?: StudentCognitiveProfile | null,
         isSessionStart?: boolean,
     ) => {
         if (!isActiveRef.current) return;
 
         const concept = bp.concepts[cIdx];
-        if (!concept) {
+        if (!concept && currentPhase !== 'synthesis') {
             setIsDone(true);
             setVisibleBoardLines(['🎓 Topic Complete!', bp.overallSummary]);
             setActiveDiagramSvg(null);
             setActiveTableMarkdown(null);
             setActiveVisualCaption(null);
-            void speakText(`Well done! ${bp.overallSummary} You have mastered this topic!`);
+            void speakText(`Well done! ${bp.overallSummary} You have achieved topic mastery!`);
             return;
         }
 
-        const fallbackActs = getDefaultActions(sStep);
+        const fallbackActs = getDefaultActions(currentPhase);
         setPositiveAction(fallbackActs.positive);
         setNegativeAction(fallbackActs.negative);
+        positiveActionRef.current = fallbackActs.positive;
 
         setIsLoadingUnit(true);
         setVisibleBoardLines([]);
@@ -1236,146 +1489,233 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
         setActiveTableMarkdown(null);
         setActiveVisualCaption(null);
 
-        // Save progress immediately to SQLite & local cache
+        // Save progress to SQLite & local cache
         const cid = sessionData?.course?.course_id || 'general';
         const tid = sessionData?.topic?.topic_id || 'core';
-        void saveLocalVoiceTutorialProgress(userProfile?.uid || 'anon', cid, tid, cIdx, sStep, false, bp);
+        void saveLocalVoiceTutorialProgress(userProfile?.uid || 'anon', cid, tid, cIdx, currentPhase, false, bp, {
+            phasePath: activePhasePathRef.current,
+            mastery: conceptMasteryRef.current,
+            difficultyLevel: difficultyStateRef.current.currentLevel,
+            repairCount: repairAttemptRef.current,
+        });
 
-        const memoryOpening = (isSessionStart && cIdx === 0 && sStep === 'intuition_hook' && studentMem?.lastTopicTaught)
-            ? `OPENING MEMORY CONTEXT:
-The student previously learned "${studentMem.lastTopicTaught.topicName}" where they encountered ${studentMem.lastTopicTaught.struggledKeyPoints?.[0] || 'calculation precision'}. Open warmly referencing their journey before launching into ${concept.conceptName}.`
+        // Configure learning question metadata if applicable
+        if (currentPhase === 'diagnostic' && concept?.diagnosticQuestions?.[diagIdx]) {
+            const dq = concept.diagnosticQuestions[diagIdx];
+            const lq: LearningQuestion = {
+                id: dq.id,
+                question: dq.question,
+                expectedAnswer: dq.correctAnswer,
+                difficulty: dq.difficulty,
+                skill: dq.dimension === 'prerequisiteKnowledge' ? 'recall' : dq.dimension === 'conceptualUnderstanding' ? 'concept' : 'application',
+                type: dq.type,
+                options: dq.options,
+                prerequisiteConcepts: [dq.prerequisiteConcept],
+                hints: dq.hints || ['Consider the fundamental definition.', 'Identify the governing rule.', 'Look at the formula.', 'Calculate step by step.'],
+            };
+            setActiveLearningQuestion(lq);
+            setHintState(createInitialHintState(dq.id));
+        } else if (currentPhase === 'independent_practice' && concept?.independentProblem) {
+            const ind = concept.independentProblem;
+            const lq: LearningQuestion = {
+                id: `ind_${cIdx}`,
+                question: ind.problem,
+                expectedAnswer: ind.answer,
+                difficulty: difficultyStateRef.current.currentLevel,
+                skill: 'application',
+                type: 'numeric',
+                prerequisiteConcepts: [concept.conceptName],
+                hints: ind.hints || ['Identify given values.', 'Formulate equation.', 'Substitute numbers.', 'Check units.'],
+            };
+            setActiveLearningQuestion(lq);
+            setHintState(createInitialHintState(`ind_${cIdx}`));
+        } else if (currentPhase === 'synthesis' && bp.synthesisProblem) {
+            const sp = bp.synthesisProblem;
+            const lq: LearningQuestion = {
+                id: `synth_${tid}`,
+                question: sp.problem,
+                expectedAnswer: sp.expectedAnswer,
+                difficulty: 4,
+                skill: 'analysis',
+                type: 'open_ended',
+                prerequisiteConcepts: sp.integratedConcepts,
+                hints: sp.hints,
+            };
+            setActiveLearningQuestion(lq);
+            setHintState(createInitialHintState(`synth_${tid}`));
+        } else {
+            setActiveLearningQuestion(null);
+        }
+
+        const repairStrategy = repairStrategiesUsedRef.current[repairStrategiesUsedRef.current.length - 1] || 'simpler_language';
+        const repairInstruction = REPAIR_STRATEGY_INSTRUCTIONS[repairStrategy] || 'Explain in simpler words.';
+
+        const memoryOpening = (isSessionStart && cIdx === 0 && currentPhase === 'diagnostic' && studentMem?.lastTopicTaught)
+            ? `OPENING MEMORY CONTEXT: The student previously completed "${studentMem.lastTopicTaught.topicName}". Welcome them warmly before starting diagnostic check.`
             : '';
 
-        const subStepInstructions: Record<SubStep, string> = {
-            intuition_hook: `Board 1: INTUITIVE HOOK & EVERYDAY SCENARIO for "${concept.conceptName}".
+        const phaseInstructions: Record<TutorPhase, string> = {
+            diagnostic: `PHASE 0: DIAGNOSTIC PREREQUISITE CHECK for "${concept?.conceptName}".
 ${memoryOpening}
-Relatable Question: ${concept.relatableQuestion}
-Everyday Scenario: ${concept.realWorldScenario}
-- spokenExplanation: (4-5 engaging conversational sentences). Greet the student, pose the relatable question vividly, and ground the concept in everyday physical intuition. Ask how they visualize this.
-- boardLines[0]: "**Question**: ${concept.relatableQuestion}"
-- boardLines[1]: "**Physical Scenario**: ${concept.realWorldScenario}"
-- boardLines[2]: "**Intuitive Meaning**: ${concept.physicalMeaning || concept.keyDefinition}"
-- diagramSvg: Labeled physical scenario sketch (e.g. car on road, leaning ruler, cliff).
+Diagnostic Question ${diagIdx + 1}: "${concept?.diagnosticQuestions?.[diagIdx]?.question || `How does ${concept?.conceptName} work?`}"
+- spokenExplanation: (2-3 sentences). Warmly pose this diagnostic question. Ask the student what they think or to choose an option.
+- boardLines: Show the diagnostic question clearly with options if available.
+- positiveReplyLabel: "Submit Answer →"
+- negativeReplyLabel: "I'm not sure ↺"`,
+
+            concept_map: `PHASE 1: CONCEPT MAP & ROADMAP for "${concept?.conceptName}".
+- spokenExplanation: (3-4 sentences). Present the learning objective and big-picture roadmap. Explain what we will master.
+- boardLines[0]: "**Learning Roadmap**: ${concept?.conceptName}"
+- boardLines[1]: "**Core Goal**: Master physical intuition & problem solving"
+- boardLines[2]: "**Key Focus**: ${concept?.keyDistinction || 'Boundaries & principles'}"
+- positiveReplyLabel: "Explore Intuition →"
+- negativeReplyLabel: "Explain Roadmap ↺"`,
+
+            intuition: `PHASE 2: REAL-WORLD INTUITION for "${concept?.conceptName}".
+Relatable Question: ${concept?.relatableQuestion}
+Everyday Scenario: ${concept?.realWorldScenario}
+- spokenExplanation: (3-4 sentences). Ground the concept in everyday physical experience using concrete physical objects.
+- boardLines[0]: "**Question**: ${concept?.relatableQuestion}"
+- boardLines[1]: "**Physical Scenario**: ${concept?.realWorldScenario}"
+- boardLines[2]: "**Intuitive Meaning**: ${concept?.physicalMeaning || concept?.keyDefinition}"
+- diagramSvg: Labeled physical scenario sketch (e.g. car, ruler, diving board, circuit).
 - positiveReplyLabel: "Makes sense, define it →"
 - negativeReplyLabel: "Another real-world example ↺"`,
 
-            physical_meaning: `Board 2: PHYSICAL MEANING & CONCEPTUAL DEFINITION for "${concept.conceptName}".
-Definition: ${concept.keyDefinition}
-Physical Intuition: ${concept.physicalMeaning}
-- spokenExplanation: (4-5 sentences). Break down the definition into crystal-clear physical intuition. Explain what the words mean in real life. Avoid reading raw math formulas aloud. Ask if the physical concept makes sense.
-- boardLines[0]: "${concept.keyDefinition}"
-- boardLines[1]: "**Physical Meaning**: ${concept.physicalMeaning || concept.keyDefinition}"
-- diagramSvg: Clean schematic illustrating the concept.
-- positiveReplyLabel: "Understood, show formula →"
-- negativeReplyLabel: "Explain in simpler terms ↺"`,
+            concept_core: `PHASE 3: CORE MENTAL MODEL for "${concept?.conceptName}".
+Definition: ${concept?.keyDefinition}
+Physical Meaning: ${concept?.physicalMeaning}
+- spokenExplanation: (3-4 sentences). Break down the core physical meaning and golden rule.
+- boardLines[0]: "${concept?.keyDefinition}"
+- boardLines[1]: "**Physical Meaning**: ${concept?.physicalMeaning}"
+- boardLines[2]: "**Golden Rule**: ${concept?.goldenRule}"
+- positiveReplyLabel: "Let me predict →"
+- negativeReplyLabel: "Simpler terms ↺"`,
 
-            formula_table: `Board 3: FORMULA & STATE PROGRESSION TABLE for "${concept.conceptName}".
-Progression Table: ${concept.progressionTable || 'Step-by-step state table'}
-Formula: ${concept.formula || 'Core Equation'}
-- spokenExplanation: (4-5 sentences). Tell the student to observe the progression table on the board. Walk through the values row by row, then show how the algebraic formula is simply the universal rule for that table. Explain the symbols and units.
-- tableMarkdown: Clean markdown table with KaTeX math formatting ($...$).
-- boardLines[0]: "${concept.formula || '$$v_f = v_i + at$$'}"
-- boardLines[1-3]: Variable definitions with units in LaTeX (e.g. "$a \\rightarrow$ Acceleration ($\\text{m/s}^2$)").
-- positiveReplyLabel: "Table & math clear, next →"
+            predict: `PHASE 4: STUDENT PREDICTION CHALLENGE for "${concept?.conceptName}".
+Prediction Scenario: ${concept?.predictionScenario || concept?.realWorldScenario}
+Prediction Question: ${concept?.predictionQuestion}
+- spokenExplanation: (3-4 sentences). Challenge the student to predict what will happen in this scenario BEFORE revealing the formula. Ask for their prediction.
+- boardLines[0]: "**Predictive Challenge**: ${concept?.predictionScenario || concept?.realWorldScenario}"
+- boardLines[1]: "**Question**: ${concept?.predictionQuestion}"
+- boardLines[2]: "*State your prediction before looking at the formula.*"
+- positiveReplyLabel: "Check my prediction →"
+- negativeReplyLabel: "Give me a hint 💡"`,
+
+            formalize: `PHASE 5: MATHEMATICAL FORMALIZATION for "${concept?.conceptName}".
+Formula: ${concept?.formula || 'Core Equation'}
+Progression Table: ${concept?.progressionTable}
+- spokenExplanation: (3-4 sentences). Show how the mathematical equation quantifies our physical intuition. Walk through the variables and units.
+- boardLines[0]: "${concept?.formula || '$$v_f = v_i + at$$'}"
+- boardLines[1-3]: Variable breakdown with LaTeX units.
+- tableMarkdown: Markdown table of states if helpful.
+- positiveReplyLabel: "Formula clear, let's practice →"
 - negativeReplyLabel: "Explain variables & units ↺"`,
 
-            distinctions_pitfalls: `Board 4: TWIN-TERM DISTINCTIONS & GOLDEN RULE for "${concept.conceptName}".
-Distinction: ${concept.keyDistinction}
-Golden Rule: ${concept.goldenRule}
-- spokenExplanation: (4-5 sentences). Highlight the common mistake students make. Point out the exact difference between twin terms. State the Golden Rule with emphasis and ask if they have ever fallen into that trap.
-- boardLines[0]: "**Key Distinction**: ${concept.keyDistinction || 'Pay close attention to direction and sign convention.'}"
-- boardLines[1]: "**Golden Rule**: ${concept.goldenRule}"
-- boardLines[2]: "**Watch Out**: ${(concept.commonPitfalls && concept.commonPitfalls[0]) || 'Ignoring units or signs'}"
-- tableMarkdown: Side-by-side comparison table if relevant.
-- positiveReplyLabel: "Noted trap, let's solve! →"
-- negativeReplyLabel: "Why is this confusing? ↺"`,
+            multi_represent: `PHASE 6: MULTIPLE REPRESENTATIONS for "${concept?.conceptName}".
+- spokenExplanation: (3-4 sentences). Contrast verbal, symbolic, and diagrammatic views of the concept.
+- boardLines[0]: "**Verbal**: ${concept?.keyDefinition}"
+- boardLines[1]: "**Symbolic**: ${concept?.formula}"
+- boardLines[2]: "**Key Invariant**: ${concept?.goldenRule}"
+- diagramSvg: Clean visual representation of the concept.
+- positiveReplyLabel: "Representations clear →"
+- negativeReplyLabel: "Explain the visual ↺"`,
 
-            example_problem: `Board 5: WORKED EXAMPLE — PROBLEM & GIVENS SETUP for "${concept.conceptName}".
-Problem: ${concept.example?.problem || `Find the key parameters for ${concept.conceptName}.`}
-- spokenExplanation: (4-5 sentences). Read the problem statement clearly. Guide the student to identify each given quantity from the text, note the units, and pinpoint exactly what we need to solve for.
-- boardLines[0]: "**Problem**: ${concept.example?.problem || `Calculate the values for ${concept.conceptName}.`}"
-- boardLines[1]: "**Given**: ${concept.example?.givens ? concept.example.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') : 'Known variables'}"
-- boardLines[2]: "**Find**: ${concept.example?.find || 'Target quantity'}"
-- diagramSvg: Clean SVG setup of the problem scenario with labeled arrows.
-- positiveReplyLabel: "Givens clear, start Step 1 →"
-- negativeReplyLabel: "Re-read question slowly ↺"`,
+            guided_practice: `PHASE 7: SOCRATIC GUIDED PRACTICE for "${concept?.conceptName}".
+Problem: ${concept?.example?.problem}
+- spokenExplanation: (3-4 sentences). Present the problem and ask the student Socratic questions on what principle or formula to apply.
+- boardLines[0]: "**Guided Example**: ${concept?.example?.problem}"
+- boardLines[1]: "**Given**: ${concept?.example?.givens ? concept.example.givens.map(g => '$' + g.symbol + ' = ' + g.value + '$ ' + (g.unit || '')).join(', ') : 'Knowns'}"
+- boardLines[2]: "**Target**: Find ${concept?.example?.find || 'the unknown quantity'}"
+- positiveReplyLabel: "Submit Step →"
+- negativeReplyLabel: "Need a hint 💡"`,
 
-            example_step1: `Board 6: WORKED EXAMPLE — STEP 1: PRINCIPLE & FORMULA SELECTION for "${concept.conceptName}".
-Step 1: ${concept.example?.step1?.title || 'Identify Principle & Formula'}
-Formula: ${concept.example?.step1?.mathExpression || concept.formula || 'Governing Equation'}
-- spokenExplanation: (4-5 sentences). Explain WHY we choose this specific formula based on our known variables and the target variable. Show that math is a logical choice, not guesswork.
-- boardLines[0]: "**Step 1 — Principle & Formula**: ${concept.example?.step1?.explanation || 'Relate given values to target variable.'}"
-- boardLines[1]: "$$${concept.example?.step1?.mathExpression || concept.formula || 'v_f = v_i + at'}$$"
-- positiveReplyLabel: "Formula chosen, do calculation →"
-- negativeReplyLabel: "Why this formula? ↺"`,
+            independent_practice: `PHASE 8: INDEPENDENT PRACTICE for "${concept?.conceptName}".
+Problem: ${concept?.independentProblem?.problem || concept?.example?.problem}
+- spokenExplanation: (2-3 sentences). Invite the student to solve this problem independently. Remind them they can ask for hints.
+- boardLines[0]: "**Independent Problem**: ${concept?.independentProblem?.problem || concept?.example?.problem}"
+- boardLines[1]: "*Calculate the answer independently. Ask for a hint if stuck.*"
+- positiveReplyLabel: "Submit My Solution →"
+- negativeReplyLabel: "Give me a hint 💡"`,
 
-            example_step2: `Board 7: WORKED EXAMPLE — STEP 2: SUBSTITUTION & CALCULATION for "${concept.conceptName}".
-Step 2: ${concept.example?.step2?.title || 'Substitute Values & Calculate'}
-Calculation: ${concept.example?.step2?.mathExpression || 'Numerical substitution'}
-- spokenExplanation: (4-5 sentences). Walk through the numerical substitution step by step. Show the intermediate math clearly. Emphasize tracking units along the way.
-- boardLines[0]: "**Step 2 — Calculation**: ${concept.example?.step2?.explanation || 'Substitute known numerical values into the equation.'}"
-- boardLines[1]: "$$${concept.example?.step2?.mathExpression || 'v_f = 0 + (2)(5) = 10'}$$"
-- positiveReplyLabel: "Calculation followed, see answer →"
-- negativeReplyLabel: "Redo calculation step slowly ↺"`,
+            misconception: `PHASE 9: MISCONCEPTION DEFENSE for "${concept?.conceptName}".
+Trap Statement: "${concept?.misconceptionStatement}"
+Scientific Explanation: "${concept?.misconceptionExplanation}"
+- spokenExplanation: (3-4 sentences). Present this common misconception and ask the student to explain why it is false.
+- boardLines[0]: "**Common Misconception Trap**:"
+- boardLines[1]: "\"${concept?.misconceptionStatement}\""
+- boardLines[2]: "*Do you agree or disagree? Explain why.*"
+- positiveReplyLabel: "I can explain why →"
+- negativeReplyLabel: "Explain the trap ↺"`,
 
-            example_step3: `Board 8: WORKED EXAMPLE — STEP 3: FINAL RESULT & UNIT CHECK for "${concept.conceptName}".
-Final Answer: ${concept.example?.answer || '10 units'}
-Physical Takeaway: ${concept.example?.physicalTakeaway || 'Dimensionally consistent.'}
-- spokenExplanation: (4-5 sentences). Present the final result. Verify that the units match the required quantity. Explain what the final number represents in the physical scenario.
-- boardLines[0]: "**Final Answer**: $$${concept.example?.answer || '10\\text{ units}'}$$"
-- boardLines[1]: "**Unit & Physical Check**: ${concept.example?.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}"
-- positiveReplyLabel: "Result verified, recap concept →"
-- negativeReplyLabel: "Explain the unit check ↺"`,
+            repair: `TARGETED REPAIR PHASE for "${concept?.conceptName}".
+Repair Strategy: ${repairStrategy}
+Strategy Guidelines: ${repairInstruction}
+- spokenExplanation: (3-4 sentences). Re-explain using the specific repair strategy. Address the misunderstanding directly without restarting from scratch.
+- boardLines[0]: "**Conceptual Repair**: ${concept?.conceptName}"
+- boardLines[1]: "**Key Insight**: ${concept?.goldenRule}"
+- positiveReplyLabel: "Aha! Now I get it →"
+- negativeReplyLabel: "Still slightly unclear ↺"`,
 
-            concept_recap: `Board 9: CONCEPT RECAP & READINESS CHECK for "${concept.conceptName}".
-Golden Rule: ${concept.goldenRule}
-- spokenExplanation: (3-4 sentences). Recap the core takeaways for ${concept.conceptName}. Congratulate the student on completing the worked example and mastering the concept. Ask if they are ready for the next concept!
-- boardLines[0]: "**Golden Rule**: ${concept.goldenRule}"
-- boardLines[1]: "${concept.formula ? `$$${concept.formula}$$` : 'Concept mastered.'}"
-- boardLines[2]: "**Key Takeaway**: ${concept.summaryPoints?.[0] || 'Physical principles locked in.'}"
-- positiveReplyLabel: "Mastered! Next Concept →"
-- negativeReplyLabel: "Recap main takeaway once more ↺"`,
+            transfer: `PHASE 10: TRANSFER TO NOVEL CONTEXT for "${concept?.conceptName}".
+Transfer Scenario: ${concept?.transferProblem}
+- spokenExplanation: (3-4 sentences). Ask the student to apply this principle to a completely new context.
+- boardLines[0]: "**Transfer Challenge**: ${concept?.transferProblem}"
+- boardLines[1]: "*Apply the underlying principle to this novel scenario.*"
+- positiveReplyLabel: "Apply principle →"
+- negativeReplyLabel: "Give context hint 💡"`,
+
+            retrieval: `PHASE 11: CLOSED-BOOK RETRIEVAL for "${concept?.conceptName}".
+Retrieval Prompt: "${concept?.retrievalPrompts?.[0]}"
+- spokenExplanation: (2-3 sentences). Ask the student to recall and summarize the core rule and formula from memory.
+- boardLines[0]: "**Retrieval Check**:"
+- boardLines[1]: "${concept?.retrievalPrompts?.[0] || `Explain ${concept?.conceptName} and its formula from memory.`}"
+- positiveReplyLabel: "Recall Concept →"
+- negativeReplyLabel: "Prompt my memory ↺"`,
+
+            mastery_decision: `PHASE 12: MASTERY EVALUATION for "${concept?.conceptName}".
+Mastery Breakdown: Conceptual (${Math.round(conceptMasteryRef.current.conceptualUnderstanding)}%), Procedure (${Math.round(conceptMasteryRef.current.proceduralFluency)}%), Transfer (${Math.round(conceptMasteryRef.current.transferAbility)}%), Retrieval (${Math.round(conceptMasteryRef.current.retrievalStrength)}%).
+- spokenExplanation: (3-4 sentences). ${generateMasteryNarration(conceptMasteryRef.current, concept?.conceptName || 'this concept')} Ask if they feel ready to advance!
+- boardLines[0]: "**Mastery Summary for ${concept?.conceptName}**"
+- boardLines[1]: "• Conceptual: ${Math.round(conceptMasteryRef.current.conceptualUnderstanding)}% | Procedural: ${Math.round(conceptMasteryRef.current.proceduralFluency)}%"
+- boardLines[2]: "• Transfer: ${Math.round(conceptMasteryRef.current.transferAbility)}% | Retrieval: ${Math.round(conceptMasteryRef.current.retrievalStrength)}%"
+- positiveReplyLabel: "Next Concept →"
+- negativeReplyLabel: "Review Weak Points ↺"`,
+
+            synthesis: `TOPIC SYNTHESIS: Cross-Concept University Integration.
+Problem: ${bp.synthesisProblem?.problem}
+- spokenExplanation: (3-4 sentences). Congratulate the student on mastering all concepts. Present the synthesis problem combining all topic principles!
+- boardLines[0]: "**Topic Synthesis Challenge**"
+- boardLines[1]: "${bp.synthesisProblem?.problem}"
+- positiveReplyLabel: "Submit Synthesis Solution →"
+- negativeReplyLabel: "Synthesis Hint 💡"`,
         };
 
         const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
-You embody the "Intuition First, Math Second, Bit-by-Bit" teaching methodology:
-- PEDAGOGICAL HARMONY (CRITICAL): What the student SEES on the blackboard must be a punchy visual summary of what they HEAR in your voice.
-- KEEP BLACKBOARD LINES SHORT & SWEET (1-3 lines max): Never write long reading paragraphs on the blackboard! The blackboard is for 1 key headline/question, core formula/equations ($...$, $$...$$), and 1 brief bullet point takeaway. The spoken explanation provides the complete conversational narrative.
-- USE THE SIMPLEST WORDS POSSIBLE: Explain in plain, crystal-clear everyday English without dense jargon.
-- ALWAYS USE REAL-WORLD PHYSICAL OBJECT ANALOGIES: Describe and define concepts using concrete physical objects (e.g., diving boards, rulers, shopping carts, water pipes, tea cups).
-- SLOW DOWN and teach bit-by-bit across multiple boards. Speak 3-4 natural conversational sentences per board.
-- Speak in warm, conversational, encouraging classroom teacher English.
-- Blackboard Cleanliness: Write clean educational statements and equations on the board lines. The topic header is already fixed at the top of the blackboard.
-- LaTeX KaTeX Typography (CRITICAL): Always format all formulas, powers, superscripts, subscripts, fractions, and units in valid LaTeX math delimiters ($...$ or $$...$$). E.g. $x^2$, $\\text{m/s}^2$, $10^5$, $\\sigma = \\frac{My}{I}$, $v_f = v_i + at$.
+You embody Adaptive Teaching Engine methodology:
+- PEDAGOGICAL HARMONY: Board lines must be a punchy visual summary of spoken voice.
+- SHORT BOARD LINES (1-3 lines max): Never write long reading paragraphs on the blackboard!
+- SIMPLEST WORDS: Explain plainly without dense jargon.
+- REAL-WORLD OBJECT ANALOGIES: Always use familiar physical objects.
+- LaTeX Math: Format all formulas, powers, superscripts, subscripts, fractions, and units in LaTeX ($...$ or $$...$$).
 
-CURRENT CONCEPT:
-${JSON.stringify(concept, null, 2)}
-CURRENT BOARD STEP: ${sStep}
-INSTRUCTION: ${subStepInstructions[sStep]}
-
-SVG REAL-WORLD VISUAL DRAWING RULES (Draw recognizable physical objects, NOT just abstract boxes!):
-- Must be a valid SVG string with viewBox="0 0 420 220", xmlns="http://www.w3.org/2000/svg"
-- Use markers in <defs>: #arrow (brown), #arrow-red (forces/loads/gravity), #arrow-blue (velocities/motion/current), #arrow-green (reactions/equilibrium).
-- High visual legibility & physical memorability:
-  * CAR / VEHICLE: Draw the car chassis (curved hood, roof, windows fill='#22272E', headlights fill='#F6E05E'), wheels with rims (fill='#1C2128' / stroke='#FFF'), road surface with dashed yellow/white lines, velocity arrow with $v = ...$ and acceleration arrow with $a = ...$.
-  * RULER & TABLE / WALL: Draw a wooden table (top & legs fill='#DDB892' / stroke='#FFF'), a leaning yellow ruler with clear centimeter tick marks (fill='#FEF08A' stroke='#854D0E'), angle arc $\\theta$, and height dimension line $h$.
-  * CLIFF & PROJECTILE: Draw the stone cliff profile, ball on edge, parabolic dotted trajectory arc, splash/ground, initial velocity $v_x$, and gravity arrow $g$.
-  * PULLEY & WEIGHTS: Draw the top ceiling bracket, circular pulley wheel, hanging rope lines, suspended mass buckets/blocks with tension $T$ and weight $mg$.
-  * ELECTRIC CIRCUIT: Draw the battery cell (+/-), wire loop, open/closed switch, glowing light bulb with filament and glow rays, current arrows $I$.
-  * PENDULUM: Draw the anchor mount, string of length $L$, spherical bob, swing arc, and angle $\\theta$.
-- Contrast colors for dark charcoal blackboard: stroke="#FFF", fill="#22272E", font-family="system-ui, sans-serif", font-weight="bold", font-size="12px" to "14px".
+CURRENT TOPIC: "${sessionData?.topic?.topic_name}"
+CURRENT CONCEPT: "${concept?.conceptName}"
+CURRENT ADAPTIVE PHASE: "${currentPhase}" (${PHASE_LABEL[currentPhase]})
+DIFFICULTY LEVEL: ${difficultyStateRef.current.currentLevel}/5
+INSTRUCTION: ${phaseInstructions[currentPhase]}
 
 OUTPUT VALID JSON ONLY:
 {
   "boardLines": ["Line 1 with LaTeX", "Line 2 with LaTeX", "Line 3 with LaTeX"],
   "spokenExplanation": "Conversational spoken English text without raw LaTeX codes",
-  "diagramSvg": "SVG string or null",
-  "tableMarkdown": "Markdown table string with LaTeX or null",
+  "diagramSvg": "SVG string with viewBox=\\"0 0 420 220\\" or null",
+  "tableMarkdown": "Markdown table with LaTeX or null",
   "diagramCaption": "Caption string or null",
-  "positiveReplyLabel": "Button text (e.g. Makes sense, define it →)",
-  "positiveReplyText": "Spoken text if student taps affirmative button",
-  "negativeReplyLabel": "Button text (e.g. Explain again ↺)",
-  "negativeReplyText": "Spoken text if student taps question button"
+  "positiveReplyLabel": "Button text",
+  "positiveReplyText": "Spoken text if affirmative button tapped",
+  "negativeReplyLabel": "Button text",
+  "negativeReplyText": "Spoken text if question/hint button tapped"
 }`;
 
         const cost = getFeatureCost('study_guide_lesson', appSettings);
@@ -1383,10 +1723,7 @@ OUTPUT VALID JSON ONLY:
             const limitCheck = checkAICredits(userProfile, cost, appSettings);
             if (!limitCheck.allowed) {
                 setIsLoadingUnit(false);
-                setLimitModalData({
-                    balance: limitCheck.balance,
-                    cost: limitCheck.cost,
-                });
+                setLimitModalData({ balance: limitCheck.balance, cost: limitCheck.cost });
                 setShowLimitModal(true);
                 return;
             }
@@ -1396,9 +1733,9 @@ OUTPUT VALID JSON ONLY:
             const aiClient = createAvelutAI(appSettings, userProfile || null);
             if (!aiClient || !isActiveRef.current) {
                 setIsLoadingUnit(false);
-                const defaultLines = getBoardLines(concept, sStep);
-                const defaultSpoken = getSpokenText(concept, sStep);
-                streamBoardLines(defaultLines, defaultSpoken);
+                const defaultLines = getBoardLines(concept || bp.concepts[0], currentPhase, diagIdx);
+                const defaultSpoken = getSpokenText(concept || bp.concepts[0], currentPhase, diagIdx);
+                streamBoardLines(defaultLines);
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(null);
                 setActiveVisualCaption(null);
@@ -1409,24 +1746,22 @@ OUTPUT VALID JSON ONLY:
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
-                config: { responseMimeType: 'application/json', temperature: 0.4 },
+                config: { responseMimeType: 'application/json', temperature: 0.35 },
             });
 
             if (!isActiveRef.current) return;
-
             const raw = getResponseText(result);
             if (!raw) throw new Error('Empty unit response');
 
             const parsed: UnitPresentationResponse = robustParseJson<UnitPresentationResponse>(raw);
 
             if (userProfile?.uid) {
-                deductAICredits(userProfile.uid, cost, 'Study Guide - Board Step', appSettings).catch(console.warn);
+                deductAICredits(userProfile.uid, cost, 'Study Guide - Adaptive Phase', appSettings).catch(console.warn);
             }
 
             setIsLoadingUnit(false);
-            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES), parsed.spokenExplanation);
+            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
 
-            // Record tutor utterance in dialogue history
             dialogueHistoryRef.current.push({
                 role: 'tutor',
                 text: parsed.spokenExplanation,
@@ -1445,18 +1780,18 @@ OUTPUT VALID JSON ONLY:
                 setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
             }
 
-            const sanitized = sanitizeSvg(parsed.diagramSvg || concept.diagramSvg);
-            const table = parsed.tableMarkdown || concept.tableMarkdown;
+            const sanitized = sanitizeSvg(parsed.diagramSvg || concept?.diagramSvg);
+            const table = parsed.tableMarkdown || concept?.tableMarkdown;
 
             if (sanitized) {
                 setActiveDiagramSvg(sanitized);
                 setActiveTableMarkdown(null);
-                setActiveVisualCaption(parsed.diagramCaption || `${concept.conceptName} Diagram`);
+                setActiveVisualCaption(parsed.diagramCaption || `${concept?.conceptName} Diagram`);
                 setDiagramKey(k => k + 1);
             } else if (table && table.trim().includes('|')) {
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(table);
-                setActiveVisualCaption(parsed.diagramCaption || `${concept.conceptName} Table`);
+                setActiveVisualCaption(parsed.diagramCaption || `${concept?.conceptName} Table`);
                 setDiagramKey(k => k + 1);
             } else {
                 setActiveDiagramSvg(null);
@@ -1467,18 +1802,19 @@ OUTPUT VALID JSON ONLY:
             await speakText(parsed.spokenExplanation);
 
         } catch (err) {
-            console.warn('[PresentUnit] presentation error:', err);
+            console.warn('[PresentUnit] presentation fallback:', err);
             if (!isActiveRef.current) return;
             setIsLoadingUnit(false);
-            streamBoardLines(getBoardLines(concept, sStep));
+            const fallbackConcept = concept || bp.concepts[0];
+            streamBoardLines(getBoardLines(fallbackConcept, currentPhase, diagIdx));
             setActiveDiagramSvg(null);
             setActiveTableMarkdown(null);
             setActiveVisualCaption(null);
-            await speakText(getSpokenText(concept, sStep));
+            await speakText(getSpokenText(fallbackConcept, currentPhase, diagIdx));
         }
     }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
 
-    // ── Interactive Student Reply & Conversational Question Answering ────────
+    // ── Interactive Student Reply (Intelligence & Decision Engine) ────────────
     const handleStudentReply = useCallback(async (
         reply: string,
         imageAttachment?: { base64: string; mimeType: string } | null
@@ -1494,188 +1830,256 @@ OUTPUT VALID JSON ONLY:
 
         const userText = reply.trim() || (attached ? 'Please check my work in this attached photo.' : 'Continue');
         const currentC = blueprint.concepts[conceptIdxRef.current];
-        const currentStep = subStepRef.current;
+        const currentPhase = subStepRef.current;
+        const currentPath = activePhasePathRef.current;
+        const currentPIdx = phaseIdxRef.current;
+        const currentDiagIdx = activeDiagnosticIdxRef.current;
         const uid = userProfile?.uid || 'anon';
         const tid = sessionData?.topic?.topic_id || 'core';
         const tName = sessionData?.topic?.topic_name || 'Core Principles';
         const cName = sessionData?.course?.course_name || 'Academic Tutorial';
         const cid = sessionData?.course?.course_id || 'general';
 
-        // Add student reply to dialogue history
         dialogueHistoryRef.current.push({ role: 'student', text: attached ? `[Photo Attached] ${userText}` : userText });
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
 
-        const conversationalPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
-You are in an interactive lesson with a student.
-Topic: "${tName}" in "${cName}"
-Current Concept: "${currentC?.conceptName}"
-Current Board Step: "${currentStep}" (${SUB_STEP_LABEL[currentStep]})
-Current Blackboard Summary: "${visibleBoardLines.join(' | ')}"
-Recent Dialogue History:
-${dialogueHistoryRef.current.map(d => `${d.role.toUpperCase()}: ${d.text}`).join('\n')}
+        // ── 1. Progressive Hint Check ──────────────────────────────────────────
+        if (isHintRequest(userText) && activeLearningQuestionRef.current) {
+            const currentHState = hintStateRef.current;
+            const nextH = getNextHint(activeLearningQuestionRef.current, currentHState);
+            setHintState(nextH);
+            hintStateRef.current = nextH;
 
-STUDENT SAID: "${userText}"
-${attached ? 'STUDENT ATTACHED A PICTURE of their work, handwritten steps, textbook, or diagram. Inspect the image carefully, give detailed direct feedback or answer their question.' : ''}
+            const hintLines = [
+                `💡 **Hint ${nextH.currentTier} of ${nextH.maxTier}**`,
+                nextH.activeHintText || 'Review the given values and equations.'
+            ];
+            streamBoardLines(hintLines);
+            setPositiveAction({ label: "Try Answering Now →", text: "I'll try calculating now" });
+            setNegativeAction({ label: nextH.currentTier < nextH.maxTier ? "Need Next Hint 💡" : "Explain Step ↺", text: "Need more guidance" });
 
-YOUR GOALS:
-1. Understand what the student is saying or asking:
-   - Did the student ask a question, express confusion, or submit photo of their work?
-   - Or is the student answering a question or confirming understanding (e.g. "Yes, makes sense", "The answer is 10 m/s", "I'm ready for the next step")?
-2. If the student ASKED A QUESTION, IS CONFUSED, or ATTACHED WORK:
-   - isClarification = true (DO NOT ADVANCE THE STEP!).
-   - Answer their specific question thoroughly, conversationally, and warmly in 3-5 sentences.
-   - Update the blackboard lines to visually illustrate the answer (with LaTeX math).
-   - Check if they now understand before continuing.
-3. If the student CONFIRMED UNDERSTANDING or ANSWERED CORRECTLY:
-   - isClarification = false (PROCEED TO NEXT STEP).
-   - Give a warm 1-sentence acknowledgment (e.g. "Spot on!", "Exactly right, let's keep moving!").
-4. If the student ANSWERED INCORRECTLY:
-   - isClarification = true.
-   - Gently explain where the misconception is, show the correct logic on the board, and ask if it makes sense.
-5. If drawing diagramSvg, draw recognizable real-world physical objects (car with wheels, table with ruler, cliff with projectile, pulley with rope, etc.) with viewBox="0 0 420 220" and contrast colors for dark blackboard.
+            const spokenHint = `Here is a clue: ${nextH.activeHintText} Take your time and give it a shot.`;
+            dialogueHistoryRef.current.push({ role: 'tutor', text: spokenHint, boardSummary: hintLines.join(' | ') });
+            await speakText(spokenHint);
+            return;
+        }
 
-OUTPUT VALID JSON ONLY:
-{
-  "isClarification": true / false,
-  "spokenExplanation": "Conversational spoken explanation in clear English",
-  "boardLines": ["Line 1 with LaTeX ($...$)", "Line 2 with LaTeX"],
-  "diagramSvg": "SVG string if helpful or null",
-  "positiveReplyLabel": "Text for next button (e.g. Got it! Continue →)",
-  "positiveReplyText": "Spoken text if clicked",
-  "negativeReplyLabel": "Text for question button (e.g. Still have a question ↺)",
-  "negativeReplyText": "Spoken text if clicked"
-}`;
-
+        // ── 2. Two-Layer Answer Evaluation & Decision Logic ─────────────────────
         try {
-            if (!aiClient) throw new Error('No AI client');
             setIsLoadingUnit(true);
+            let isCorrect = true;
+            let misconceptionType: MisconceptionType | undefined;
+            let feedback = '';
 
-            const promptParts: any[] = [{ text: conversationalPrompt }];
-            if (attached?.base64) {
-                const b64Data = attached.base64.includes(',') ? attached.base64.split(',')[1] : attached.base64;
-                promptParts.push({
-                    inlineData: {
-                        data: b64Data,
-                        mimeType: attached.mimeType || 'image/jpeg',
-                    }
-                });
+            if (activeLearningQuestionRef.current && currentPhase !== 'concept_map' && currentPhase !== 'intuition' && currentPhase !== 'concept_core' && currentPhase !== 'formalize' && currentPhase !== 'multi_represent') {
+                const evalResult = await evaluateStudentAnswer(
+                    activeLearningQuestionRef.current,
+                    userText,
+                    dialogueHistoryRef.current.map(d => `${d.role}: ${d.text}`).join('\n'),
+                    aiClient,
+                    appSettings?.primary_gemini_model
+                );
+                isCorrect = evalResult.isCorrect;
+                misconceptionType = evalResult.misconceptionType;
+                feedback = evalResult.feedback;
+
+                // Update dynamic difficulty
+                const newDiffState = recordQuestionPerformance(
+                    difficultyStateRef.current,
+                    isCorrect,
+                    hintStateRef.current.hintsUsed > 0,
+                    activeLearningQuestionRef.current.difficulty
+                );
+                setDifficultyState(newDiffState);
+                difficultyStateRef.current = newDiffState;
+
+                // Update 5-axis Mastery Model
+                const newMastery = updateMasteryOnAnswer(
+                    conceptMasteryRef.current,
+                    currentPhase,
+                    isCorrect,
+                    hintStateRef.current.hintsUsed,
+                    activeLearningQuestionRef.current.difficulty
+                );
+                setConceptMastery(newMastery);
+                conceptMasteryRef.current = newMastery;
             }
 
-            const result = await aiClient.models.generateContent({
-                model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
-                contents: [{ role: 'user', parts: promptParts }],
-                config: { responseMimeType: 'application/json', temperature: 0.4 },
+            // ── 3. Diagnostic Phase Branching ──────────────────────────────────
+            if (currentPhase === 'diagnostic') {
+                diagnosticAnswersRef.current.push({
+                    questionIdx: currentDiagIdx,
+                    correct: isCorrect,
+                    dimension: currentC?.diagnosticQuestions?.[currentDiagIdx]?.dimension || 'prerequisiteKnowledge',
+                });
+
+                const totalDiags = currentC?.diagnosticQuestions?.length || 1;
+                if (currentDiagIdx + 1 < totalDiags) {
+                    const nextDiagIdx = currentDiagIdx + 1;
+                    setActiveDiagnosticIdx(nextDiagIdx);
+                    activeDiagnosticIdxRef.current = nextDiagIdx;
+                    setIsLoadingUnit(false);
+                    await presentUnit(blueprint, conceptIdxRef.current, 'diagnostic', nextDiagIdx);
+                    return;
+                }
+
+                // Diagnostic complete for this concept -> evaluate dimensions independently
+                const scoredDims = scoreDiagnosticAnswers(diagnosticAnswersRef.current);
+                const generatedPath = generatePhasePath(scoredDims);
+                diagnosticAnswersRef.current = [];
+                setActiveDiagnosticIdx(0);
+                activeDiagnosticIdxRef.current = 0;
+
+                setActivePhasePath(generatedPath);
+                activePhasePathRef.current = generatedPath;
+                setPhaseIdx(0);
+                phaseIdxRef.current = 0;
+
+                const firstPhase = generatedPath[0] || 'concept_map';
+                setSubStep(firstPhase);
+                subStepRef.current = firstPhase;
+
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, firstPhase, 0);
+                return;
+            }
+
+            // ── 4. Practice Misconception & Repair Adaptation ──────────────────
+            if (!isCorrect && (currentPhase === 'guided_practice' || currentPhase === 'independent_practice' || currentPhase === 'predict' || currentPhase === 'misconception')) {
+                const currentAttempts = repairAttemptRef.current + 1;
+                setRepairAttempt(currentAttempts);
+                repairAttemptRef.current = currentAttempts;
+
+                const strategy = selectRepairStrategy(
+                    misconceptionType || 'definition_confusion',
+                    currentAttempts,
+                    repairStrategiesUsedRef.current
+                );
+                const updatedUsed = [...repairStrategiesUsedRef.current, strategy];
+                setRepairStrategiesUsed(updatedUsed);
+                repairStrategiesUsedRef.current = updatedUsed;
+
+                const adaptedPath = adaptPath(currentPath, currentPIdx, 'inject_repair', strategy);
+                setActivePhasePath(adaptedPath);
+                activePhasePathRef.current = adaptedPath;
+
+                const nextPIdx = currentPIdx + 1;
+                const nextPhase = adaptedPath[nextPIdx] || 'repair';
+                setPhaseIdx(nextPIdx);
+                phaseIdxRef.current = nextPIdx;
+                setSubStep(nextPhase);
+                subStepRef.current = nextPhase;
+
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+                return;
+            }
+
+            // ── 5. Standard Phase Progression Along Adaptive Path ─────────────
+            const nextPIdx = currentPIdx + 1;
+
+            if (nextPIdx < currentPath.length) {
+                const nextPhase = currentPath[nextPIdx];
+                setPhaseIdx(nextPIdx);
+                phaseIdxRef.current = nextPIdx;
+                setSubStep(nextPhase);
+                subStepRef.current = nextPhase;
+
+                // Reset repair state on successful advancement
+                if (isCorrect) {
+                    setRepairAttempt(0);
+                    repairAttemptRef.current = 0;
+                }
+
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+                return;
+            }
+
+            // ── 6. End of Concept Path: Evaluate Mastery or Advance ───────────
+            const readiness = evaluateReadiness(conceptMasteryRef.current);
+
+            // Record concept mastery in student memory & SQLite
+            if (currentC) {
+                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, readiness.readyToAdvance);
+                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, isCorrect ? 4 : 2);
+            }
+
+            const nextCIdx = conceptIdxRef.current + 1;
+
+            if (nextCIdx < blueprint.concepts.length) {
+                // Advance to next concept's diagnostic
+                conceptIdxRef.current = nextCIdx;
+                setConceptIdx(nextCIdx);
+
+                const freshPath: TutorPhase[] = ['diagnostic'];
+                setActivePhasePath(freshPath);
+                activePhasePathRef.current = freshPath;
+                setPhaseIdx(0);
+                phaseIdxRef.current = 0;
+                setSubStep('diagnostic');
+                subStepRef.current = 'diagnostic';
+                setActiveDiagnosticIdx(0);
+                activeDiagnosticIdxRef.current = 0;
+                setRepairAttempt(0);
+                repairAttemptRef.current = 0;
+                setRepairStrategiesUsed([]);
+                repairStrategiesUsedRef.current = [];
+
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
+                return;
+            }
+
+            // ── 7. All Concepts Done: Topic Synthesis Phase ───────────────────
+            if (currentPhase !== 'synthesis' && blueprint.synthesisProblem) {
+                const synthPath: TutorPhase[] = ['synthesis'];
+                setActivePhasePath(synthPath);
+                activePhasePathRef.current = synthPath;
+                setPhaseIdx(0);
+                phaseIdxRef.current = 0;
+                setSubStep('synthesis');
+                subStepRef.current = 'synthesis';
+
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
+                return;
+            }
+
+            // ── 8. Topic Completely Mastered ──────────────────────────────────
+            setIsDone(true);
+            setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
+            setActiveDiagramSvg(null);
+            setActiveTableMarkdown(null);
+            setActiveVisualCaption(null);
+
+            void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
+            void saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, 'mastery_decision', true, blueprint, {
+                phasePath: activePhasePathRef.current,
+                mastery: conceptMasteryRef.current,
+                difficultyLevel: difficultyStateRef.current.currentLevel,
             });
 
-            if (!isActiveRef.current) return;
-
-            const raw = getResponseText(result);
-            if (!raw) throw new Error('Empty AI reply');
-
-            const parsed = JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+            void speakText(`Congratulations! ${blueprint.overallSummary} You have demonstrated mastery across all concepts!`);
             setIsLoadingUnit(false);
-
-            if (parsed.isClarification) {
-                if (currentC) {
-                    void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, false);
-                }
-
-                if (parsed.boardLines && parsed.boardLines.length > 0) {
-                    streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
-                }
-
-                if (parsed.diagramSvg) {
-                    const sanitized = sanitizeSvg(parsed.diagramSvg);
-                    if (sanitized) {
-                        setActiveDiagramSvg(sanitized);
-                        setActiveTableMarkdown(null);
-                        setDiagramKey(k => k + 1);
-                    }
-                }
-
-                if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
-                    setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText });
-                } else {
-                    setPositiveAction({ label: "Understood! Continue →", text: "That makes sense, let's continue" });
-                }
-
-                if (parsed.negativeReplyLabel && parsed.negativeReplyText) {
-                    setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
-                } else {
-                    setNegativeAction({ label: "Explain more ↺", text: "Could you explain that part a bit more?" });
-                }
-
-                dialogueHistoryRef.current.push({
-                    role: 'tutor',
-                    text: parsed.spokenExplanation,
-                    boardSummary: parsed.boardLines?.join(' | '),
-                });
-
-                await speakText(parsed.spokenExplanation);
-                return;
-            }
-
-            if (currentC) {
-                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, true);
-            }
-
-            const next = nextSubStep(conceptIdxRef.current, subStepRef.current, blueprint);
-            const newConceptIdx = next.conceptIdx;
-            const newSubStep = next.subStep;
-
-            if (next.done) {
-                setIsDone(true);
-                setVisibleBoardLines(['🎓 Topic Complete!', blueprint.overallSummary]);
-                setActiveDiagramSvg(null);
-                setActiveTableMarkdown(null);
-                setActiveVisualCaption(null);
-
-                void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
-                void saveLocalVoiceTutorialProgress(uid, cid, tid, newConceptIdx, newSubStep, true, blueprint);
-
-                void speakText(`Outstanding! ${blueprint.overallSummary} You have successfully completed this entire topic!`);
-                return;
-            }
-
-            void saveLocalVoiceTutorialProgress(uid, cid, tid, newConceptIdx, newSubStep, false, blueprint);
-
-            conceptIdxRef.current = newConceptIdx;
-            subStepRef.current    = newSubStep;
-            setConceptIdx(newConceptIdx);
-            setSubStep(newSubStep);
-
-            await presentUnit(blueprint, newConceptIdx, newSubStep);
 
         } catch (err) {
-            console.warn('[HandleStudentReply] conversational error, falling back:', err);
+            console.warn('[HandleStudentReply] intelligence engine fallback:', err);
             setIsLoadingUnit(false);
-
-            const wantsRepeat = /again|repeat|explain|didn.t|don.t|slow|what|why|how|no|clarif/i.test(userText);
-            if (wantsRepeat) {
-                const fallbackActs = getDefaultActions(subStepRef.current);
-                setPositiveAction(fallbackActs.positive);
-                setNegativeAction(fallbackActs.negative);
-                if (currentC) {
-                    streamBoardLines(getBoardLines(currentC, subStepRef.current));
-                    await speakText(getSpokenText(currentC, subStepRef.current));
-                }
-                return;
-            }
-
-            const next = nextSubStep(conceptIdxRef.current, subStepRef.current, blueprint);
-            if (next.done) {
+            const nextPIdx = currentPIdx + 1;
+            if (nextPIdx < currentPath.length) {
+                const nextPhase = currentPath[nextPIdx];
+                setPhaseIdx(nextPIdx);
+                phaseIdxRef.current = nextPIdx;
+                setSubStep(nextPhase);
+                subStepRef.current = nextPhase;
+                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+            } else {
                 setIsDone(true);
                 setVisibleBoardLines(['🎓 Topic Complete!', blueprint.overallSummary]);
-                void speakText(`Well done! ${blueprint.overallSummary}`);
-                return;
+                await speakText(`Great job! ${blueprint.overallSummary}`);
             }
-
-            conceptIdxRef.current = next.conceptIdx;
-            subStepRef.current    = next.subStep;
-            setConceptIdx(next.conceptIdx);
-            setSubStep(next.subStep);
-            await presentUnit(blueprint, next.conceptIdx, next.subStep);
         }
     }, [blueprint, speakText, presentUnit, userProfile, sessionData, appSettings, streamBoardLines, visibleBoardLines, attachedImage]);
 
@@ -1850,9 +2254,13 @@ OUTPUT VALID JSON ONLY:
         setBlueprint(null);
         setIsDone(false);
         setConceptIdx(0);
-        setSubStep('intuition_hook');
+        setSubStep('diagnostic');
+        setActivePhasePath(['diagnostic']);
+        setPhaseIdx(0);
         conceptIdxRef.current = 0;
-        subStepRef.current = 'intuition_hook';
+        subStepRef.current = 'diagnostic';
+        activePhasePathRef.current = ['diagnostic'];
+        phaseIdxRef.current = 0;
         dialogueHistoryRef.current = [];
         setVisibleBoardLines([]);
         setActiveDiagramSvg(null);
@@ -1870,24 +2278,29 @@ OUTPUT VALID JSON ONLY:
         if (!bp) {
             bp = await generateBlueprint(newSessionData, studentMem);
             if (!bp || !isActiveRef.current) return;
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition_hook', false, bp);
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, bp, {
+                phasePath: ['diagnostic'],
+                mastery: defaultMastery(),
+                difficultyLevel: 2,
+            });
         }
 
         if (!isActiveRef.current) return;
         setBlueprint(bp);
-        const defaultActs = getDefaultActions('intuition_hook');
+        const defaultActs = getDefaultActions('diagnostic');
         positiveActionRef.current = defaultActs.positive;
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
-        await presentUnit(bp, 0, 'intuition_hook', studentMem, true);
+        await presentUnit(bp, 0, 'diagnostic', 0, studentMem, true);
     }, [nextTopic, sessionData, handleGoBack, userProfile, generateBlueprint, presentUnit]);
 
     const currentConcept  = blueprint?.concepts[conceptIdx];
     const totalConcepts   = blueprint?.concepts.length ?? 0;
+    const currentPathLen  = Math.max(activePhasePath.length, 1);
     const progressPercent = totalConcepts > 0
-        ? Math.round(((conceptIdx * SUB_STEP_ORDER.length + SUB_STEP_ORDER.indexOf(subStep)) /
-            (totalConcepts * SUB_STEP_ORDER.length)) * 100)
+        ? Math.min(100, Math.round(((conceptIdx * currentPathLen + phaseIdx) /
+            (totalConcepts * currentPathLen)) * 100))
         : 0;
 
     const hasVisualElement = !!(activeDiagramSvg || activeTableMarkdown);
@@ -1911,7 +2324,7 @@ OUTPUT VALID JSON ONLY:
                         <h1 className="text-sm font-bold text-[#2C241D] truncate flex items-center gap-2">
                             <span>{sessionData?.topic?.topic_name || 'Interactive Voice & Visual Tutorial'}</span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EFE5D8] text-[#8B5A2B] font-bold border border-[#DFD1C0] hidden md:inline">
-                                Dynamic AI Blackboard
+                                Adaptive AI Engine
                             </span>
                         </h1>
                         <p className="text-[11px] text-[#7A6B5C] truncate">
@@ -1955,6 +2368,12 @@ OUTPUT VALID JSON ONLY:
                         </span>
                     </div>
 
+                    {/* 3. Mastery Badge */}
+                    <div className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                        <i className="bi bi-mortarboard-fill text-amber-600"></i>
+                        <span>Mastery {Math.round((conceptMastery.conceptualUnderstanding + conceptMastery.proceduralFluency + conceptMastery.transferAbility) / 3)}%</span>
+                    </div>
+
                     {/* 4. Mute Button */}
                     <button
                         onClick={toggleMute}
@@ -1983,7 +2402,7 @@ OUTPUT VALID JSON ONLY:
                         <i className="bi bi-journal-text text-3xl text-[#8B5A2B]"></i>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-[#2C241D]">Preparing Your Interactive Lesson</h3>
+                        <h3 className="text-lg font-bold text-[#2C241D]">Preparing Your Adaptive Lesson</h3>
                         <p className="text-sm text-[#7A6B5C] mt-1">{sessionData?.topic?.topic_name}</p>
                     </div>
                     <div className="flex flex-col items-center gap-3">
@@ -1991,7 +2410,7 @@ OUTPUT VALID JSON ONLY:
                         <p className="text-sm font-medium text-[#5A4D3E] animate-pulse">{blueprintGenStep}</p>
                     </div>
                     <p className="text-xs text-[#A09080] max-w-xs">
-                        AVELUT is designing a personalized, bit-by-bit lesson blueprint with diagrams, math formulas, and worked examples. Saved to SQLite for instant local resume.
+                        AVELUT is designing an adaptive, diagnostic-driven curriculum tailored to your exact mastery level.
                     </p>
                 </div>
             )}
@@ -2001,7 +2420,7 @@ OUTPUT VALID JSON ONLY:
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in">
                     <div className="text-5xl">🎓</div>
                     <div>
-                        <h3 className="text-2xl font-bold text-[#2C241D]">Topic Complete!</h3>
+                        <h3 className="text-2xl font-bold text-[#2C241D]">Topic Mastered!</h3>
                         <p className="text-xs font-semibold text-[#8B5A2B] mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
                     </div>
                     <p className="text-sm text-[#5A4D3E] max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
@@ -2038,8 +2457,8 @@ OUTPUT VALID JSON ONLY:
                                 <i className="bi bi-journal-bookmark text-[#8B5A2B]"></i>
                                 {sessionData?.topic?.topic_name}
                             </span>
-                            <span className="font-bold text-[#8B5A2B] px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0] shrink-0 ml-2 truncate max-w-[200px]">
-                                Concept {conceptIdx + 1}/{totalConcepts} · {SUB_STEP_LABEL[subStep]}
+                            <span className="font-bold text-[#8B5A2B] px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0] shrink-0 ml-2 truncate max-w-[220px]">
+                                Concept {conceptIdx + 1}/{totalConcepts} · {PHASE_LABEL[subStep] || subStep}
                             </span>
                         </div>
                     )}
@@ -2093,7 +2512,7 @@ OUTPUT VALID JSON ONLY:
                                     </h2>
                                 </div>
                                 <span className="text-[11px] font-mono font-medium text-[#93C5FD] shrink-0">
-                                    {SUB_STEP_LABEL[subStep]}
+                                    {PHASE_LABEL[subStep] || subStep}
                                 </span>
                             </div>
 
