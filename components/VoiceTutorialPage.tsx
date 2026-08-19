@@ -235,211 +235,7 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     return cleaned;
 }
 
-function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramSvg: string | null; tableMarkdown: string | null; caption?: string } {
-    const textContext = `${concept.conceptName} ${concept.keyDefinition} ${concept.formula || ''}`.toLowerCase();
-
-    if (step === 'formula_table') {
-        if (concept.progressionTable && concept.progressionTable.includes('|')) {
-            return { diagramSvg: null, tableMarkdown: concept.progressionTable, caption: 'State Progression Table' };
-        }
-        if (concept.variables && concept.variables.length > 0) {
-            const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | $${v.unit || '\\text{unit}'}$ |`).join('\n');
-            const tableMarkdown = `| Symbol | Quantity / Meaning | SI Unit |\n| :--- | :--- | :--- |\n${rows}`;
-            return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Variables Breakdown` };
-        }
-    }
-
-    if (step === 'distinctions_pitfalls') {
-        if (textContext.includes('distance') || textContext.includes('displacement')) {
-            const tableMarkdown = `| Property | Distance | Displacement |
-| :--- | :--- | :--- |
-| **Type** | Scalar (Magnitude only) | Vector (Magnitude + Direction) |
-| **Sign** | **Always positive ($+$)** | **Can be $(+)$, $(-)$, or $0$** |
-| **Meaning** | Total ground covered | Net straight-line change |`;
-            return { diagramSvg: null, tableMarkdown, caption: 'Key Distinction: Distance vs. Displacement' };
-        }
-        if (textContext.includes('speed') || textContext.includes('velocity')) {
-            const tableMarkdown = `| Property | Speed | Velocity |
-| :--- | :--- | :--- |
-| **Type** | Scalar | Vector |
-| **Formula** | $\\text{Distance} / \\text{Time}$ | $\\text{Displacement} / \\text{Time}$ |
-| **Direction** | Direction does not matter | **Direction is essential** |`;
-            return { diagramSvg: null, tableMarkdown, caption: 'Key Distinction: Speed vs. Velocity' };
-        }
-    }
-
-    // ── 1. Car on Road (Kinematics, Speed, Velocity, Acceleration, Motion) ──
-    if (textContext.includes('car') || textContext.includes('vehicle') || textContext.includes('speed') || textContext.includes('velocity') || textContext.includes('accel') || textContext.includes('motion') || textContext.includes('kinematic')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D9CCBC" /></marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-  </defs>
-  <!-- Road surface & dashed centerline -->
-  <rect x="10" y="160" width="400" height="40" rx="4" fill="#2D333B" stroke="#444C56" stroke-width="2" />
-  <line x1="25" y1="180" x2="75" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
-  <line x1="105" y1="180" x2="165" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
-  <line x1="195" y1="180" x2="255" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
-  <line x1="285" y1="180" x2="345" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
-  <line x1="375" y1="180" x2="405" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
-
-  <!-- Motion wind streaks -->
-  <line x1="30" y1="110" x2="70" y2="110" stroke="#768390" stroke-width="2" stroke-linecap="round" />
-  <line x1="20" y1="125" x2="80" y2="125" stroke="#768390" stroke-width="2" stroke-linecap="round" />
-
-  <!-- Car Body Chassis -->
-  <path d="M 90 148 L 105 115 Q 120 95 155 95 L 225 95 Q 245 95 260 115 L 295 125 L 305 148 Q 305 152 298 152 L 95 152 Q 90 152 90 148 Z" fill="#E6BAA3" stroke="#FFF" stroke-width="2.5" />
-  <!-- Car Roof & Windows -->
-  <path d="M 145 102 L 190 102 L 190 125 L 125 125 Q 135 110 145 102 Z" fill="#22272E" stroke="#FFF" stroke-width="1.8" />
-  <path d="M 200 102 L 230 102 Q 242 110 250 125 L 200 125 Z" fill="#22272E" stroke="#FFF" stroke-width="1.8" />
-  <!-- Headlight -->
-  <polygon points="298,135 305,137 305,145 295,145" fill="#F6E05E" stroke="#FFF" stroke-width="1.5" />
-  <!-- Wheels -->
-  <circle cx="140" cy="155" r="18" fill="#1C2128" stroke="#FFF" stroke-width="2" />
-  <circle cx="140" cy="155" r="7" fill="#ADBAC7" />
-  <circle cx="260" cy="155" r="18" fill="#1C2128" stroke="#FFF" stroke-width="2" />
-  <circle cx="260" cy="155" r="7" fill="#ADBAC7" />
-
-  <!-- Velocity Vector -->
-  <line x1="200" y1="55" x2="340" y2="55" stroke="#63B3ED" stroke-width="3" marker-end="url(#arrow-blue)" />
-  <text x="270" y="45" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="13" fill="#63B3ED">Velocity v = 20 m/s</text>
-  <!-- Acceleration Vector -->
-  <line x1="200" y1="78" x2="290" y2="78" stroke="#FC8181" stroke-width="2.8" marker-end="url(#arrow-red)" />
-  <text x="245" y="72" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">Acceleration a = 3 m/s²</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Moving Car with Velocity & Acceleration Vectors' };
-    }
-
-    // ── 2. Ruler Against Table / Wall (Trig, Angles, Static Equilibrium, Pythagoras) ──
-    if (textContext.includes('ruler') || textContext.includes('table') || textContext.includes('ladder') || textContext.includes('angle') || textContext.includes('wall') || textContext.includes('triangle') || textContext.includes('pythagor') || textContext.includes('incline')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-  </defs>
-  <!-- Floor line -->
-  <line x1="20" y1="180" x2="400" y2="180" stroke="#ADBAC7" stroke-width="3" />
-
-  <!-- Wooden Table (Top & 2 Legs) -->
-  <rect x="230" y="70" width="160" height="18" rx="3" fill="#DDB892" stroke="#FFF" stroke-width="2" />
-  <rect x="250" y="88" width="16" height="92" fill="#C9A680" stroke="#FFF" stroke-width="1.8" />
-  <rect x="360" y="88" width="16" height="92" fill="#C9A680" stroke="#FFF" stroke-width="1.8" />
-  <text x="310" y="60" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FFF">Table Top (Height h)</text>
-
-  <!-- Yellow Wooden Ruler leaning from floor (x=70, y=180) to table edge (x=230, y=70) -->
-  <g transform="translate(70, 180) rotate(-34.5)">
-    <rect x="0" y="-8" width="195" height="16" rx="2" fill="#FEF08A" stroke="#854D0E" stroke-width="2" />
-    <line x1="20" y1="-8" x2="20" y2="-1" stroke="#854D0E" stroke-width="1.5" />
-    <line x1="40" y1="-8" x2="40" y2="2" stroke="#854D0E" stroke-width="2" />
-    <line x1="60" y1="-8" x2="60" y2="-1" stroke="#854D0E" stroke-width="1.5" />
-    <line x1="80" y1="-8" x2="80" y2="2" stroke="#854D0E" stroke-width="2" />
-    <line x1="100" y1="-8" x2="100" y2="-1" stroke="#854D0E" stroke-width="1.5" />
-    <line x1="120" y1="-8" x2="120" y2="2" stroke="#854D0E" stroke-width="2" />
-    <line x1="140" y1="-8" x2="140" y2="-1" stroke="#854D0E" stroke-width="1.5" />
-    <line x1="160" y1="-8" x2="160" y2="2" stroke="#854D0E" stroke-width="2" />
-    <line x1="180" y1="-8" x2="180" y2="-1" stroke="#854D0E" stroke-width="1.5" />
-    <text x="95" y="6" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="10" fill="#854D0E">Ruler (L = 1.0 m)</text>
-  </g>
-
-  <!-- Angle arc θ at base -->
-  <path d="M 115 180 A 45 45 0 0 0 105 155" fill="none" stroke="#63B3ED" stroke-width="2" />
-  <text x="128" y="168" font-family="system-ui" font-weight="bold" font-size="13" fill="#63B3ED">θ = 34.5°</text>
-
-  <!-- Height dimension line -->
-  <line x1="220" y1="70" x2="220" y2="180" stroke="#FC8181" stroke-width="1.5" stroke-dasharray="4 3" />
-  <text x="200" y="130" text-anchor="end" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">h = 0.57 m</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ruler Leaning Against a Table with Angle and Height' };
-    }
-
-    // ── 3. Ball / Projectile Launched from Cliff ──
-    if (textContext.includes('cliff') || textContext.includes('drop') || textContext.includes('projectile') || textContext.includes('gravity') || textContext.includes('fall') || textContext.includes('height') || textContext.includes('ball')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-  </defs>
-  <!-- Stone Cliff -->
-  <path d="M 10 190 L 140 190 L 140 70 L 10 70 Z" fill="#2D333B" stroke="#ADBAC7" stroke-width="2.5" />
-  <text x="75" y="135" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="13" fill="#FFF">Cliff (Height h)</text>
-
-  <!-- Water / Ground below -->
-  <line x1="140" y1="190" x2="410" y2="190" stroke="#3182CE" stroke-width="3" />
-
-  <!-- Ball on cliff edge -->
-  <circle cx="140" cy="60" r="10" fill="#E53E3E" stroke="#FFF" stroke-width="2" />
-  <!-- Horizontal velocity arrow -->
-  <line x1="150" y1="60" x2="230" y2="60" stroke="#63B3ED" stroke-width="3" marker-end="url(#arrow-blue)" />
-  <text x="190" y="48" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#63B3ED">v_x = 15 m/s</text>
-
-  <!-- Parabolic trajectory path -->
-  <path d="M 140 60 Q 230 65 330 188" fill="none" stroke="#FC8181" stroke-width="2.5" stroke-dasharray="6 4" />
-  <circle cx="330" cy="188" r="10" fill="#E53E3E" stroke="#FFF" stroke-width="2" />
-  <line x1="250" y1="90" x2="250" y2="140" stroke="#FC8181" stroke-width="2.5" marker-end="url(#arrow-red)" />
-  <text x="260" y="120" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">g = 9.8 m/s²</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ball Launched Horizontally Off a Cliff (Projectile Motion)' };
-    }
-
-    // ── 4. Pulley & Suspended Masses (Atwood Machine, Tension, Dynamics) ──
-    if (textContext.includes('pulley') || textContext.includes('tension') || textContext.includes('string') || textContext.includes('rope') || textContext.includes('hanging')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
-  </defs>
-  <line x1="140" y1="20" x2="280" y2="20" stroke="#ADBAC7" stroke-width="3" />
-  <line x1="210" y1="20" x2="210" y2="50" stroke="#ADBAC7" stroke-width="3" />
-
-  <!-- Pulley wheel -->
-  <circle cx="210" cy="65" r="22" fill="#2D333B" stroke="#FFF" stroke-width="2.5" />
-  <circle cx="210" cy="65" r="6" fill="#FFF" />
-
-  <!-- Rope over pulley -->
-  <line x1="188" y1="65" x2="188" y2="130" stroke="#F6AD55" stroke-width="2.5" />
-  <line x1="232" y1="65" x2="232" y2="155" stroke="#F6AD55" stroke-width="2.5" />
-
-  <!-- Mass A (Left, lighter) -->
-  <rect x="168" y="130" width="40" height="35" rx="4" fill="#22272E" stroke="#FFF" stroke-width="2" />
-  <text x="188" y="152" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FFF">m₁</text>
-
-  <!-- Mass B (Right, heavier) -->
-  <rect x="212" y="155" width="40" height="45" rx="4" fill="#E6BAA3" stroke="#FFF" stroke-width="2" />
-  <text x="232" y="182" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#22272E">m₂</text>
-
-  <!-- Tension T & Gravity arrows -->
-  <line x1="150" y1="125" x2="150" y2="95" stroke="#68D391" stroke-width="2" marker-end="url(#arrow-green)" />
-  <text x="142" y="112" text-anchor="end" font-family="system-ui" font-weight="bold" font-size="11" fill="#68D391">T</text>
-  <line x1="270" y1="175" x2="270" y2="205" stroke="#FC8181" stroke-width="2" marker-end="url(#arrow-red)" />
-  <text x="278" y="195" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">m₂g</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Pulley with Hanging Masses (Tension & Gravity)' };
-    }
-
-    // ── 5. Standard Dynamics & Free-Body Force Diagram ──
-    if (textContext.includes('force') || textContext.includes('newton') || textContext.includes('mass')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
-  </defs>
-  <line x1="30" y1="160" x2="390" y2="160" stroke="#ADBAC7" stroke-width="2.5" />
-  <rect x="150" y="100" width="120" height="60" rx="8" fill="#22272E" stroke="#FFF" stroke-width="2.5" />
-  <text x="210" y="136" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="14" fill="#FFF">Mass m</text>
-  <line x1="270" y1="130" x2="360" y2="130" stroke="#FC8181" stroke-width="3" marker-end="url(#arrow-red)" />
-  <text x="315" y="120" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">F_net</text>
-  <line x1="210" y1="100" x2="210" y2="30" stroke="#68D391" stroke-width="2.5" marker-end="url(#arrow-green)" />
-  <text x="210" y="22" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#68D391">Normal Force F_N</text>
-  <line x1="210" y1="160" x2="210" y2="210" stroke="#FC8181" stroke-width="2.5" marker-end="url(#arrow-red)" />
-  <text x="210" y="218" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">Gravity W = mg</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Free-Body Force Diagram' };
-    }
-
-    return { diagramSvg: null, tableMarkdown: null };
-}
+// Visuals (SVG diagrams, Markdown tables) are dynamically generated exclusively by the AI in real time.
 
 // ── Pure Board Content Generators for Fallback ────────────────────────────────
 function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
@@ -1338,11 +1134,9 @@ OUTPUT VALID JSON ONLY:
             if (!aiClient || !isActiveRef.current) {
                 setIsLoadingUnit(false);
                 streamBoardLines(getBoardLines(concept, sStep));
-                const fallback = getFallbackVisual(concept, sStep);
-                setActiveDiagramSvg(fallback.diagramSvg);
-                setActiveTableMarkdown(fallback.tableMarkdown);
-                setActiveVisualCaption(fallback.caption || null);
-                setDiagramKey(k => k + 1);
+                setActiveDiagramSvg(null);
+                setActiveTableMarkdown(null);
+                setActiveVisualCaption(null);
                 await speakText(getSpokenText(concept, sStep));
                 return;
             }
@@ -1397,25 +1191,21 @@ OUTPUT VALID JSON ONLY:
                 setActiveVisualCaption(parsed.diagramCaption || `${concept.conceptName} Table`);
                 setDiagramKey(k => k + 1);
             } else {
-                const fallback = getFallbackVisual(concept, sStep);
-                setActiveDiagramSvg(fallback.diagramSvg);
-                setActiveTableMarkdown(fallback.tableMarkdown);
-                setActiveVisualCaption(fallback.caption || null);
-                setDiagramKey(k => k + 1);
+                setActiveDiagramSvg(null);
+                setActiveTableMarkdown(null);
+                setActiveVisualCaption(null);
             }
 
             await speakText(parsed.spokenExplanation);
 
         } catch (err) {
-            console.warn('[PresentUnit] fallback used:', err);
+            console.warn('[PresentUnit] presentation error:', err);
             if (!isActiveRef.current) return;
             setIsLoadingUnit(false);
             streamBoardLines(getBoardLines(concept, sStep));
-            const fallback = getFallbackVisual(concept, sStep);
-            setActiveDiagramSvg(fallback.diagramSvg);
-            setActiveTableMarkdown(fallback.tableMarkdown);
-            setActiveVisualCaption(fallback.caption || null);
-            setDiagramKey(k => k + 1);
+            setActiveDiagramSvg(null);
+            setActiveTableMarkdown(null);
+            setActiveVisualCaption(null);
             await speakText(getSpokenText(concept, sStep));
         }
     }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
@@ -1674,57 +1464,63 @@ OUTPUT VALID JSON ONLY:
         }
     };
 
-    const toggleMic = () => {
-        if (isMicListening) {
-            stopMicImmediate();
-        } else {
-            if (isSpeaking) {
-                stopAudioImmediate();
-            }
-            startMicListening();
+    const currentTopicIdx = sessionData?.course?.topics?.findIndex(
+        t => t.topic_id === sessionData?.topic?.topic_id
+    ) ?? -1;
+    const nextTopic = (currentTopicIdx >= 0 && sessionData?.course?.topics && currentTopicIdx + 1 < sessionData.course.topics.length)
+        ? sessionData.course.topics[currentTopicIdx + 1]
+        : null;
+
+    const handleNextTopic = useCallback(async () => {
+        if (!nextTopic || !sessionData) {
+            void handleGoBack();
+            return;
         }
-    };
-
-    const toggleMute = () => {
-        if (!isMuted) {
-            stopAudioImmediate();
-            setIsMuted(true);
-        } else {
-            setIsMuted(false);
-            if (lastSpokenTextRef.current) {
-                void speakText(lastSpokenTextRef.current);
-            } else if (blueprint) {
-                const concept = blueprint.concepts[conceptIdxRef.current];
-                if (concept) void speakText(getSpokenText(concept, subStepRef.current));
-            }
-        }
-    };
-
-    const handleSpeedChange = () => {
-        const speeds = [1.0, 1.15, 1.35];
-        const next   = speeds[(speeds.indexOf(speechRate) + 1) % speeds.length];
-        setSpeechRate(next);
-        addToast(`Speed: ${next}x`, 'info');
-    };
-
-    const handleGoBack = useCallback(async () => {
-        setIsNavigatingBack(true);
-        isActiveRef.current = false;
         stopAudioImmediate();
         clearAllStreamTimers();
         stopMicImmediate();
 
-        if (blueprint) {
-            const uid = userProfile?.uid || 'anon';
-            const cid = sessionData?.course?.course_id || 'general';
-            const tid = sessionData?.topic?.topic_id || 'core';
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, subStepRef.current, false, blueprint);
+        const newSessionData: VoiceTutorialSessionData = {
+            course: sessionData.course,
+            topic: nextTopic,
+        };
+        writeCachedJson('avelut_active_voice_tutorial', newSessionData);
+        setSessionData(newSessionData);
+        setBlueprint(null);
+        setIsDone(false);
+        setConceptIdx(0);
+        setSubStep('intuition_hook');
+        conceptIdxRef.current = 0;
+        subStepRef.current = 'intuition_hook';
+        dialogueHistoryRef.current = [];
+        setVisibleBoardLines([]);
+        setActiveDiagramSvg(null);
+        setActiveTableMarkdown(null);
+        setActiveVisualCaption(null);
+
+        const uid = userProfile?.uid || 'anon';
+        const cid = newSessionData.course?.course_id || 'general';
+        const tid = nextTopic.topic_id;
+
+        const studentMem = await getStudentCognitiveProfile(uid);
+        const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
+        let bp: LessonBlueprint | null = sqliteRecord?.blueprint || null;
+
+        if (!bp) {
+            bp = await generateBlueprint(newSessionData, studentMem);
+            if (!bp || !isActiveRef.current) return;
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition_hook', false, bp);
         }
 
-        await new Promise(r => setTimeout(r, 80));
-        if (onNavigate) onNavigate('study_guide');
-        else window.history.back();
-    }, [blueprint, userProfile, onNavigate, sessionData]);
+        if (!isActiveRef.current) return;
+        setBlueprint(bp);
+        const defaultActs = getDefaultActions('intuition_hook');
+        positiveActionRef.current = defaultActs.positive;
+        setPositiveAction(defaultActs.positive);
+        setNegativeAction(defaultActs.negative);
+
+        await presentUnit(bp, 0, 'intuition_hook', studentMem, true);
+    }, [nextTopic, sessionData, handleGoBack, userProfile, generateBlueprint, presentUnit]);
 
     const currentConcept  = blueprint?.concepts[conceptIdx];
     const totalConcepts   = blueprint?.concepts.length ?? 0;
@@ -1748,24 +1544,25 @@ OUTPUT VALID JSON ONLY:
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-[#4A3E31] text-xs font-bold active:scale-95 cursor-pointer shadow-xs transition-all shrink-0"
                     >
                         <i className="bi bi-arrow-left text-sm"></i>
-                        <span className="hidden sm:inline">{isNavigatingBack ? 'Saving...' : 'Study Guide'}</span>
+                        <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[10px] font-black tracking-widest uppercase text-[#8B5A2B]">
-                            {isGeneratingBlueprint ? '⚙ Preparing lesson...' : SUB_STEP_LABEL[subStep]}
-                        </span>
-                        <h2 className="text-sm font-bold text-[#2C241D] truncate max-w-[160px] sm:max-w-xs">
-                            {sessionData?.course.course_name}
-                        </h2>
+                    <div className="min-w-0">
+                        <h1 className="text-sm font-bold text-[#2C241D] truncate flex items-center gap-2">
+                            <span>{sessionData?.topic?.topic_name || 'Interactive Voice & Visual Tutorial'}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EFE5D8] text-[#8B5A2B] font-bold border border-[#DFD1C0] hidden md:inline">
+                                Dynamic AI Blackboard
+                            </span>
+                        </h1>
+                        <p className="text-[11px] text-[#7A6B5C] truncate">
+                            {sessionData?.course?.course_name || 'Course Topic'}
+                        </p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FFFDFB] border border-[#D9CCBC] rounded-full text-[11px] font-semibold text-[#4A3E31] shadow-xs">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
                         {isTtsLoading ? (
-                            <span className="w-2 h-2 rounded-full bg-[#D4A373] animate-pulse shrink-0" />
-                        ) : isPaused ? (
-                            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-[#8B5A2B] animate-ping shrink-0" />
                         ) : (
                             <span className={`w-2 h-2 rounded-full shrink-0 ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
                         )}
@@ -1819,16 +1616,32 @@ OUTPUT VALID JSON ONLY:
 
             {/* ── Completion screen ─────────────────────────────────────── */}
             {isDone && !isGeneratingBlueprint && (
-                <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6">
+                <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in">
                     <div className="text-5xl">🎓</div>
-                    <h3 className="text-2xl font-bold text-[#2C241D]">Topic Complete!</h3>
-                    <p className="text-sm text-[#5A4D3E] max-w-sm">{blueprint?.overallSummary}</p>
-                    <button
-                        onClick={handleGoBack}
-                        className="px-8 py-3 bg-[#8B5A2B] text-white rounded-2xl font-bold text-sm shadow-md hover:bg-[#7A4D24] transition-colors active:scale-95 cursor-pointer"
-                    >
-                        Back to Study Guide
-                    </button>
+                    <div>
+                        <h3 className="text-2xl font-bold text-[#2C241D]">Topic Complete!</h3>
+                        <p className="text-xs font-semibold text-[#8B5A2B] mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
+                    </div>
+                    <p className="text-sm text-[#5A4D3E] max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
+                        {nextTopic ? (
+                            <button
+                                onClick={handleNextTopic}
+                                className="w-full sm:flex-1 py-3.5 px-6 bg-[#8B5A2B] hover:bg-[#7A4D24] text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                <span>Next Topic: {nextTopic.topic_name}</span>
+                                <i className="bi bi-arrow-right font-bold"></i>
+                            </button>
+                        ) : null}
+                        <button
+                            onClick={handleGoBack}
+                            className={`w-full ${nextTopic ? 'sm:flex-1' : 'sm:w-auto px-8'} py-3.5 bg-[#FFFDFB] hover:bg-[#EFE5D8] border border-[#D9CCBC] text-[#5A4D3E] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2`}
+                        >
+                            <i className="bi bi-journal-check"></i>
+                            <span>Return to Study Guide</span>
+                        </button>
+                    </div>
                 </div>
             )}
 
