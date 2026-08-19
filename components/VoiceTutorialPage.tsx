@@ -20,6 +20,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import katex from 'katex';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TUTOR_VOICE = 'Charon';
@@ -202,7 +203,82 @@ function getDefaultActions(step: SubStep): {
     }
 }
 
-// ── Visual Diagram Helpers ────────────────────────────────────────────────────
+// ── Visual Diagram Helpers with KaTeX Math Rendering ─────────────────────────
+function renderKatexInSvg(svgString: string): string {
+    return svgString.replace(/<text([^>]*)>([\s\S]*?)<\/text>/gi, (fullMatch, attrStr, content) => {
+        const rawContent = content.trim();
+        const hasMath = rawContent.includes('$') || /\\(frac|sqrt|text|theta|alpha|beta|gamma|lambda|omega|pi|sum|int|partial|times|cdot|approx|ne|le|ge|pm|infty|vec|hat|bar|dot|ddot|[a-zA-Z]+)/.test(rawContent);
+        if (!hasMath) {
+            return fullMatch;
+        }
+
+        const xMatch = attrStr.match(/\bx=["']?(-?[\d.]+)/i);
+        const yMatch = attrStr.match(/\by=["']?(-?[\d.]+)/i);
+        const fillMatch = attrStr.match(/\bfill=["']?([^"'\s>]+)/i);
+        const sizeMatch = attrStr.match(/\bfont-size=["']?([^"'\s>]+)/i);
+        const anchorMatch = attrStr.match(/\btext-anchor=["']?([^"'\s>]+)/i);
+        const weightMatch = attrStr.match(/\bfont-weight=["']?([^"'\s>]+)/i);
+
+        const origX = xMatch ? parseFloat(xMatch[1]) : 0;
+        const origY = yMatch ? parseFloat(yMatch[1]) : 0;
+        const fill = fillMatch ? fillMatch[1] : '#FFFFFF';
+        const fontSize = sizeMatch ? sizeMatch[1].replace(/px$/, '') + 'px' : '13px';
+        const anchor = anchorMatch ? anchorMatch[1].toLowerCase() : 'start';
+        const fontWeight = weightMatch ? weightMatch[1] : 'normal';
+
+        const foWidth = 200;
+        const foHeight = 60;
+
+        let foX = origX;
+        let justify = 'flex-start';
+        let textAlign = 'left';
+
+        if (anchor === 'middle') {
+            foX = origX - (foWidth / 2);
+            justify = 'center';
+            textAlign = 'center';
+        } else if (anchor === 'end') {
+            foX = origX - foWidth;
+            justify = 'flex-end';
+            textAlign = 'right';
+        }
+
+        // In SVG <text>, y is the baseline. Offset vertically to center the foreignObject box.
+        const foY = origY - 30;
+
+        let formattedContent = rawContent;
+        if (formattedContent.includes('$')) {
+            formattedContent = formattedContent
+                .replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+                    try {
+                        return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
+                    } catch {
+                        return math;
+                    }
+                })
+                .replace(/\$([^\$]+)\$/g, (_, math) => {
+                    try {
+                        return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
+                    } catch {
+                        return math;
+                    }
+                });
+        } else {
+            try {
+                formattedContent = katex.renderToString(rawContent, { displayMode: false, throwOnError: false });
+            } catch {
+                formattedContent = rawContent;
+            }
+        }
+
+        return `<foreignObject x="${foX}" y="${foY}" width="${foWidth}" height="${foHeight}" overflow="visible">
+  <div xmlns="http://www.w3.org/1999/xhtml" style="color: ${fill}; font-size: ${fontSize}; font-family: system-ui, -apple-system, sans-serif; font-weight: ${fontWeight}; display: flex; align-items: center; justify-content: ${justify}; text-align: ${textAlign}; width: 100%; height: 100%; pointer-events: none; line-height: 1.1;">
+    ${formattedContent}
+  </div>
+</foreignObject>`;
+    });
+}
+
 function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     if (!rawSvg || typeof rawSvg !== 'string') return null;
     let cleaned = rawSvg.trim();
@@ -231,6 +307,9 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
   </defs>`;
         cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
     }
+
+    // Render KaTeX mathematical formulas inside SVG labels
+    cleaned = renderKatexInSvg(cleaned);
 
     return cleaned;
 }
