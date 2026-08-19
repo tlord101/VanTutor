@@ -286,11 +286,11 @@ class KittenTtsService {
     }
 
     /**
-     * Fetches 24 kHz MP3 audio for a given sentence directly from https://api.kittenml.com/v1/audio/speech
+     * Fetches 24 kHz MP3 audio for the whole board text directly from the KittenML API with automatic retries.
      */
-    private async fetchKittenMLAudio(sentence: string, speed = 1.0, voice?: KittenVoice): Promise<string | null> {
+    private async fetchKittenMLAudio(text: string, speed = 1.0, voice?: KittenVoice, retries = 2): Promise<string | null> {
         const voiceToUse = voice || this.selectedVoice;
-        const cacheKey = `${voiceToUse}__${sentence}__${speed}`;
+        const cacheKey = `${voiceToUse}__${text}__${speed}`;
         if (this.audioBlobCache.has(cacheKey)) {
             return this.audioBlobCache.get(cacheKey)!;
         }
@@ -298,39 +298,50 @@ class KittenTtsService {
         const endpoint = this.getApiEndpoint();
         const apiKey = this.getApiKey();
 
-        try {
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (apiKey) {
-                headers['Authorization'] = `Bearer ${apiKey}`;
-            }
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json',
+                };
+                if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    model: KITTEN_MODEL_NAME, // 'kitten-tts-mini-0.8' (24 kHz)
-                    voice: voiceToUse,
-                    input: sentence,
-                    response_format: 'mp3',
-                    speed: speed || 1.0,
-                }),
-            });
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        model: KITTEN_MODEL_NAME, // 'kitten-tts-mini-0.8' (24 kHz)
+                        voice: voiceToUse,
+                        input: text,
+                        response_format: 'mp3',
+                        speed: speed || 1.0,
+                    }),
+                });
 
-            if (!response.ok) {
-                console.warn('[KittenML API] Non-200 response:', response.status);
+                if (!response.ok) {
+                    console.warn(`[KittenML API] Attempt ${attempt + 1} returned status ${response.status}`);
+                    if (attempt < retries) {
+                        await new Promise(r => setTimeout(r, 600));
+                        continue;
+                    }
+                    return null;
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                this.audioBlobCache.set(cacheKey, objectUrl);
+                return objectUrl;
+            } catch (err) {
+                console.warn(`[KittenML API] Network error on attempt ${attempt + 1}:`, err);
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, 600));
+                    continue;
+                }
                 return null;
             }
-
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            this.audioBlobCache.set(cacheKey, objectUrl);
-            return objectUrl;
-        } catch (err) {
-            console.warn('[KittenML API] Network error:', err);
-            return null;
         }
+        return null;
     }
 
     private getVoiceForCharacter(voiceName: KittenVoice): SpeechSynthesisVoice | null {
@@ -384,8 +395,8 @@ class KittenTtsService {
     }
 
     /**
-     * Synthesize and speak text sentence-by-sentence using selected KittenTTS 24 kHz voice.
-     * Uses KittenML Speech API with parallel prefetching for zero-latency instant start.
+     * Synthesize and speak the whole board text in one complete audio stream using selected KittenTTS 24 kHz voice.
+     * Includes automatic retries and on-device fallback.
      */
     public speak(
         text: string,
@@ -407,17 +418,9 @@ class KittenTtsService {
             return { stop: () => {} };
         }
 
-        const sentences = this.splitIntoSentences(spokenText);
-        if (sentences.length === 0) {
-            options?.onEnd?.();
-            return { stop: () => {} };
-        }
-
         const voiceToUse = options?.voice || this.selectedVoice;
         const sessionId = ++this.activePlaybackSessionId;
-        let sentenceIndex = 0;
         let isStopped = false;
-        let hasTriggeredStart = false;
 
         const stop = () => {
             isStopped = true;
@@ -439,75 +442,53 @@ class KittenTtsService {
             this.currentUtterance = null;
         };
 
-        // Prefetch helper for next sentences
-        const prefetchSentence = (idx: number) => {
-            if (idx < sentences.length) {
-                void this.fetchKittenMLAudio(sentences[idx], options?.rate || 1.0, voiceToUse);
-            }
-        };
+        const playWholeBoardAudio = async () => {
+            if (isStopped || this.activePlaybackSessionId !== sessionId) return;
 
-        const playNextSentence = async () => {
-            if (isStopped || this.activePlaybackSessionId !== sessionId) {
-                return;
-            }
-
-            if (sentenceIndex >= sentences.length) {
-                this.currentAudioElement = null;
-                this.currentUtterance = null;
-                options?.onEnd?.();
-                return;
-            }
-
-            const currentSentence = sentences[sentenceIndex];
-            // Prefetch next sentence in advance while current plays
-            prefetchSentence(sentenceIndex + 1);
-
-            // 1. Attempt KittenML Cloud 24 kHz Speech API
-            const audioUrl = await this.fetchKittenMLAudio(currentSentence, options?.rate || 1.0, voiceToUse);
+            // 1. Fetch complete board audio with automatic retries
+            const audioUrl = await this.fetchKittenMLAudio(spokenText, options?.rate || 1.0, voiceToUse, 2);
             if (isStopped || this.activePlaybackSessionId !== sessionId) return;
 
             if (audioUrl) {
                 try {
                     const audio = new Audio(audioUrl);
-                    audio.playbackRate = options?.rate || 1.0;
                     this.currentAudioElement = audio;
 
                     audio.onplay = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        if (!hasTriggeredStart) {
-                            hasTriggeredStart = true;
-                            options?.onStart?.();
-                        }
+                        options?.onStart?.();
                     };
 
                     audio.onended = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        sentenceIndex++;
-                        void playNextSentence();
+                        this.currentAudioElement = null;
+                        options?.onEnd?.();
                     };
 
                     audio.onerror = (e) => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        sentenceIndex++;
-                        if (sentenceIndex < sentences.length) {
-                            void playNextSentence();
-                        } else {
-                            options?.onError?.(e);
-                        }
+                        console.warn('[KittenML] Playback error, falling back to synthesis:', e);
+                        playFallbackSynthesis();
                     };
 
                     await audio.play();
                     return;
                 } catch (err) {
-                    console.warn('[KittenML] HTMLAudio playback error, falling back:', err);
+                    console.warn('[KittenML] Audio play error:', err);
                 }
             }
 
-            // 2. High Quality Browser Fallback if API key not set or network blocked
+            // 2. High Quality Browser Fallback if API is offline or retries exhausted
+            playFallbackSynthesis();
+        };
+
+        const playFallbackSynthesis = () => {
+            if (isStopped || this.activePlaybackSessionId !== sessionId) return;
+
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
                 try {
-                    const utterance = new SpeechSynthesisUtterance(currentSentence);
-                    utterance.rate = options?.rate || 1.05;
+                    const utterance = new SpeechSynthesisUtterance(spokenText);
+                    utterance.rate = 1.0;
                     utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.95 : 1.02;
 
                     const matchedVoice = this.getVoiceForCharacter(voiceToUse);
@@ -515,46 +496,33 @@ class KittenTtsService {
 
                     utterance.onstart = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        if (!hasTriggeredStart) {
-                            hasTriggeredStart = true;
-                            options?.onStart?.();
-                        }
+                        options?.onStart?.();
                     };
 
                     utterance.onend = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        sentenceIndex++;
-                        void playNextSentence();
+                        this.currentUtterance = null;
+                        options?.onEnd?.();
                     };
 
                     utterance.onerror = (e) => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        sentenceIndex++;
-                        if (sentenceIndex < sentences.length) {
-                            void playNextSentence();
-                        } else {
-                            options?.onError?.(e);
-                        }
+                        this.currentUtterance = null;
+                        options?.onError?.(e);
                     };
 
                     this.currentUtterance = utterance;
                     window.speechSynthesis.speak(utterance);
                     return;
                 } catch (err) {
-                    console.warn('[KittenTTS] Utterance error:', err);
+                    console.warn('[KittenTTS] Fallback synthesis error:', err);
                 }
             }
 
-            // In extreme offline / no audio case
-            sentenceIndex++;
-            if (sentenceIndex < sentences.length) {
-                void playNextSentence();
-            } else {
-                options?.onEnd?.();
-            }
+            options?.onEnd?.();
         };
 
-        void playNextSentence();
+        void playWholeBoardAudio();
 
         return { stop };
     }

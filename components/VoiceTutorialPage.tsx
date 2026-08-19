@@ -29,13 +29,6 @@ import { kittenTts, KittenVoice, KITTEN_VOICE_LIST } from '../services/kittenTts
 const MAX_BOARD_LINES = 6;
 const LINE_STREAM_MS = 300;
 
-const SPEED_PRESETS = [
-    { label: 'Slow', rate: 0.8 },
-    { label: '1x', rate: 1.0 },
-    { label: 'Normal', rate: 1.2 },
-    { label: '1.5x', rate: 1.5 },
-];
-
 // ── Pedagogical Multi-Board Step Ordering (9 Boards per Concept) ─────────────
 export type SubStep =
     | 'intuition_hook'        // Board 1: Real-world motivation & relatable opening question
@@ -678,7 +671,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isMuted, setIsMuted] = useState(false);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [isMicListening, setIsMicListening] = useState(false);
-    const [speechRate, setSpeechRate] = useState(1.5);
     const [textInput, setTextInput] = useState('');
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
@@ -931,7 +923,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         setIsPaused(false);
 
         const player = kittenTts.speak(cleanedText, {
-            rate: speechRate,
             cleanText: true,
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -957,7 +948,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         });
 
         currentAudioRef.current = player as any;
-    }, [isMuted, speechRate, startMicListening]);
+    }, [isMuted, startMicListening]);
 
     // ── Board Line Streaming ─────────────────────────────────────────────────
     const streamBoardLines = useCallback((lines: string[]) => {
@@ -1781,13 +1772,6 @@ OUTPUT VALID JSON ONLY:
         }
     };
 
-    const handleSpeedChange = () => {
-        const currentIdx = SPEED_PRESETS.findIndex(s => s.rate === speechRate);
-        const next = SPEED_PRESETS[(currentIdx + 1) % SPEED_PRESETS.length] || SPEED_PRESETS[1];
-        setSpeechRate(next.rate);
-        addToast(`Speed: ${next.label} (${next.rate}x)`, 'info');
-    };
-
     const handlePreviewVoice = (voiceId: KittenVoice, e: React.MouseEvent) => {
         e.stopPropagation();
         if (previewingVoice === voiceId) {
@@ -1973,16 +1957,7 @@ OUTPUT VALID JSON ONLY:
                         <i className={`bi bi-chevron-${showVoiceModal ? 'up' : 'down'} text-[10px] text-[#8B5A2B]`}></i>
                     </button>
 
-                    {/* 2. Speed Preset Toggle Button (Slow 0.8x, 1x, Normal 1.2x, 1.5x) */}
-                    <button
-                        onClick={handleSpeedChange}
-                        className="px-2.5 py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-bold text-[#4A3E31] cursor-pointer shadow-xs transition-colors active:scale-95"
-                        title="Toggle Speed (Slow, 1x, Normal, 1.5x)"
-                    >
-                        <span>{SPEED_PRESETS.find(s => s.rate === speechRate)?.label || `${speechRate}x`}</span>
-                    </button>
-
-                    {/* 3. Live State Status Badge */}
+                    {/* 2. Live State Status Badge */}
                     <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
                         {isTtsLoading ? (
                             <span className="w-2 h-2 rounded-full bg-[#8B5A2B] animate-ping shrink-0" />
