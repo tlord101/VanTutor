@@ -579,10 +579,21 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setTopicPickerCourse(null)} />
-                <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 z-50 flex flex-col max-h-[85vh] animate-scale-in">
+                {/* Backdrop */}
+                <div 
+                    className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer" 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setTopicPickerCourse(null);
+                    }} 
+                />
+                
+                <div 
+                    className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 z-50 flex flex-col max-h-[85vh] animate-scale-in"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/40">
-                        <div>
+                        <div className="pr-3">
                             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                                 {topicPickerCourse.course_code || topicPickerCourse.course_name}
                             </h3>
@@ -591,14 +602,20 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             </p>
                         </div>
                         <button
-                            onClick={() => setTopicPickerCourse(null)}
-                            className="w-8 h-8 rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition-colors"
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setTopicPickerCourse(null);
+                            }}
+                            className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                            aria-label="Close modal"
+                            title="Close"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <div className="p-4 overflow-y-auto space-y-3 flex-1">
+                    <div className="p-4 overflow-y-auto space-y-3 flex-1 [scrollbar-width:thin]">
                         {coursePinned.length > 0 && (
                             <div className="space-y-2 mb-4">
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -608,10 +625,19 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                 {coursePinned.map((p) => (
                                     <div
                                         key={p.key}
-                                        className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950 bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                                        onClick={() => {
+                                            setSelectedCourse(topicPickerCourse);
+                                            setTopicToOpen({
+                                                topic_id: p.topic_id,
+                                                topic_name: p.topic_name,
+                                                topic_context: p.topic_context,
+                                            });
+                                            setTopicPickerCourse(null);
+                                        }}
+                                        className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950 bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer group"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                                 {p.topic_name}
                                             </div>
                                             {p.topic_context && (
@@ -622,7 +648,9 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <button
-                                                onClick={() => {
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setSelectedCourse(topicPickerCourse);
                                                     setTopicToOpen({
                                                         topic_id: p.topic_id,
@@ -631,17 +659,22 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                                     });
                                                     setTopicPickerCourse(null);
                                                 }}
-                                                className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
+                                                className="w-9 h-9 flex items-center justify-center bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-full shadow-sm shadow-emerald-600/20 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                                                title="Start Topic Tutorial"
                                             >
-                                                Start
+                                                <ChevronRight className="w-4 h-4 stroke-[3]" />
                                             </button>
                                             <button
-                                                onClick={() => togglePinTopic(topicPickerCourse, {
-                                                    topic_id: p.topic_id,
-                                                    topic_name: p.topic_name,
-                                                    topic_context: p.topic_context,
-                                                })}
-                                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    togglePinTopic(topicPickerCourse, {
+                                                        topic_id: p.topic_id,
+                                                        topic_name: p.topic_name,
+                                                        topic_context: p.topic_context,
+                                                    });
+                                                }}
+                                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                                                 title="Unpin topic"
                                             >
                                                 <X className="w-3.5 h-3.5" />
@@ -672,16 +705,25 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                     return (
                                         <div
                                             key={t.topic_id || idx}
-                                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                                            onClick={() => {
+                                                setSelectedCourse(topicPickerCourse);
+                                                setTopicToOpen(t);
+                                                setTopicPickerCourse(null);
+                                            }}
+                                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 hover:border-emerald-200 dark:hover:border-emerald-800/60 transition-all cursor-pointer group"
                                         >
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                                    <span className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                                         {t.topic_name}
                                                     </span>
                                                     <button
-                                                        onClick={() => togglePinTopic(topicPickerCourse, t)}
-                                                        className={`text-xs p-1 rounded-md transition-colors ${
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            togglePinTopic(topicPickerCourse, t);
+                                                        }}
+                                                        className={`text-xs p-1 rounded-md transition-colors cursor-pointer ${
                                                             isPinned
                                                                 ? 'text-emerald-500 font-bold'
                                                                 : 'text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400'
@@ -698,14 +740,17 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                                 )}
                                             </div>
                                             <button
-                                                onClick={() => {
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setSelectedCourse(topicPickerCourse);
                                                     setTopicToOpen(t);
                                                     setTopicPickerCourse(null);
                                                 }}
-                                                className="px-3.5 py-1.5 bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-emerald-600 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95"
+                                                className="w-9 h-9 flex items-center justify-center bg-slate-100 hover:bg-emerald-600 text-slate-600 hover:text-white dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-emerald-600 dark:hover:text-white rounded-full transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs group-hover:bg-emerald-600 group-hover:text-white"
+                                                title="Start Topic Tutorial"
                                             >
-                                                Start
+                                                <ChevronRight className="w-4 h-4 stroke-[3]" />
                                             </button>
                                         </div>
                                     );
@@ -716,18 +761,24 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
                     <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex gap-3">
                         <button
+                            type="button"
                             onClick={() => {
                                 setSelectedCourse(topicPickerCourse);
                                 setTopicToOpen(null);
                                 setTopicPickerCourse(null);
                             }}
-                            className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl py-3 text-sm font-extrabold shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                            className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl py-3 text-sm font-extrabold shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            Start Full Course
+                            <span>Start Full Course</span>
+                            <ChevronRight className="w-4 h-4 stroke-[3]" />
                         </button>
                         <button
-                            onClick={() => setTopicPickerCourse(null)}
-                            className="px-5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl py-3 text-sm font-bold transition-colors"
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setTopicPickerCourse(null);
+                            }}
+                            className="px-5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl py-3 text-sm font-bold transition-colors cursor-pointer"
                         >
                             Cancel
                         </button>
