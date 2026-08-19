@@ -50,6 +50,10 @@ class KittenTtsService {
             if (custom) return custom;
             const stored = localStorage.getItem('avelut_tts_api_endpoint') || localStorage.getItem('KITTENML_API_ENDPOINT');
             if (stored) return stored;
+            // On web browsers, use same-origin /api/speech proxy to eliminate CORS restrictions
+            if (typeof window !== 'undefined' && window.location?.origin) {
+                return '/api/speech';
+            }
         } catch {}
         return KITTEN_API_ENDPOINT;
     }
