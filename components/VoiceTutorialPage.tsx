@@ -509,6 +509,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [blueprint, setBlueprint] = useState<LessonBlueprint | null>(null);
     const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
     const [blueprintGenStep, setBlueprintGenStep] = useState('');
+    const [isModelDownloading, setIsModelDownloading] = useState(false);
+    const [modelDownloadProgress, setModelDownloadProgress] = useState(0);
     const [showScannedImageModal, setShowScannedImageModal] = useState(false);
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
@@ -777,160 +779,39 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        // High-speed Kitten TTS on-device voice engine
-        const kittenStatus = kittenTts.getStatus();
-        const usePersonal = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
-        const apiKey = usePersonal
-            ? userProfile!.personal_api_key!.trim()
-            : (appSettings?.gemini_api_key?.trim() || '');
+        // On-Device Kitten TTS Voice Synthesis (Zero Cloud API Queries, Zero Quota Consumption)
+        setIsTtsLoading(false);
+        setIsSpeaking(true);
+        setIsPaused(false);
 
-        if (kittenStatus.isDownloaded || !apiKey) {
-            setIsTtsLoading(false);
-            setIsSpeaking(true);
-            setIsPaused(false);
-            const player = kittenTts.speak(cleanedText, {
-                rate: speechRate,
-                onStart: () => {
-                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    setIsSpeaking(true);
-                    setIsTtsLoading(false);
-                },
-                onEnd: () => {
-                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    setIsSpeaking(false);
-                    setIsPaused(false);
-                    onEnd?.();
-                    startMicListening();
-                },
-                onError: () => {
-                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    setIsSpeaking(false);
-                    setIsPaused(false);
-                    onEnd?.();
-                    startMicListening();
-                },
-            });
-            currentAudioRef.current = player as any;
-            return;
-        }
-
-        try {
-            const tts = new GoogleGenAI({ apiKey });
-            const ctx = getAudioCtx();
-            if (ctx.state === 'suspended') await ctx.resume();
-
-            // Split into concise natural speech chunks (max ~200 chars per sentence) for smooth streaming
-            const rawSentences = cleanedText.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [cleanedText];
-            const sentences: string[] = [];
-            for (const s of rawSentences) {
-                const t = s.trim();
-                if (t) sentences.push(t);
-            }
-
-            if (sentences.length === 0) {
+        const player = kittenTts.speak(cleanedText, {
+            rate: speechRate,
+            cleanText: true,
+            onStart: () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(true);
                 setIsTtsLoading(false);
+            },
+            onEnd: () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                setIsPaused(false);
+                currentAudioRef.current = null;
                 onEnd?.();
                 startMicListening();
-                return;
-            }
-
-            const bufferPromiseMap = new Map<number, Promise<AudioBuffer | null>>();
-
-            const fetchSentenceAudio = (index: number): Promise<AudioBuffer | null> => {
-                if (bufferPromiseMap.has(index)) return bufferPromiseMap.get(index)!;
-                const promise = (async (): Promise<AudioBuffer | null> => {
-                    if (index >= sentences.length) return null;
-                    const sentenceText = sentences[index];
-                    try {
-                        const res = await tts.models.generateContent({
-                            model: 'gemini-2.5-flash-preview-tts',
-                            contents: [{ role: 'user', parts: [{ text: sentenceText }] }],
-                            config: {
-                                responseModalities: ['AUDIO'] as any,
-                                speechConfig: {
-                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
-                                },
-                            },
-                        });
-
-                        if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return null;
-                        const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-                        if (!inlineData?.data) return null;
-                        return await pcm16ToAudioBuffer(inlineData.data, ctx);
-                    } catch (e) {
-                        console.warn(`[Gemini TTS] Sentence ${index} fetch error:`, e);
-                        return null;
-                    }
-                })();
-                bufferPromiseMap.set(index, promise);
-                return promise;
-            };
-
-            // Pre-fetch first 2 sentences immediately
-            void fetchSentenceAudio(0);
-            if (sentences.length > 1) void fetchSentenceAudio(1);
-
-            let currentIndex = 0;
-
-            const playNextSentence = async () => {
+            },
+            onError: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-
-                if (currentIndex >= sentences.length) {
-                    if (isActiveRef.current && playSessionIdRef.current === sessionId) {
-                        setIsSpeaking(false);
-                        setIsPaused(false);
-                        setIsTtsLoading(false);
-                        currentAudioRef.current = null;
-                        onEnd?.();
-                        startMicListening();
-                    }
-                    return;
-                }
-
-                const sentenceIdx = currentIndex;
-                if (sentenceIdx + 1 < sentences.length) void fetchSentenceAudio(sentenceIdx + 1);
-                if (sentenceIdx + 2 < sentences.length) void fetchSentenceAudio(sentenceIdx + 2);
-
-                const buffer = await fetchSentenceAudio(sentenceIdx);
-
-                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-
-                if (!buffer) {
-                    currentIndex++;
-                    void playNextSentence();
-                    return;
-                }
-
-                setIsTtsLoading(false);
-                setIsSpeaking(true);
+                setIsSpeaking(false);
                 setIsPaused(false);
+                currentAudioRef.current = null;
+                onEnd?.();
+                startMicListening();
+            },
+        });
 
-                const src = ctx.createBufferSource();
-                src.buffer = buffer;
-                src.playbackRate.value = speechRate;
-                src.connect(ctx.destination);
-                currentAudioRef.current = src;
-
-                src.onended = () => {
-                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    currentIndex++;
-                    void playNextSentence();
-                };
-
-                src.start(0);
-            };
-
-            void playNextSentence();
-
-        } catch (err) {
-            console.warn('[Gemini TTS] Voice generation error:', err);
-            if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-            setIsTtsLoading(false);
-            setIsSpeaking(false);
-            onEnd?.();
-            startMicListening();
-        }
-    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, startMicListening]);
+        currentAudioRef.current = player as any;
+    }, [isMuted, speechRate, startMicListening]);
 
     // ── Board Line Streaming ─────────────────────────────────────────────────
     const streamBoardLines = useCallback((lines: string[]) => {
@@ -1187,9 +1068,17 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
         conceptIdxRef.current = startConceptIdx;
         subStepRef.current    = startSubStep;
         const defaultActs = getDefaultActions(startSubStep);
-        positiveActionRef.current = defaultActs.positive;
-        setPositiveAction(defaultActs.positive);
-        setNegativeAction(defaultActs.negative);
+        // Enforce: Do not continue unless Kitten TTS voice model finishes download
+        if (!kittenTts.getStatus().isDownloaded) {
+            setIsModelDownloading(true);
+            await kittenTts.startBackgroundDownload((p) => {
+                if (isActiveRef.current) {
+                    setModelDownloadProgress(Math.round(p * 100));
+                }
+            });
+            if (!isActiveRef.current) return;
+            setIsModelDownloading(false);
+        }
 
         await presentUnit(bp, startConceptIdx, startSubStep, studentMem, true);
     }, [sessionData, userProfile, generateBlueprint]);
@@ -1988,6 +1877,31 @@ OUTPUT VALID JSON ONLY:
 
                     {/* ── Charcoal Blackboard (Typical Blackboard Look) ── */}
                     <div className="relative flex-1 min-h-[250px] sm:min-h-[310px] max-h-[calc(100vh-270px)] flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
+
+                        {isModelDownloading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#181C20]/95 backdrop-blur-md rounded-3xl z-30 p-6 text-center">
+                                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                    <i className="bi bi-cpu-fill text-2xl animate-pulse"></i>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white mb-1">
+                                        Downloading On-Device Voice Model
+                                    </h3>
+                                    <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
+                                        Caching Kitten TTS (25MB) locally so your interactive voice lessons run offline with zero cloud audio quota.
+                                    </p>
+                                </div>
+                                <div className="w-full max-w-xs bg-slate-800 rounded-full h-3 overflow-hidden border border-white/10 shadow-inner">
+                                    <div 
+                                        className="bg-gradient-to-r from-emerald-400 to-teal-400 h-full rounded-full transition-all duration-300"
+                                        style={{ width: `${modelDownloadProgress}%` }}
+                                    />
+                                </div>
+                                <span className="text-xs font-mono font-bold text-emerald-400">
+                                    {modelDownloadProgress}% Downloaded
+                                </span>
+                            </div>
+                        )}
 
                         {isLoadingUnit && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#181C20]/90 backdrop-blur-xs rounded-3xl z-20">
