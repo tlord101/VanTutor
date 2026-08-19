@@ -387,9 +387,13 @@ function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
                 concept.commonPitfalls?.[0] ? `**Watch Out**: ${concept.commonPitfalls[0]}` : '',
             ].filter(Boolean);
         case 'example_problem': {
-            const ex = concept.example;
+            const ex = concept.example || {
+                problem: `Calculate the fundamental values for ${concept.conceptName}.`,
+                givens: [{ symbol: 'x', value: '10', unit: 'units' }],
+                find: `The primary value of ${concept.conceptName}`,
+            };
             const lines = [
-                `**Problem**: ${ex.problem}`,
+                `**Problem**: ${ex.problem || `Calculate the properties of ${concept.conceptName}.`}`,
             ];
             if (ex.givens && ex.givens.length > 0) {
                 lines.push(`**Given**: ` + ex.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', '));
@@ -400,14 +404,14 @@ function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
             return lines;
         }
         case 'example_step1': {
-            const s1 = concept.example.step1;
+            const s1 = concept.example?.step1;
             return [
                 `**Step 1 — Principle & Formula**: ${s1?.explanation || 'Relate given values to target unknown.'}`,
-                s1?.mathExpression ? `$$${s1.mathExpression}$$` : (s1?.formula ? `$$${s1.formula}$$` : `$$v_f = v_i + at$$`),
+                s1?.mathExpression ? `$$${s1.mathExpression}$$` : (s1?.formula ? `$$${s1.formula}$$` : (concept.formula ? `$$${concept.formula}$$` : `$$v_f = v_i + at$$`)),
             ];
         }
         case 'example_step2': {
-            const s2 = concept.example.step2;
+            const s2 = concept.example?.step2;
             return [
                 `**Step 2 — Calculation**: ${s2?.explanation || 'Substitute known numerical values.'}`,
                 s2?.mathExpression ? `$$${s2.mathExpression}$$` : `$$v_f = 0 + (2\\text{ m/s}^2)(5\\text{ s}) = 10\\text{ m/s}$$`,
@@ -416,13 +420,13 @@ function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
         case 'example_step3': {
             const ex = concept.example;
             return [
-                `**Step 3 — Final Result**: $$${ex.answer}$$`,
-                `**Unit & Physical Check**: ${ex.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}`,
+                `**Step 3 — Final Result**: $$${ex?.answer || '10\\text{ units}'}$$`,
+                `**Unit & Physical Check**: ${ex?.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}`,
             ];
         }
         case 'concept_recap':
             return [
-                `**Golden Rule**: ${concept.goldenRule}`,
+                `**Golden Rule**: ${concept.goldenRule || 'Core physical concept locked in.'}`,
                 concept.formula ? `$$${concept.formula}$$` : '',
                 `**Key Takeaway**: ${concept.summaryPoints?.[0] || 'Concept mastered.'}`,
             ].filter(Boolean);
@@ -433,25 +437,26 @@ function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
 
 function getSpokenText(concept: BlueprintConcept, step: SubStep): string {
     const name = concept.conceptName;
+    const ex = concept.example;
     switch (step) {
         case 'intuition_hook':
-            return `Let us start with ${name}. Think about this question: ${concept.relatableQuestion} Picture ${concept.realWorldScenario || 'a real world situation'}. What comes to mind?`;
+            return `Let us start with ${name}. Think about this question: ${concept.relatableQuestion || 'What happens when forces or variables interact?'} Picture ${concept.realWorldScenario || 'a real world situation'}. What comes to mind?`;
         case 'physical_meaning':
-            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition}. Notice how it connects to our everyday experience. Does this definition feel clear?`;
+            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition || 'It defines how the system behaves under standard conditions.'}. Notice how it connects to our everyday experience. Does this definition feel clear?`;
         case 'formula_table':
             return `Look at the board. Here is how we quantify ${name}. Notice how the numbers progress step by step in our table, and how the equation gives us the mathematical shortcut. How do these variables relate to one another?`;
         case 'distinctions_pitfalls':
-            return `Before we solve an example, let us look at the most common trap students fall into. ${concept.keyDistinction || 'Pay close attention to the difference between these quantities.'} Remember our golden rule: ${concept.goldenRule}. Does this make sense?`;
+            return `Before we solve an example, let us look at the most common trap students fall into. ${concept.keyDistinction || 'Pay close attention to the difference between these quantities.'} Remember our golden rule: ${concept.goldenRule || 'Stay consistent with physical units and signs.'}. Does this make sense?`;
         case 'example_problem':
-            return `Let us work through an example step by step. Here is our problem on the board: ${concept.example.problem}. We have identified our given values and what we are looking for. Are you ready to see Step 1?`;
+            return `Let us work through an example step by step. Here is our problem on the board: ${ex?.problem || `Find the key parameters for ${name}`}. We have identified our given values and what we are looking for. Are you ready to see Step 1?`;
         case 'example_step1':
-            return `Step 1: First, we identify our governing principle and formula. ${concept.example.step1?.explanation || 'We choose the equation that relates our knowns to our unknown.'} Take a look at the board. Does this formula choice make sense?`;
+            return `Step 1: First, we identify our governing principle and formula. ${ex?.step1?.explanation || 'We choose the equation that relates our knowns to our unknown.'} Take a look at the board. Does this formula choice make sense?`;
         case 'example_step2':
-            return `Step 2: Now we substitute our given values into the formula and calculate. ${concept.example.step2?.explanation || 'Substituting the numbers step by step gives us our result.'} Look at the calculation on the board. Did you follow each calculation step?`;
+            return `Step 2: Now we substitute our given values into the formula and calculate. ${ex?.step2?.explanation || 'Substituting the numbers step by step gives us our result.'} Look at the calculation on the board. Did you follow each calculation step?`;
         case 'example_step3':
-            return `Step 3: Here is our final answer: ${concept.example.answer}. Notice that the units check out and the physical meaning matches our intuition. ${concept.example.physicalTakeaway || ''} How do you feel about this solution?`;
+            return `Step 3: Here is our final answer: ${ex?.answer || 'Verified result'}. Notice that the units check out and the physical meaning matches our intuition. ${ex?.physicalTakeaway || ''} How do you feel about this solution?`;
         case 'concept_recap':
-            return `Excellent work! You have mastered ${name}. Remember: ${concept.goldenRule}. Are you ready to proceed to the next concept?`;
+            return `Excellent work! You have mastered ${name}. Remember: ${concept.goldenRule || 'Physical principles remain constant across systems.'}. Are you ready to proceed to the next concept?`;
         default:
             return '';
     }
@@ -927,6 +932,59 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         tick();
     }, []);
 
+    function normalizeBlueprint(bp: any): LessonBlueprint {
+        if (!bp || typeof bp !== 'object') {
+            return {
+                title: 'Foundational Tutorial',
+                overview: 'Step-by-step interactive lesson.',
+                concepts: [],
+            };
+        }
+        const rawConcepts = Array.isArray(bp.concepts) ? bp.concepts : [];
+        const concepts: BlueprintConcept[] = rawConcepts.map((c: any, i: number) => {
+            const cName = c.conceptName || `Concept ${i + 1}`;
+            const ex = c.example || {};
+            return {
+                conceptName: cName,
+                relatableQuestion: c.relatableQuestion || `What happens in real physical situations involving ${cName}?`,
+                realWorldScenario: c.realWorldScenario || `Everyday practical interaction with ${cName}`,
+                keyDefinition: c.keyDefinition || `Fundamental definition and role of ${cName}`,
+                physicalMeaning: c.physicalMeaning || c.keyDefinition || `Physical intuition and meaning of ${cName}`,
+                formula: c.formula || '',
+                variables: Array.isArray(c.variables) ? c.variables : [],
+                progressionTable: c.progressionTable || { headers: ['State', 'Value', 'Meaning'], rows: [['Initial', '0', 'Rest']] },
+                keyDistinction: c.keyDistinction || 'Pay attention to units, direction, and conventions.',
+                goldenRule: c.goldenRule || 'Physical laws remain consistent.',
+                summaryPoints: Array.isArray(c.summaryPoints) && c.summaryPoints.length > 0 ? c.summaryPoints : ['Core principle mastered.'],
+                commonPitfalls: Array.isArray(c.commonPitfalls) ? c.commonPitfalls : [],
+                example: {
+                    problem: ex.problem || `Calculate the governing parameters for ${cName}.`,
+                    givens: Array.isArray(ex.givens) ? ex.givens : [{ symbol: 'x', value: '10', unit: 'units' }],
+                    find: ex.find || `The primary value of ${cName}`,
+                    step1: {
+                        title: ex.step1?.title || 'Identify Principle & Formula',
+                        explanation: ex.step1?.explanation || 'Relate knowns to unknown.',
+                        formula: ex.step1?.formula || c.formula || 'y = f(x)',
+                        mathExpression: ex.step1?.mathExpression || c.formula || 'y = f(x)',
+                    },
+                    step2: {
+                        title: ex.step2?.title || 'Substitute Values & Calculate',
+                        explanation: ex.step2?.explanation || 'Substitute known numerical values.',
+                        mathExpression: ex.step2?.mathExpression || 'y = 10',
+                    },
+                    answer: ex.answer || '10\\text{ units}',
+                    physicalTakeaway: ex.physicalTakeaway || 'Result is dimensionally consistent.',
+                },
+            };
+        });
+
+        return {
+            title: bp.title || 'Interactive Lesson',
+            overview: bp.overview || 'Comprehensive step-by-step tutorial.',
+            concepts,
+        };
+    }
+
     // ── Master Blueprint Generation (Bit-by-Bit, Multi-Board & Step-by-Step) ─
     const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
         setIsGeneratingBlueprint(true);
@@ -1081,15 +1139,16 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
 
         const studentMem = await getStudentCognitiveProfile(uid);
         const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
-        let bp: LessonBlueprint | null = sqliteRecord?.blueprint || null;
+        let bp: LessonBlueprint | null = sqliteRecord?.blueprint ? normalizeBlueprint(sqliteRecord.blueprint) : null;
 
         if (!bp) {
-            bp = await generateBlueprint(sessionData, studentMem);
-            if (!bp || !isActiveRef.current) return;
+            const rawBp = await generateBlueprint(sessionData, studentMem);
+            if (!rawBp || !isActiveRef.current) return;
+            bp = normalizeBlueprint(rawBp);
             await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition_hook', false, bp);
         }
 
-        if (!isActiveRef.current) return;
+        if (!isActiveRef.current || !bp) return;
         setBlueprint(bp);
 
         let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
@@ -1196,39 +1255,39 @@ Golden Rule: ${concept.goldenRule}
 - negativeReplyLabel: "Why is this confusing? ↺"`,
 
             example_problem: `Board 5: WORKED EXAMPLE — PROBLEM & GIVENS SETUP for "${concept.conceptName}".
-Problem: ${concept.example.problem}
+Problem: ${concept.example?.problem || `Find the key parameters for ${concept.conceptName}.`}
 - spokenExplanation: (4-5 sentences). Read the problem statement clearly. Guide the student to identify each given quantity from the text, note the units, and pinpoint exactly what we need to solve for.
-- boardLines[0]: "**Problem**: ${concept.example.problem}"
-- boardLines[1]: "**Given**: ${concept.example.givens ? concept.example.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') : 'Known variables'}"
-- boardLines[2]: "**Find**: ${concept.example.find || 'Target quantity'}"
+- boardLines[0]: "**Problem**: ${concept.example?.problem || `Calculate the values for ${concept.conceptName}.`}"
+- boardLines[1]: "**Given**: ${concept.example?.givens ? concept.example.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') : 'Known variables'}"
+- boardLines[2]: "**Find**: ${concept.example?.find || 'Target quantity'}"
 - diagramSvg: Clean SVG setup of the problem scenario with labeled arrows.
 - positiveReplyLabel: "Givens clear, start Step 1 →"
 - negativeReplyLabel: "Re-read question slowly ↺"`,
 
             example_step1: `Board 6: WORKED EXAMPLE — STEP 1: PRINCIPLE & FORMULA SELECTION for "${concept.conceptName}".
-Step 1: ${concept.example.step1?.title || 'Identify Principle & Formula'}
-Formula: ${concept.example.step1?.mathExpression || concept.formula}
+Step 1: ${concept.example?.step1?.title || 'Identify Principle & Formula'}
+Formula: ${concept.example?.step1?.mathExpression || concept.formula || 'Governing Equation'}
 - spokenExplanation: (4-5 sentences). Explain WHY we choose this specific formula based on our known variables and the target variable. Show that math is a logical choice, not guesswork.
-- boardLines[0]: "**Step 1 — Principle & Formula**: ${concept.example.step1?.explanation || 'Relate given values to target variable.'}"
-- boardLines[1]: "$$${concept.example.step1?.mathExpression || 'v_f = v_i + at'}$$"
+- boardLines[0]: "**Step 1 — Principle & Formula**: ${concept.example?.step1?.explanation || 'Relate given values to target variable.'}"
+- boardLines[1]: "$$${concept.example?.step1?.mathExpression || concept.formula || 'v_f = v_i + at'}$$"
 - positiveReplyLabel: "Formula chosen, do calculation →"
 - negativeReplyLabel: "Why this formula? ↺"`,
 
             example_step2: `Board 7: WORKED EXAMPLE — STEP 2: SUBSTITUTION & CALCULATION for "${concept.conceptName}".
-Step 2: ${concept.example.step2?.title || 'Substitute Values & Calculate'}
-Calculation: ${concept.example.step2?.mathExpression || 'Numerical substitution'}
+Step 2: ${concept.example?.step2?.title || 'Substitute Values & Calculate'}
+Calculation: ${concept.example?.step2?.mathExpression || 'Numerical substitution'}
 - spokenExplanation: (4-5 sentences). Walk through the numerical substitution step by step. Show the intermediate math clearly. Emphasize tracking units along the way.
-- boardLines[0]: "**Step 2 — Calculation**: ${concept.example.step2?.explanation || 'Substitute known numerical values into the equation.'}"
-- boardLines[1]: "$$${concept.example.step2?.mathExpression || 'v_f = 0 + (2)(5) = 10'}$$"
+- boardLines[0]: "**Step 2 — Calculation**: ${concept.example?.step2?.explanation || 'Substitute known numerical values into the equation.'}"
+- boardLines[1]: "$$${concept.example?.step2?.mathExpression || 'v_f = 0 + (2)(5) = 10'}$$"
 - positiveReplyLabel: "Calculation followed, see answer →"
 - negativeReplyLabel: "Redo calculation step slowly ↺"`,
 
             example_step3: `Board 8: WORKED EXAMPLE — STEP 3: FINAL RESULT & UNIT CHECK for "${concept.conceptName}".
-Final Answer: ${concept.example.answer}
-Physical Takeaway: ${concept.example.physicalTakeaway}
+Final Answer: ${concept.example?.answer || '10 units'}
+Physical Takeaway: ${concept.example?.physicalTakeaway || 'Dimensionally consistent.'}
 - spokenExplanation: (4-5 sentences). Present the final result. Verify that the units match the required quantity. Explain what the final number represents in the physical scenario.
-- boardLines[0]: "**Final Answer**: $$${concept.example.answer}$$"
-- boardLines[1]: "**Unit & Physical Check**: ${concept.example.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}"
+- boardLines[0]: "**Final Answer**: $$${concept.example?.answer || '10\\text{ units}'}$$"
+- boardLines[1]: "**Unit & Physical Check**: ${concept.example?.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}"
 - positiveReplyLabel: "Result verified, recap concept →"
 - negativeReplyLabel: "Explain the unit check ↺"`,
 
