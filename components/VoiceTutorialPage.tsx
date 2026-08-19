@@ -1464,6 +1464,58 @@ OUTPUT VALID JSON ONLY:
         }
     };
 
+    const toggleMic = () => {
+        if (isMicListening) {
+            stopMicImmediate();
+        } else {
+            if (isSpeaking) {
+                stopAudioImmediate();
+            }
+            startMicListening();
+        }
+    };
+
+    const toggleMute = () => {
+        if (!isMuted) {
+            stopAudioImmediate();
+            setIsMuted(true);
+        } else {
+            setIsMuted(false);
+            if (lastSpokenTextRef.current) {
+                void speakText(lastSpokenTextRef.current);
+            } else if (blueprint) {
+                const concept = blueprint.concepts[conceptIdxRef.current];
+                if (concept) void speakText(getSpokenText(concept, subStepRef.current));
+            }
+        }
+    };
+
+    const handleSpeedChange = () => {
+        const speeds = [1.0, 1.15, 1.35];
+        const next   = speeds[(speeds.indexOf(speechRate) + 1) % speeds.length];
+        setSpeechRate(next);
+        addToast(`Speed: ${next}x`, 'info');
+    };
+
+    const handleGoBack = useCallback(async () => {
+        setIsNavigatingBack(true);
+        isActiveRef.current = false;
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        stopMicImmediate();
+
+        if (blueprint) {
+            const uid = userProfile?.uid || 'anon';
+            const cid = sessionData?.course?.course_id || 'general';
+            const tid = sessionData?.topic?.topic_id || 'core';
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, subStepRef.current, false, blueprint);
+        }
+
+        await new Promise(r => setTimeout(r, 80));
+        if (onNavigate) onNavigate('study_guide');
+        else window.history.back();
+    }, [blueprint, userProfile, onNavigate, sessionData]);
+
     const currentTopicIdx = sessionData?.course?.topics?.findIndex(
         t => t.topic_id === sessionData?.topic?.topic_id
     ) ?? -1;
