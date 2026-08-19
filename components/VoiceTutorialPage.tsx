@@ -645,7 +645,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             isActiveRef.current = false;
             stopAudioImmediate();
             clearAllStreamTimers();
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             stopMicImmediate();
         };
     }, []);
@@ -759,65 +758,36 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         } catch (_) { setIsMicListening(false); }
     }, [addToast, attachedImage]);
 
-    const browserSpeak = useCallback((text: string, onEnd?: () => void) => {
-        if (!('speechSynthesis' in window)) {
-            onEnd?.();
-            startMicListening();
-            return;
-        }
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.rate  = speechRate;
-        const vs  = window.speechSynthesis.getVoices();
-        const v   = vs.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Charon')))
-                 || vs.find(v => v.lang.startsWith('en'));
-        if (v) utt.voice = v;
-        utt.onstart = () => { if (isActiveRef.current) { setIsSpeaking(true); setIsPaused(false); setIsTtsLoading(false); } };
-        utt.onend   = () => {
-            if (isActiveRef.current) {
-                setIsSpeaking(false);
-                setIsPaused(false);
-                setIsTtsLoading(false);
-                onEnd?.();
-                startMicListening();
-            }
-        };
-        utt.onerror = () => { if (isActiveRef.current) { setIsSpeaking(false); setIsPaused(false); setIsTtsLoading(false); } };
-        setIsSpeaking(true);
-        setIsPaused(false);
-        setIsTtsLoading(false);
-        window.speechSynthesis.speak(utt);
-    }, [speechRate, startMicListening]);
-
-    const splitSpeechSentences = useCallback((rawText: string): string[] => {
-        const clean = rawText
-            .replace(/\$\$([\s\S]*?)\$\$/g, ' as shown on the board ')
-            .replace(/\$([^\$]+)\$/g, '$1')
+    // ── Dedicated Pure Gemini Natural Voice (Charon) Engine ─────────────────
+    const cleanSpokenTextForTTS = (rawText: string): string => {
+        return rawText
+            .replace(/\$\$([\s\S]*?)\$\$/g, ' ')
+            .replace(/\$([^\$]+)\$/g, (m, math) => {
+                return math
+                    .replace(/\\text\{([^\}]+)\}/g, '$1')
+                    .replace(/\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '$1 over $2')
+                    .replace(/\\sqrt\{([^\}]+)\}/g, 'square root of $1')
+                    .replace(/v_f/g, 'v final')
+                    .replace(/v_i/g, 'v initial')
+                    .replace(/F_\{net\}|F_net/g, 'net force')
+                    .replace(/\\theta/g, 'theta')
+                    .replace(/\^2/g, ' squared')
+                    .replace(/\^3/g, ' cubed')
+                    .replace(/m\/s\^2|\\text\{m\/s\}\^2/g, 'meters per second squared')
+                    .replace(/m\/s|\\text\{m\/s\}/g, 'meters per second')
+                    .replace(/kg/g, 'kilograms')
+                    .replace(/=/g, ' equals ')
+                    .replace(/\+/g, ' plus ')
+                    .replace(/-/g, ' minus ')
+                    .replace(/\*/g, ' times ')
+                    .replace(/\\rightarrow/g, ' is ')
+                    .replace(/\\Delta/g, 'change in ');
+            })
             .replace(/[#*`_~]/g, '')
             .replace(/\s+/g, ' ')
             .trim();
-        if (!clean) return [];
+    };
 
-        const parts = clean.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [clean];
-        const sentences: string[] = [];
-
-        for (const part of parts) {
-            const trimmed = part.trim();
-            if (!trimmed) continue;
-            if (trimmed.length > 150) {
-                const subChunks = trimmed.match(/[^,;:—]+(?:[,;:—]+(?=\s|$)|$)/g) || [trimmed];
-                for (const sub of subChunks) {
-                    const subTrimmed = sub.trim();
-                    if (subTrimmed) sentences.push(subTrimmed);
-                }
-            } else {
-                sentences.push(trimmed);
-            }
-        }
-        return sentences.length > 0 ? sentences : [clean];
-    }, []);
-
-    // ── Dedicated Charon Voice Engine (Single Model) ─────────────────────────
     const speakText = useCallback(async (text: string, onEnd?: () => void): Promise<void> => {
         if (!isActiveRef.current || isMuted || !text) {
             onEnd?.();
@@ -830,10 +800,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         lastSpokenTextRef.current = text;
 
         const sessionId = ++playSessionIdRef.current;
-        const sentences = splitSpeechSentences(text);
-        if (sentences.length === 0) {
+        const cleanedText = cleanSpokenTextForTTS(text);
+
+        if (!cleanedText) {
             setIsTtsLoading(false);
             onEnd?.();
+            startMicListening();
             return;
         }
 
@@ -843,8 +815,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             : (appSettings?.gemini_api_key?.trim() || '');
 
         if (!apiKey) {
+            console.warn('[Gemini TTS] No API key available for natural voice generation');
             setIsTtsLoading(false);
-            browserSpeak(sentences.join(' '), onEnd);
+            onEnd?.();
+            startMicListening();
             return;
         }
 
@@ -852,6 +826,21 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             const tts = new GoogleGenAI({ apiKey });
             const ctx = getAudioCtx();
             if (ctx.state === 'suspended') await ctx.resume();
+
+            // Split into concise natural speech chunks (max ~200 chars per sentence) for smooth streaming
+            const rawSentences = cleanedText.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [cleanedText];
+            const sentences: string[] = [];
+            for (const s of rawSentences) {
+                const t = s.trim();
+                if (t) sentences.push(t);
+            }
+
+            if (sentences.length === 0) {
+                setIsTtsLoading(false);
+                onEnd?.();
+                startMicListening();
+                return;
+            }
 
             const bufferPromiseMap = new Map<number, Promise<AudioBuffer | null>>();
 
@@ -877,7 +866,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                         if (!inlineData?.data) return null;
                         return await pcm16ToAudioBuffer(inlineData.data, ctx);
                     } catch (e) {
-                        console.warn(`[Charon TTS] Sentence ${index} fetch error:`, e);
+                        console.warn(`[Gemini TTS] Sentence ${index} fetch error:`, e);
                         return null;
                     }
                 })();
@@ -885,6 +874,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 return promise;
             };
 
+            // Pre-fetch first 2 sentences immediately
             void fetchSentenceAudio(0);
             if (sentences.length > 1) void fetchSentenceAudio(1);
 
@@ -914,11 +904,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
 
                 if (!buffer) {
-                    if (sentenceIdx === 0) {
-                        setIsTtsLoading(false);
-                        browserSpeak(sentences.slice(currentIndex).join(' '), onEnd);
-                        return;
-                    }
                     currentIndex++;
                     void playNextSentence();
                     return;
@@ -946,12 +931,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             void playNextSentence();
 
         } catch (err) {
-            console.warn('[Charon TTS] error, falling back to browser synthesis:', err);
+            console.warn('[Gemini TTS] Voice generation error:', err);
             if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
             setIsTtsLoading(false);
-            browserSpeak(sentences.join(' '), onEnd);
+            setIsSpeaking(false);
+            onEnd?.();
+            startMicListening();
         }
-    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, splitSpeechSentences, browserSpeak, startMicListening]);
+    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, startMicListening]);
 
     // ── Board Line Streaming ─────────────────────────────────────────────────
     const streamBoardLines = useCallback((lines: string[]) => {
@@ -1405,7 +1392,6 @@ OUTPUT VALID JSON ONLY:
         stopAudioImmediate();
         stopMicImmediate();
         clearAllStreamTimers();
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         setTextInput('');
         const attached = imageAttachment || attachedImage;
         setAttachedImage(null);
@@ -1636,7 +1622,6 @@ OUTPUT VALID JSON ONLY:
     const togglePauseAI = () => {
         if (isSpeaking) {
             stopAudioImmediate();
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             setIsSpeaking(false);
             setIsPaused(true);
             addToast('Tutor Paused', 'info');
@@ -1657,7 +1642,6 @@ OUTPUT VALID JSON ONLY:
         } else {
             if (isSpeaking) {
                 stopAudioImmediate();
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             }
             startMicListening();
         }
@@ -1666,7 +1650,6 @@ OUTPUT VALID JSON ONLY:
     const toggleMute = () => {
         if (!isMuted) {
             stopAudioImmediate();
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             setIsMuted(true);
         } else {
             setIsMuted(false);
@@ -1691,7 +1674,6 @@ OUTPUT VALID JSON ONLY:
         isActiveRef.current = false;
         stopAudioImmediate();
         clearAllStreamTimers();
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         stopMicImmediate();
 
         if (blueprint) {
