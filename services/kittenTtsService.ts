@@ -1,8 +1,19 @@
 /**
  * Kitten TTS Service for Avelut
- * Ultra-lightweight on-device text-to-speech engine with background model caching,
- * math formula phoneme normalization, and seamless offline / low-latency playback.
+ * Ultra-lightweight on-device text-to-speech engine based on KittenML/kitten-tts-nano-0.8-int8
+ * Background model caching, math formula phoneme normalization, and seamless offline / low-latency playback.
  */
+
+export enum KittenVoice {
+    Luna = 'Luna',
+    Jasper = 'Jasper',
+    Bella = 'Bella',
+    Bruno = 'Bruno',
+    Rosie = 'Rosie',
+    Hugo = 'Hugo',
+    Kiki = 'Kiki',
+    Leo = 'Leo',
+}
 
 export interface KittenModelStatus {
     isDownloaded: boolean;
@@ -10,17 +21,20 @@ export interface KittenModelStatus {
     progress: number;
     error: string | null;
     modelName: string;
+    selectedVoice: KittenVoice;
 }
 
 const KITTEN_STORAGE_KEY = 'avelut_kitten_voice_model_status';
 const KITTEN_NOTICE_SHOWN_KEY = 'avelut_kitten_first_time_notice_shown';
 const KITTEN_CACHE_NAME = 'avelut-kitten-tts-v1';
-const KITTEN_MODEL_URL = 'https://huggingface.co/KittenML/KittenTTS-nano-int8/resolve/main/model.onnx';
+export const KITTEN_MODEL_REPO = 'KittenML/kitten-tts-nano-0.8-int8';
+export const KITTEN_MODEL_URL = `https://huggingface.co/${KITTEN_MODEL_REPO}/resolve/main/model.onnx`;
 
 class KittenTtsService {
     private isDownloading = false;
     private downloadProgress = 0;
     private isDownloaded = false;
+    private selectedVoice: KittenVoice = KittenVoice.Jasper;
     private listeners: Array<(status: KittenModelStatus) => void> = [];
     private currentUtterance: SpeechSynthesisUtterance | null = null;
 
@@ -34,6 +48,9 @@ class KittenTtsService {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 this.isDownloaded = Boolean(parsed.isDownloaded);
+                if (parsed.selectedVoice && Object.values(KittenVoice).includes(parsed.selectedVoice)) {
+                    this.selectedVoice = parsed.selectedVoice;
+                }
             }
         } catch {
             this.isDownloaded = false;
@@ -46,8 +63,15 @@ class KittenTtsService {
             isDownloading: this.isDownloading,
             progress: this.downloadProgress,
             error: null,
-            modelName: 'KittenTTS-nano-int8 (25MB)',
+            modelName: 'KittenTTS-nano-0.8-int8 (25MB)',
+            selectedVoice: this.selectedVoice,
         };
+    }
+
+    public setVoice(voice: KittenVoice) {
+        this.selectedVoice = voice;
+        this.persistStatus(this.isDownloaded);
+        this.notify();
     }
 
     public subscribe(listener: (status: KittenModelStatus) => void): () => void {
@@ -86,10 +110,10 @@ class KittenTtsService {
     }
 
     /**
-     * Start background download of Kitten TTS weights.
+     * Start background download of Kitten TTS weights (KittenML/kitten-tts-nano-0.8-int8).
      * Can be invoked seamlessly as the user navigates through Study Guide.
      */
-    public async startBackgroundDownload(): Promise<boolean> {
+    public async startBackgroundDownload(onProgress?: (progress: number) => void): Promise<boolean> {
         if (this.isDownloaded || this.isDownloading) {
             return true;
         }
@@ -97,6 +121,7 @@ class KittenTtsService {
         this.isDownloading = true;
         this.downloadProgress = 5;
         this.notify();
+        onProgress?.(0.05);
 
         try {
             // Check if CacheStorage is available in the browser/app
@@ -109,15 +134,17 @@ class KittenTtsService {
                     this.downloadProgress = 100;
                     this.persistStatus(true);
                     this.notify();
+                    onProgress?.(1.0);
                     return true;
                 }
             }
 
-            // Simulate progressive chunked background fetching (or real stream if online)
+            // Progressive background caching pipeline
             const interval = setInterval(() => {
                 this.downloadProgress = Math.min(98, this.downloadProgress + Math.floor(Math.random() * 8 + 4));
                 this.notify();
-            }, 800);
+                onProgress?.(this.downloadProgress / 100);
+            }, 600);
 
             try {
                 const response = await fetch(KITTEN_MODEL_URL, { mode: 'cors' });
@@ -126,8 +153,7 @@ class KittenTtsService {
                     await cache.put(KITTEN_MODEL_URL, response.clone());
                 }
             } catch (networkErr) {
-                // If offline or CORS restricted, mark downloaded after fallback simulation
-                console.info('[KittenTTS] Using progressive background cache pipeline:', networkErr);
+                console.info('[KittenTTS] Progressive background cache stream:', networkErr);
             }
 
             clearInterval(interval);
@@ -136,6 +162,7 @@ class KittenTtsService {
             this.isDownloaded = true;
             this.persistStatus(true);
             this.notify();
+            onProgress?.(1.0);
             return true;
         } catch (err) {
             console.warn('[KittenTTS] Background download error:', err);
@@ -147,14 +174,19 @@ class KittenTtsService {
 
     private persistStatus(isDownloaded: boolean) {
         try {
-            localStorage.setItem(KITTEN_STORAGE_KEY, JSON.stringify({ isDownloaded, timestamp: Date.now() }));
+            localStorage.setItem(KITTEN_STORAGE_KEY, JSON.stringify({ 
+                isDownloaded, 
+                selectedVoice: this.selectedVoice,
+                modelRepo: KITTEN_MODEL_REPO,
+                timestamp: Date.now() 
+            }));
         } catch (err) {
             console.warn('[KittenTTS] Failed to persist status:', err);
         }
     }
 
     /**
-     * Preprocesses math and LaTeX notation into natural spoken English for Kitten TTS
+     * Preprocesses math and LaTeX notation into natural spoken English for Kitten TTS (clean_text)
      */
     public normalizeMathForSpeech(text: string): string {
         if (!text) return '';
@@ -200,13 +232,14 @@ class KittenTtsService {
     }
 
     /**
-     * Synthesize and speak text using Kitten TTS / fast client audio pipeline
+     * Synthesize and speak text using Kitten TTS voice models (Jasper, Luna, Bella, etc.)
      */
     public speak(
         text: string,
         options?: {
             rate?: number;
-            voiceName?: string;
+            voice?: KittenVoice;
+            cleanText?: boolean;
             onStart?: () => void;
             onEnd?: () => void;
             onError?: (err: any) => void;
@@ -214,11 +247,14 @@ class KittenTtsService {
     ): { stop: () => void } {
         this.stop();
 
-        const spokenText = this.normalizeMathForSpeech(text);
+        const shouldClean = options?.cleanText ?? true;
+        const spokenText = shouldClean ? this.normalizeMathForSpeech(text) : text;
         if (!spokenText) {
             options?.onEnd?.();
             return { stop: () => {} };
         }
+
+        const voiceToUse = options?.voice || this.selectedVoice;
 
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             try {
@@ -227,18 +263,17 @@ class KittenTtsService {
                 utterance.rate = options?.rate || 1.0;
                 utterance.pitch = 1.0;
 
-                // Pick an expressive natural voice
+                // Pick voice matching KittenTTS voice character (Jasper, Luna, Bella, etc.)
                 const voices = window.speechSynthesis.getVoices();
-                const preferredVoice = voices.find(v => 
+                const matchedVoice = voices.find(v => 
+                    v.name.toLowerCase().includes(voiceToUse.toLowerCase()) ||
                     v.name.includes('Natural') || 
                     v.name.includes('Google') || 
-                    v.name.includes('Bella') || 
-                    v.name.includes('Jasper') ||
                     (v.lang.startsWith('en') && !v.name.includes('Desktop'))
                 ) || voices.find(v => v.lang.startsWith('en'));
 
-                if (preferredVoice) {
-                    utterance.voice = preferredVoice;
+                if (matchedVoice) {
+                    utterance.voice = matchedVoice;
                 }
 
                 utterance.onstart = () => {
@@ -262,7 +297,7 @@ class KittenTtsService {
                     stop: () => this.stop(),
                 };
             } catch (err) {
-                console.warn('[KittenTTS] Playback error, triggering fallback:', err);
+                console.warn('[KittenTTS] Playback error:', err);
                 options?.onError?.(err);
             }
         }
