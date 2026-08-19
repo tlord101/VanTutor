@@ -3,6 +3,7 @@ import { NotificationBellIcon } from './icons/NotificationBellIcon';
 import { MenuIcon } from './icons/MenuIcon';
 import { MessengerIcon } from './icons/MessengerIcon';
 import { Avatar } from './Avatar';
+import { AppUpdateBadge } from './AppUpdateBadge';
 import type { UserProfile } from '../types';
 import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
@@ -76,6 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+                <AppUpdateBadge />
                 {rightActions ? rightActions : (
                     <>
                         <button 

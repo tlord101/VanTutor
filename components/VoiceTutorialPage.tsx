@@ -719,10 +719,37 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         return buf;
     }, []);
 
+    const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const positiveActionRef   = useRef<{ label: string; text: string }>(
+        getDefaultActions('intuition_hook').positive
+    );
+
+    const clearAutoAdvanceTimer = useCallback(() => {
+        if (autoAdvanceTimerRef.current) {
+            clearTimeout(autoAdvanceTimerRef.current);
+            autoAdvanceTimerRef.current = null;
+        }
+    }, []);
+
+    const scheduleAutoAdvance = useCallback((delayMs = 2200) => {
+        clearAutoAdvanceTimer();
+        if (!isActiveRef.current || isPaused || isGeneratingBlueprint) return;
+        autoAdvanceTimerRef.current = setTimeout(() => {
+            if (!isActiveRef.current || isPaused || isGeneratingBlueprint) return;
+            // Swiftly advance to next board with current affirmative action
+            void handleStudentReplyRef.current(positiveActionRef.current.text, null);
+        }, delayMs);
+    }, [clearAutoAdvanceTimer, isPaused, isGeneratingBlueprint]);
+
     const startMicListening = useCallback(() => {
-        if (!isActiveRef.current) return;
+        if (!isActiveRef.current || isPaused) return;
+        clearAutoAdvanceTimer();
         const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SR) return;
+        if (!SR) {
+            // If SpeechRecognition not available on browser, swiftly auto-advance
+            scheduleAutoAdvance(2500);
+            return;
+        }
         stopMicImmediate();
         try {
             const rec = new SR();
@@ -750,13 +777,24 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 if (final.length > 0) {
                     addToast(`Heard: "${final}"`, 'info');
                     void handleStudentReplyRef.current(final, attachedImage);
+                } else {
+                    // No reply spoken by student -> swiftly auto-advance to next board
+                    scheduleAutoAdvance(2200);
                 }
             };
-            rec.onerror = () => { if (isActiveRef.current) setIsMicListening(false); };
+            rec.onerror = () => {
+                if (isActiveRef.current) {
+                    setIsMicListening(false);
+                    scheduleAutoAdvance(2500);
+                }
+            };
             recognitionRef.current = rec;
             rec.start();
-        } catch (_) { setIsMicListening(false); }
-    }, [addToast, attachedImage]);
+        } catch (_) {
+            setIsMicListening(false);
+            scheduleAutoAdvance(2500);
+        }
+    }, [addToast, attachedImage, clearAutoAdvanceTimer, scheduleAutoAdvance, isPaused]);
 
     // ── Dedicated Pure Gemini Natural Voice (Charon) Engine ─────────────────
     const cleanSpokenTextForTTS = (rawText: string): string => {
@@ -1114,10 +1152,8 @@ OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
 
         conceptIdxRef.current = startConceptIdx;
         subStepRef.current    = startSubStep;
-        setConceptIdx(startConceptIdx);
-        setSubStep(startSubStep);
-
         const defaultActs = getDefaultActions(startSubStep);
+        positiveActionRef.current = defaultActs.positive;
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
@@ -1339,7 +1375,9 @@ OUTPUT VALID JSON ONLY:
             }
 
             if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
-                setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText });
+                const pos = { label: parsed.positiveReplyLabel, text: parsed.positiveReplyText };
+                positiveActionRef.current = pos;
+                setPositiveAction(pos);
             }
             if (parsed.negativeReplyLabel && parsed.negativeReplyText) {
                 setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
