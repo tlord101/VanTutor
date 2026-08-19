@@ -950,18 +950,30 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         currentAudioRef.current = player as any;
     }, [isMuted, startMicListening]);
 
-    // ── Board Line Streaming ─────────────────────────────────────────────────
-    const streamBoardLines = useCallback((lines: string[]) => {
+    // ── Board Line Streaming (Smooth Bit-by-Bit Chalk Reveal Paced with Speech) ─
+    const streamBoardLines = useCallback((lines: string[], spokenText?: string) => {
         clearAllStreamTimers();
         setVisibleBoardLines([]);
         setIsStreaming(true);
+
+        if (!lines || lines.length === 0) {
+            setIsStreaming(false);
+            return;
+        }
+
+        // Calculate smooth pacing synchronized with natural speech duration (~55ms per character)
+        const totalDurationMs = spokenText ? Math.max(3500, spokenText.length * 55) : lines.length * 2200;
+        const lineIntervalMs = Math.max(1500, Math.min(3200, Math.floor(totalDurationMs / Math.max(lines.length, 1))));
 
         let displayed: string[] = [];
         let idx = 0;
 
         const tick = () => {
             if (!isActiveRef.current) return;
-            if (idx >= lines.length) { setIsStreaming(false); return; }
+            if (idx >= lines.length) {
+                setIsStreaming(false);
+                return;
+            }
             if (displayed.length >= MAX_BOARD_LINES) {
                 displayed = [];
                 setVisibleBoardLines([]);
@@ -969,10 +981,17 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             displayed.push(lines[idx]);
             setVisibleBoardLines([...displayed]);
             idx++;
-            const t = setTimeout(tick, LINE_STREAM_MS);
-            streamTimersRef.current.push(t);
+            if (idx < lines.length) {
+                const t = setTimeout(tick, lineIntervalMs);
+                streamTimersRef.current.push(t);
+            } else {
+                setIsStreaming(false);
+            }
         };
-        tick();
+
+        // Reveal the first headline/anchor line after a short initial pause
+        const initialDelay = setTimeout(tick, 400);
+        streamTimersRef.current.push(initialDelay);
     }, []);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {
@@ -1354,14 +1373,14 @@ Golden Rule: ${concept.goldenRule}
 
         const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
 You embody the "Intuition First, Math Second, Bit-by-Bit" teaching methodology:
+- PEDAGOGICAL HARMONY (CRITICAL): What the student SEES on the blackboard must be a punchy visual summary of what they HEAR in your voice.
+- KEEP BLACKBOARD LINES SHORT & SWEET (1-3 lines max): Never write long reading paragraphs on the blackboard! The blackboard is for 1 key headline/question, core formula/equations ($...$, $$...$$), and 1 brief bullet point takeaway. The spoken explanation provides the complete conversational narrative.
 - USE THE SIMPLEST WORDS POSSIBLE: Explain in plain, crystal-clear everyday English without dense jargon.
-- ALWAYS USE REAL-WORLD PHYSICAL OBJECT ANALOGIES: Describe and define concepts using concrete physical objects (e.g., a room with open/closed doors and windows for systems, cups of tea with/without lids, shopping carts for mass/momentum, cars for motion, water pipes for circuits).
-- SLOW DOWN and teach bit-by-bit across multiple boards. Speak 4-5 natural sentences per board.
+- ALWAYS USE REAL-WORLD PHYSICAL OBJECT ANALOGIES: Describe and define concepts using concrete physical objects (e.g., diving boards, rulers, shopping carts, water pipes, tea cups).
+- SLOW DOWN and teach bit-by-bit across multiple boards. Speak 3-4 natural conversational sentences per board.
 - Speak in warm, conversational, encouraging classroom teacher English.
-- Use the board to draw diagrams, state progression tables, and clean LaTeX KaTeX formulas ($...$, $$...$$).
-- Always refer to what is on the board.
-- Blackboard Cleanliness: Do NOT write meta-jargon like "Intuition stuff" or "Board 1: Intuition". Write direct, educational statements and equations on the board lines. The topic header is already fixed at the top of the blackboard.
-- LaTeX KaTeX Typography (CRITICAL): Always format all formulas, powers, superscripts, subscripts, fractions, and units in valid LaTeX math delimiters ($...$ or $$...$$). E.g. $x^2$, $\\text{m/s}^2$, $10^5$, $v_f = v_i + at$, $\\sqrt{2gh}$, $F_{\\text{net}}$, $v_i$.
+- Blackboard Cleanliness: Write clean educational statements and equations on the board lines. The topic header is already fixed at the top of the blackboard.
+- LaTeX KaTeX Typography (CRITICAL): Always format all formulas, powers, superscripts, subscripts, fractions, and units in valid LaTeX math delimiters ($...$ or $$...$$). E.g. $x^2$, $\\text{m/s}^2$, $10^5$, $\\sigma = \\frac{My}{I}$, $v_f = v_i + at$.
 
 CURRENT CONCEPT:
 ${JSON.stringify(concept, null, 2)}
@@ -1411,11 +1430,13 @@ OUTPUT VALID JSON ONLY:
             const aiClient = createAvelutAI(appSettings, userProfile || null);
             if (!aiClient || !isActiveRef.current) {
                 setIsLoadingUnit(false);
-                streamBoardLines(getBoardLines(concept, sStep));
+                const defaultLines = getBoardLines(concept, sStep);
+                const defaultSpoken = getSpokenText(concept, sStep);
+                streamBoardLines(defaultLines, defaultSpoken);
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(null);
                 setActiveVisualCaption(null);
-                await speakText(getSpokenText(concept, sStep));
+                await speakText(defaultSpoken);
                 return;
             }
 
@@ -1430,15 +1451,14 @@ OUTPUT VALID JSON ONLY:
             const raw = getResponseText(result);
             if (!raw) throw new Error('Empty unit response');
 
-            const parsed: UnitPresentationResponse =
-                JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+            const parsed: UnitPresentationResponse = robustParseJson<UnitPresentationResponse>(raw);
 
             if (userProfile?.uid) {
                 deductAICredits(userProfile.uid, cost, 'Study Guide - Board Step', appSettings).catch(console.warn);
             }
 
             setIsLoadingUnit(false);
-            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
+            streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES), parsed.spokenExplanation);
 
             // Record tutor utterance in dialogue history
             dialogueHistoryRef.current.push({
@@ -2120,11 +2140,17 @@ OUTPUT VALID JSON ONLY:
                                             const isVarLine       = line.includes('→');
                                             const isBlockFormula  = line.trim().startsWith('$$');
                                             const stepMatch       = line.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
+                                            const isLatestActive  = idx === visibleBoardLines.length - 1 && isStreaming;
 
                                             return (
-                                                <div key={`${idx}-${line.slice(0, 15)}`} className="flex items-start gap-2.5 animate-fade-in">
+                                                <div
+                                                    key={`${idx}-${line.slice(0, 15)}`}
+                                                    className={`flex items-start gap-2.5 transition-all duration-700 ease-out animate-fade-in ${
+                                                        isLatestActive ? 'border-l-2 border-amber-400/80 pl-2 bg-amber-400/5 rounded-r-xl' : ''
+                                                    }`}
+                                                >
                                                     {!isVarLine && !isBlockFormula && !stepMatch && (
-                                                        <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0 opacity-80" />
+                                                        <span className={`mt-2.5 w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0 ${isLatestActive ? 'animate-ping' : 'opacity-80'}`} />
                                                     )}
 
                                                     {stepMatch ? (
@@ -2152,7 +2178,7 @@ OUTPUT VALID JSON ONLY:
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                            >{formatLatexMath(line.trim())}</ReactMarkdown>
+                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                         </div>
                                                     ) : (
                                                         <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed tracking-wide w-full">
@@ -2169,9 +2195,9 @@ OUTPUT VALID JSON ONLY:
                                     </div>
 
                                     {hasVisualElement && (
-                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#22272E]/90 border border-[#373E47] shadow-md relative group animate-fade-in w-full">
+                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#22272E]/90 border border-[#373E47] shadow-md relative group animate-fade-in transition-all duration-700 w-full">
                                             {activeDiagramSvg && (
-                                                <div className="w-full flex flex-col items-center">
+                                                <div className="w-full flex flex-col items-center animate-scale-in">
                                                     <button
                                                         onClick={() => setIsDiagramZoomed(true)}
                                                         className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity z-10"
