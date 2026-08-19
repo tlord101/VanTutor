@@ -29,9 +29,29 @@ function setGlobalState(updater: Partial<OTAState> | ((prev: OTAState) => Partia
 
 let isInitialized = false;
 
+async function syncInstalledBundleVersion() {
+    try {
+        const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+            const data = await res.json();
+            const storedCommit = localStorage.getItem('app_bundle_commit');
+            if (storedCommit && storedCommit !== data.commit) {
+                console.log(`[VersionSync] Bundle updated (${storedCommit} -> ${data.commit}). Active Version: ${data.version}`);
+            }
+            localStorage.setItem('app_bundle_version', data.version);
+            localStorage.setItem('app_bundle_commit', data.commit);
+            localStorage.setItem('app_bundle_build_timestamp', String(data.buildTimestamp));
+        }
+    } catch {
+        // Offline / dev fallback
+    }
+}
+
 function initOTAEngine() {
     if (isInitialized) return;
     isInitialized = true;
+
+    void syncInstalledBundleVersion();
 
     if (!Capacitor.isNativePlatform()) return;
 

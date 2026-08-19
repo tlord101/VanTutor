@@ -1,7 +1,35 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { execSync } from 'child_process';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import Sitemap from 'vite-plugin-sitemap';
+import pkg from './package.json';
+
+function getGitCommit(): string {
+    try {
+        return execSync('git rev-parse --short HEAD').toString().trim();
+    } catch {
+        return 'dev';
+    }
+}
+
+function versionManifestPlugin(): Plugin {
+    return {
+        name: 'vite-plugin-version-manifest',
+        generateBundle() {
+            const versionData = {
+                version: pkg.version || '1.0.0',
+                buildTimestamp: Math.floor(Date.now() / 1000),
+                commit: getGitCommit()
+            };
+            this.emitFile({
+                type: 'asset',
+                fileName: 'version.json',
+                source: JSON.stringify(versionData, null, 2)
+            });
+        }
+    };
+}
 
 export default defineConfig(({ command }) => {
     return {
@@ -14,6 +42,7 @@ export default defineConfig(({ command }) => {
       },
       plugins: [
         react(),
+        versionManifestPlugin(),
         Sitemap({
           hostname: 'https://www.avelut.xyz',
           generateRobotsTxt: false,
