@@ -37,22 +37,33 @@ class KittenTtsService {
     private activePlaybackSessionId = 0;
     private cachedVoices: SpeechSynthesisVoice[] = [];
     private audioBlobCache = new Map<string, string>(); // Cache key: text -> objectUrl
+    private isApiReachable = true;
 
     constructor() {
         this.checkStoredStatus();
         this.initVoiceCache();
     }
 
+    private getApiEndpoint(): string {
+        try {
+            const custom = (import.meta as any).env?.VITE_TTS_API_ENDPOINT || (import.meta as any).env?.VITE_KITTENML_API_ENDPOINT;
+            if (custom) return custom;
+            const stored = localStorage.getItem('avelut_tts_api_endpoint') || localStorage.getItem('KITTENML_API_ENDPOINT');
+            if (stored) return stored;
+        } catch {}
+        return KITTEN_API_ENDPOINT;
+    }
+
     private getApiKey(): string {
         try {
             // Check Vite env, process.env, or stored key
-            const viteEnvKey = (import.meta as any).env?.VITE_KITTENML_API_KEY;
+            const viteEnvKey = (import.meta as any).env?.VITE_KITTENML_API_KEY || (import.meta as any).env?.VITE_TTS_API_KEY;
             if (viteEnvKey) return viteEnvKey;
             
             const stored = localStorage.getItem('avelut_kittenml_api_key') || localStorage.getItem('KITTENML_API_KEY');
             if (stored) return stored;
 
-            const processKey = typeof process !== 'undefined' ? process.env?.KITTENML_API_KEY : undefined;
+            const processKey = typeof process !== 'undefined' ? (process.env?.KITTENML_API_KEY || process.env?.TTS_API_KEY) : undefined;
             if (processKey) return processKey;
         } catch {}
         return '';
@@ -223,7 +234,7 @@ class KittenTtsService {
     }
 
     /**
-     * Fetches 24 kHz MP3 audio for a given sentence from the KittenML API.
+     * Fetches 24 kHz MP3 audio for a given sentence directly from https://api.kittenml.com/v1/audio/speech
      */
     private async fetchKittenMLAudio(sentence: string, speed = 1.0): Promise<string | null> {
         const cacheKey = `${sentence}__${speed}`;
@@ -231,16 +242,20 @@ class KittenTtsService {
             return this.audioBlobCache.get(cacheKey)!;
         }
 
+        const endpoint = this.getApiEndpoint();
         const apiKey = this.getApiKey();
-        if (!apiKey) return null;
 
         try {
-            const response = await fetch(KITTEN_API_ENDPOINT, {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (apiKey) {
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     model: KITTEN_MODEL_NAME, // 'kitten-tts-mini-0.8' (24 kHz)
                     voice: 'Rosie',
@@ -251,7 +266,7 @@ class KittenTtsService {
             });
 
             if (!response.ok) {
-                console.warn('[KittenML API] Failed response:', await response.text());
+                console.warn('[KittenML API] Non-200 response:', response.status);
                 return null;
             }
 
@@ -260,7 +275,7 @@ class KittenTtsService {
             this.audioBlobCache.set(cacheKey, objectUrl);
             return objectUrl;
         } catch (err) {
-            console.warn('[KittenML API] Fetch error:', err);
+            console.warn('[KittenML API] Network error:', err);
             return null;
         }
     }
