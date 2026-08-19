@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { readCachedJson, writeCachedJson } from '../utils/cache';
+import { readCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { GoogleGenAI } from '@google/genai';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -11,6 +11,11 @@ import {
     recordSessionCompletion,
     StudentCognitiveProfile,
 } from '../services/tutorMemoryService';
+import {
+    saveLocalVoiceTutorialProgress,
+    getLocalVoiceTutorialProgress,
+} from '../services/voiceTutorialStorageService';
+import { formatLatexMath } from '../utils/latexFormatter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -18,21 +23,43 @@ import rehypeKatex from 'rehype-katex';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TUTOR_VOICE = 'Charon';
-const MAX_BOARD_LINES = 5;
-const LINE_STREAM_MS = 340;
+const MAX_BOARD_LINES = 6;
+const LINE_STREAM_MS = 300;
 
-// ── Sub-step ordering ────────────────────────────────────────────────────────
-type SubStep = 'definition' | 'formula' | 'intuition' | 'example_1' | 'example_2' | 'pitfalls' | 'summary';
-const SUB_STEP_ORDER: SubStep[] = ['definition', 'formula', 'intuition', 'example_1', 'example_2', 'pitfalls', 'summary'];
+// ── Pedagogical Multi-Board Step Ordering (9 Boards per Concept) ─────────────
+export type SubStep =
+    | 'intuition_hook'        // Board 1: Real-world motivation & relatable opening question
+    | 'physical_meaning'      // Board 2: Deep conceptual definition & physical intuition
+    | 'formula_table'         // Board 3: Progression table & LaTeX formula breakdown
+    | 'distinctions_pitfalls' // Board 4: Twin-term distinctions & golden rules
+    | 'example_problem'       // Board 5: Worked Example setup (full statement & givens)
+    | 'example_step1'         // Board 6: Worked Example Step 1 (Principle & formula choice)
+    | 'example_step2'         // Board 7: Worked Example Step 2 (Substitution & calculation)
+    | 'example_step3'         // Board 8: Worked Example Step 3 (Final result & units/check)
+    | 'concept_recap';        // Board 9: Concept wrap-up & readiness check
 
-const SUB_STEP_LABEL: Record<SubStep, string> = {
-    definition:  '📌 Definition',
-    formula:     '📐 Formula',
-    intuition:   '💡 Intuition',
-    example_1:   '✏️ Worked Example',
-    example_2:   '🔥 Challenge Problem',
-    pitfalls:    '⚠️ Common Pitfalls',
-    summary:     '✅ Summary',
+export const SUB_STEP_ORDER: SubStep[] = [
+    'intuition_hook',
+    'physical_meaning',
+    'formula_table',
+    'distinctions_pitfalls',
+    'example_problem',
+    'example_step1',
+    'example_step2',
+    'example_step3',
+    'concept_recap',
+];
+
+export const SUB_STEP_LABEL: Record<SubStep, string> = {
+    intuition_hook:        '🌱 1. Real-World Hook',
+    physical_meaning:      '📌 2. Core Meaning',
+    formula_table:         '📐 3. Formula & State Table',
+    distinctions_pitfalls: '⚠️ 4. Key Distinctions',
+    example_problem:       '✏️ 5. Problem Setup',
+    example_step1:         '🔍 6. Step 1: Principle',
+    example_step2:         '🧮 7. Step 2: Calculation',
+    example_step3:         '🎯 8. Step 3: Final Result',
+    concept_recap:         '🎓 9. Concept Recap',
 };
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -41,22 +68,47 @@ interface VoiceTutorialSessionData {
     topic?: Topic | null;
 }
 
-interface BlueprintVariable { symbol: string; meaning: string; unit?: string; }
-interface BlueprintExample  { problem: string; solution: string[]; answer: string; }
+interface BlueprintVariable {
+    symbol: string;
+    meaning: string;
+    unit?: string;
+}
+
+interface BlueprintStep {
+    stepNumber: number;
+    title: string;
+    principle?: string;
+    formula?: string;
+    substitution?: string;
+    calculation?: string;
+    result?: string;
+    explanation: string;
+    mathExpression: string;
+}
+
+interface BlueprintExample {
+    problem: string;
+    givens: { symbol: string; value: string; unit?: string }[];
+    find: string;
+    step1: BlueprintStep;
+    step2: BlueprintStep;
+    step3: BlueprintStep;
+    answer: string;
+    physicalTakeaway: string;
+}
 
 interface BlueprintConcept {
     conceptName:        string;
-    relatableQuestion?: string;      // "When you hear the word distance, what do you think of?"
+    relatableQuestion:  string;
+    realWorldScenario:  string;
     keyDefinition:      string;
-    realWorldAnalogy?:  string;      // Sports car vs. truck, ball dropped off sea cliff
-    intuitionNote:      string;
-    progressionTable?:  string;
+    physicalMeaning:    string;
+    progressionTable:   string;
     formula:            string | null;
     variables:          BlueprintVariable[];
-    keyDistinction?:    string;
-    goldenRule?:        string;
-    example1:           BlueprintExample;
-    example2:           BlueprintExample;
+    keyDistinction:     string;
+    goldenRule:         string;
+    example:            BlueprintExample;
     commonPitfalls:     string[];
     summaryPoints:      string[];
     diagramSvg?:        string | null;
@@ -70,8 +122,6 @@ interface LessonBlueprint {
     overallSummary: string;
 }
 
-interface TutorialProgress { conceptIdx: number; subStep: SubStep; }
-
 interface UnitPresentationResponse {
     boardLines: string[];
     spokenExplanation: string;
@@ -82,6 +132,12 @@ interface UnitPresentationResponse {
     positiveReplyText?: string;
     negativeReplyLabel?: string;
     negativeReplyText?: string;
+}
+
+interface DialogueTurn {
+    role: 'tutor' | 'student';
+    text: string;
+    boardSummary?: string;
 }
 
 interface VoiceTutorialPageProps {
@@ -96,51 +152,57 @@ function getDefaultActions(step: SubStep): {
     negative: { label: string; text: string };
 } {
     switch (step) {
-        case 'definition':
+        case 'intuition_hook':
             return {
-                positive: { label: "Yes, makes sense →", text: "I understand the definition, let's continue" },
-                negative: { label: "Explain in simpler terms ↺", text: "Can you explain the definition in simpler terms?" },
+                positive: { label: "Makes sense, define it →", text: "I understand the real-world idea, let's look at the definition." },
+                negative: { label: "Another real-world example ↺", text: "Can you give another real-world scenario?" },
             };
-        case 'intuition':
+        case 'physical_meaning':
             return {
-                positive: { label: "Got the intuition, show formula →", text: "The intuition makes sense, show me the formula" },
-                negative: { label: "Give another analogy ↺", text: "Can you give another real-world analogy?" },
+                positive: { label: "Understood, show formula →", text: "The physical meaning is clear, show me the equation and state table." },
+                negative: { label: "Explain in simpler terms ↺", text: "Can you explain the physical meaning in simpler terms?" },
             };
-        case 'formula':
+        case 'formula_table':
             return {
-                positive: { label: "Formula understood, do example →", text: "I understand the formula and table, let's solve an example" },
-                negative: { label: "Explain variables again ↺", text: "Can you explain the variables and units again?" },
+                positive: { label: "Table & math clear, next →", text: "I follow the state table and formula, what are the key distinctions?" },
+                negative: { label: "Explain variables & units ↺", text: "Can you walk through the variables and units once more?" },
             };
-        case 'pitfalls':
+        case 'distinctions_pitfalls':
             return {
-                positive: { label: "Noted, I'll avoid this trap →", text: "Understood, I will watch out for that mistake" },
-                negative: { label: "Why is this mistake common? ↺", text: "Why do students commonly make this mistake?" },
+                positive: { label: "Noted trap, let's solve! →", text: "I understand the distinction and golden rule, let's solve an example problem." },
+                negative: { label: "Why is this confusing? ↺", text: "Why do students commonly get confused here?" },
             };
-        case 'example_1':
+        case 'example_problem':
             return {
-                positive: { label: "I followed each step, next challenge →", text: "I followed the working steps, show me the challenge variant" },
-                negative: { label: "Redo calculation step slowly ↺", text: "Can you redo the calculation step slowly?" },
+                positive: { label: "Givens clear, start Step 1 →", text: "I understand the given values and what we are finding, show Step 1." },
+                negative: { label: "Re-read question slowly ↺", text: "Can you re-read the problem statement and clarify the givens?" },
             };
-        case 'example_2':
+        case 'example_step1':
             return {
-                positive: { label: "Understood, summarize topic →", text: "I understand this challenge solution, let's summarize" },
-                negative: { label: "What if values changed? ↺", text: "What if the initial conditions were different?" },
+                positive: { label: "Formula chosen, do calculation →", text: "The formula selection makes sense, let's calculate the numbers in Step 2." },
+                negative: { label: "Why this formula? ↺", text: "Why did we pick this specific formula instead of another?" },
             };
-        case 'summary':
+        case 'example_step2':
             return {
-                positive: { label: "Ready for next concept! 🎓", text: "Ready for the next concept!" },
-                negative: { label: "Recap key formula once more ↺", text: "Could you recap the main formula once more?" },
+                positive: { label: "Calculation followed, see answer →", text: "I followed the substitution and math, let's verify the final result." },
+                negative: { label: "Redo calculation step slowly ↺", text: "Can you redo the calculation step more slowly?" },
+            };
+        case 'example_step3':
+            return {
+                positive: { label: "Result verified, recap concept →", text: "The final answer and units make complete sense, let's recap." },
+                negative: { label: "Explain the unit check ↺", text: "Could you explain why the unit came out this way?" },
+            };
+        case 'concept_recap':
+            return {
+                positive: { label: "Mastered! Next Concept →", text: "I have mastered this concept, let's move to the next concept!" },
+                negative: { label: "Recap main takeaway once more ↺", text: "Could you recap the main takeaway once more?" },
             };
         default:
-            return { positive: { label: "Continue", text: "Continue" }, negative: { label: "Explain", text: "Explain" } };
+            return { positive: { label: "Continue →", text: "Continue" }, negative: { label: "Explain ↺", text: "Explain" } };
     }
 }
 
-// ── Pure helpers & Visual Diagram Generators ─────────────────────────────────
-
-/**
- * Sanitizes and normalizes an SVG string for rendering on the board.
- */
+// ── Visual Diagram Helpers ────────────────────────────────────────────────────
 function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     if (!rawSvg || typeof rawSvg !== 'string') return null;
     let cleaned = rawSvg.trim();
@@ -160,21 +222,12 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
         cleaned = cleaned.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
     }
 
-    // Ensure standard engineering arrow markers exist if referenced
     if (cleaned.includes('marker-end') && !cleaned.includes('<defs>')) {
         const defs = `<defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
-    </marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2B6CB0" />
-    </marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#C53030" />
-    </marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#276749" />
-    </marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D9CCBC" /></marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
   </defs>`;
         cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
     }
@@ -182,38 +235,27 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
     return cleaned;
 }
 
-/**
- * Generate procedural fallback diagrams and progression tables when offline or AI doesn't provide one.
- * Engineered for high-precision visual clarity across mechanics, kinematics, calculus, circuits, geometry, and chemistry.
- */
 function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramSvg: string | null; tableMarkdown: string | null; caption?: string } {
-    const textContext = `${concept.conceptName} ${concept.keyDefinition} ${concept.formula || ''} ${concept.intuitionNote}`.toLowerCase();
+    const textContext = `${concept.conceptName} ${concept.keyDefinition} ${concept.formula || ''}`.toLowerCase();
 
-    if (step === 'formula') {
-        if (textContext.includes('accel') || textContext.includes('speed') || textContext.includes('motion') || textContext.includes('velocity')) {
-            const tableMarkdown = `| Time ($t$) | Velocity ($v$) | What is happening? |
-| :---: | :---: | :--- |
-| **0 s** | **12 m/s** | Initial speed ($v_i$) |
-| **1 s** | **16 m/s** | Added $+4\\text{ m/s}$ ($a = 4\\text{ m/s}^2$) |
-| **2 s** | **20 m/s** | Added $+4\\text{ m/s}$ |
-| **3 s** | **24 m/s** | Final speed ($v_f$) |`;
-            return { diagramSvg: null, tableMarkdown, caption: 'Second-by-Second Progression Table' };
+    if (step === 'formula_table') {
+        if (concept.progressionTable && concept.progressionTable.includes('|')) {
+            return { diagramSvg: null, tableMarkdown: concept.progressionTable, caption: 'State Progression Table' };
         }
-
         if (concept.variables && concept.variables.length > 0) {
-            const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | ${v.unit || 'SI unit'} |`).join('\n');
-            const tableMarkdown = `| Symbol | Variable / Property | Unit |\n| :--- | :--- | :--- |\n${rows}`;
-            return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Variables Reference` };
+            const rows = concept.variables.map(v => `| \`${v.symbol}\` | ${v.meaning} | $${v.unit || '\\text{unit}'}$ |`).join('\n');
+            const tableMarkdown = `| Symbol | Quantity / Meaning | SI Unit |\n| :--- | :--- | :--- |\n${rows}`;
+            return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Variables Breakdown` };
         }
     }
 
-    if (step === 'pitfalls') {
+    if (step === 'distinctions_pitfalls') {
         if (textContext.includes('distance') || textContext.includes('displacement')) {
             const tableMarkdown = `| Property | Distance | Displacement |
 | :--- | :--- | :--- |
 | **Type** | Scalar (Magnitude only) | Vector (Magnitude + Direction) |
 | **Sign** | **Always positive ($+$)** | **Can be $(+)$, $(-)$, or $0$** |
-| **Meaning** | Total path traveled | Net straight-line change |`;
+| **Meaning** | Total ground covered | Net straight-line change |`;
             return { diagramSvg: null, tableMarkdown, caption: 'Key Distinction: Distance vs. Displacement' };
         }
         if (textContext.includes('speed') || textContext.includes('velocity')) {
@@ -226,233 +268,275 @@ function getFallbackVisual(concept: BlueprintConcept, step: SubStep): { diagramS
         }
     }
 
-    // ── 1. Dynamics & Free-Body Force Diagram ──
-    if (textContext.includes('force') || textContext.includes('newton') || textContext.includes('friction') || textContext.includes('mass') || textContext.includes('gravity') || textContext.includes('weight')) {
+    // ── 1. Car on Road (Kinematics, Speed, Velocity, Acceleration, Motion) ──
+    if (textContext.includes('car') || textContext.includes('vehicle') || textContext.includes('speed') || textContext.includes('velocity') || textContext.includes('accel') || textContext.includes('motion') || textContext.includes('kinematic')) {
         const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
-    </marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2B6CB0" />
-    </marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#C53030" />
-    </marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#276749" />
-    </marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D9CCBC" /></marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
   </defs>
-  <!-- Surface -->
-  <line x1="30" y1="165" x2="390" y2="165" stroke="#8B5A2B" stroke-width="3" stroke-linecap="round" />
-  <line x1="50" y1="173" x2="40" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="100" y1="173" x2="90" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="150" y1="173" x2="140" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="200" y1="173" x2="190" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="250" y1="173" x2="240" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="300" y1="173" x2="290" y2="183" stroke="#C2B2A3" stroke-width="2" />
-  <line x1="350" y1="173" x2="340" y2="183" stroke="#C2B2A3" stroke-width="2" />
+  <!-- Road surface & dashed centerline -->
+  <rect x="10" y="160" width="400" height="40" rx="4" fill="#2D333B" stroke="#444C56" stroke-width="2" />
+  <line x1="25" y1="180" x2="75" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
+  <line x1="105" y1="180" x2="165" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
+  <line x1="195" y1="180" x2="255" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
+  <line x1="285" y1="180" x2="345" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
+  <line x1="375" y1="180" x2="405" y2="180" stroke="#F6E05E" stroke-width="3" stroke-dasharray="16 12" />
 
-  <!-- Mass Block -->
-  <rect x="150" y="85" width="120" height="80" rx="8" fill="#F4ECE2" stroke="#5A3E22" stroke-width="2.5" />
-  <text x="210" y="130" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#3D2817" text-anchor="middle">Mass m</text>
+  <!-- Motion wind streaks -->
+  <line x1="30" y1="110" x2="70" y2="110" stroke="#768390" stroke-width="2" stroke-linecap="round" />
+  <line x1="20" y1="125" x2="80" y2="125" stroke="#768390" stroke-width="2" stroke-linecap="round" />
 
-  <!-- Force Applied (Right) -->
-  <line x1="270" y1="125" x2="365" y2="125" stroke="#2B6CB0" stroke-width="3.5" marker-end="url(#arrow-blue)" />
-  <text x="325" y="112" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0">F_applied →</text>
+  <!-- Car Body Chassis -->
+  <path d="M 90 148 L 105 115 Q 120 95 155 95 L 225 95 Q 245 95 260 115 L 295 125 L 305 148 Q 305 152 298 152 L 95 152 Q 90 152 90 148 Z" fill="#E6BAA3" stroke="#FFF" stroke-width="2.5" />
+  <!-- Car Roof & Windows -->
+  <path d="M 145 102 L 190 102 L 190 125 L 125 125 Q 135 110 145 102 Z" fill="#22272E" stroke="#FFF" stroke-width="1.8" />
+  <path d="M 200 102 L 230 102 Q 242 110 250 125 L 200 125 Z" fill="#22272E" stroke="#FFF" stroke-width="1.8" />
+  <!-- Headlight -->
+  <polygon points="298,135 305,137 305,145 295,145" fill="#F6E05E" stroke="#FFF" stroke-width="1.5" />
+  <!-- Wheels -->
+  <circle cx="140" cy="155" r="18" fill="#1C2128" stroke="#FFF" stroke-width="2" />
+  <circle cx="140" cy="155" r="7" fill="#ADBAC7" />
+  <circle cx="260" cy="155" r="18" fill="#1C2128" stroke="#FFF" stroke-width="2" />
+  <circle cx="260" cy="155" r="7" fill="#ADBAC7" />
 
-  <!-- Friction Force (Left) -->
-  <line x1="150" y1="155" x2="65" y2="155" stroke="#C53030" stroke-width="3" marker-end="url(#arrow-red)" />
-  <text x="75" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">← f_friction</text>
-
-  <!-- Normal Force (Up) -->
-  <line x1="210" y1="85" x2="210" y2="25" stroke="#276749" stroke-width="2.8" marker-end="url(#arrow-green)" />
-  <text x="220" y="45" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#276749">F_N (Normal)</text>
-
-  <!-- Gravity Force (Down) -->
-  <line x1="210" y1="165" x2="210" y2="212" stroke="#8B4513" stroke-width="2.8" marker-end="url(#arrow)" />
-  <text x="220" y="205" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#8B4513">F_g = mg</text>
+  <!-- Velocity Vector -->
+  <line x1="200" y1="55" x2="340" y2="55" stroke="#63B3ED" stroke-width="3" marker-end="url(#arrow-blue)" />
+  <text x="270" y="45" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="13" fill="#63B3ED">Velocity v = 20 m/s</text>
+  <!-- Acceleration Vector -->
+  <line x1="200" y1="78" x2="290" y2="78" stroke="#FC8181" stroke-width="2.8" marker-end="url(#arrow-red)" />
+  <text x="245" y="72" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">Acceleration a = 3 m/s²</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Free-Body Force & Equilibrium Diagram' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Moving Car with Velocity & Acceleration Vectors' };
     }
 
-    // ── 2. Kinematics: Velocity-Time & Slope Model ──
-    if (textContext.includes('accel') || textContext.includes('kinematics') || textContext.includes('speed') || textContext.includes('velocity') || textContext.includes('motion')) {
+    // ── 2. Ruler Against Table / Wall (Trig, Angles, Static Equilibrium, Pythagoras) ──
+    if (textContext.includes('ruler') || textContext.includes('table') || textContext.includes('ladder') || textContext.includes('angle') || textContext.includes('wall') || textContext.includes('triangle') || textContext.includes('pythagor') || textContext.includes('incline')) {
         const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
-    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
   </defs>
-  <!-- Axes -->
-  <line x1="50" y1="180" x2="380" y2="180" stroke="#8B4513" stroke-width="2.5" marker-end="url(#arrow)" />
-  <line x1="50" y1="180" x2="50" y2="25" stroke="#8B4513" stroke-width="2.5" marker-end="url(#arrow)" />
-  <text x="385" y="185" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">Time (t)</text>
-  <text x="55" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">Velocity (v)</text>
+  <!-- Floor line -->
+  <line x1="20" y1="180" x2="400" y2="180" stroke="#ADBAC7" stroke-width="3" />
 
-  <!-- Area under curve (Displacement) -->
-  <polygon points="50,140 320,50 320,180 50,180" fill="#2B6CB0" fill-opacity="0.12" />
-  <text x="180" y="165" font-family="system-ui, sans-serif" font-size="12" font-style="italic" fill="#2B6CB0">Area = Displacement (Δx)</text>
+  <!-- Wooden Table (Top & 2 Legs) -->
+  <rect x="230" y="70" width="160" height="18" rx="3" fill="#DDB892" stroke="#FFF" stroke-width="2" />
+  <rect x="250" y="88" width="16" height="92" fill="#C9A680" stroke="#FFF" stroke-width="1.8" />
+  <rect x="360" y="88" width="16" height="92" fill="#C9A680" stroke="#FFF" stroke-width="1.8" />
+  <text x="310" y="60" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FFF">Table Top (Height h)</text>
 
-  <!-- Velocity Line -->
-  <line x1="50" y1="140" x2="320" y2="50" stroke="#2B6CB0" stroke-width="3.5" />
-  <circle cx="50" cy="140" r="5" fill="#2B6CB0" />
-  <text x="20" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#2B6CB0">v_i</text>
-  <circle cx="320" cy="50" r="5" fill="#C53030" />
-  <text x="330" y="52" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">v_f</text>
+  <!-- Yellow Wooden Ruler leaning from floor (x=70, y=180) to table edge (x=230, y=70) -->
+  <g transform="translate(70, 180) rotate(-34.5)">
+    <rect x="0" y="-8" width="195" height="16" rx="2" fill="#FEF08A" stroke="#854D0E" stroke-width="2" />
+    <line x1="20" y1="-8" x2="20" y2="-1" stroke="#854D0E" stroke-width="1.5" />
+    <line x1="40" y1="-8" x2="40" y2="2" stroke="#854D0E" stroke-width="2" />
+    <line x1="60" y1="-8" x2="60" y2="-1" stroke="#854D0E" stroke-width="1.5" />
+    <line x1="80" y1="-8" x2="80" y2="2" stroke="#854D0E" stroke-width="2" />
+    <line x1="100" y1="-8" x2="100" y2="-1" stroke="#854D0E" stroke-width="1.5" />
+    <line x1="120" y1="-8" x2="120" y2="2" stroke="#854D0E" stroke-width="2" />
+    <line x1="140" y1="-8" x2="140" y2="-1" stroke="#854D0E" stroke-width="1.5" />
+    <line x1="160" y1="-8" x2="160" y2="2" stroke="#854D0E" stroke-width="2" />
+    <line x1="180" y1="-8" x2="180" y2="-1" stroke="#854D0E" stroke-width="1.5" />
+    <text x="95" y="6" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="10" fill="#854D0E">Ruler (L = 1.0 m)</text>
+  </g>
 
-  <!-- Slope Rise/Run Triangle -->
-  <line x1="170" y1="100" x2="270" y2="100" stroke="#C53030" stroke-width="1.8" stroke-dasharray="4,3" />
-  <line x1="270" y1="100" x2="270" y2="67" stroke="#C53030" stroke-width="1.8" stroke-dasharray="4,3" />
-  <text x="210" y="115" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#C53030">Δt (Run)</text>
-  <text x="278" y="87" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#C53030">Δv (Rise)</text>
-  <text x="135" y="70" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#C53030">Slope = a = Δv / Δt</text>
+  <!-- Angle arc θ at base -->
+  <path d="M 115 180 A 45 45 0 0 0 105 155" fill="none" stroke="#63B3ED" stroke-width="2" />
+  <text x="128" y="168" font-family="system-ui" font-weight="bold" font-size="13" fill="#63B3ED">θ = 34.5°</text>
+
+  <!-- Height dimension line -->
+  <line x1="220" y1="70" x2="220" y2="180" stroke="#FC8181" stroke-width="1.5" stroke-dasharray="4 3" />
+  <text x="200" y="130" text-anchor="end" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">h = 0.57 m</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Kinematics: Velocity-Time Graph & Acceleration Slope' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ruler Leaning Against a Table with Angle and Height' };
     }
 
-    // ── 3. Geometry & Trigonometry Right Triangle ──
-    if (textContext.includes('triang') || textContext.includes('sin') || textContext.includes('cos') || textContext.includes('tan') || textContext.includes('angle') || textContext.includes('pythag') || textContext.includes('geometry')) {
-        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
-  <!-- Triangle Polygon -->
-  <polygon points="70,175 330,175 330,35" fill="#F4ECE2" stroke="#8B4513" stroke-width="3" />
-  
-  <!-- Right Angle Square -->
-  <rect x="305" y="150" width="25" height="25" fill="none" stroke="#8B4513" stroke-width="2" />
-  
-  <!-- Labels -->
-  <text x="200" y="195" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22" text-anchor="middle">Adjacent Side (b)</text>
-  <text x="345" y="110" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22">Opposite (a)</text>
-  <text x="175" y="90" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#2B6CB0" transform="rotate(-28 175 90)">Hypotenuse (c)</text>
-  
-  <!-- Angle Arc θ -->
-  <path d="M 115,175 A 45,45 0 0,0 108,152" fill="none" stroke="#C53030" stroke-width="2.5" />
-  <text x="125" y="165" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#C53030">θ</text>
-  
-  <!-- Formula Pill -->
-  <rect x="70" y="15" width="200" height="30" rx="6" fill="#FFFDF9" stroke="#DFD1C0" />
-  <text x="80" y="35" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">a² + b² = c²  |  sin θ = a / c</text>
-</svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Right Triangle Trigonometric & Geometric Model' };
-    }
-
-    // ── 4. Calculus: Tangent Line & Derivative Slope ──
-    if (textContext.includes('slope') || textContext.includes('deriv') || textContext.includes('tangent') || textContext.includes('rate') || textContext.includes('calculus') || textContext.includes('integral')) {
+    // ── 3. Ball / Projectile Launched from Cliff ──
+    if (textContext.includes('cliff') || textContext.includes('drop') || textContext.includes('projectile') || textContext.includes('gravity') || textContext.includes('fall') || textContext.includes('height') || textContext.includes('ball')) {
         const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#8B4513" />
-    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
   </defs>
-  <!-- Axes -->
-  <line x1="45" y1="185" x2="385" y2="185" stroke="#8B4513" stroke-width="2" marker-end="url(#arrow)" />
-  <line x1="45" y1="185" x2="45" y2="25" stroke="#8B4513" stroke-width="2" marker-end="url(#arrow)" />
-  <text x="390" y="190" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">x</text>
-  <text x="50" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#8B4513">f(x)</text>
+  <!-- Stone Cliff -->
+  <path d="M 10 190 L 140 190 L 140 70 L 10 70 Z" fill="#2D333B" stroke="#ADBAC7" stroke-width="2.5" />
+  <text x="75" y="135" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="13" fill="#FFF">Cliff (Height h)</text>
 
-  <!-- Curve f(x) -->
-  <path d="M 60,170 Q 180,160 240,95 T 370,30" fill="none" stroke="#2B6CB0" stroke-width="3.5" />
-  <text x="320" y="30" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#2B6CB0">y = f(x)</text>
+  <!-- Water / Ground below -->
+  <line x1="140" y1="190" x2="410" y2="190" stroke="#3182CE" stroke-width="3" />
 
-  <!-- Tangent Line -->
-  <line x1="140" y1="175" x2="330" y2="35" stroke="#C53030" stroke-width="2.5" stroke-dasharray="6,4" />
-  <circle cx="235" cy="105" r="5" fill="#C53030" />
-  <text x="248" y="110" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">Point (x₀, f(x₀))</text>
+  <!-- Ball on cliff edge -->
+  <circle cx="140" cy="60" r="10" fill="#E53E3E" stroke="#FFF" stroke-width="2" />
+  <!-- Horizontal velocity arrow -->
+  <line x1="150" y1="60" x2="230" y2="60" stroke="#63B3ED" stroke-width="3" marker-end="url(#arrow-blue)" />
+  <text x="190" y="48" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#63B3ED">v_x = 15 m/s</text>
 
-  <rect x="60" y="40" width="180" height="32" rx="6" fill="#FFFDF9" stroke="#E5DACD" />
-  <text x="70" y="61" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#C53030">Tangent Slope m = f'(x₀)</text>
+  <!-- Parabolic trajectory path -->
+  <path d="M 140 60 Q 230 65 330 188" fill="none" stroke="#FC8181" stroke-width="2.5" stroke-dasharray="6 4" />
+  <circle cx="330" cy="188" r="10" fill="#E53E3E" stroke="#FFF" stroke-width="2" />
+  <line x1="250" y1="90" x2="250" y2="140" stroke="#FC8181" stroke-width="2.5" marker-end="url(#arrow-red)" />
+  <text x="260" y="120" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">g = 9.8 m/s²</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Calculus: Function Curve & Instantaneous Tangent Rate' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ball Launched Horizontally Off a Cliff (Projectile Motion)' };
     }
 
-    // ── 5. Electricity & Circuits ──
-    if (textContext.includes('circuit') || textContext.includes('resistor') || textContext.includes('voltage') || textContext.includes('current') || textContext.includes('ohm')) {
+    // ── 4. Pulley & Suspended Masses (Atwood Machine, Tension, Dynamics) ──
+    if (textContext.includes('pulley') || textContext.includes('tension') || textContext.includes('string') || textContext.includes('rope') || textContext.includes('hanging')) {
         const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2B6CB0" />
-    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
   </defs>
-  <!-- Wire loop -->
-  <rect x="70" y="45" width="280" height="130" rx="10" fill="none" stroke="#5A3E22" stroke-width="3" />
-  
-  <!-- Battery Source on Left -->
-  <rect x="60" y="90" width="20" height="40" fill="#FAF7F2" stroke="none" />
-  <line x1="60" y1="100" x2="80" y2="100" stroke="#C53030" stroke-width="4" />
-  <line x1="66" y1="120" x2="74" y2="120" stroke="#5A3E22" stroke-width="3" />
-  <text x="35" y="103" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#C53030">+</text>
-  <text x="35" y="125" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#5A3E22">-</text>
-  <text x="25" y="145" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#5A3E22">Voltage (V)</text>
+  <line x1="140" y1="20" x2="280" y2="20" stroke="#ADBAC7" stroke-width="3" />
+  <line x1="210" y1="20" x2="210" y2="50" stroke="#ADBAC7" stroke-width="3" />
 
-  <!-- Resistor on Top -->
-  <rect x="170" y="35" width="80" height="20" fill="#FAF7F2" stroke="none" />
-  <path d="M 170,45 L 180,35 L 195,55 L 210,35 L 225,55 L 240,35 L 250,45" fill="none" stroke="#8B4513" stroke-width="3" />
-  <text x="185" y="25" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#8B4513">Resistor (R)</text>
+  <!-- Pulley wheel -->
+  <circle cx="210" cy="65" r="22" fill="#2D333B" stroke="#FFF" stroke-width="2.5" />
+  <circle cx="210" cy="65" r="6" fill="#FFF" />
 
-  <!-- Current Arrow in Center -->
-  <path d="M 180,110 A 30,30 0 1,1 230,110" fill="none" stroke="#2B6CB0" stroke-width="2.5" marker-end="url(#arrow-blue)" />
-  <text x="175" y="130" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#2B6CB0">Current I = V / R</text>
+  <!-- Rope over pulley -->
+  <line x1="188" y1="65" x2="188" y2="130" stroke="#F6AD55" stroke-width="2.5" />
+  <line x1="232" y1="65" x2="232" y2="155" stroke="#F6AD55" stroke-width="2.5" />
+
+  <!-- Mass A (Left, lighter) -->
+  <rect x="168" y="130" width="40" height="35" rx="4" fill="#22272E" stroke="#FFF" stroke-width="2" />
+  <text x="188" y="152" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FFF">m₁</text>
+
+  <!-- Mass B (Right, heavier) -->
+  <rect x="212" y="155" width="40" height="45" rx="4" fill="#E6BAA3" stroke="#FFF" stroke-width="2" />
+  <text x="232" y="182" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#22272E">m₂</text>
+
+  <!-- Tension T & Gravity arrows -->
+  <line x1="150" y1="125" x2="150" y2="95" stroke="#68D391" stroke-width="2" marker-end="url(#arrow-green)" />
+  <text x="142" y="112" text-anchor="end" font-family="system-ui" font-weight="bold" font-size="11" fill="#68D391">T</text>
+  <line x1="270" y1="175" x2="270" y2="205" stroke="#FC8181" stroke-width="2" marker-end="url(#arrow-red)" />
+  <text x="278" y="195" font-family="system-ui" font-weight="bold" font-size="11" fill="#FC8181">m₂g</text>
 </svg>`;
-        return { diagramSvg: svg, tableMarkdown: null, caption: 'Ohm\'s Law DC Circuit Loop Model' };
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Pulley with Hanging Masses (Tension & Gravity)' };
     }
 
-    if (step === 'summary') {
-        const tableMarkdown = `| Key Concept | Summary Takeaway |\n| :--- | :--- |\n| **Core Idea** | ${concept.keyDefinition.slice(0, 70)}... |\n| **Application** | ${concept.summaryPoints[0] || 'Key principle'} |\n| **Beware** | ${concept.commonPitfalls[0] || 'Common pitfall'} |`;
-        return { diagramSvg: null, tableMarkdown, caption: `${concept.conceptName} — Summary Matrix` };
+    // ── 5. Standard Dynamics & Free-Body Force Diagram ──
+    if (textContext.includes('force') || textContext.includes('newton') || textContext.includes('mass')) {
+        const svg = `<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
+  </defs>
+  <line x1="30" y1="160" x2="390" y2="160" stroke="#ADBAC7" stroke-width="2.5" />
+  <rect x="150" y="100" width="120" height="60" rx="8" fill="#22272E" stroke="#FFF" stroke-width="2.5" />
+  <text x="210" y="136" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="14" fill="#FFF">Mass m</text>
+  <line x1="270" y1="130" x2="360" y2="130" stroke="#FC8181" stroke-width="3" marker-end="url(#arrow-red)" />
+  <text x="315" y="120" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">F_net</text>
+  <line x1="210" y1="100" x2="210" y2="30" stroke="#68D391" stroke-width="2.5" marker-end="url(#arrow-green)" />
+  <text x="210" y="22" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#68D391">Normal Force F_N</text>
+  <line x1="210" y1="160" x2="210" y2="210" stroke="#FC8181" stroke-width="2.5" marker-end="url(#arrow-red)" />
+  <text x="210" y="218" text-anchor="middle" font-family="system-ui" font-weight="bold" font-size="12" fill="#FC8181">Gravity W = mg</text>
+</svg>`;
+        return { diagramSvg: svg, tableMarkdown: null, caption: 'Free-Body Force Diagram' };
     }
 
     return { diagramSvg: null, tableMarkdown: null };
 }
 
+// ── Pure Board Content Generators for Fallback ────────────────────────────────
 function getBoardLines(concept: BlueprintConcept, step: SubStep): string[] {
     switch (step) {
-        case 'definition': {
-            const defLines: string[] = [concept.conceptName];
-            const sentences = concept.keyDefinition.match(/[^.!?]+[.!?]*/g) || [concept.keyDefinition];
-            sentences.slice(0, 3).forEach(s => defLines.push(s.trim()));
-            return defLines.slice(0, MAX_BOARD_LINES);
+        case 'intuition_hook':
+            return [
+                `**Question**: ${concept.relatableQuestion}`,
+                `**Physical Scenario**: ${concept.realWorldScenario || 'Everyday real-world situation'}`,
+                `**Intuitive Meaning**: ${concept.physicalMeaning || concept.keyDefinition}`,
+            ];
+        case 'physical_meaning':
+            return [
+                concept.keyDefinition,
+                `**Physical Significance**: ${concept.physicalMeaning || concept.keyDefinition}`,
+            ];
+        case 'formula_table': {
+            const lines = [];
+            if (concept.formula) lines.push(concept.formula);
+            if (concept.variables && concept.variables.length > 0) {
+                concept.variables.slice(0, 4).forEach(v => {
+                    lines.push(`$${v.symbol}$ $\\rightarrow$ ${v.meaning} ($${v.unit || '\\text{SI}'}$)`);
+                });
+            }
+            return lines;
         }
-        case 'formula': {
-            if (!concept.formula) return [];
-            const fl: string[] = [concept.formula];
-            (concept.variables || []).forEach(v => fl.push(`  ${v.symbol}  →  ${v.meaning}`));
-            return fl.slice(0, MAX_BOARD_LINES);
+        case 'distinctions_pitfalls':
+            return [
+                `**Key Distinction**: ${concept.keyDistinction || 'Pay close attention to direction and sign convention.'}`,
+                `**Golden Rule**: ${concept.goldenRule || (concept.summaryPoints?.[0] || 'Understand the core physical meaning.')}`,
+                concept.commonPitfalls?.[0] ? `**Watch Out**: ${concept.commonPitfalls[0]}` : '',
+            ].filter(Boolean);
+        case 'example_problem': {
+            const ex = concept.example;
+            const lines = [
+                `**Problem**: ${ex.problem}`,
+            ];
+            if (ex.givens && ex.givens.length > 0) {
+                lines.push(`**Given**: ` + ex.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', '));
+            }
+            if (ex.find) {
+                lines.push(`**Find**: ${ex.find}`);
+            }
+            return lines;
         }
-        case 'intuition':
-            return ['Intuition', concept.intuitionNote].slice(0, MAX_BOARD_LINES);
-        case 'example_1':
-            return [`Example: ${concept.example1.problem}`, ...concept.example1.solution.slice(0, 4)].slice(0, MAX_BOARD_LINES);
-        case 'example_2':
-            return [`Challenge: ${concept.example2.problem}`, ...concept.example2.solution.slice(0, 4)].slice(0, MAX_BOARD_LINES);
-        case 'pitfalls':
-            return ['Common Pitfalls', ...(concept.commonPitfalls || []).slice(0, 4)].slice(0, MAX_BOARD_LINES);
-        case 'summary':
-            return [`${concept.conceptName} — Summary`, ...(concept.summaryPoints || []).slice(0, 4)].slice(0, MAX_BOARD_LINES);
+        case 'example_step1': {
+            const s1 = concept.example.step1;
+            return [
+                `**Step 1 — Principle & Formula**: ${s1?.explanation || 'Relate given values to target unknown.'}`,
+                s1?.mathExpression ? `$$${s1.mathExpression}$$` : (s1?.formula ? `$$${s1.formula}$$` : `$$v_f = v_i + at$$`),
+            ];
+        }
+        case 'example_step2': {
+            const s2 = concept.example.step2;
+            return [
+                `**Step 2 — Calculation**: ${s2?.explanation || 'Substitute known numerical values.'}`,
+                s2?.mathExpression ? `$$${s2.mathExpression}$$` : `$$v_f = 0 + (2\\text{ m/s}^2)(5\\text{ s}) = 10\\text{ m/s}$$`,
+            ];
+        }
+        case 'example_step3': {
+            const ex = concept.example;
+            return [
+                `**Step 3 — Final Result**: $$${ex.answer}$$`,
+                `**Unit & Physical Check**: ${ex.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}`,
+            ];
+        }
+        case 'concept_recap':
+            return [
+                `**Golden Rule**: ${concept.goldenRule}`,
+                concept.formula ? `$$${concept.formula}$$` : '',
+                `**Key Takeaway**: ${concept.summaryPoints?.[0] || 'Concept mastered.'}`,
+            ].filter(Boolean);
         default:
-            return [];
+            return [`${concept.conceptName}`];
     }
 }
 
 function getSpokenText(concept: BlueprintConcept, step: SubStep): string {
-    const varSpeak = (concept.variables || [])
-        .map(v => `${v.symbol} stands for ${v.meaning}`)
-        .join('. ');
-
+    const name = concept.conceptName;
     switch (step) {
-        case 'definition':
-            return `Let us talk about ${concept.conceptName}. ${concept.keyDefinition} Does that definition make sense to you so far?`;
-        case 'formula':
-            return `Look at the board. Here is the key equation for ${concept.conceptName}. ${varSpeak ? `Where ${varSpeak}.` : ''} Take a moment to look at how these variables relate. What do you notice?`;
-        case 'intuition':
-            return `Here is the physical intuition behind this. ${concept.intuitionNote} Can you think of a real-world situation where you have experienced something like this?`;
-        case 'example_1':
-            return `Let me walk you through a standard example. The problem is: ${concept.example1.problem}. ${concept.example1.solution.join('. Then, ')}. Our final answer is ${concept.example1.answer}. Did you follow each step?`;
-        case 'example_2':
-            return `Now let us try a more challenging version. ${concept.example2.problem}. ${concept.example2.solution.join('. Next, ')}. The answer is ${concept.example2.answer}. Notice how this builds on what we just did. Can you see what changed?`;
-        case 'pitfalls':
-            return `Before we move on, let me highlight the most common mistakes students make here. ${(concept.commonPitfalls || []).join('. Also watch out for: ')}. Have you made any of these before?`;
-        case 'summary':
-            return `Excellent! Let us lock in what we just learned about ${concept.conceptName}. ${(concept.summaryPoints || []).join('. Also remember: ')}. Are you ready to move on to the next concept?`;
+        case 'intuition_hook':
+            return `Let us start with ${name}. Think about this question: ${concept.relatableQuestion} Picture ${concept.realWorldScenario || 'a real world situation'}. What comes to mind?`;
+        case 'physical_meaning':
+            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition}. Notice how it connects to our everyday experience. Does this definition feel clear?`;
+        case 'formula_table':
+            return `Look at the board. Here is how we quantify ${name}. Notice how the numbers progress step by step in our table, and how the equation gives us the mathematical shortcut. How do these variables relate to one another?`;
+        case 'distinctions_pitfalls':
+            return `Before we solve an example, let us look at the most common trap students fall into. ${concept.keyDistinction || 'Pay close attention to the difference between these quantities.'} Remember our golden rule: ${concept.goldenRule}. Does this make sense?`;
+        case 'example_problem':
+            return `Let us work through an example step by step. Here is our problem on the board: ${concept.example.problem}. We have identified our given values and what we are looking for. Are you ready to see Step 1?`;
+        case 'example_step1':
+            return `Step 1: First, we identify our governing principle and formula. ${concept.example.step1?.explanation || 'We choose the equation that relates our knowns to our unknown.'} Take a look at the board. Does this formula choice make sense?`;
+        case 'example_step2':
+            return `Step 2: Now we substitute our given values into the formula and calculate. ${concept.example.step2?.explanation || 'Substituting the numbers step by step gives us our result.'} Look at the calculation on the board. Did you follow each calculation step?`;
+        case 'example_step3':
+            return `Step 3: Here is our final answer: ${concept.example.answer}. Notice that the units check out and the physical meaning matches our intuition. ${concept.example.physicalTakeaway || ''} How do you feel about this solution?`;
+        case 'concept_recap':
+            return `Excellent work! You have mastered ${name}. Remember: ${concept.goldenRule}. Are you ready to proceed to the next concept?`;
         default:
             return '';
     }
@@ -466,11 +550,10 @@ function nextSubStep(
     const currentStepIdx = SUB_STEP_ORDER.indexOf(sStep);
     let nextIdx = currentStepIdx + 1;
 
-    // Advance within current concept, skipping formula if none
     while (nextIdx < SUB_STEP_ORDER.length) {
         const candidate = SUB_STEP_ORDER[nextIdx];
         const concept = blueprint.concepts[cIdx];
-        if (candidate === 'formula' && !concept?.formula) {
+        if (candidate === 'formula_table' && !concept?.formula && (!concept?.variables || concept.variables.length === 0)) {
             nextIdx++;
         } else {
             break;
@@ -481,12 +564,11 @@ function nextSubStep(
         return { conceptIdx: cIdx, subStep: SUB_STEP_ORDER[nextIdx], done: false };
     }
 
-    // Move to next concept
     const nextConceptIdx = cIdx + 1;
     if (nextConceptIdx >= blueprint.concepts.length) {
-        return { conceptIdx: cIdx, subStep: 'summary', done: true };
+        return { conceptIdx: cIdx, subStep: 'concept_recap', done: true };
     }
-    return { conceptIdx: nextConceptIdx, subStep: 'definition', done: false };
+    return { conceptIdx: nextConceptIdx, subStep: 'intuition_hook', done: false };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -499,28 +581,26 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const appSettings = propAppSettings || hookAppSettings;
     const { addToast } = useToast();
 
-    // ── Session ──────────────────────────────────────────────────────────
+    // ── Session & State ──────────────────────────────────────────────────
     const [sessionData, setSessionData] = useState<VoiceTutorialSessionData | null>(null);
-
-    // ── Blueprint ────────────────────────────────────────────────────────
     const [blueprint, setBlueprint] = useState<LessonBlueprint | null>(null);
     const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
     const [blueprintGenStep, setBlueprintGenStep] = useState('');
 
-    // ── Teaching position ────────────────────────────────────────────────
+    // ── Teaching Position ────────────────────────────────────────────────
     const [conceptIdx, setConceptIdx] = useState(0);
-    const [subStep, setSubStep] = useState<SubStep>('definition');
+    const [subStep, setSubStep] = useState<SubStep>('intuition_hook');
     const [isDone, setIsDone] = useState(false);
 
-    // ── Dynamic Affirmative & Negative Action Buttons ────────────────────
+    // ── Dynamic Action Buttons ───────────────────────────────────────────
     const [positiveAction, setPositiveAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('definition').positive
+        getDefaultActions('intuition_hook').positive
     );
     const [negativeAction, setNegativeAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('definition').negative
+        getDefaultActions('intuition_hook').negative
     );
 
-    // ── Board ────────────────────────────────────────────────────────────
+    // ── Board State ──────────────────────────────────────────────────────
     const [visibleBoardLines, setVisibleBoardLines] = useState<string[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [isLoadingUnit, setIsLoadingUnit] = useState(false);
@@ -530,7 +610,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [diagramKey, setDiagramKey] = useState(0);
     const [isDiagramZoomed, setIsDiagramZoomed] = useState(false);
 
-    // ── Audio / mic / input ──────────────────────────────────────────────
+    // ── Audio / Mic / Input / Image Attachment ────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
@@ -538,28 +618,27 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isMicListening, setIsMicListening] = useState(false);
     const [speechRate, setSpeechRate] = useState(1.0);
     const [textInput, setTextInput] = useState('');
-
-    // ── Navigation ───────────────────────────────────────────────────────
+    const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+    const [micDisplay, setMicDisplay] = useState('');
 
     // ── Refs ─────────────────────────────────────────────────────────────
+    const fileInputRef       = useRef<HTMLInputElement | null>(null);
     const isActiveRef        = useRef(true);
     const hasStartedRef      = useRef(false);
     const conceptIdxRef      = useRef(0);
-    const subStepRef         = useRef<SubStep>('definition');
+    const subStepRef         = useRef<SubStep>('intuition_hook');
     const audioContextRef    = useRef<AudioContext | null>(null);
     const currentAudioRef    = useRef<AudioBufferSourceNode | null>(null);
     const playSessionIdRef   = useRef<number>(0);
     const recognitionRef     = useRef<any>(null);
     const spokenTextRef      = useRef('');
     const lastSpokenTextRef  = useRef('');
-    const handleStudentReplyRef = useRef<(reply: string) => Promise<void>>(() => Promise.resolve());
+    const handleStudentReplyRef = useRef<(reply: string, image?: { base64: string; mimeType: string } | null) => Promise<void>>(() => Promise.resolve());
     const streamTimersRef    = useRef<ReturnType<typeof setTimeout>[]>([]);
-    const blueprintKeyRef    = useRef('');
-    const progressKeyRef     = useRef('');
-    const [micDisplay, setMicDisplay] = useState('');
+    const dialogueHistoryRef = useRef<DialogueTurn[]>([]);
 
-    // ── Unmount / navigate cleanup ────────────────────────────────────────
+    // ── Unmount / Cleanup ─────────────────────────────────────────────────
     useEffect(() => {
         isActiveRef.current = true;
         return () => {
@@ -571,7 +650,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         };
     }, []);
 
-    // ── Load session data ─────────────────────────────────────────────────
+    // ── Load Session Data ─────────────────────────────────────────────────
     useEffect(() => {
         const stored = readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null);
         if (stored?.course) {
@@ -593,26 +672,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         }
     }, [userProfile?.level]);
 
-    // ── Compute cache keys when session loads ─────────────────────────────
-    useEffect(() => {
-        if (!sessionData) return;
-        const uid  = userProfile?.uid || 'anon';
-        const cid  = sessionData.course?.course_id  || 'general';
-        const tid  = sessionData.topic?.topic_id    || 'core';
-        blueprintKeyRef.current = `vt_blueprint_v5_${uid}_${cid}_${tid}`;
-        progressKeyRef.current  = `vt_progress_v5_${uid}_${cid}_${tid}`;
-    }, [sessionData, userProfile]);
-
-    // ── Load / generate blueprint once session is ready ───────────────────
+    // ── Bootstrap session ─────────────────────────────────────────────────
     useEffect(() => {
         if (!sessionData || hasStartedRef.current) return;
         hasStartedRef.current = true;
         void bootstrapSession();
     }, [sessionData]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Audio helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Audio & Mic Functions ─────────────────────────────────────────────
     function stopAudioImmediate() {
         playSessionIdRef.current++;
         if (currentAudioRef.current) {
@@ -683,14 +750,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setMicDisplay('');
                 if (final.length > 0) {
                     addToast(`Heard: "${final}"`, 'info');
-                    void handleStudentReplyRef.current(final);
+                    void handleStudentReplyRef.current(final, attachedImage);
                 }
             };
             rec.onerror = () => { if (isActiveRef.current) setIsMicListening(false); };
             recognitionRef.current = rec;
             rec.start();
         } catch (_) { setIsMicListening(false); }
-    }, [addToast]);
+    }, [addToast, attachedImage]);
 
     const browserSpeak = useCallback((text: string, onEnd?: () => void) => {
         if (!('speechSynthesis' in window)) {
@@ -702,7 +769,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const utt = new SpeechSynthesisUtterance(text);
         utt.rate  = speechRate;
         const vs  = window.speechSynthesis.getVoices();
-        const v   = vs.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural')))
+        const v   = vs.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Charon')))
                  || vs.find(v => v.lang.startsWith('en'));
         if (v) utt.voice = v;
         utt.onstart = () => { if (isActiveRef.current) { setIsSpeaking(true); setIsPaused(false); setIsTtsLoading(false); } };
@@ -722,7 +789,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         window.speechSynthesis.speak(utt);
     }, [speechRate, startMicListening]);
 
-    // ── Sentence Splitter for Ultra-Low Latency Speech Streaming ─────────────
     const splitSpeechSentences = useCallback((rawText: string): string[] => {
         const clean = rawText
             .replace(/\$\$([\s\S]*?)\$\$/g, ' as shown on the board ')
@@ -732,14 +798,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             .trim();
         if (!clean) return [];
 
-        // Match complete sentences ending in . ! ? or newline
         const parts = clean.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [clean];
         const sentences: string[] = [];
 
         for (const part of parts) {
             const trimmed = part.trim();
             if (!trimmed) continue;
-            // Split overly long sentences (>150 characters) at punctuation marks for instant TTFB
             if (trimmed.length > 150) {
                 const subChunks = trimmed.match(/[^,;:—]+(?:[,;:—]+(?=\s|$)|$)/g) || [trimmed];
                 for (const sub of subChunks) {
@@ -753,7 +817,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         return sentences.length > 0 ? sentences : [clean];
     }, []);
 
-    // ── Gemini Live Voice Sentence-Pipelined Streaming Speech Engine ─────────
+    // ── Dedicated Charon Voice Engine (Single Model) ─────────────────────────
     const speakText = useCallback(async (text: string, onEnd?: () => void): Promise<void> => {
         if (!isActiveRef.current || isMuted || !text) {
             onEnd?.();
@@ -789,7 +853,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             const ctx = getAudioCtx();
             if (ctx.state === 'suspended') await ctx.resume();
 
-            // Cache for fetched audio buffers by sentence index
             const bufferPromiseMap = new Map<number, Promise<AudioBuffer | null>>();
 
             const fetchSentenceAudio = (index: number): Promise<AudioBuffer | null> => {
@@ -814,7 +877,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                         if (!inlineData?.data) return null;
                         return await pcm16ToAudioBuffer(inlineData.data, ctx);
                     } catch (e) {
-                        console.warn(`[Gemini TTS] Sentence ${index} fetch error:`, e);
+                        console.warn(`[Charon TTS] Sentence ${index} fetch error:`, e);
                         return null;
                     }
                 })();
@@ -822,7 +885,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 return promise;
             };
 
-            // Initiate sentence 0 and pre-fetch sentence 1 immediately
             void fetchSentenceAudio(0);
             if (sentences.length > 1) void fetchSentenceAudio(1);
 
@@ -844,8 +906,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 }
 
                 const sentenceIdx = currentIndex;
-
-                // Pipeline pre-fetch for upcoming sentences
                 if (sentenceIdx + 1 < sentences.length) void fetchSentenceAudio(sentenceIdx + 1);
                 if (sentenceIdx + 2 < sentences.length) void fetchSentenceAudio(sentenceIdx + 2);
 
@@ -855,12 +915,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
                 if (!buffer) {
                     if (sentenceIdx === 0) {
-                        console.warn('[Gemini TTS] Initial sentence failed, falling back to natural browser synthesis');
                         setIsTtsLoading(false);
                         browserSpeak(sentences.slice(currentIndex).join(' '), onEnd);
                         return;
                     }
-                    // Skip to next sentence if one intermediate sentence had a network error
                     currentIndex++;
                     void playNextSentence();
                     return;
@@ -888,16 +946,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             void playNextSentence();
 
         } catch (err) {
-            console.warn('[Gemini TTS] Pipelining error, falling back to browser synthesis:', err);
+            console.warn('[Charon TTS] error, falling back to browser synthesis:', err);
             if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
             setIsTtsLoading(false);
             browserSpeak(sentences.join(' '), onEnd);
         }
     }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, splitSpeechSentences, browserSpeak, startMicListening]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Board streaming
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Board Line Streaming ─────────────────────────────────────────────────
     const streamBoardLines = useCallback((lines: string[]) => {
         clearAllStreamTimers();
         setVisibleBoardLines([]);
@@ -922,12 +978,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         tick();
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Blueprint generation (Deep, Bit-by-Bit Master Pedagogical Blueprint)
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Master Blueprint Generation (Bit-by-Bit, Multi-Board & Step-by-Step) ─
     const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
         setIsGeneratingBlueprint(true);
-        setBlueprintGenStep('Analysing topic & student memory...');
+        setBlueprintGenStep('Analyzing topic & student cognitive history...');
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) { setIsGeneratingBlueprint(false); return null; }
@@ -936,64 +990,90 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const topicName  = session.topic?.topic_name || 'Core Concepts';
         const level      = session.course.level || 'University';
 
-        setBlueprintGenStep('Designing personalized bit-by-bit lesson plan...');
+        setBlueprintGenStep('Structuring deep multi-board lesson progression...');
 
         const memoryContext = studentMem?.lastTopicTaught
-            ? `STUDENT COGNITIVE MEMORY & HISTORY:
-- Last Taught Topic: "${studentMem.lastTopicTaught.topicName}" in ${studentMem.lastTopicTaught.courseName}
-- Mastered Concepts: ${studentMem.overallMasteries.slice(-5).join(', ') || 'Foundational topics'}
-- Areas of Past Struggle / Pitfalls: ${studentMem.overallWeakPoints.slice(-5).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit conversions & boundary conditions'}
-- Preferred Learning Style: Step-by-step physical intuition, concrete numerical state tables before algebra.`
-            : `STUDENT COGNITIVE MEMORY: New student or fresh topic. Maintain intuitive, step-by-step pacing.`;
+            ? `STUDENT HISTORY:
+- Last Topic: "${studentMem.lastTopicTaught.topicName}"
+- Known Masteries: ${studentMem.overallMasteries.slice(-4).join(', ') || 'Foundations'}
+- Struggles: ${studentMem.overallWeakPoints.slice(-4).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit consistency'}
+- Pedagogy: Intuition first, state progression tables before formulas, and 1-step-per-board problem solving.`
+            : `STUDENT: New session. Maintain crystal-clear intuitive pacing.`;
 
-        const prompt = `You are AVELUT Master STEM Curriculum Designer. You follow the "Intuition First, Math Second, Bit-by-Bit" pedagogy:
-1. Slow Down & Teach Bit-by-Bit: Never rush or give compressed 1-sentence summaries. Thoroughly explain what terms mean and how things work in the real world.
-2. Step-by-Step, Foundational: Start with basic, relatable questions (e.g. "When you hear the word distance, what do you think of?").
-3. Real-World Physical Analogies: Vivid everyday scenarios (e.g. sports car vs. truck 0-60, ball dropped off a cliff, column buckling under roof weight).
-4. Concrete Progression Tables Over Abstract Math: Build step-by-step or second-by-second numerical state tables showing how quantities evolve before showing algebraic formulas.
-5. Clear Distinctions & Golden Rules: Explicitly contrast confusing twin terms (e.g. Distance vs. Displacement, Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
-6. Full Problem Statements & Interactive Pacing: When giving examples, ALWAYS write the FULL, CLEAR question text (do not compress into shorthand). Break down given data, state the principle, substitute numbers, and interpret the physical result.
-7. Visual Representation: Labeled diagrams, force vectors with arrows, geometry sketches.
-
-${memoryContext}
-
+        const prompt = `You are AVELUT Master STEM Curriculum Architect.
+Design a thorough, bit-by-bit lesson blueprint for:
 Course: "${courseName}"
 Topic: "${topicName}"
-Student Level: ${level}
+Level: ${level}
+${memoryContext}
 
-Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown fences.
+PEDAGOGICAL REQUIREMENTS:
+1. Simplest Words Possible (CRITICAL): Use the simplest, most intuitive everyday words to explain every concept. Eliminate unnecessary academic jargon. If a technical term must be taught, define it immediately using a concrete real-world physical object.
+2. Real-World Physical Object Analogies (MANDATORY): Always use familiar physical objects to describe and define abstract concepts.
+   - For example, to define systems (open vs. closed vs. isolated system), use a room with open vs closed windows/doors, or a cup of hot tea (open cup vs lid on top vs thermos flask).
+   - For circuits, use a water loop with a pump and valve.
+   - For momentum/inertia, use a loaded shopping cart vs an empty cart.
+   - For forces and kinematics, use a moving car or a ball tossed in the air.
+3. Multi-Board Depth (3+ boards per concept): Do not rush concepts into a single slide. Break each concept into deep intuitive stages.
+4. Step-by-Step Problem Solving (1 step per board): When giving worked examples, break the solution into 3 distinct steps:
+   - step1: Principle & Formula selection (Why this formula?)
+   - step2: Substitution & Math calculation (1 step calculation)
+   - step3: Final Result & Unit verification (What does this number mean physically?)
+5. LaTeX / KaTeX Typography: Format all math symbols, formulas, variables, subscripts, powers, and units in valid LaTeX delimiters ($...$ or $$...$$). E.g. $v_f = v_i + at$, $a = 2\\text{ m/s}^2$, $10^5$, $\\sqrt{2gh}$, $F_{\\text{net}}$.
+6. State Progression Tables: Concrete numerical state tables showing how quantities evolve step-by-step.
+7. Twin-Term Distinctions: Explicitly contrast confusing pairs (e.g. Speed vs. Velocity, Mass vs. Weight) with bold Golden Rules.
 
+OUTPUT VALID JSON ONLY (No markdown fences, no raw text):
 {
-  "overview": "2-3 sentence overview of what the student will learn",
+  "overview": "2-3 sentence engaging overview",
   "concepts": [
     {
-      "conceptName": "Short name (2-5 words)",
-      "relatableQuestion": "Everyday intuitive question to open the topic (e.g. 'When you hear acceleration, what comes to mind?')",
-      "keyDefinition": "Clear, deep, and thorough definition grounded in physical meaning, plain English",
-      "realWorldAnalogy": "Concrete physical analogy or scenario (e.g. truck vs. sports car 0 to 60 mph)",
-      "intuitionNote": "What this concept feels like physically in everyday life and why it behaves this way.",
-      "progressionTable": "| Time (t) | Velocity (v) | What is happening? |\\n| :---: | :---: | :--- |\\n| 0 s | 12 m/s | Starting speed |\\n| 1 s | 16 m/s | Added +4 m/s |\\n| 2 s | 20 m/s | Added +4 m/s |",
-      "formula": "$$LaTeX formula$$ or null",
+      "conceptName": "Short Concept Name (2-5 words)",
+      "relatableQuestion": "Everyday intuitive question (e.g. 'When you step on the gas pedal, what actually changes?')",
+      "realWorldScenario": "Concrete everyday scenario (e.g. sports car 0 to 60 mph on highway ramp)",
+      "keyDefinition": "Clear, deep physical definition with LaTeX math",
+      "physicalMeaning": "Physical intuition and why it behaves this way in the physical world",
+      "progressionTable": "| Time ($t$) | Velocity ($v$) | What is happening? |\\n| :---: | :---: | :--- |\\n| **0 s** | **12 m/s** | Initial speed ($v_i$) |\\n| **1 s** | **16 m/s** | Added $+4\\text{ m/s}$ ($a = 4\\text{ m/s}^2$) |\\n| **2 s** | **20 m/s** | Added $+4\\text{ m/s}$ |",
+      "formula": "$$LaTeX equation$$ or null",
       "variables": [
-        {"symbol": "a", "meaning": "Acceleration — rate velocity changes per second", "unit": "m/s²"}
+        {"symbol": "a", "meaning": "Acceleration — rate of velocity change per second", "unit": "\\text{m/s}^2"}
       ],
-      "keyDistinction": "Clear distinction between this and its commonly confused counterpart (e.g. Speed vs. Velocity)",
-      "goldenRule": "Memorable Golden Rule (e.g. 'Distance is always positive; displacement can be positive, negative, or zero.')",
-      "example1": {
-        "problem": "Detailed problem statement including all given variables.",
-        "solution": ["Step 1", "Step 2", "Step 3"],
-        "answer": "Final value"
+      "keyDistinction": "Crucial distinction from its commonly confused counterpart (e.g. Speed vs. Velocity)",
+      "goldenRule": "Memorable Golden Rule (e.g. 'Acceleration tells you how velocity changes each second; velocity tells you how position changes.')",
+      "example": {
+        "problem": "Clear, complete problem statement with given numbers in LaTeX (e.g. A train accelerates from rest at $2\\text{ m/s}^2$ for $5\\text{ s}$. Find its final velocity.)",
+        "givens": [
+          {"symbol": "v_i", "value": "0\\text{ m/s}"},
+          {"symbol": "a", "value": "2\\text{ m/s}^2"},
+          {"symbol": "t", "value": "5\\text{ s}"}
+        ],
+        "find": "Final velocity $v_f$",
+        "step1": {
+          "stepNumber": 1,
+          "title": "Identify Principle & Formula",
+          "explanation": "Since acceleration is constant, we use the first kinematic equation connecting velocity, acceleration, and time.",
+          "mathExpression": "v_f = v_i + at"
+        },
+        "step2": {
+          "stepNumber": 2,
+          "title": "Substitute Values & Calculate",
+          "explanation": "Substitute the initial velocity $v_i = 0\\text{ m/s}$, acceleration $a = 2\\text{ m/s}^2$, and time $t = 5\\text{ s}$.",
+          "mathExpression": "v_f = 0 + (2\\text{ m/s}^2)(5\\text{ s}) = 10\\text{ m/s}"
+        },
+        "step3": {
+          "stepNumber": 3,
+          "title": "Final Result & Unit Verification",
+          "explanation": "The train reaches $10\\text{ m/s}$, gaining $2\\text{ m/s}$ every second for 5 seconds.",
+          "mathExpression": "v_f = 10\\text{ m/s}"
+        },
+        "answer": "10\\text{ m/s}",
+        "physicalTakeaway": "Every second of acceleration added $2\\text{ m/s}$ of speed."
       },
-      "example2": {
-        "problem": "A slightly harder challenge variation.",
-        "solution": ["Step 1", "Step 2", "Step 3"],
-        "answer": "Final value"
-      },
-      "commonPitfalls": ["Pitfall 1", "Pitfall 2"],
-      "summaryPoints": ["Summary point 1", "Summary point 2"]
+      "commonPitfalls": ["Forgetting direction in vector quantities", "Mixing up units"],
+      "summaryPoints": ["Key point 1", "Key point 2"]
     }
   ],
-  "overallSummary": "1–2 sentence closing summary of the topic"
+  "overallSummary": "1-2 sentence closing summary of the topic"
 }`;
 
         try {
@@ -1016,44 +1096,33 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         }
     }, [appSettings, userProfile, addToast]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Session bootstrap — load or generate blueprint, restore progress & memory
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Session Bootstrap & SQLite Restore ────────────────────────────────────
     const bootstrapSession = useCallback(async () => {
         if (!sessionData) return;
 
-        const uid   = userProfile?.uid || 'anon';
-        const cid   = sessionData.course?.course_id  || 'general';
-        const tid   = sessionData.topic?.topic_id    || 'core';
-        const bpKey = `vt_blueprint_v6_${uid}_${cid}_${tid}`;
-        const prKey = `vt_progress_v6_${uid}_${cid}_${tid}`;
-        blueprintKeyRef.current = bpKey;
-        progressKeyRef.current  = prKey;
+        const uid = userProfile?.uid || 'anon';
+        const cid = sessionData.course?.course_id || 'general';
+        const tid = sessionData.topic?.topic_id || 'core';
 
-        // Load student cognitive memory profile
         const studentMem = await getStudentCognitiveProfile(uid);
-
-        // 1. Load blueprint from cache
-        let bp = readCachedJson<LessonBlueprint | null>(bpKey, null);
+        const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
+        let bp: LessonBlueprint | null = sqliteRecord?.blueprint || null;
 
         if (!bp) {
-            // 2. Generate blueprint
             bp = await generateBlueprint(sessionData, studentMem);
             if (!bp || !isActiveRef.current) return;
-            writeCachedJson(bpKey, bp, uid);
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition_hook', false, bp);
         }
 
         if (!isActiveRef.current) return;
         setBlueprint(bp);
 
-        // 3. Restore progress
-        const saved = readCachedJson<TutorialProgress | null>(prKey, null);
-        let startConceptIdx = 0;
-        let startSubStep: SubStep = 'definition';
+        let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
+        let startSubStep: SubStep = (sqliteRecord?.subStep as SubStep) || 'intuition_hook';
 
-        if (saved && saved.conceptIdx < bp.concepts.length) {
-            startConceptIdx = saved.conceptIdx;
-            startSubStep    = saved.subStep;
+        if (startConceptIdx >= bp.concepts.length) {
+            startConceptIdx = 0;
+            startSubStep = 'intuition_hook';
         }
 
         conceptIdxRef.current = startConceptIdx;
@@ -1065,13 +1134,10 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
-        // 4. Start teaching with memory context
         await presentUnit(bp, startConceptIdx, startSubStep, studentMem, true);
     }, [sessionData, userProfile, generateBlueprint]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Present a specific unit — with memory recall & precision SVG rendering
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Present Unit (Deep Multi-Board & Step-by-Step) ────────────────────────
     const presentUnit = useCallback(async (
         bp: LessonBlueprint,
         cIdx: number,
@@ -1102,122 +1168,147 @@ Generate a lesson blueprint as valid JSON ONLY — no explanation, no markdown f
         setActiveTableMarkdown(null);
         setActiveVisualCaption(null);
 
-        // Save progress immediately
-        writeCachedJson(progressKeyRef.current, { conceptIdx: cIdx, subStep: sStep }, userProfile?.uid || 'anon');
+        // Save progress immediately to SQLite & local cache
+        const cid = sessionData?.course?.course_id || 'general';
+        const tid = sessionData?.topic?.topic_id || 'core';
+        void saveLocalVoiceTutorialProgress(userProfile?.uid || 'anon', cid, tid, cIdx, sStep, false, bp);
 
-        // Build cognitive memory prompt snippet
-        const memoryOpeningInstruction = (isSessionStart && cIdx === 0 && sStep === 'definition' && studentMem?.lastTopicTaught)
-            ? `MEMORY-BASED OPENING (CRITICAL):
-The student previously completed topic "${studentMem.lastTopicTaught.topicName}" where they struggled with: ${studentMem.lastTopicTaught.struggledKeyPoints?.join(', ') || studentMem.overallWeakPoints?.join(', ') || 'key boundary conditions'}.
-Open the spokenExplanation warmly with personal tutor memory:
-"Welcome back! Last time we nailed down ${studentMem.lastTopicTaught.topicName}, but we noticed ${studentMem.lastTopicTaught.struggledKeyPoints?.[0] || 'the calculation details'} was tricky. Today, we're taking ${concept.conceptName} step-by-step so it becomes second nature... [Then transition into relatable opening question for ${concept.conceptName}]"`
+        const memoryOpening = (isSessionStart && cIdx === 0 && sStep === 'intuition_hook' && studentMem?.lastTopicTaught)
+            ? `OPENING MEMORY CONTEXT:
+The student previously learned "${studentMem.lastTopicTaught.topicName}" where they encountered ${studentMem.lastTopicTaught.struggledKeyPoints?.[0] || 'calculation precision'}. Open warmly referencing their journey before launching into ${concept.conceptName}.`
             : '';
 
-        // ── Sub-step instructions for the AI ("Intuition First, Math Second, Bit-by-Bit") ──
         const subStepInstructions: Record<SubStep, string> = {
-            definition:
-                `Teach the DEFINITION of "${concept.conceptName}" thoroughly using Relatable Question & Intuitive Foundation.
-${memoryOpeningInstruction}
-Relatable Question: ${concept.relatableQuestion || `When you hear the word "${concept.conceptName}", what comes to mind?`}
-- spokenExplanation: (4-6 sentences, slow & engaging). Open warmly (with memory if applicable), deliver the relatable question, and define the key concept in everyday physical terms before introducing equations. Explain what each word means and why it matters in real life. End with a check question.
-- boardLines[0]: "${concept.conceptName}" as title.
-- boardLines[1-3]: The definition broken into 1-3 punchy, plain English lines.
-- diagramSvg: Simple physical sketch or labeled coordinate axis.
-- positiveReplyLabel: "Yes, makes sense →"
-- negativeReplyLabel: "No, explain again ↺"`,
+            intuition_hook: `Board 1: INTUITIVE HOOK & EVERYDAY SCENARIO for "${concept.conceptName}".
+${memoryOpening}
+Relatable Question: ${concept.relatableQuestion}
+Everyday Scenario: ${concept.realWorldScenario}
+- spokenExplanation: (4-5 engaging conversational sentences). Greet the student, pose the relatable question vividly, and ground the concept in everyday physical intuition. Ask how they visualize this.
+- boardLines[0]: "**Question**: ${concept.relatableQuestion}"
+- boardLines[1]: "**Physical Scenario**: ${concept.realWorldScenario}"
+- boardLines[2]: "**Intuitive Meaning**: ${concept.physicalMeaning || concept.keyDefinition}"
+- diagramSvg: Labeled physical scenario sketch (e.g. car on road, leaning ruler, cliff).
+- positiveReplyLabel: "Makes sense, define it →"
+- negativeReplyLabel: "Another real-world example ↺"`,
 
-            intuition:
-                `Teach the PHYSICAL INTUITION & REAL-WORLD ANALOGY for "${concept.conceptName}".
-Analogy: ${concept.realWorldAnalogy || concept.intuitionNote}
-- spokenExplanation: (4-6 sentences). Deliver the physical analogy vividly. Make the student physically visualize what is happening. Refer directly to the diagram drawn on the board. End by asking if they can picture this.
-- boardLines[0]: "💡 Physical Intuition" as header.
-- boardLines[1-3]: 2-3 lines capturing the physical feel and takeaway.
-- diagramSvg: Clean SVG illustration with colored arrows.
-- positiveReplyLabel: "I visualize it, show formula →"
-- negativeReplyLabel: "Give another analogy ↺"`,
+            physical_meaning: `Board 2: PHYSICAL MEANING & CONCEPTUAL DEFINITION for "${concept.conceptName}".
+Definition: ${concept.keyDefinition}
+Physical Intuition: ${concept.physicalMeaning}
+- spokenExplanation: (4-5 sentences). Break down the definition into crystal-clear physical intuition. Explain what the words mean in real life. Avoid reading raw math formulas aloud. Ask if the physical concept makes sense.
+- boardLines[0]: "${concept.keyDefinition}"
+- boardLines[1]: "**Physical Meaning**: ${concept.physicalMeaning || concept.keyDefinition}"
+- diagramSvg: Clean schematic illustrating the concept.
+- positiveReplyLabel: "Understood, show formula →"
+- negativeReplyLabel: "Explain in simpler terms ↺"`,
 
-            formula:
-                `Teach the FORMULA for "${concept.conceptName}" via a CONCRETE PROGRESSION TABLE (Table First, Math Second).
-Progression Table: ${concept.progressionTable || 'Second-by-second numerical table'}
-- spokenExplanation: (4-6 sentences). Tell the student to look at the table on the board. Walk through the numbers second-by-second. THEN explain that the formula on the board is simply the algebraic shortcut for this table. Explain what each symbol represents physically. Do NOT read raw LaTeX.
-- tableMarkdown: Clean second-by-second or step-by-step progression table.
-- boardLines[0]: The LaTeX formula ($$...$$).
-- boardLines[1-N]: Each variable as "symbol  →  plain meaning (units)".
-- positiveReplyLabel: "Formula understood, do example →"
-- negativeReplyLabel: "Explain variables again ↺"`,
+            formula_table: `Board 3: FORMULA & STATE PROGRESSION TABLE for "${concept.conceptName}".
+Progression Table: ${concept.progressionTable || 'Step-by-step state table'}
+Formula: ${concept.formula || 'Core Equation'}
+- spokenExplanation: (4-5 sentences). Tell the student to observe the progression table on the board. Walk through the values row by row, then show how the algebraic formula is simply the universal rule for that table. Explain the symbols and units.
+- tableMarkdown: Clean markdown table with KaTeX math formatting ($...$).
+- boardLines[0]: "${concept.formula || '$$v_f = v_i + at$$'}"
+- boardLines[1-3]: Variable definitions with units in LaTeX (e.g. "$a \\rightarrow$ Acceleration ($\\text{m/s}^2$)").
+- positiveReplyLabel: "Table & math clear, next →"
+- negativeReplyLabel: "Explain variables & units ↺"`,
 
-            pitfalls:
-                `Teach CRUCIAL DISTINCTIONS & GOLDEN RULES for "${concept.conceptName}".
-- spokenExplanation: (4-6 sentences). Highlight the most common mistake students make. Point out the exact difference between the twin terms. Emphasize the Golden Rule clearly. Ask if they have ever fallen into this trap.
-- boardLines[0]: "⚠️ Crucial Distinction & Golden Rule" as header.
-- boardLines[1-N]: The golden rules and warnings formatted clearly.
-- tableMarkdown: Side-by-side comparison table.
-- positiveReplyLabel: "Noted, I'll avoid this trap →"
-- negativeReplyLabel: "Why is this mistake common? ↺"`,
+            distinctions_pitfalls: `Board 4: TWIN-TERM DISTINCTIONS & GOLDEN RULE for "${concept.conceptName}".
+Distinction: ${concept.keyDistinction}
+Golden Rule: ${concept.goldenRule}
+- spokenExplanation: (4-5 sentences). Highlight the common mistake students make. Point out the exact difference between twin terms. State the Golden Rule with emphasis and ask if they have ever fallen into that trap.
+- boardLines[0]: "**Key Distinction**: ${concept.keyDistinction || 'Pay close attention to direction and sign convention.'}"
+- boardLines[1]: "**Golden Rule**: ${concept.goldenRule}"
+- boardLines[2]: "**Watch Out**: ${(concept.commonPitfalls && concept.commonPitfalls[0]) || 'Ignoring units or signs'}"
+- tableMarkdown: Side-by-side comparison table if relevant.
+- positiveReplyLabel: "Noted trap, let's solve! →"
+- negativeReplyLabel: "Why is this confusing? ↺"`,
 
-            example_1:
-                `Teach WORKED EXAMPLE 1 for "${concept.conceptName}".
-- spokenExplanation: (4-6 sentences). "Let's read this problem on the board: [Read problem statement]. Here is how we think about it... First, we write down our given values... Then we apply the formula... giving us our final answer of ${concept.example1.answer}. Does every step make sense?"
-- boardLines[0]: "Example: ${concept.example1.problem}"
-- boardLines[1-4]: The 4 clean working steps.
-- positiveReplyLabel: "I followed each step, next challenge →"
+            example_problem: `Board 5: WORKED EXAMPLE — PROBLEM & GIVENS SETUP for "${concept.conceptName}".
+Problem: ${concept.example.problem}
+- spokenExplanation: (4-5 sentences). Read the problem statement clearly. Guide the student to identify each given quantity from the text, note the units, and pinpoint exactly what we need to solve for.
+- boardLines[0]: "**Problem**: ${concept.example.problem}"
+- boardLines[1]: "**Given**: ${concept.example.givens ? concept.example.givens.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') : 'Known variables'}"
+- boardLines[2]: "**Find**: ${concept.example.find || 'Target quantity'}"
+- diagramSvg: Clean SVG setup of the problem scenario with labeled arrows.
+- positiveReplyLabel: "Givens clear, start Step 1 →"
+- negativeReplyLabel: "Re-read question slowly ↺"`,
+
+            example_step1: `Board 6: WORKED EXAMPLE — STEP 1: PRINCIPLE & FORMULA SELECTION for "${concept.conceptName}".
+Step 1: ${concept.example.step1?.title || 'Identify Principle & Formula'}
+Formula: ${concept.example.step1?.mathExpression || concept.formula}
+- spokenExplanation: (4-5 sentences). Explain WHY we choose this specific formula based on our known variables and the target variable. Show that math is a logical choice, not guesswork.
+- boardLines[0]: "**Step 1 — Principle & Formula**: ${concept.example.step1?.explanation || 'Relate given values to target variable.'}"
+- boardLines[1]: "$$${concept.example.step1?.mathExpression || 'v_f = v_i + at'}$$"
+- positiveReplyLabel: "Formula chosen, do calculation →"
+- negativeReplyLabel: "Why this formula? ↺"`,
+
+            example_step2: `Board 7: WORKED EXAMPLE — STEP 2: SUBSTITUTION & CALCULATION for "${concept.conceptName}".
+Step 2: ${concept.example.step2?.title || 'Substitute Values & Calculate'}
+Calculation: ${concept.example.step2?.mathExpression || 'Numerical substitution'}
+- spokenExplanation: (4-5 sentences). Walk through the numerical substitution step by step. Show the intermediate math clearly. Emphasize tracking units along the way.
+- boardLines[0]: "**Step 2 — Calculation**: ${concept.example.step2?.explanation || 'Substitute known numerical values into the equation.'}"
+- boardLines[1]: "$$${concept.example.step2?.mathExpression || 'v_f = 0 + (2)(5) = 10'}$$"
+- positiveReplyLabel: "Calculation followed, see answer →"
 - negativeReplyLabel: "Redo calculation step slowly ↺"`,
 
-            example_2:
-                `Teach WORKED EXAMPLE 2 (Harder / Challenge Variant) for "${concept.conceptName}".
-- spokenExplanation: (4-6 sentences). "Now let's look at a challenge problem: [Read problem statement]. What makes this harder is [explain condition change]. Let's solve it step-by-step: [walk through steps]. Notice our final result: ${concept.example2.answer}. Can you see how that condition changed the outcome?"
-- boardLines[0]: "Challenge: ${concept.example2.problem}"
-- boardLines[1-4]: The 4 clean calculation steps with LaTeX.
-- positiveReplyLabel: "Understood, summarize topic →"
-- negativeReplyLabel: "What if values were different? ↺"`,
+            example_step3: `Board 8: WORKED EXAMPLE — STEP 3: FINAL RESULT & UNIT CHECK for "${concept.conceptName}".
+Final Answer: ${concept.example.answer}
+Physical Takeaway: ${concept.example.physicalTakeaway}
+- spokenExplanation: (4-5 sentences). Present the final result. Verify that the units match the required quantity. Explain what the final number represents in the physical scenario.
+- boardLines[0]: "**Final Answer**: $$${concept.example.answer}$$"
+- boardLines[1]: "**Unit & Physical Check**: ${concept.example.physicalTakeaway || 'Dimensionally consistent with physical meaning.'}"
+- positiveReplyLabel: "Result verified, recap concept →"
+- negativeReplyLabel: "Explain the unit check ↺"`,
 
-            summary:
-                `Teach the SUMMARY for "${concept.conceptName}".
-- spokenExplanation: (3-5 sentences). Recap what was learned. Reinforce the golden rule and the formula shortcut. Celebrate their progress and ask if they are ready for the next concept.
-- boardLines[0]: "${concept.conceptName} — Key Takeaways" as title.
-- boardLines[1-N]: The summary points and golden rule.
-- positiveReplyLabel: "Ready for next concept! 🎓"
-- negativeReplyLabel: "Recap key formula once more ↺"`,
+            concept_recap: `Board 9: CONCEPT RECAP & READINESS CHECK for "${concept.conceptName}".
+Golden Rule: ${concept.goldenRule}
+- spokenExplanation: (3-4 sentences). Recap the core takeaways for ${concept.conceptName}. Congratulate the student on completing the worked example and mastering the concept. Ask if they are ready for the next concept!
+- boardLines[0]: "**Golden Rule**: ${concept.goldenRule}"
+- boardLines[1]: "${concept.formula ? `$$${concept.formula}$$` : 'Concept mastered.'}"
+- boardLines[2]: "**Key Takeaway**: ${concept.summaryPoints?.[0] || 'Physical principles locked in.'}"
+- positiveReplyLabel: "Mastered! Next Concept →"
+- negativeReplyLabel: "Recap main takeaway once more ↺"`,
         };
 
         const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
 You embody the "Intuition First, Math Second, Bit-by-Bit" teaching methodology:
-- SLOW DOWN and teach bit-by-bit. Speak 4-6 sentences per step, explaining concepts thoroughly and warmly.
-- When presenting examples/problems, ALWAYS state and read the FULL question before solving.
-- Never dump raw math without explaining the physical reasoning and given data first.
-- Always use conversational, engaging, classroom teacher English (no robotic jargon).
-- Provide positiveReplyLabel and negativeReplyLabel tailored specifically to what you just taught/asked!
-- Use the board to draw diagrams, second-by-second progression tables, and clean LaTeX formulas.
-- Always refer to what you are drawing or writing on the board.
+- USE THE SIMPLEST WORDS POSSIBLE: Explain in plain, crystal-clear everyday English without dense jargon.
+- ALWAYS USE REAL-WORLD PHYSICAL OBJECT ANALOGIES: Describe and define concepts using concrete physical objects (e.g., a room with open/closed doors and windows for systems, cups of tea with/without lids, shopping carts for mass/momentum, cars for motion, water pipes for circuits).
+- SLOW DOWN and teach bit-by-bit across multiple boards. Speak 4-5 natural sentences per board.
+- Speak in warm, conversational, encouraging classroom teacher English.
+- Use the board to draw diagrams, state progression tables, and clean LaTeX KaTeX formulas ($...$, $$...$$).
+- Always refer to what is on the board.
+- Blackboard Cleanliness: Do NOT write meta-jargon like "Intuition stuff" or "Board 1: Intuition". Write direct, educational statements and equations on the board lines. The topic header is already fixed at the top of the blackboard.
+- LaTeX KaTeX Typography (CRITICAL): Always format all formulas, powers, superscripts, subscripts, fractions, and units in valid LaTeX math delimiters ($...$ or $$...$$). E.g. $x^2$, $\\text{m/s}^2$, $10^5$, $v_f = v_i + at$, $\\sqrt{2gh}$, $F_{\\text{net}}$, $v_i$.
 
-LESSON BLUEPRINT — CURRENT CONCEPT:
+CURRENT CONCEPT:
 ${JSON.stringify(concept, null, 2)}
-CURRENT TEACHING SUB-STEP: ${sStep}
-TASK: ${subStepInstructions[sStep]}
+CURRENT BOARD STEP: ${sStep}
+INSTRUCTION: ${subStepInstructions[sStep]}
 
-SVG VISUAL DRAWING RULES (Ultra-Precise, Detailed & Scientifically Accurate):
+SVG REAL-WORLD VISUAL DRAWING RULES (Draw recognizable physical objects, NOT just abstract boxes!):
 - Must be a valid SVG string with viewBox="0 0 420 220", xmlns="http://www.w3.org/2000/svg"
-- Use proper <defs> with arrow markers (#arrow for brown/neutral, #arrow-red for forces/loads, #arrow-blue for velocities/motion/current, #arrow-green for reactions/equilibrium).
-- Precision Engineering Details:
-  * Bodies / Containers / Objects: fill="#F4ECE2", stroke="#5A3E22", stroke-width="2.5", rx="8"
-  * Primary Forces / Loads / Critical Vectors: stroke="#C53030", stroke-width="3", marker-end="url(#arrow-red)", with clear force values (e.g. "F = 45 N", "mg = 98 N")
-  * Velocity / Motion / Flow / Displacement: stroke="#2B6CB0", stroke-width="3", marker-end="url(#arrow-blue)", with values (e.g. "v = 12 m/s", "I = 2.5 A")
-  * Reactions / Equilibrium / Normals: stroke="#276749", stroke-width="2.8", marker-end="url(#arrow-green)" (e.g. "F_N = 98 N")
-  * Ground / Surface / Axes: stroke="#8B5A2B", stroke-width="2.5" with hatch marks for ground or arrowheads for axes
-  * Dimension & Angle annotations: Clean dashed extension lines (#8B5A2B), angle arcs with "θ = 30°" or clear variable letters
-  * High-legibility text: font-family="system-ui, -apple-system, sans-serif", font-weight="bold", fill="#3D2817", font-size="12px" to "14px"
-- Ensure diagram directly illustrates the exact problem, quantities, variables, and scenario of the current sub-step.
+- Use markers in <defs>: #arrow (brown), #arrow-red (forces/loads/gravity), #arrow-blue (velocities/motion/current), #arrow-green (reactions/equilibrium).
+- High visual legibility & physical memorability:
+  * CAR / VEHICLE: Draw the car chassis (curved hood, roof, windows fill='#22272E', headlights fill='#F6E05E'), wheels with rims (fill='#1C2128' / stroke='#FFF'), road surface with dashed yellow/white lines, velocity arrow with $v = ...$ and acceleration arrow with $a = ...$.
+  * RULER & TABLE / WALL: Draw a wooden table (top & legs fill='#DDB892' / stroke='#FFF'), a leaning yellow ruler with clear centimeter tick marks (fill='#FEF08A' stroke='#854D0E'), angle arc $\\theta$, and height dimension line $h$.
+  * CLIFF & PROJECTILE: Draw the stone cliff profile, ball on edge, parabolic dotted trajectory arc, splash/ground, initial velocity $v_x$, and gravity arrow $g$.
+  * PULLEY & WEIGHTS: Draw the top ceiling bracket, circular pulley wheel, hanging rope lines, suspended mass buckets/blocks with tension $T$ and weight $mg$.
+  * ELECTRIC CIRCUIT: Draw the battery cell (+/-), wire loop, open/closed switch, glowing light bulb with filament and glow rays, current arrows $I$.
+  * PENDULUM: Draw the anchor mount, string of length $L$, spherical bob, swing arc, and angle $\\theta$.
+- Contrast colors for dark charcoal blackboard: stroke="#FFF", fill="#22272E", font-family="system-ui, sans-serif", font-weight="bold", font-size="12px" to "14px".
 
-STRICT OUTPUT RULES (Valid JSON ONLY):
-1. boardLines: Array of strings, max ${MAX_BOARD_LINES} items.
-2. spokenExplanation: Natural conversational spoken English ONLY (no LaTeX).
-3. diagramSvg: Ultra-precise, detailed SVG string with viewBox="0 0 420 220" or null.
-4. tableMarkdown: Clean markdown table string or null.
-5. positiveReplyLabel: Text for the forward/affirmative button (e.g. "Yes, makes sense →").
-6. positiveReplyText: Spoken response if tapped.
-7. negativeReplyLabel: Text for the back/negative button (e.g. "Explain again ↺").
-8. negativeReplyText: Spoken inquiry if tapped.
-`;
+OUTPUT VALID JSON ONLY:
+{
+  "boardLines": ["Line 1 with LaTeX", "Line 2 with LaTeX", "Line 3 with LaTeX"],
+  "spokenExplanation": "Conversational spoken English text without raw LaTeX codes",
+  "diagramSvg": "SVG string or null",
+  "tableMarkdown": "Markdown table string with LaTeX or null",
+  "diagramCaption": "Caption string or null",
+  "positiveReplyLabel": "Button text (e.g. Makes sense, define it →)",
+  "positiveReplyText": "Spoken text if student taps affirmative button",
+  "negativeReplyLabel": "Button text (e.g. Explain again ↺)",
+  "negativeReplyText": "Spoken text if student taps question button"
+}`;
 
         try {
             const aiClient = createAvelutAI(appSettings, userProfile || null);
@@ -1236,7 +1327,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
-                config: { responseMimeType: 'application/json', temperature: 0.5 },
+                config: { responseMimeType: 'application/json', temperature: 0.4 },
             });
 
             if (!isActiveRef.current) return;
@@ -1249,6 +1340,16 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
 
             setIsLoadingUnit(false);
             streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
+
+            // Record tutor utterance in dialogue history
+            dialogueHistoryRef.current.push({
+                role: 'tutor',
+                text: parsed.spokenExplanation,
+                boardSummary: parsed.boardLines.join(' | '),
+            });
+            if (dialogueHistoryRef.current.length > 8) {
+                dialogueHistoryRef.current = dialogueHistoryRef.current.slice(-8);
+            }
 
             if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
                 setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText });
@@ -1263,7 +1364,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
             if (sanitized) {
                 setActiveDiagramSvg(sanitized);
                 setActiveTableMarkdown(null);
-                setActiveVisualCaption(parsed.diagramCaption || concept.diagramCaption || `${concept.conceptName} Diagram`);
+                setActiveVisualCaption(parsed.diagramCaption || `${concept.conceptName} Diagram`);
                 setDiagramKey(k => k + 1);
             } else if (table && table.trim().includes('|')) {
                 setActiveDiagramSvg(null);
@@ -1281,7 +1382,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
             await speakText(parsed.spokenExplanation);
 
         } catch (err) {
-            console.warn('[PresentUnit] AI error, using blueprint fallback:', err);
+            console.warn('[PresentUnit] fallback used:', err);
             if (!isActiveRef.current) return;
             setIsLoadingUnit(false);
             streamBoardLines(getBoardLines(concept, sStep));
@@ -1292,40 +1393,154 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
             setDiagramKey(k => k + 1);
             await speakText(getSpokenText(concept, sStep));
         }
-    }, [speakText, streamBoardLines, userProfile, appSettings]);
+    }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Handle student reply — update persistent memory as learning unfolds
-    // ─────────────────────────────────────────────────────────────────────────
-    const handleStudentReply = useCallback(async (reply: string) => {
-        if (!blueprint || !isActiveRef.current) return;
+    // ── Interactive Student Reply & Conversational Question Answering ────────
+    const handleStudentReply = useCallback(async (
+        reply: string,
+        imageAttachment?: { base64: string; mimeType: string } | null
+    ) => {
+        if (!blueprint || !isActiveRef.current || (!reply.trim() && !imageAttachment)) return;
 
         stopAudioImmediate();
         stopMicImmediate();
         clearAllStreamTimers();
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         setTextInput('');
+        const attached = imageAttachment || attachedImage;
+        setAttachedImage(null);
 
-        const wantsRepeat = /again|repeat|explain|didn.t|don.t|slow|what|why|no|clarif/i.test(reply);
+        const userText = reply.trim() || (attached ? 'Please check my work in this attached photo.' : 'Continue');
+        const currentC = blueprint.concepts[conceptIdxRef.current];
+        const currentStep = subStepRef.current;
+        const uid = userProfile?.uid || 'anon';
+        const tid = sessionData?.topic?.topic_id || 'core';
+        const tName = sessionData?.topic?.topic_name || 'Core Principles';
+        const cName = sessionData?.course?.course_name || 'Academic Tutorial';
+        const cid = sessionData?.course?.course_id || 'general';
 
-        const uid       = userProfile?.uid || 'anon';
-        const tid       = sessionData?.topic?.topic_id || 'core';
-        const tName     = sessionData?.topic?.topic_name || 'Core Principles';
-        const cName     = sessionData?.course?.course_name || 'Academic Tutorial';
-        const currentC  = blueprint.concepts[conceptIdxRef.current];
+        // Add student reply to dialogue history
+        dialogueHistoryRef.current.push({ role: 'student', text: attached ? `[Photo Attached] ${userText}` : userText });
 
-        // Track cognitive progress in persistent memory
-        if (currentC) {
-            void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, !wantsRepeat);
-        }
+        const aiClient = createAvelutAI(appSettings, userProfile || null);
 
-        let newConceptIdx = conceptIdxRef.current;
-        let newSubStep    = subStepRef.current;
+        const conversationalPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
+You are in an interactive lesson with a student.
+Topic: "${tName}" in "${cName}"
+Current Concept: "${currentC?.conceptName}"
+Current Board Step: "${currentStep}" (${SUB_STEP_LABEL[currentStep]})
+Current Blackboard Summary: "${visibleBoardLines.join(' | ')}"
+Recent Dialogue History:
+${dialogueHistoryRef.current.map(d => `${d.role.toUpperCase()}: ${d.text}`).join('\n')}
 
-        if (!wantsRepeat) {
+STUDENT SAID: "${userText}"
+${attached ? 'STUDENT ATTACHED A PICTURE of their work, handwritten steps, textbook, or diagram. Inspect the image carefully, give detailed direct feedback or answer their question.' : ''}
+
+YOUR GOALS:
+1. Understand what the student is saying or asking:
+   - Did the student ask a question, express confusion, or submit photo of their work?
+   - Or is the student answering a question or confirming understanding (e.g. "Yes, makes sense", "The answer is 10 m/s", "I'm ready for the next step")?
+2. If the student ASKED A QUESTION, IS CONFUSED, or ATTACHED WORK:
+   - isClarification = true (DO NOT ADVANCE THE STEP!).
+   - Answer their specific question thoroughly, conversationally, and warmly in 3-5 sentences.
+   - Update the blackboard lines to visually illustrate the answer (with LaTeX math).
+   - Check if they now understand before continuing.
+3. If the student CONFIRMED UNDERSTANDING or ANSWERED CORRECTLY:
+   - isClarification = false (PROCEED TO NEXT STEP).
+   - Give a warm 1-sentence acknowledgment (e.g. "Spot on!", "Exactly right, let's keep moving!").
+4. If the student ANSWERED INCORRECTLY:
+   - isClarification = true.
+   - Gently explain where the misconception is, show the correct logic on the board, and ask if it makes sense.
+5. If drawing diagramSvg, draw recognizable real-world physical objects (car with wheels, table with ruler, cliff with projectile, pulley with rope, etc.) with viewBox="0 0 420 220" and contrast colors for dark blackboard.
+
+OUTPUT VALID JSON ONLY:
+{
+  "isClarification": true / false,
+  "spokenExplanation": "Conversational spoken explanation in clear English",
+  "boardLines": ["Line 1 with LaTeX ($...$)", "Line 2 with LaTeX"],
+  "diagramSvg": "SVG string if helpful or null",
+  "positiveReplyLabel": "Text for next button (e.g. Got it! Continue →)",
+  "positiveReplyText": "Spoken text if clicked",
+  "negativeReplyLabel": "Text for question button (e.g. Still have a question ↺)",
+  "negativeReplyText": "Spoken text if clicked"
+}`;
+
+        try {
+            if (!aiClient) throw new Error('No AI client');
+            setIsLoadingUnit(true);
+
+            const promptParts: any[] = [{ text: conversationalPrompt }];
+            if (attached?.base64) {
+                const b64Data = attached.base64.includes(',') ? attached.base64.split(',')[1] : attached.base64;
+                promptParts.push({
+                    inlineData: {
+                        data: b64Data,
+                        mimeType: attached.mimeType || 'image/jpeg',
+                    }
+                });
+            }
+
+            const result = await aiClient.models.generateContent({
+                model: appSettings?.primary_gemini_model || 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: promptParts }],
+                config: { responseMimeType: 'application/json', temperature: 0.4 },
+            });
+
+            if (!isActiveRef.current) return;
+
+            const raw = getResponseText(result);
+            if (!raw) throw new Error('Empty AI reply');
+
+            const parsed = JSON.parse(raw.replace(/```json/gi, '').replace(/```/g, '').trim());
+            setIsLoadingUnit(false);
+
+            if (parsed.isClarification) {
+                if (currentC) {
+                    void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, false);
+                }
+
+                if (parsed.boardLines && parsed.boardLines.length > 0) {
+                    streamBoardLines(parsed.boardLines.slice(0, MAX_BOARD_LINES));
+                }
+
+                if (parsed.diagramSvg) {
+                    const sanitized = sanitizeSvg(parsed.diagramSvg);
+                    if (sanitized) {
+                        setActiveDiagramSvg(sanitized);
+                        setActiveTableMarkdown(null);
+                        setDiagramKey(k => k + 1);
+                    }
+                }
+
+                if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
+                    setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText });
+                } else {
+                    setPositiveAction({ label: "Understood! Continue →", text: "That makes sense, let's continue" });
+                }
+
+                if (parsed.negativeReplyLabel && parsed.negativeReplyText) {
+                    setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
+                } else {
+                    setNegativeAction({ label: "Explain more ↺", text: "Could you explain that part a bit more?" });
+                }
+
+                dialogueHistoryRef.current.push({
+                    role: 'tutor',
+                    text: parsed.spokenExplanation,
+                    boardSummary: parsed.boardLines?.join(' | '),
+                });
+
+                await speakText(parsed.spokenExplanation);
+                return;
+            }
+
+            if (currentC) {
+                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, true);
+            }
+
             const next = nextSubStep(conceptIdxRef.current, subStepRef.current, blueprint);
-            newConceptIdx = next.conceptIdx;
-            newSubStep    = next.subStep;
+            const newConceptIdx = next.conceptIdx;
+            const newSubStep = next.subStep;
 
             if (next.done) {
                 setIsDone(true);
@@ -1334,36 +1549,90 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                 setActiveTableMarkdown(null);
                 setActiveVisualCaption(null);
 
-                // Save session completion into student cognitive memory
                 void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
+                void saveLocalVoiceTutorialProgress(uid, cid, tid, newConceptIdx, newSubStep, true, blueprint);
 
-                void speakText(`Excellent work! ${blueprint.overallSummary} You have completed this topic!`);
+                void speakText(`Outstanding! ${blueprint.overallSummary} You have successfully completed this entire topic!`);
                 return;
             }
+
+            void saveLocalVoiceTutorialProgress(uid, cid, tid, newConceptIdx, newSubStep, false, blueprint);
+
+            conceptIdxRef.current = newConceptIdx;
+            subStepRef.current    = newSubStep;
+            setConceptIdx(newConceptIdx);
+            setSubStep(newSubStep);
+
+            await presentUnit(blueprint, newConceptIdx, newSubStep);
+
+        } catch (err) {
+            console.warn('[HandleStudentReply] conversational error, falling back:', err);
+            setIsLoadingUnit(false);
+
+            const wantsRepeat = /again|repeat|explain|didn.t|don.t|slow|what|why|how|no|clarif/i.test(userText);
+            if (wantsRepeat) {
+                const fallbackActs = getDefaultActions(subStepRef.current);
+                setPositiveAction(fallbackActs.positive);
+                setNegativeAction(fallbackActs.negative);
+                if (currentC) {
+                    streamBoardLines(getBoardLines(currentC, subStepRef.current));
+                    await speakText(getSpokenText(currentC, subStepRef.current));
+                }
+                return;
+            }
+
+            const next = nextSubStep(conceptIdxRef.current, subStepRef.current, blueprint);
+            if (next.done) {
+                setIsDone(true);
+                setVisibleBoardLines(['🎓 Topic Complete!', blueprint.overallSummary]);
+                void speakText(`Well done! ${blueprint.overallSummary}`);
+                return;
+            }
+
+            conceptIdxRef.current = next.conceptIdx;
+            subStepRef.current    = next.subStep;
+            setConceptIdx(next.conceptIdx);
+            setSubStep(next.subStep);
+            await presentUnit(blueprint, next.conceptIdx, next.subStep);
         }
-
-        conceptIdxRef.current = newConceptIdx;
-        subStepRef.current    = newSubStep;
-        setConceptIdx(newConceptIdx);
-        setSubStep(newSubStep);
-
-        await presentUnit(blueprint, newConceptIdx, newSubStep);
-    }, [blueprint, speakText, presentUnit, userProfile, sessionData]);
+    }, [blueprint, speakText, presentUnit, userProfile, sessionData, appSettings, streamBoardLines, visibleBoardLines, attachedImage]);
 
     useEffect(() => {
         handleStudentReplyRef.current = handleStudentReply;
     }, [handleStudentReply]);
 
     const handleSendText = () => {
-        if (!textInput.trim()) return;
+        if (!textInput.trim() && !attachedImage) return;
         const text = textInput.trim();
+        const img = attachedImage;
         setTextInput('');
-        void handleStudentReply(text);
+        setAttachedImage(null);
+        void handleStudentReply(text, img);
     };
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Controls
-    // ─────────────────────────────────────────────────────────────────────────
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            addToast('Please select a valid image file', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = typeof reader.result === 'string' ? reader.result : '';
+            if (base64) {
+                setAttachedImage({ base64, mimeType: file.type || 'image/jpeg' });
+                addToast('Photo attached. Ask your question or press send!', 'info');
+            }
+        };
+        reader.readAsDataURL(file);
+        // Reset file input value so user can re-select same image if needed
+        e.target.value = '';
+    };
+
+    // ── Controls ─────────────────────────────────────────────────────────────
     const togglePauseAI = () => {
         if (isSpeaking) {
             stopAudioImmediate();
@@ -1417,20 +1686,6 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
         addToast(`Speed: ${next}x`, 'info');
     };
 
-    const handleReplay = () => {
-        if (!blueprint) return;
-        const concept = blueprint.concepts[conceptIdxRef.current];
-        if (!concept) return;
-        stopAudioImmediate();
-        streamBoardLines(getBoardLines(concept, subStepRef.current));
-        const fallback = getFallbackVisual(concept, subStepRef.current);
-        setActiveDiagramSvg(fallback.diagramSvg);
-        setActiveTableMarkdown(fallback.tableMarkdown);
-        setActiveVisualCaption(fallback.caption || null);
-        setDiagramKey(k => k + 1);
-        void speakText(getSpokenText(concept, subStepRef.current));
-    };
-
     const handleGoBack = useCallback(async () => {
         setIsNavigatingBack(true);
         isActiveRef.current = false;
@@ -1440,14 +1695,16 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
         stopMicImmediate();
 
         if (blueprint) {
-            const prog: TutorialProgress = { conceptIdx: conceptIdxRef.current, subStep: subStepRef.current };
-            writeCachedJson(progressKeyRef.current, prog, userProfile?.uid || 'anon');
+            const uid = userProfile?.uid || 'anon';
+            const cid = sessionData?.course?.course_id || 'general';
+            const tid = sessionData?.topic?.topic_id || 'core';
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, subStepRef.current, false, blueprint);
         }
 
         await new Promise(r => setTimeout(r, 80));
         if (onNavigate) onNavigate('study_guide');
         else window.history.back();
-    }, [blueprint, userProfile, onNavigate]);
+    }, [blueprint, userProfile, onNavigate, sessionData]);
 
     const currentConcept  = blueprint?.concepts[conceptIdx];
     const totalConcepts   = blueprint?.concepts.length ?? 0;
@@ -1535,7 +1792,7 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                         <p className="text-sm font-medium text-[#5A4D3E] animate-pulse">{blueprintGenStep}</p>
                     </div>
                     <p className="text-xs text-[#A09080] max-w-xs">
-                        AVELUT is designing a personalized, bit-by-bit lesson blueprint with diagrams, math formulas, and worked examples. Future sessions load instantly.
+                        AVELUT is designing a personalized, bit-by-bit lesson blueprint with diagrams, math formulas, and worked examples. Saved to SQLite for instant local resume.
                     </p>
                 </div>
             )}
@@ -1566,92 +1823,90 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                                 <i className="bi bi-journal-bookmark text-[#8B5A2B]"></i>
                                 {sessionData?.topic?.topic_name}
                             </span>
-                            <span className="font-bold text-[#8B5A2B] px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0] shrink-0 ml-2 truncate max-w-[180px]">
-                                {conceptIdx + 1}/{totalConcepts} · {currentConcept.conceptName}
+                            <span className="font-bold text-[#8B5A2B] px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0] shrink-0 ml-2 truncate max-w-[200px]">
+                                Concept {conceptIdx + 1}/{totalConcepts} · {SUB_STEP_LABEL[subStep]}
                             </span>
                         </div>
                     )}
 
-                    {/* ── Visual Blackboard ── */}
-                    <div className="relative flex-1 min-h-[220px] sm:min-h-[280px] max-h-[calc(100vh-280px)] flex flex-col justify-start milk-canvas border-2 border-[#E5D7C5] rounded-3xl p-4 sm:p-6 shadow-md overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#D4C3B3]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+                    {/* ── Charcoal Blackboard (Typical Blackboard Look) ── */}
+                    <div className="relative flex-1 min-h-[250px] sm:min-h-[310px] max-h-[calc(100vh-270px)] flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
 
                         {isLoadingUnit && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#FAF7F2]/85 backdrop-blur-xs rounded-3xl z-20">
-                                <div className="w-8 h-8 border-2 border-[#C2B2A3] border-t-[#8B5A2B] rounded-full animate-spin" />
-                                <p className="text-sm font-handwriting text-[#7A6B5C] tracking-wide animate-pulse">
-                                    Drawing & preparing board...
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#181C20]/90 backdrop-blur-xs rounded-3xl z-20">
+                                <div className="w-8 h-8 border-2 border-[#444C56] border-t-amber-400 rounded-full animate-spin" />
+                                <p className="text-sm font-handwriting text-[#E2E8F0] tracking-wide animate-pulse">
+                                    Writing on blackboard...
                                 </p>
                             </div>
                         )}
 
-                        {visibleBoardLines.length > 0 && (
-                            <div className="flex flex-col h-full gap-3">
-                                <div className="w-full border-b border-[#E8DCCF] pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 shrink-0">
-                                    <div className="font-bold font-handwriting text-lg sm:text-2xl text-[#8B4513] leading-snug flex-1">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm, remarkMath]}
-                                            rehypePlugins={[rehypeKatex]}
-                                            components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                        >{visibleBoardLines[0]}</ReactMarkdown>
-                                    </div>
+                        <div className="flex flex-col h-full gap-3.5">
+                            {/* ── Fixed Blackboard Topic Header (Underlined) ── */}
+                            <div className="w-full border-b border-white/20 pb-2.5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5 shrink-0">
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] font-mono tracking-widest uppercase text-amber-300 font-bold">
+                                        {currentConcept ? `${currentConcept.conceptName}` : 'Lesson'}
+                                    </span>
+                                    <h2 className="font-handwriting font-bold text-xl sm:text-2xl text-white tracking-wide underline underline-offset-8 decoration-white/70 truncate">
+                                        {sessionData?.topic?.topic_name || sessionData?.course.course_name}
+                                    </h2>
                                 </div>
+                                <span className="text-[11px] font-mono font-medium text-[#93C5FD] shrink-0">
+                                    {SUB_STEP_LABEL[subStep]}
+                                </span>
+                            </div>
 
+                            {/* ── Blackboard Content Area ── */}
+                            {visibleBoardLines.length > 0 && (
                                 <div className={`flex-1 w-full ${hasVisualElement ? 'grid grid-cols-1 lg:grid-cols-12 gap-4 items-start' : 'space-y-3'}`}>
 
-                                    <div className={`${hasVisualElement ? 'lg:col-span-6 space-y-2.5' : 'space-y-3'}`}>
-                                        {visibleBoardLines.slice(1).map((line, idx) => {
+                                    <div className={`${hasVisualElement ? 'lg:col-span-6 space-y-3' : 'space-y-3.5'}`}>
+                                        {visibleBoardLines.map((line, idx) => {
                                             const isVarLine       = line.includes('→');
                                             const isBlockFormula  = line.trim().startsWith('$$');
-                                            const isPitfallHeader = line === 'Common Pitfalls';
-                                            const isSummaryHeader = line.includes('— Summary') || line === '🎓 Topic Complete!';
-                                            const isIntHeader     = line === 'Intuition' || line.includes('Physical Intuition');
-
-                                            const stepMatch = line.match(/^(Given|Formula|Substitute|Calculate|Calculation|Apply|Result|Identify|Step\s*\d+)\s*:\s*(.*)$/i);
+                                            const stepMatch       = line.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
 
                                             return (
-                                                <div key={`${idx}-${line.slice(0, 15)}`} className="flex items-start gap-2 animate-fade-in">
-                                                    {!isVarLine && !isBlockFormula && !isPitfallHeader && !isSummaryHeader && !isIntHeader && !stepMatch && (
-                                                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#8B5A2B] shrink-0 opacity-70" />
+                                                <div key={`${idx}-${line.slice(0, 15)}`} className="flex items-start gap-2.5 animate-fade-in">
+                                                    {!isVarLine && !isBlockFormula && !stepMatch && (
+                                                        <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0 opacity-80" />
                                                     )}
 
                                                     {stepMatch ? (
-                                                        <div className="w-full flex items-start gap-2 py-0.5">
-                                                            <span className="mt-0.5 px-2 py-0.5 rounded-md bg-[#EFE5D8] border border-[#DFD1C0] font-sans text-[10px] font-bold uppercase tracking-wider text-[#8B5A2B] shrink-0">
+                                                        <div className="w-full flex flex-col gap-1 py-0.5">
+                                                            <span className="px-2 py-0.5 rounded-md bg-[#2D333B] border border-[#444C56] font-mono text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] w-fit">
                                                                 {stepMatch[1]}
                                                             </span>
-                                                            <div className="font-handwriting text-base sm:text-lg text-[#2A1F14] leading-snug flex-1 overflow-x-auto">
+                                                            <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed overflow-x-auto pl-1">
                                                                 <ReactMarkdown
                                                                     remarkPlugins={[remarkGfm, remarkMath]}
                                                                     rehypePlugins={[rehypeKatex]}
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                                >{stepMatch[2]}</ReactMarkdown>
+                                                                >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                             </div>
                                                         </div>
                                                     ) : isBlockFormula ? (
-                                                        <div className="w-full text-center text-[#221B14] py-1.5 overflow-x-auto bg-[#F7EFE6]/60 rounded-xl border border-[#E5DACD]/50 px-2 my-1">
+                                                        <div className="w-full text-center text-white py-2 overflow-x-auto bg-[#22272E]/90 rounded-2xl border border-[#373E47] px-3 my-1 shadow-inner">
                                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                                                {line}
+                                                                {formatLatexMath(line)}
                                                             </ReactMarkdown>
                                                         </div>
                                                     ) : isVarLine ? (
-                                                        <div className="font-mono text-xs sm:text-sm text-[#5A4020] leading-snug pl-2 w-full">
+                                                        <div className="font-mono text-xs sm:text-sm text-[#93C5FD] leading-snug pl-2 w-full">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                            >{line.trim()}</ReactMarkdown>
+                                                            >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                         </div>
-                                                    ) : (isPitfallHeader || isSummaryHeader || isIntHeader) ? (
-                                                        <p className={`font-bold text-xs uppercase tracking-widest ${isPitfallHeader ? 'text-amber-800' : 'text-[#8B5A2B]'} w-full pt-1`}>
-                                                            {line}
-                                                        </p>
                                                     ) : (
-                                                        <div className="font-handwriting text-base sm:text-lg text-[#2A1F14] leading-snug tracking-wide w-full">
+                                                        <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed tracking-wide w-full">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                            >{line}</ReactMarkdown>
+                                                            >{formatLatexMath(line)}</ReactMarkdown>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1660,12 +1915,12 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                                     </div>
 
                                     {hasVisualElement && (
-                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#FFFDF9]/90 border border-[#E2D4C3] shadow-xs relative group animate-fade-in">
+                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#22272E]/90 border border-[#373E47] shadow-md relative group animate-fade-in w-full">
                                             {activeDiagramSvg && (
                                                 <div className="w-full flex flex-col items-center">
                                                     <button
                                                         onClick={() => setIsDiagramZoomed(true)}
-                                                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#EFE5D8]/80 hover:bg-[#E4D5C3] text-[#5A3E22] text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity z-10"
+                                                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity z-10"
                                                     >
                                                         <i className="bi bi-arrows-fullscreen"></i>
                                                     </button>
@@ -1676,11 +1931,20 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                                                     />
                                                 </div>
                                             )}
+
+                                            {activeTableMarkdown && (
+                                                <div className="w-full overflow-x-auto p-2.5 bg-[#1C2128] rounded-xl border border-[#373E47] text-xs sm:text-sm font-mono text-white">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                                        rehypePlugins={[rehypeKatex]}
+                                                    >{formatLatexMath(activeTableMarkdown)}</ReactMarkdown>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     {isMicListening && micDisplay && (
@@ -1690,8 +1954,8 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                         </div>
                     )}
 
-                    {/* ── Unified Input Card with Dynamic Contextual Action Buttons ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-2.5 sm:p-3.5 shadow-sm backdrop-blur-md">
+                    {/* ── Expanded Full-Width Input Card ── */}
+                    <div className="shrink-0 flex flex-col gap-2.5 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-3 sm:p-4 shadow-md backdrop-blur-md w-full">
 
                         {/* ── Dual Dynamic Contextual Buttons ── */}
                         <div className="flex items-center gap-2 w-full">
@@ -1714,8 +1978,23 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                             </button>
                         </div>
 
-                        {/* ── Input Bar with Pause AI, Text Input, Mic & Send ── */}
+                        {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
+                        {attachedImage && (
+                            <div className="flex items-center gap-2 p-1.5 px-3 bg-[#FFFDFB] border border-[#D9CCBC] rounded-2xl w-fit animate-fade-in shadow-xs">
+                                <img src={attachedImage.base64} alt="Attached work" className="w-9 h-9 object-cover rounded-xl border border-[#C2B2A3]" />
+                                <span className="text-xs font-bold text-[#5A4D3E]">Photo attached</span>
+                                <button
+                                    onClick={() => setAttachedImage(null)}
+                                    className="w-5 h-5 rounded-full bg-[#EDE2D4] hover:bg-[#DFD1C0] flex items-center justify-center text-xs text-[#3D2817] cursor-pointer"
+                                >
+                                    <i className="bi bi-x"></i>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* ── Input Bar with Pause AI, Mic (LEFT), Text Input, Camera (RIGHT), & Send ── */}
                         <div className="flex items-center gap-1.5 sm:gap-2 w-full pt-0.5">
+                            {/* 1. Pause AI Button */}
                             <button
                                 onClick={togglePauseAI}
                                 disabled={isTtsLoading || !blueprint}
@@ -1725,25 +2004,8 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                             >
                                 <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
                             </button>
-                            <div className="flex-1 relative flex items-center">
-                                <input
-                                    type="text"
-                                    value={textInput}
-                                    onChange={(e) => setTextInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
-                                    disabled={isGeneratingBlueprint}
-                                    placeholder="Type your reply or question..."
-                                    className="w-full h-10 pl-3.5 pr-9 bg-[#FFFDFB] border border-[#D9CCBC] focus:border-[#8B5A2B] focus:ring-1 focus:ring-[#8B5A2B] rounded-2xl text-xs sm:text-sm text-[#2C241D] placeholder-[#9E8E7E] outline-none shadow-2xs transition-all"
-                                />
-                                {textInput.trim() && (
-                                    <button
-                                        onClick={handleSendText}
-                                        className="absolute right-1.5 w-7 h-7 rounded-xl bg-[#8B5A2B] hover:bg-[#7A4D24] text-white flex items-center justify-center cursor-pointer active:scale-95"
-                                    >
-                                        <i className="bi bi-arrow-up-short text-lg"></i>
-                                    </button>
-                                )}
-                            </div>
+
+                            {/* 2. Mic Button on the LEFT */}
                             <button
                                 onClick={toggleMic}
                                 disabled={isGeneratingBlueprint || !blueprint}
@@ -1754,6 +2016,48 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
                                 <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-sm`}></i>
                                 <span className="hidden sm:inline">{isMicListening ? 'Listening' : 'Mic'}</span>
                             </button>
+
+                            {/* 3. Text Input Container with Camera on the RIGHT and Send */}
+                            <div className="flex-1 relative flex items-center min-w-0">
+                                <input
+                                    type="text"
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
+                                    disabled={isGeneratingBlueprint}
+                                    placeholder="Type your question or snap a photo..."
+                                    className="w-full h-10 pl-3.5 pr-20 bg-[#FFFDFB] border border-[#D9CCBC] focus:border-[#8B5A2B] focus:ring-1 focus:ring-[#8B5A2B] rounded-2xl text-xs sm:text-sm text-[#2C241D] placeholder-[#9E8E7E] outline-none shadow-2xs transition-all"
+                                />
+
+                                {/* Camera Icon Button on the RIGHT */}
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    type="button"
+                                    title="Snap or upload picture"
+                                    className="absolute right-9 w-7 h-7 rounded-xl hover:bg-[#EDE2D4] text-[#6B5A4B] hover:text-[#8B5A2B] flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+                                >
+                                    <i className="bi bi-camera text-base"></i>
+                                </button>
+
+                                {/* Send Arrow Button on the RIGHT */}
+                                {(textInput.trim() || attachedImage) && (
+                                    <button
+                                        onClick={handleSendText}
+                                        className="absolute right-1.5 w-7 h-7 rounded-xl bg-[#8B5A2B] hover:bg-[#7A4D24] text-white flex items-center justify-center cursor-pointer active:scale-95 animate-fade-in"
+                                    >
+                                        <i className="bi bi-arrow-up-short text-lg"></i>
+                                    </button>
+                                )}
+
+                                {/* Hidden File Input for Camera / Photo picker */}
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleImageUpload}
+                                    accept="image/*"
+                                    className="hidden"
+                                />
+                            </div>
                         </div>
                     </div>
                 </main>
@@ -1763,23 +2067,23 @@ STRICT OUTPUT RULES (Valid JSON ONLY):
             {isDiagramZoomed && activeDiagramSvg && (
                 <div
                     onClick={() => setIsDiagramZoomed(false)}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
+                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-[#FFFDF9] border-2 border-[#D9CCBC] rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default"
+                        className="bg-[#181C20] border-2 border-[#373E47] rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-white"
                     >
-                        <div className="flex items-center justify-between border-b border-[#E5DACD] pb-3">
-                            <h3 className="font-bold text-base text-[#5A3E22]">Diagram Inspection</h3>
+                        <div className="flex items-center justify-between border-b border-white/20 pb-3">
+                            <h3 className="font-bold text-base text-white">Diagram Inspection</h3>
                             <button
                                 onClick={() => setIsDiagramZoomed(false)}
-                                className="w-8 h-8 rounded-full bg-[#EFE5D8] hover:bg-[#E2D4C3] text-[#5A3E22] flex items-center justify-center cursor-pointer"
+                                className="w-8 h-8 rounded-full bg-[#2D333B] hover:bg-[#444C56] text-white flex items-center justify-center cursor-pointer"
                             >
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         </div>
                         <div
-                            className="w-full flex items-center justify-center p-4 bg-[#FBF7F0] rounded-2xl border border-[#EBE0D2]"
+                            className="w-full flex items-center justify-center p-4 bg-[#22272E] rounded-2xl border border-[#373E47]"
                             dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                         />
                     </div>

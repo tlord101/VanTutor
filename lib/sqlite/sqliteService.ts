@@ -130,6 +130,21 @@ CREATE TABLE IF NOT EXISTS user_materials (
 
 CREATE INDEX IF NOT EXISTS idx_materials_user ON user_materials(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS voice_tutorials (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  course_id TEXT NOT NULL,
+  topic_id TEXT NOT NULL,
+  concept_idx INTEGER NOT NULL,
+  sub_step TEXT NOT NULL,
+  is_completed INTEGER DEFAULT 0,
+  blueprint_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  sync_status TEXT DEFAULT 'synced'
+);
+
+CREATE INDEX IF NOT EXISTS idx_vt_user_topic ON voice_tutorials(user_id, course_id, topic_id);
+
 CREATE TABLE IF NOT EXISTS ai_semantic_cache (
   query_hash TEXT PRIMARY KEY,
   query_text TEXT NOT NULL,
@@ -307,6 +322,7 @@ const memoryFallbackStore: Record<string, any[]> = {
   flashcards: [],
   past_questions: [],
   user_materials: [],
+  voice_tutorials: [],
   ai_semantic_cache: [],
   sync_queue: []
 };
@@ -353,6 +369,21 @@ function runFallbackQuery<T>(sql: string, params: any[]): T[] {
     let items = (memoryFallbackStore.user_materials || []).filter(m => !m.is_deleted);
     if (userId) items = items.filter(m => m.user_id === userId);
     return items.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)) as unknown as T[];
+  }
+  if (lower.includes('from voice_tutorials')) {
+    if (lower.includes('where user_id = ? and course_id = ? and topic_id = ?')) {
+      const [userId, courseId, topicId] = params;
+      const hit = (memoryFallbackStore.voice_tutorials || []).find(
+        v => v.user_id === userId && v.course_id === courseId && v.topic_id === topicId
+      );
+      return (hit ? [hit] : []) as unknown as T[];
+    }
+    if (lower.includes('where user_id = ?')) {
+      const userId = params[0];
+      const hits = (memoryFallbackStore.voice_tutorials || []).filter(v => v.user_id === userId);
+      return hits as unknown as T[];
+    }
+    return (memoryFallbackStore.voice_tutorials || []) as unknown as T[];
   }
   if (lower.includes('from app_state')) {
     if (lower.includes('where key = ?')) {
@@ -429,6 +460,14 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, type, title, data_json, created_at, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.user_materials[existingIdx] = item;
     else memoryFallbackStore.user_materials.push(item);
+    return { changes: 1 };
+  }
+  if (lower.includes('insert or replace into voice_tutorials') || lower.includes('insert into voice_tutorials')) {
+    const [id, user_id, course_id, topic_id, concept_idx, sub_step, is_completed, blueprint_json, updated_at, sync_status] = params;
+    const existingIdx = memoryFallbackStore.voice_tutorials.findIndex(v => v.id === id);
+    const item = { id, user_id, course_id, topic_id, concept_idx, sub_step, is_completed: is_completed || 0, blueprint_json, updated_at, sync_status: sync_status || 'synced' };
+    if (existingIdx >= 0) memoryFallbackStore.voice_tutorials[existingIdx] = item;
+    else memoryFallbackStore.voice_tutorials.push(item);
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into app_state') || lower.includes('insert into app_state')) {
