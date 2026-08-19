@@ -555,6 +555,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const subStepRef         = useRef<SubStep>('intuition_hook');
     const audioContextRef    = useRef<AudioContext | null>(null);
     const currentAudioRef    = useRef<AudioBufferSourceNode | null>(null);
+    const audioCacheRef      = useRef<Map<string, AudioBuffer>>(new Map());
+    const ttsQuotaExhaustedRef = useRef<boolean>(false);
     const playSessionIdRef   = useRef<number>(0);
     const recognitionRef     = useRef<any>(null);
     const spokenTextRef      = useRef('');
@@ -613,6 +615,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         if (currentAudioRef.current) {
             try { currentAudioRef.current.stop(); } catch (_) {}
             currentAudioRef.current = null;
+        }
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (_) {}
         }
         setIsSpeaking(false);
     }
@@ -755,6 +760,68 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             .trim();
     };
 
+    const speakWithBrowserSpeech = useCallback((cleanedText: string, sessionId: number, onEnd?: () => void) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+            setIsTtsLoading(false);
+            setIsSpeaking(false);
+            onEnd?.();
+            startMicListening();
+            return;
+        }
+
+        try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(cleanedText);
+            utterance.rate = speechRate || 1.0;
+            utterance.pitch = 1.0;
+
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v =>
+                (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Guy')) && v.lang.startsWith('en')
+            ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            utterance.onstart = () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) {
+                    window.speechSynthesis.cancel();
+                    return;
+                }
+                setIsTtsLoading(false);
+                setIsSpeaking(true);
+                setIsPaused(false);
+            };
+
+            utterance.onend = () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                setIsPaused(false);
+                setIsTtsLoading(false);
+                onEnd?.();
+                startMicListening();
+            };
+
+            utterance.onerror = (e) => {
+                console.warn('[Browser Speech Fallback] Error:', e);
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                setIsPaused(false);
+                setIsTtsLoading(false);
+                onEnd?.();
+                startMicListening();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        } catch (speechErr) {
+            console.warn('[Browser Speech Fallback] Exception:', speechErr);
+            setIsSpeaking(false);
+            setIsPaused(false);
+            setIsTtsLoading(false);
+            onEnd?.();
+            startMicListening();
+        }
+    }, [speechRate, startMicListening]);
+
     const speakText = useCallback(async (text: string, onEnd?: () => void): Promise<void> => {
         if (!isActiveRef.current || isMuted || !text) {
             onEnd?.();
@@ -776,105 +843,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        const usePersonal = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
-        const apiKey = usePersonal
-            ? userProfile!.personal_api_key!.trim()
-            : (appSettings?.gemini_api_key?.trim() || '');
-
-        if (!apiKey) {
-            console.warn('[Gemini TTS] No API key available for natural voice generation');
-            setIsTtsLoading(false);
-            onEnd?.();
-            startMicListening();
-            return;
-        }
-
-        try {
-            const tts = new GoogleGenAI({ apiKey });
-            const ctx = getAudioCtx();
-            if (ctx.state === 'suspended') await ctx.resume();
-
-            // Split into concise natural speech chunks (max ~200 chars per sentence) for smooth streaming
-            const rawSentences = cleanedText.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g) || [cleanedText];
-            const sentences: string[] = [];
-            for (const s of rawSentences) {
-                const t = s.trim();
-                if (t) sentences.push(t);
-            }
-
-            if (sentences.length === 0) {
-                setIsTtsLoading(false);
-                onEnd?.();
-                startMicListening();
-                return;
-            }
-
-            const bufferPromiseMap = new Map<number, Promise<AudioBuffer | null>>();
-
-            const fetchSentenceAudio = (index: number): Promise<AudioBuffer | null> => {
-                if (bufferPromiseMap.has(index)) return bufferPromiseMap.get(index)!;
-                const promise = (async (): Promise<AudioBuffer | null> => {
-                    if (index >= sentences.length) return null;
-                    const sentenceText = sentences[index];
-                    try {
-                        const res = await tts.models.generateContent({
-                            model: 'gemini-2.5-flash-preview-tts',
-                            contents: [{ role: 'user', parts: [{ text: sentenceText }] }],
-                            config: {
-                                responseModalities: ['AUDIO'] as any,
-                                speechConfig: {
-                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
-                                },
-                            },
-                        });
-
-                        if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return null;
-                        const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-                        if (!inlineData?.data) return null;
-                        return await pcm16ToAudioBuffer(inlineData.data, ctx);
-                    } catch (e) {
-                        console.warn(`[Gemini TTS] Sentence ${index} fetch error:`, e);
-                        return null;
-                    }
-                })();
-                bufferPromiseMap.set(index, promise);
-                return promise;
-            };
-
-            // Pre-fetch first 2 sentences immediately
-            void fetchSentenceAudio(0);
-            if (sentences.length > 1) void fetchSentenceAudio(1);
-
-            let currentIndex = 0;
-
-            const playNextSentence = async () => {
+        // 1. Check in-memory audio cache first (0 API quota cost)
+        if (audioCacheRef.current.has(cleanedText)) {
+            try {
+                const ctx = getAudioCtx();
+                if (ctx.state === 'suspended') await ctx.resume();
+                const buffer = audioCacheRef.current.get(cleanedText)!;
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-
-                if (currentIndex >= sentences.length) {
-                    if (isActiveRef.current && playSessionIdRef.current === sessionId) {
-                        setIsSpeaking(false);
-                        setIsPaused(false);
-                        setIsTtsLoading(false);
-                        currentAudioRef.current = null;
-                        onEnd?.();
-                        startMicListening();
-                    }
-                    return;
-                }
-
-                const sentenceIdx = currentIndex;
-                if (sentenceIdx + 1 < sentences.length) void fetchSentenceAudio(sentenceIdx + 1);
-                if (sentenceIdx + 2 < sentences.length) void fetchSentenceAudio(sentenceIdx + 2);
-
-                const buffer = await fetchSentenceAudio(sentenceIdx);
-
-                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-
-                if (!buffer) {
-                    currentIndex++;
-                    void playNextSentence();
-                    return;
-                }
 
                 setIsTtsLoading(false);
                 setIsSpeaking(true);
@@ -888,24 +863,98 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
                 src.onended = () => {
                     if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    currentIndex++;
-                    void playNextSentence();
+                    setIsSpeaking(false);
+                    setIsPaused(false);
+                    setIsTtsLoading(false);
+                    currentAudioRef.current = null;
+                    onEnd?.();
+                    startMicListening();
                 };
 
                 src.start(0);
+                return;
+            } catch (cachePlayErr) {
+                console.warn('[AudioCache] Play error, falling back:', cachePlayErr);
+            }
+        }
+
+        // 2. If Gemini TTS daily quota was exhausted earlier in the session, route directly to browser speech
+        if (ttsQuotaExhaustedRef.current) {
+            speakWithBrowserSpeech(cleanedText, sessionId, onEnd);
+            return;
+        }
+
+        const usePersonal = !!(userProfile?.use_personal_token && userProfile?.personal_api_key?.trim());
+        const apiKey = usePersonal
+            ? userProfile!.personal_api_key!.trim()
+            : (appSettings?.gemini_api_key?.trim() || '');
+
+        if (!apiKey) {
+            speakWithBrowserSpeech(cleanedText, sessionId, onEnd);
+            return;
+        }
+
+        try {
+            const tts = new GoogleGenAI({ apiKey });
+            const ctx = getAudioCtx();
+            if (ctx.state === 'suspended') await ctx.resume();
+
+            // Generate full paragraph in 1 single call to avoid burning rate limits
+            const res = await tts.models.generateContent({
+                model: 'gemini-2.5-flash-preview-tts',
+                contents: [{ role: 'user', parts: [{ text: cleanedText }] }],
+                config: {
+                    responseModalities: ['AUDIO'] as any,
+                    speechConfig: {
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: TUTOR_VOICE } }
+                    },
+                },
+            });
+
+            if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+            const inlineData = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+            if (!inlineData?.data) {
+                speakWithBrowserSpeech(cleanedText, sessionId, onEnd);
+                return;
+            }
+
+            const buffer = await pcm16ToAudioBuffer(inlineData.data, ctx);
+            audioCacheRef.current.set(cleanedText, buffer);
+
+            if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+
+            setIsTtsLoading(false);
+            setIsSpeaking(true);
+            setIsPaused(false);
+
+            const src = ctx.createBufferSource();
+            src.buffer = buffer;
+            src.playbackRate.value = speechRate;
+            src.connect(ctx.destination);
+            currentAudioRef.current = src;
+
+            src.onended = () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                setIsPaused(false);
+                setIsTtsLoading(false);
+                currentAudioRef.current = null;
+                onEnd?.();
+                startMicListening();
             };
 
-            void playNextSentence();
+            src.start(0);
 
-        } catch (err) {
-            console.warn('[Gemini TTS] Voice generation error:', err);
+        } catch (err: any) {
+            console.warn('[Gemini TTS] Voice generation rate limit or error:', err);
+            // Flag quota exhaustion on 429 so future sentences seamlessly use browser voice with zero delay
+            if (err?.message?.includes('429') || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED' || err?.code === 429) {
+                ttsQuotaExhaustedRef.current = true;
+            }
             if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-            setIsTtsLoading(false);
-            setIsSpeaking(false);
-            onEnd?.();
-            startMicListening();
+            speakWithBrowserSpeech(cleanedText, sessionId, onEnd);
         }
-    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, startMicListening]);
+    }, [isMuted, speechRate, userProfile, appSettings, getAudioCtx, pcm16ToAudioBuffer, startMicListening, speakWithBrowserSpeech]);
 
     // ── Board Line Streaming ─────────────────────────────────────────────────
     const streamBoardLines = useCallback((lines: string[]) => {
