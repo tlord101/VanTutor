@@ -21,6 +21,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import katex from 'katex';
+// @ts-ignore: KaTeX stylesheet
+import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { kittenTts, KittenVoice, KITTEN_VOICE_LIST } from '../services/kittenTtsService';
@@ -936,9 +938,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         void bootstrapSession();
     }, [sessionData]);
 
+    const isSpeakingRef = useRef(false);
+
     // ── Audio & Mic Functions ─────────────────────────────────────────────
     function stopAudioImmediate() {
         playSessionIdRef.current++;
+        isSpeakingRef.current = false;
         if (currentAudioRef.current) {
             try { currentAudioRef.current.stop(); } catch (_) {}
             currentAudioRef.current = null;
@@ -977,44 +982,19 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         return buf;
     }, []);
 
-    const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const positiveActionRef   = useRef<{ label: string; text: string }>(
-        getDefaultActions('intuition_hook').positive
-    );
-
-    const clearAutoAdvanceTimer = useCallback(() => {
-        if (autoAdvanceTimerRef.current) {
-            clearTimeout(autoAdvanceTimerRef.current);
-            autoAdvanceTimerRef.current = null;
-        }
-    }, []);
-
-    const scheduleAutoAdvance = useCallback((delayMs = 2200) => {
-        clearAutoAdvanceTimer();
-        if (!isActiveRef.current || isPaused || isGeneratingBlueprint) return;
-        autoAdvanceTimerRef.current = setTimeout(() => {
-            if (!isActiveRef.current || isPaused || isGeneratingBlueprint) return;
-            // Swiftly advance to next board with current affirmative action
-            void handleStudentReplyRef.current(positiveActionRef.current.text, null);
-        }, delayMs);
-    }, [clearAutoAdvanceTimer, isPaused, isGeneratingBlueprint]);
-
     const startMicListening = useCallback(() => {
-        if (!isActiveRef.current || isPaused) return;
-        clearAutoAdvanceTimer();
+        if (!isActiveRef.current || isPaused || isSpeakingRef.current) return;
         const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SR) {
-            // If SpeechRecognition not available on browser, swiftly auto-advance
-            scheduleAutoAdvance(2500);
-            return;
-        }
+        if (!SR) return;
         stopMicImmediate();
         try {
             const rec = new SR();
-            rec.continuous      = false;
+            rec.continuous      = true;
             rec.interimResults  = true;
             rec.lang            = 'en-US';
-            rec.onstart  = () => {
+            let speechTimeout: ReturnType<typeof setTimeout> | null = null;
+
+            rec.onstart = () => {
                 if (isActiveRef.current) {
                     setIsMicListening(true);
                     setMicDisplay('');
@@ -1022,37 +1002,63 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 }
             };
             rec.onresult = (e: any) => {
-                const t = Array.from(e.results).map((r: any) => r[0].transcript).join(' ').trim();
+                const resultsArr = Array.from(e.results);
+                const t = resultsArr.map((r: any) => r[0].transcript).join(' ').trim();
                 spokenTextRef.current = t;
                 if (isActiveRef.current) setMicDisplay(t);
+
+                // If user speaks a meaningful response, wait for 1.8s pause to submit their answer
+                if (speechTimeout) clearTimeout(speechTimeout);
+                if (t.length > 1) {
+                    speechTimeout = setTimeout(() => {
+                        if (!isActiveRef.current || isSpeakingRef.current) return;
+                        const final = spokenTextRef.current.trim();
+                        if (final.length > 1) {
+                            try { rec.stop(); } catch (_) {}
+                            setIsMicListening(false);
+                            setMicDisplay('');
+                            spokenTextRef.current = '';
+                            addToast(`Heard: "${final}"`, 'info');
+                            void handleStudentReplyRef.current(final, attachedImage);
+                        }
+                    }, 1800);
+                }
             };
             rec.onend = () => {
                 if (!isActiveRef.current) return;
-                setIsMicListening(false);
                 const final = spokenTextRef.current.trim();
-                spokenTextRef.current = '';
-                setMicDisplay('');
-                if (final.length > 0) {
+                if (final.length > 1) {
+                    setIsMicListening(false);
+                    spokenTextRef.current = '';
+                    setMicDisplay('');
                     addToast(`Heard: "${final}"`, 'info');
                     void handleStudentReplyRef.current(final, attachedImage);
+                } else if (!isPaused && !isSpeakingRef.current && isActiveRef.current) {
+                    // Patiently keep listening without auto-submitting or auto-advancing!
+                    try {
+                        rec.start();
+                    } catch (_) {
+                        setIsMicListening(false);
+                    }
                 } else {
-                    // No reply spoken by student -> swiftly auto-advance to next board
-                    scheduleAutoAdvance(2200);
+                    setIsMicListening(false);
                 }
             };
-            rec.onerror = () => {
+            rec.onerror = (e: any) => {
+                if (e?.error === 'no-speech') {
+                    // Silence detected: do not advance, stay ready for user
+                    return;
+                }
                 if (isActiveRef.current) {
                     setIsMicListening(false);
-                    scheduleAutoAdvance(2500);
                 }
             };
             recognitionRef.current = rec;
             rec.start();
         } catch (_) {
             setIsMicListening(false);
-            scheduleAutoAdvance(2500);
         }
-    }, [addToast, attachedImage, clearAutoAdvanceTimer, scheduleAutoAdvance, isPaused]);
+    }, [addToast, attachedImage, isPaused]);
 
     // ── Dedicated Pure Gemini Natural Voice (Charon) Engine ─────────────────
     const cleanSpokenTextForTTS = (rawText: string): string => {
@@ -1201,6 +1207,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);
+                isSpeakingRef.current = true;
                 setIsTtsLoading(false);
 
                 // Voice has started speaking: begin progressive line-by-line chalk write-in
@@ -1221,6 +1228,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             onEnd: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(false);
+                isSpeakingRef.current = false;
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
@@ -1236,6 +1244,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             onError: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(false);
+                isSpeakingRef.current = false;
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
