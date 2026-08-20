@@ -22,9 +22,7 @@ export async function detectVoiceCapabilities(): Promise<HardwareVoiceCapabiliti
     // 1. Detect WebGPU with active adapter verification
     if (typeof navigator !== 'undefined' && 'gpu' in navigator && navigator.gpu) {
         try {
-            const adapter = await navigator.gpu.requestAdapter({
-                powerPreference: 'high-performance',
-            });
+            const adapter = await navigator.gpu.requestAdapter();
             if (adapter) {
                 hasWebGPU = true;
             }

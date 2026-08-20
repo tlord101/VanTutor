@@ -278,9 +278,18 @@ export function robustParseJson<T = any>(raw: string): T {
         const negTextMatch = cleaned.match(/"negativeReplyText"\s*:\s*"((?:[^"\\]|\\.)*)"/);
         if (negTextMatch) obj.negativeReplyText = negTextMatch[1];
 
-        if (obj.boardLines || obj.spokenExplanation) {
+        // Extract Blueprint title & overview
+        const titleMatch = cleaned.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (titleMatch) obj.title = titleMatch[1];
+        const overviewMatch = cleaned.match(/"overview"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (overviewMatch) obj.overview = overviewMatch[1];
+        const summaryMatch = cleaned.match(/"overallSummary"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (summaryMatch) obj.overallSummary = summaryMatch[1];
+
+        if (obj.boardLines || obj.spokenExplanation || obj.title) {
             if (!obj.boardLines) obj.boardLines = [];
             if (!obj.spokenExplanation) obj.spokenExplanation = obj.boardLines.join(' ');
+            if (obj.title && !obj.concepts) obj.concepts = [];
             return obj as T;
         }
     } catch (_) {}
@@ -288,6 +297,9 @@ export function robustParseJson<T = any>(raw: string): T {
     console.warn('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 300));
     // Return a safe minimal fallback object instead of throwing
     return {
+        title: 'Interactive STEM Tutorial',
+        overview: 'Adaptive lesson breakdown',
+        concepts: [],
         boardLines: ['Interactive Tutorial Step'],
         spokenExplanation: 'Let us continue our interactive lesson.',
     } as any as T;
@@ -1045,7 +1057,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     ): Promise<void> => {
         if (!isActiveRef.current || !text) {
             onEnd?.();
-            if (!isMuted) startMicListening();
             return;
         }
 
@@ -1094,7 +1105,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             setIsTtsLoading(false);
             revealLinesProgressively(lines, text);
             onEnd?.();
-            startMicListening();
             return;
         }
 
@@ -1106,20 +1116,23 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 isSpeakingRef.current = true;
                 setIsTtsLoading(false);
 
-                // Voice has started speaking: begin progressive line-by-line chalk write-in
-                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                // Voice has started speaking: start progressive line-by-line chalk write-in with slight lead delay
+                setTimeout(() => {
+                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                    revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
 
-                if (pendingVisualsRef.current.svg) {
-                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                    setActiveTableMarkdown(null);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
-                    setDiagramKey(k => k + 1);
-                } else if (pendingVisualsRef.current.table) {
-                    setActiveDiagramSvg(null);
-                    setActiveTableMarkdown(pendingVisualsRef.current.table);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
-                    setDiagramKey(k => k + 1);
-                }
+                    if (pendingVisualsRef.current.svg) {
+                        setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                        setActiveTableMarkdown(null);
+                        setActiveVisualCaption(pendingVisualsRef.current.caption);
+                        setDiagramKey(k => k + 1);
+                    } else if (pendingVisualsRef.current.table) {
+                        setActiveDiagramSvg(null);
+                        setActiveTableMarkdown(pendingVisualsRef.current.table);
+                        setActiveVisualCaption(pendingVisualsRef.current.caption);
+                        setDiagramKey(k => k + 1);
+                    }
+                }, 350);
             },
             onEnd: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -1135,7 +1148,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setActiveWritingIndex(-1);
 
                 onEnd?.();
-                startMicListening();
             },
             onError: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -1154,12 +1166,11 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 }
 
                 onEnd?.();
-                startMicListening();
             },
         });
 
         currentAudioRef.current = player as any;
-    }, [isMuted, startMicListening, clearAllStreamTimers, revealLinesProgressively]);
+    }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {
         if (!bp || typeof bp !== 'object') {
@@ -1449,7 +1460,7 @@ OUTPUT VALID JSON ONLY:
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts }],
-                config: { responseMimeType: 'application/json', temperature: 0.35 },
+                config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 8192 },
             });
             const raw = getResponseText(result);
             if (!raw) throw new Error('Empty blueprint response');
@@ -1496,10 +1507,12 @@ OUTPUT VALID JSON ONLY:
         let savedMastery: DimensionalMastery = sqliteRecord?.mastery || defaultMastery();
         let savedDifficulty: DifficultyState = createInitialDifficultyState((sqliteRecord?.difficultyLevel || 2) as QuestionDifficulty);
 
-        if (startConceptIdx >= bp.concepts.length) {
+        if (sqliteRecord?.isCompleted || startConceptIdx >= bp.concepts.length) {
             startConceptIdx = 0;
             startPhase = 'diagnostic';
             savedPath = ['diagnostic'];
+            savedMastery = defaultMastery();
+            savedDifficulty = createInitialDifficultyState(2);
         }
 
         setConceptIdx(startConceptIdx);
@@ -2545,6 +2558,42 @@ OUTPUT VALID JSON ONLY:
         await presentUnit(bp, 0, 'diagnostic', 0, studentMem, true);
     }, [nextTopic, sessionData, handleGoBack, userProfile, generateBlueprint, presentUnit]);
 
+    const handleReStudyTopic = useCallback(async () => {
+        const uid = userProfile?.uid || 'anon';
+        const cid = sessionData?.course?.course_id || 'general';
+        const tid = sessionData?.topic?.topic_id || 'core';
+
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        stopMicImmediate();
+
+        await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, blueprint, {
+            phasePath: ['diagnostic'],
+            mastery: defaultMastery(),
+            difficultyLevel: 2,
+        });
+
+        setIsDone(false);
+        setConceptIdx(0);
+        setSubStep('diagnostic');
+        setActivePhasePath(['diagnostic']);
+        setPhaseIdx(0);
+        conceptIdxRef.current = 0;
+        subStepRef.current = 'diagnostic';
+        activePhasePathRef.current = ['diagnostic'];
+        phaseIdxRef.current = 0;
+        dialogueHistoryRef.current = [];
+        setVisibleBoardLines([]);
+        setActiveDiagramSvg(null);
+        setActiveTableMarkdown(null);
+        setActiveVisualCaption(null);
+
+        if (blueprint) {
+            const studentMem = await getStudentCognitiveProfile(uid);
+            await presentUnit(blueprint, 0, 'diagnostic', 0, studentMem, true);
+        }
+    }, [blueprint, userProfile, sessionData, presentUnit, clearAllStreamTimers]);
+
     const currentConcept  = blueprint?.concepts[conceptIdx];
     const totalConcepts   = blueprint?.concepts.length ?? 0;
     const currentPathLen  = Math.max(activePhasePath.length, 1);
@@ -2617,27 +2666,19 @@ OUTPUT VALID JSON ONLY:
         };
     }, [setCustomHeaderConfig, sessionData, currentConcept, conceptIdx, totalConcepts, isMuted, isNavigatingBack, handleGoBack]);
 
-    // Helper to render inline diagram card
+    // Helper to render embedded diagram directly inside the blackboard
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div className="w-full my-3 flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-[#22272E]/95 border border-[#373E47] shadow-xl relative group animate-fade-in transition-all">
-                <button
-                    onClick={() => setIsDiagramZoomed(true)}
-                    className="absolute top-3 right-3 px-2.5 py-1 rounded-xl bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity z-10 flex items-center gap-1.5 shadow-xs"
-                    title="Fullscreen Diagram View"
-                >
-                    <i className="bi bi-arrows-fullscreen text-xs"></i>
-                    <span className="text-[11px] hidden sm:inline">Inspect Vector</span>
-                </button>
+            <div className="w-full my-2 flex flex-col items-center justify-center bg-transparent border-0 shadow-none animate-fade-in transition-all">
                 {activeVisualCaption && (
-                    <span className="text-[11px] font-mono font-bold text-amber-300 mb-1.5 tracking-wider uppercase">
+                    <span className="text-[11px] font-mono font-bold text-amber-400 mb-1 tracking-wider uppercase">
                         {activeVisualCaption}
                     </span>
                 )}
                 <div
                     key={`svg-${diagramKey}`}
-                    className="w-full max-h-[320px] sm:max-h-[380px] flex items-center justify-center board-diagram-animated py-1 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[320px] sm:[&>svg]:max-h-[380px]"
+                    className="w-full max-h-[260px] sm:max-h-[320px] flex items-center justify-center py-1 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[260px] sm:[&>svg]:max-h-[320px]"
                     dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                 />
             </div>
@@ -2720,11 +2761,18 @@ OUTPUT VALID JSON ONLY:
                             </button>
                         ) : null}
                         <button
+                            onClick={handleReStudyTopic}
+                            className="w-full sm:flex-1 py-3.5 px-6 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            <i className="bi bi-arrow-counterclockwise"></i>
+                            <span>Re-study Topic</span>
+                        </button>
+                        <button
                             onClick={handleGoBack}
-                            className={`w-full ${nextTopic ? 'sm:flex-1' : 'sm:w-auto px-8'} py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2`}
+                            className="w-full sm:w-auto px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                         >
                             <i className="bi bi-journal-check"></i>
-                            <span>Return to Study Guide</span>
+                            <span>Study Guide</span>
                         </button>
                     </div>
                 </div>
@@ -2893,29 +2941,8 @@ OUTPUT VALID JSON ONLY:
                         </div>
                     )}
 
-                    {/* ── Bottom Input & Contextual Action Bar (Resting comfortably above bottom nav) ── */}
+                    {/* ── Bottom Input Bar (Resting comfortably above bottom nav) ── */}
                     <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-2xl sm:rounded-3xl p-2 sm:p-2.5 shadow-xl backdrop-blur-md w-full mb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:mb-2">
-
-                        {/* ── Dual Dynamic Contextual Buttons ── */}
-                        <div className="flex items-center gap-2 w-full">
-                            <button
-                                onClick={() => void handleStudentReply(negativeAction.text)}
-                                disabled={isGeneratingBlueprint || isTtsLoading}
-                                className="flex-1 py-2 px-3 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/25 border border-white/15 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
-                            >
-                                <i className="bi bi-arrow-counterclockwise text-xs"></i>
-                                <span className="truncate">{negativeAction.label}</span>
-                            </button>
-
-                            <button
-                                onClick={() => void handleStudentReply(positiveAction.text)}
-                                disabled={isGeneratingBlueprint || isTtsLoading}
-                                className="flex-1 py-2 px-3 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
-                            >
-                                <span className="truncate">{positiveAction.label}</span>
-                                <i className="bi bi-arrow-right text-xs font-bold"></i>
-                            </button>
-                        </div>
 
                         {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
                         {attachedImage && (
