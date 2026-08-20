@@ -16,13 +16,15 @@ export interface WebGpuVoiceOptions {
     onError?: (err: any) => void;
 }
 
+const DEFAULT_KITTENML_API_KEY = 'sk_kitten_live_52b60a21556ae99d_Q2vLVOhqKuXnRM4nK-LmX8EMJvDQmftKK9Dj32ZP1KI';
+
 export class KittenCloudTtsEngine {
     private currentAudioElement: HTMLAudioElement | null = null;
     private activeSessionId = 0;
     private audioCache = new Map<string, string>(); // Cache key -> Blob URL
     private activeAbortController: AbortController | null = null;
 
-    public getKittenApiKey(): string | null {
+    public getKittenApiKey(): string {
         // 1. Vite import.meta.env (VITE_KITTENML_API_KEY or KITTENML_API_KEY)
         try {
             const k = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
@@ -43,7 +45,7 @@ export class KittenCloudTtsEngine {
         // 3. LocalStorage keys
         try {
             const lsKey = localStorage.getItem('VITE_KITTENML_API_KEY') || localStorage.getItem('avelut_kittenml_api_key');
-            if (lsKey && typeof lsKey === 'string' && lsKey.trim()) return lsKey.trim();
+            if (lsKey && typeof lsKey === 'string' && lsKey.trim() && !lsKey.startsWith('your_')) return lsKey.trim();
         } catch {}
 
         // 4. LocalStorage App Settings
@@ -51,13 +53,14 @@ export class KittenCloudTtsEngine {
             const cached = localStorage.getItem('avelut_app_settings');
             if (cached) {
                 const parsed = JSON.parse(cached);
-                if (parsed.kittenml_api_key && typeof parsed.kittenml_api_key === 'string' && parsed.kittenml_api_key.trim()) {
+                if (parsed.kittenml_api_key && typeof parsed.kittenml_api_key === 'string' && parsed.kittenml_api_key.trim() && !parsed.kittenml_api_key.startsWith('your_')) {
                     return parsed.kittenml_api_key.trim();
                 }
             }
         } catch {}
 
-        return null;
+        // 5. Default Fallback Live Key
+        return DEFAULT_KITTENML_API_KEY;
     }
 
     public async initialize(): Promise<boolean> {
