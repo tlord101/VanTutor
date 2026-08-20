@@ -451,6 +451,17 @@ export const SystemSettingsView: React.FC = () => {
                                 <input type="password" placeholder="Pinecone API Key" value={appSettings.pinecone_api_key || ''} onChange={e => setAppSettings({...appSettings, pinecone_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
                             </div>
                         </div>
+
+                        {/* KittenML Cloud TTS API */}
+                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                            <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <i className="bi bi-soundwave text-amber-500"></i> KittenML Official Voice API
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">High-speed cloud speech synthesis via `https://api.kittenml.com/v1/audio/speech`.</p>
+                            <div className="grid grid-cols-1 gap-4">
+                                <input type="password" placeholder="KittenML API Key (Bearer Token)" value={appSettings.kittenml_api_key || ''} onChange={e => setAppSettings({...appSettings, kittenml_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">

@@ -1,8 +1,9 @@
 /**
- * KittenWebGpuEngine.ts — On-Device KittenTTS Inference using WebGPU and ONNX Runtime Web
+ * KittenWebGpuEngine.ts — On-Device & Official KittenML Cloud API TTS Engine
  *
- * Runs KittenTTS Micro (41 MB) directly on the client's GPU via WebGPU execution provider with WASM fallback.
- * Encodes audio tensors into 24 kHz WAV audio blobs for seamless queue playback without browser TTS.
+ * Supports high-speed Cloud API synthesis via https://api.kittenml.com/v1/audio/speech
+ * with automatic natural paragraph chunking and pipelined pre-fetching,
+ * plus local on-device WebGPU/WASM inference fallback.
  */
 
 import { detectVoiceCapabilities } from './VoiceCapabilities';
@@ -67,6 +68,27 @@ export class KittenWebGpuEngine {
     private currentAudioElement: HTMLAudioElement | null = null;
     private activeSessionId = 0;
     private audioCache = new Map<string, string>(); // Text -> Blob URL
+
+    private getKittenApiKey(): string | null {
+        try {
+            const cached = localStorage.getItem('avelut_app_settings');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.kittenml_api_key && typeof parsed.kittenml_api_key === 'string' && parsed.kittenml_api_key.trim()) {
+                    return parsed.kittenml_api_key.trim();
+                }
+            }
+        } catch {}
+
+        try {
+            const envKey = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
+            if (envKey && typeof envKey === 'string' && envKey.trim()) {
+                return envKey.trim();
+            }
+        } catch {}
+
+        return null;
+    }
 
     private async loadOrtScript(): Promise<any> {
         if (typeof window === 'undefined') return null;
@@ -150,7 +172,7 @@ export class KittenWebGpuEngine {
     }
 
     public isReady(): boolean {
-        return !!this.session;
+        return !!this.session || !!this.getKittenApiKey();
     }
 
     public stop(): void {
@@ -189,16 +211,52 @@ export class KittenWebGpuEngine {
     }
 
     /**
-     * Synthesizes audio for a single sentence and returns a playable WAV Blob URL.
+     * Synthesizes audio for text and returns a playable Audio Blob URL.
+     * Uses the Official KittenML Cloud API if configured, falling back to on-device WebGPU.
      */
-    public async generateAudioBlobUrl(text: string, voice = 'Bella', speed = 1.2): Promise<string | null> {
+    public async generateAudioBlobUrl(text: string, voice = 'Bella', speed = 1.1): Promise<string | null> {
         if (!text || !text.trim()) return null;
         const normalized = text.trim();
+        const cacheKey = `${voice}_${speed}_${normalized}`;
 
-        if (this.audioCache.has(normalized)) {
-            return this.audioCache.get(normalized)!;
+        if (this.audioCache.has(cacheKey)) {
+            return this.audioCache.get(cacheKey)!;
         }
 
+        // 1. First priority: Official KittenML Cloud API
+        const apiKey = this.getKittenApiKey();
+        if (apiKey) {
+            try {
+                const response = await fetch('https://api.kittenml.com/v1/audio/speech', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: 'kitten-tts-mini-0.8',
+                        voice: voice || 'Bella',
+                        input: normalized,
+                        response_format: 'mp3',
+                        speed: speed || 1.1,
+                    }),
+                });
+
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
+                    const url = URL.createObjectURL(blob);
+                    this.audioCache.set(cacheKey, url);
+                    return url;
+                } else {
+                    console.warn('[KittenTTS API] Cloud API responded with status:', response.status, await response.text());
+                }
+            } catch (apiErr) {
+                console.warn('[KittenTTS API] Cloud API fetch failed, trying local fallback:', apiErr);
+            }
+        }
+
+        // 2. Fallback: On-Device WebGPU / WASM Inference
         try {
             await this.initialize();
             if (!this.session || !window.ort) return null;
@@ -253,11 +311,11 @@ export class KittenWebGpuEngine {
                 
                 const blob = pcmToWavBlob(pcm, 24000);
                 const url = URL.createObjectURL(blob);
-                this.audioCache.set(normalized, url);
+                this.audioCache.set(cacheKey, url);
                 return url;
             }
         } catch (err) {
-            console.warn('[KittenWebGpuEngine] Sentence synthesis error:', err);
+            console.warn('[KittenWebGpuEngine] On-device synthesis error:', err);
         }
 
         return null;
@@ -299,16 +357,40 @@ export class KittenWebGpuEngine {
             .trim();
     }
 
-    public splitIntoSentences(text: string): string[] {
+    /**
+     * Combines sentences into optimized natural chunks to minimize API request overhead.
+     */
+    public splitIntoChunks(text: string): string[] {
         if (!text) return [];
-        return text
+        const rawSentences = text
             .split(/(?<=[.!?])\s+|\n+/)
             .map(s => s.trim())
             .filter(s => s.length > 0);
+
+        if (rawSentences.length <= 1) return rawSentences;
+
+        const chunks: string[] = [];
+        let currentChunk = '';
+
+        for (const sentence of rawSentences) {
+            if (!currentChunk) {
+                currentChunk = sentence;
+            } else if ((currentChunk.length + sentence.length) < 220) {
+                currentChunk += ' ' + sentence;
+            } else {
+                chunks.push(currentChunk);
+                currentChunk = sentence;
+            }
+        }
+        if (currentChunk) {
+            chunks.push(currentChunk);
+        }
+
+        return chunks;
     }
 
     /**
-     * Synthesizes and plays speech using background sentence queueing with KittenTTS Micro.
+     * Synthesizes and plays speech with background pipelined pre-fetching.
      */
     public speak(
         text: string,
@@ -323,7 +405,7 @@ export class KittenWebGpuEngine {
         }
 
         const sessionId = ++this.activeSessionId;
-        const sentences = this.splitIntoSentences(spokenText);
+        const chunks = this.splitIntoChunks(spokenText);
         let isStopped = false;
         let hasFiredStart = false;
 
@@ -341,23 +423,31 @@ export class KittenWebGpuEngine {
             }
         };
 
-        // Queue-based audio playback loop
-        const playSentence = async (index: number) => {
+        // Queue-based audio playback loop with parallel next-chunk pre-fetching
+        const playChunk = async (index: number) => {
             if (isStopped || this.activeSessionId !== sessionId) return;
 
-            if (index >= sentences.length) {
+            if (index >= chunks.length) {
                 options?.onEnd?.();
                 return;
             }
 
-            const sentence = sentences[index];
-            const audioUrl = await this.generateAudioBlobUrl(sentence, options?.voice || 'Bella', options?.speed || 1.2);
+            const chunk = chunks[index];
+            const voice = options?.voice || 'Bella';
+            const speed = options?.speed || 1.1;
+
+            // Pipeline pre-fetch: trigger synthesis for the NEXT chunk ahead of time
+            if (index + 1 < chunks.length) {
+                void this.generateAudioBlobUrl(chunks[index + 1], voice, speed);
+            }
+
+            const audioUrl = await this.generateAudioBlobUrl(chunk, voice, speed);
 
             if (isStopped || this.activeSessionId !== sessionId) return;
 
             if (audioUrl) {
                 const audio = new Audio(audioUrl);
-                audio.playbackRate = options?.speed || 1.2;
+                audio.playbackRate = speed;
                 this.currentAudioElement = audio;
 
                 audio.onplay = () => {
@@ -371,13 +461,13 @@ export class KittenWebGpuEngine {
                 audio.onended = () => {
                     if (isStopped || this.activeSessionId !== sessionId) return;
                     this.currentAudioElement = null;
-                    void playSentence(index + 1);
+                    void playChunk(index + 1);
                 };
 
                 audio.onerror = () => {
                     if (isStopped || this.activeSessionId !== sessionId) return;
                     this.currentAudioElement = null;
-                    void playSentence(index + 1);
+                    void playChunk(index + 1);
                 };
 
                 try {
@@ -387,18 +477,18 @@ export class KittenWebGpuEngine {
                         hasFiredStart = true;
                         options?.onStart?.();
                     }
-                    void playSentence(index + 1);
+                    void playChunk(index + 1);
                 }
             } else {
                 if (!hasFiredStart && index === 0) {
                     hasFiredStart = true;
                     options?.onError?.(new Error('Audio generation failed'));
                 }
-                void playSentence(index + 1);
+                void playChunk(index + 1);
             }
         };
 
-        void playSentence(0);
+        void playChunk(0);
 
         return { stop };
     }

@@ -288,6 +288,7 @@ export interface AppSettings {
   pinecone_api_key?: string;
   pinecone_index_name?: string;
   revenuecat_api_key_android?: string;
+  kittenml_api_key?: string;
 }
 
 // Type for the new Notification System

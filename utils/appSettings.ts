@@ -77,11 +77,13 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   pinecone_api_key: '',
   pinecone_index_name: '',
   revenuecat_api_key_android: '',
+  kittenml_api_key: '',
 };
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({
   primary_gemini_model: (raw?.primary_gemini_model || DEFAULT_APP_SETTINGS.primary_gemini_model).toString().trim() || DEFAULT_APP_SETTINGS.primary_gemini_model,
   gemini_api_key: (raw?.gemini_api_key || DEFAULT_APP_SETTINGS.gemini_api_key).toString().trim(),
+  kittenml_api_key: (raw?.kittenml_api_key || DEFAULT_APP_SETTINGS.kittenml_api_key || '').toString().trim(),
   youtube_api_key: (raw?.youtube_api_key || DEFAULT_APP_SETTINGS.youtube_api_key || '').toString().trim(),
   google_client_id: (raw?.google_client_id || DEFAULT_APP_SETTINGS.google_client_id || '').toString().trim(),
   google_api_key: (raw?.google_api_key || DEFAULT_APP_SETTINGS.google_api_key || '').toString().trim(),
