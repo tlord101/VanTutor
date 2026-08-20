@@ -38,8 +38,8 @@ export interface VoiceEngineStatus {
 const STORAGE_FIRST_TIME_PROMPT_KEY = 'avelut_voice_first_time_prompt_seen';
 
 export class AvelutVoiceEngine {
-    private state: VoiceEngineState = 'READY';
-    private activeModel: 'mini' | 'micro' = 'mini';
+    private state: VoiceEngineState = 'NOT_INSTALLED';
+    private activeModel: 'mini' | 'micro' = 'micro';
     private readonly fixedVoice: 'Bella' = 'Bella';
     private readonly fixedSpeed = 1.2;
     private isMuted = false;
@@ -77,23 +77,41 @@ export class AvelutVoiceEngine {
     }
 
     /**
-     * Initializes engine.
+     * Initializes engine and inspects local cache for KittenTTS Micro model.
      */
     public async initializeEngine(): Promise<void> {
         this.capabilities = await detectVoiceCapabilities();
-        this.activeModel = this.capabilities.recommendedModel;
-        this.setState('READY');
+        this.activeModel = 'micro';
+        const isInstalled = await modelManager.isInstalled('micro');
+        if (isInstalled) {
+            this.setState('READY');
+        } else {
+            this.setState('NOT_INSTALLED');
+        }
     }
 
     /**
-     * Starts user-initiated download of the local Avelut Voice Engine.
+     * Starts user-initiated download of the local KittenTTS Micro model (~41 MB).
      */
     public async download(onProgress?: (p: ModelDownloadProgress) => void): Promise<boolean> {
-        this.setState('READY');
-        if (onProgress) {
-            onProgress({ bytesDownloaded: 25000000, totalBytes: 25000000, percentage: 100 });
+        this.setState('DOWNLOADING');
+        this.errorMessage = null;
+
+        const success = await modelManager.downloadModel('micro', (progress) => {
+            this.downloadProgressData = progress;
+            if (onProgress) onProgress(progress);
+            this.notify();
+        });
+
+        if (success) {
+            this.setState('READY');
+            localStorage.setItem(STORAGE_FIRST_TIME_PROMPT_KEY, 'true');
+            return true;
+        } else {
+            this.errorMessage = 'Could not download KittenTTS Micro. Please check your internet connection.';
+            this.setState('ERROR');
+            return false;
         }
-        return true;
     }
 
     /**

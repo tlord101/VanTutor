@@ -97,23 +97,23 @@ export const AvelutVoiceDownloadModal: React.FC<AvelutVoiceDownloadModalProps> =
                             <div className="flex items-center justify-between text-xs text-slate-300">
                                 <span className="flex items-center gap-2">
                                     <i className="bi bi-hdd-network text-amber-400"></i>
-                                    Approximate Size:
+                                    Model & Size:
                                 </span>
-                                <span className="font-mono font-bold text-white">~80 MB</span>
+                                <span className="font-mono font-bold text-white">KittenTTS Micro (~41 MB)</span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-slate-300">
                                 <span className="flex items-center gap-2">
                                     <i className="bi bi-shield-check text-emerald-400"></i>
                                     Storage:
                                 </span>
-                                <span className="text-slate-300 font-medium">Downloaded once on device</span>
+                                <span className="text-slate-300 font-medium">Permanent local cache on device</span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-slate-300">
                                 <span className="flex items-center gap-2">
                                     <i className="bi bi-lightning-charge text-sky-400"></i>
-                                    Voice:
+                                    Voice Profile:
                                 </span>
-                                <span className="font-bold text-sky-300">Bella (High Fidelity)</span>
+                                <span className="font-bold text-sky-300">Bella (1.2x Speed)</span>
                             </div>
                         </div>
 
@@ -122,7 +122,7 @@ export const AvelutVoiceDownloadModal: React.FC<AvelutVoiceDownloadModalProps> =
                             className="w-full py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-98 text-slate-950 font-black text-sm transition-all shadow-lg hover:shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <i className="bi bi-download text-base font-bold"></i>
-                            Download Avelut Voice
+                            Download Voice Model (41 MB)
                         </button>
                     </>
                 )}
@@ -142,12 +142,12 @@ export const AvelutVoiceDownloadModal: React.FC<AvelutVoiceDownloadModalProps> =
                                 {downloadProgress?.percentage || 0}%
                             </span>
                             <span>
-                                {downloadProgress?.loadedMB || 0} MB / {downloadProgress?.totalMB || 80} MB
+                                {downloadProgress?.loadedMB || 0} MB / {downloadProgress?.totalMB || 41} MB
                             </span>
                         </div>
 
                         <span className="text-xs text-slate-400 animate-pulse">
-                            {isInitializing ? 'Optimizing voice engine for your device...' : 'Streaming weights into local cache...'}
+                            {isInitializing ? 'Optimizing KittenTTS Micro for your device...' : 'Downloading KittenTTS Micro model into local cache...'}
                         </span>
                     </div>
                 )}

@@ -20,6 +20,14 @@ const STORAGE_STATUS_KEY = 'avelut_local_voice_engine_status';
 
 // Model specifications
 export const MODEL_SPECS = {
+    micro: {
+        id: 'micro',
+        name: 'KittenTTS Micro (40M)',
+        sizeMB: 41,
+        totalBytes: 41 * 1024 * 1024,
+        url: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/kitten_tts_micro_v0_8.onnx',
+        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/voices.json',
+    },
     mini: {
         id: 'mini',
         name: 'KittenTTS Mini 0.8',
@@ -27,14 +35,6 @@ export const MODEL_SPECS = {
         totalBytes: 80 * 1024 * 1024,
         url: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/kitten_tts_mini_v0_8.onnx',
         voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/voices.json',
-    },
-    micro: {
-        id: 'micro',
-        name: 'KittenTTS Micro 0.8',
-        sizeMB: 25,
-        totalBytes: 25 * 1024 * 1024,
-        url: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/kitten_tts_micro_v0_8.onnx',
-        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/voices.json',
     },
 } as const;
 
@@ -45,10 +45,10 @@ export class ModelManager {
     /**
      * Checks if the voice model has already been downloaded and cached on this device.
      */
-    public async isInstalled(modelType: 'mini' | 'micro' = 'mini'): Promise<boolean> {
+    public async isInstalled(modelType: 'mini' | 'micro' = 'micro'): Promise<boolean> {
         try {
             if (typeof window === 'undefined' || !('caches' in window)) {
-                return localStorage.getItem(STORAGE_STATUS_KEY) === 'installed';
+                return localStorage.getItem(`${STORAGE_STATUS_KEY}_${modelType}`) === 'installed' || localStorage.getItem(STORAGE_STATUS_KEY) === 'installed';
             }
 
             const cache = await caches.open(CACHE_NAME);
@@ -69,7 +69,7 @@ export class ModelManager {
      * Downloads and caches the specified KittenTTS model with accurate byte tracking.
      */
     public async downloadModel(
-        modelType: 'mini' | 'micro' = 'mini',
+        modelType: 'mini' | 'micro' = 'micro',
         onProgress?: (progress: ModelDownloadProgress) => void
     ): Promise<boolean> {
         if (this.isDownloading) return false;
