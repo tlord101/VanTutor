@@ -25,7 +25,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
-import { kittenTts, KittenVoice } from '../services/kittenTtsService';
+import { kittenTts, KittenVoice, kittenWebGpu } from '../services/kittenTtsService';
 
 
 // ── Constants ────────────────────────────────────────────────────────────────
