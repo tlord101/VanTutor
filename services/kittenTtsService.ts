@@ -72,6 +72,7 @@ class KittenTtsService {
     private cachedVoices: SpeechSynthesisVoice[] = [];
     private audioBlobCache = new Map<string, string>(); // Cache key: text -> objectUrl
     private isApiReachable = true;
+    private rateLimitUntil = 0;
 
     constructor() {
         this.selectedVoice = KittenVoice.Bella;
@@ -158,11 +159,7 @@ class KittenTtsService {
     private notify() {
         const status = this.getStatus();
         this.listeners.forEach(l => {
-            try {
-                l(status);
-            } catch (err) {
-                console.warn('[KittenTTS] Listener error:', err);
-            }
+            try { l(status); } catch {}
         });
     }
 
@@ -178,65 +175,70 @@ class KittenTtsService {
         }
     }
 
-    public async startBackgroundDownload(onProgress?: (progress: number) => void): Promise<boolean> {
+    public async downloadModel(): Promise<void> {
         this.isDownloaded = true;
         this.isDownloading = false;
         this.downloadProgress = 100;
-        onProgress?.(1.0);
         this.notify();
+    }
+
+    public isReady(): boolean {
         return true;
     }
 
-    /**
-     * Preprocesses math and LaTeX notation into natural spoken English for Rosie (clean_text)
-     */
-    public normalizeMathForSpeech(text: string): string {
-        if (!text) return '';
-        let cleaned = text
-            // Strip markdown bold/italic
-            .replace(/\*\*(.*?)\*\*/g, '$1')
-            .replace(/\*(.*?)\*/g, '$1')
-            // Replace common LaTeX symbols
-            .replace(/\\Delta\s*([a-zA-Z])/g, 'change in $1')
-            .replace(/\\Delta/g, 'Delta')
-            .replace(/\\alpha/g, 'alpha')
-            .replace(/\\beta/g, 'beta')
-            .replace(/\\theta/g, 'theta')
-            .replace(/\\pi/g, 'pi')
-            .replace(/\\sigma/g, 'sigma')
-            .replace(/\\omega/g, 'omega')
-            .replace(/\\lambda/g, 'lambda')
-            .replace(/\\mu/g, 'mu')
-            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 over $2')
-            .replace(/\\sqrt\{([^}]+)\}/g, 'square root of $1')
-            .replace(/\\text\{([^}]+)\}/g, '$1')
-            .replace(/([a-zA-Z])\^2/g, '$1 squared')
-            .replace(/([a-zA-Z])\^3/g, '$1 cubed')
-            .replace(/([a-zA-Z0-9])\^([a-zA-Z0-9]+)/g, '$1 to the power of $2')
-            .replace(/([a-zA-Z])_([a-zA-Z0-9]+)/g, '$1 sub $2')
-            .replace(/\\cdot/g, ' times ')
-            .replace(/\\times/g, ' times ')
-            .replace(/\\approx/g, ' is approximately ')
-            .replace(/\\neq/g, ' is not equal to ')
-            .replace(/\\le|\\leq/g, ' is less than or equal to ')
-            .replace(/\\ge|\\geq/g, ' is greater than or equal to ')
-            .replace(/m\/s\^2/g, 'meters per second squared')
-            .replace(/m\/s/g, 'meters per second')
-            .replace(/kg\s*m\/s/g, 'kilogram meters per second')
-            .replace(/N\s*s/g, 'Newton seconds')
-            .replace(/\$\$/g, '')
-            .replace(/\$/g, '')
-            .replace(/[{}\\]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        return cleaned;
+    public stop() {
+        this.activePlaybackSessionId++;
+        if (this.currentAudioElement) {
+            try {
+                this.currentAudioElement.pause();
+                this.currentAudioElement.currentTime = 0;
+            } catch {}
+            this.currentAudioElement = null;
+        }
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+            } catch {}
+        }
+        this.currentUtterance = null;
     }
 
     /**
-     * Splits full text into crisp, complete sentences for instant, sentence-by-sentence vocal generation.
+     * Cleans up mathematical symbols, LaTeX commands, and notation into natural spoken English.
      */
-    public splitIntoSentences(text: string): string[] {
+    private normalizeMathForSpeech(text: string): string {
+        if (!text) return '';
+        return text
+            .replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ')
+            .replace(/\$([^\$]+)\$/g, ' $1 ')
+            .replace(/\\text\{([^\}]+)\}/g, '$1')
+            .replace(/\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '$1 over $2')
+            .replace(/\\sqrt\{([^\}]+)\}/g, 'square root of $1')
+            .replace(/v_f/g, 'v final')
+            .replace(/v_i/g, 'v initial')
+            .replace(/F_\{net\}|F_net/g, 'net force')
+            .replace(/\\theta/g, 'theta')
+            .replace(/\^2/g, ' squared')
+            .replace(/\^3/g, ' cubed')
+            .replace(/m\/s\^2|\\text\{m\/s\}\^2/g, 'meters per second squared')
+            .replace(/m\/s|\\text\{m\/s\}/g, 'meters per second')
+            .replace(/kg/g, 'kilograms')
+            .replace(/=/g, ' equals ')
+            .replace(/\+/g, ' plus ')
+            .replace(/-/g, ' minus ')
+            .replace(/\*/g, ' times ')
+            .replace(/#/g, '')
+            .replace(/\*\*/g, '')
+            .replace(/\[\/?(diagram|visual|table|highlight)\]/gi, '')
+            .replace(/`{1,3}[^`]*`{1,3}/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    /**
+     * Splits full text into natural sentence chunks for background streaming synthesis.
+     */
+    private splitIntoSentences(text: string): string[] {
         if (!text) return [];
         const normalized = text
             .replace(/\r\n|\r/g, '\n')
@@ -274,7 +276,12 @@ class KittenTtsService {
     /**
      * Fetches 24 kHz MP3 audio for the whole board text directly from the KittenML API with automatic retries.
      */
-    private async fetchKittenMLAudio(text: string, speed = 1.0, voice?: KittenVoice, retries = 2): Promise<string | null> {
+    private async fetchKittenMLAudio(text: string, speed = 1.0, voice?: KittenVoice, retries = 1): Promise<string | null> {
+        // If recently rate-limited (429) or unauthorized, gracefully bypass to natural speech synthesis
+        if (this.rateLimitUntil > Date.now()) {
+            return null;
+        }
+
         const voiceToUse = voice || this.selectedVoice;
         const cacheKey = `${voiceToUse}__${text}__${speed}`;
         if (this.audioBlobCache.has(cacheKey)) {
@@ -306,9 +313,19 @@ class KittenTtsService {
                 });
 
                 if (!response.ok) {
+                    if (response.status === 429) {
+                        this.rateLimitUntil = Date.now() + 60000;
+                        console.warn(`[KittenML API] Rate limited (429), engaging natural speech synthesis fallback for 60s`);
+                        return null;
+                    }
+                    if (response.status === 401 || response.status === 403) {
+                        this.rateLimitUntil = Date.now() + 300000;
+                        console.warn(`[KittenML API] Unauthorized (${response.status}), engaging natural speech synthesis fallback`);
+                        return null;
+                    }
                     console.warn(`[KittenML API] Attempt ${attempt + 1} returned status ${response.status}`);
                     if (attempt < retries) {
-                        await new Promise(r => setTimeout(r, 600));
+                        await new Promise(r => setTimeout(r, 400));
                         continue;
                     }
                     return null;
@@ -321,7 +338,7 @@ class KittenTtsService {
             } catch (err) {
                 console.warn(`[KittenML API] Network error on attempt ${attempt + 1}:`, err);
                 if (attempt < retries) {
-                    await new Promise(r => setTimeout(r, 600));
+                    await new Promise(r => setTimeout(r, 400));
                     continue;
                 }
                 return null;

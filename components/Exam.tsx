@@ -21,7 +21,6 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { XIcon } from './icons/XIcon';
 import { ListIcon } from './icons/ListIcon';
-import { MenuIcon, Search } from 'lucide-react';
 declare var __app_id: string;
 
 const TIME_PER_QUESTION_SECONDS = 30;

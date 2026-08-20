@@ -615,12 +615,10 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 <button
                     type="button"
                     onClick={() => setShowActionModal(true)}
-                    className="absolute right-5 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-sky-600 via-indigo-600 to-blue-600 text-white shadow-[0_8px_25px_rgba(37,99,235,0.45)] ring-4 ring-white/30 dark:ring-slate-900/30 transition-all duration-300 hover:scale-110 active:scale-95 group"
+                    className="absolute right-5 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-amber-400 shadow-xl ring-4 ring-slate-800/40 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
                     aria-label="Actions menu"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transition-transform duration-300 group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
+                    <i className="bi bi-three-dots-vertical text-xl"></i>
                 </button>
 
                 {/* Bottom Footer Bar */}
@@ -628,11 +626,9 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     <button 
                         type="button" 
                         onClick={closeSheet} 
-                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-5 py-3.5 font-bold text-sm text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.98]"
+                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-5 py-3.5 font-bold text-sm text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.98] cursor-pointer"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
+                        <i className="bi bi-arrow-counterclockwise text-base"></i>
                         <span>Retake & Scan Another</span>
                     </button>
                 </div>
@@ -645,15 +641,13 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     onClick={() => setShowActionModal(false)}
                 >
                     <div 
-                        className="w-full max-w-sm rounded-[28px] border border-white/20 bg-white/95 dark:bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl dark:border-slate-800 transition-all animate-scale-in"
+                        className="w-full max-w-sm rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl transition-all animate-scale-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                             <div className="flex items-center gap-2.5">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-md">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                    </svg>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-amber-400 border border-slate-700">
+                                    <i className="bi bi-gear-wide-connected text-base"></i>
                                 </div>
                                 <div>
                                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Solution Options</h3>
@@ -663,9 +657,9 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                             <button
                                 type="button"
                                 onClick={() => setShowActionModal(false)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                             >
-                                ✕
+                                <i className="bi bi-x-lg text-xs"></i>
                             </button>
                         </div>
 
@@ -678,16 +672,14 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                         setShowActionModal(false);
                                         void handleDetailedTutorial();
                                     }}
-                                    className="flex items-center gap-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950/60 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/40 p-3.5 text-left transition-all hover:from-emerald-100 dark:hover:from-emerald-900/50 active:scale-[0.98]"
+                                    className="flex items-center gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-left transition-all hover:bg-amber-500 hover:text-slate-950 dark:hover:bg-amber-500 dark:hover:text-slate-950 active:scale-[0.98] group cursor-pointer"
                                 >
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-                                        </svg>
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-amber-400 border border-slate-700 group-hover:bg-slate-950 group-hover:text-amber-400">
+                                        <i className="bi bi-mic-fill text-lg"></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">Start Voice Tutorial</h4>
-                                        <p className="text-xs text-emerald-700 dark:text-emerald-400">Step-by-step spoken lesson with blackboard math</p>
+                                        <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-slate-950">Start Voice Tutorial</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-900">Step-by-step spoken lesson with blackboard math</p>
                                     </div>
                                 </button>
                             )}
@@ -700,16 +692,14 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                     setShowForwardModal(true);
                                 }}
                                 disabled={isSending}
-                                className="flex items-center gap-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950/60 bg-emerald-50/50 dark:bg-emerald-950/30 p-3.5 text-left transition-all hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 active:scale-[0.98]"
+                                className="flex items-center gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-left transition-all hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98] cursor-pointer"
                             >
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                    </svg>
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-200 border border-slate-700">
+                                    <i className="bi bi-send-fill text-base"></i>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">Forward to Partner</h4>
-                                    <p className="text-xs text-emerald-700 dark:text-emerald-400">Send directly to your study partners</p>
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Forward to Partner</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Send directly to your study partners</p>
                                 </div>
                             </button>
 
@@ -721,16 +711,14 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                     void handleShareNative();
                                 }}
                                 disabled={isSharing}
-                                className="flex items-center gap-3.5 rounded-2xl border border-sky-100 dark:border-sky-950/60 bg-sky-50/50 dark:bg-sky-950/30 p-3.5 text-left transition-all hover:bg-sky-100/60 dark:hover:bg-sky-900/40 active:scale-[0.98]"
+                                className="flex items-center gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-left transition-all hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98] cursor-pointer"
                             >
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-md shadow-sky-600/30">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                    </svg>
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-200 border border-slate-700">
+                                    <i className="bi bi-share-fill text-base"></i>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-bold text-sky-950 dark:text-sky-200">Share Solution</h4>
-                                    <p className="text-xs text-sky-700 dark:text-sky-400">{isSharing ? 'Preparing images…' : 'Native share or download PNG'}</p>
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Share Solution</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{isSharing ? 'Preparing images…' : 'Native share or download PNG'}</p>
                                 </div>
                             </button>
 
@@ -753,12 +741,10 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                         addToast('Failed to report content', 'error');
                                     }
                                 }}
-                                className="flex items-center gap-3.5 rounded-2xl border border-rose-100 dark:border-rose-950/60 bg-rose-50/50 dark:bg-rose-950/30 p-3.5 text-left transition-all hover:bg-rose-100/60 dark:hover:bg-rose-900/40 active:scale-[0.98]"
+                                className="flex items-center gap-3.5 rounded-2xl border border-rose-100 dark:border-rose-950/60 bg-rose-50/50 dark:bg-rose-950/30 p-3.5 text-left transition-all hover:bg-rose-100/60 dark:hover:bg-rose-900/40 active:scale-[0.98] cursor-pointer"
                             >
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-md shadow-rose-600/30">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-                                    </svg>
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-2xs">
+                                    <i className="bi bi-flag-fill text-base"></i>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="text-sm font-bold text-rose-950 dark:text-rose-200">Report Inaccuracy</h4>
@@ -776,28 +762,30 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                     <div className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800">
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-5">
                             <h2 className="text-base font-bold text-slate-900 dark:text-white">Forward Solution</h2>
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700">✕</button>
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer">
+                                <i className="bi bi-x-lg text-xs"></i>
+                            </button>
                         </div>
                         <div className="border-b border-slate-100 dark:border-slate-800 p-4">
-                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2 text-sm text-slate-900 dark:text-white focus:border-sky-500 focus:outline-none" />
+                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-400 focus:outline-none" />
                         </div>
                         <div className="flex-1 space-y-2 overflow-y-auto p-4">
                             {filteredPartners.length === 0 ? (
                                 <p className="py-8 text-center text-xs font-medium text-slate-500 dark:text-slate-400">No study partners found</p>
                             ) : (
                                 filteredPartners.map(u => (
-                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition-colors ${selectedIds.includes(u.uid) ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'border-slate-200 dark:border-slate-800'}`}>
+                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition-colors ${selectedIds.includes(u.uid) ? 'border-amber-400 bg-amber-500/10 dark:bg-amber-500/15' : 'border-slate-200 dark:border-slate-800'}`}>
                                         <div className="text-sm font-semibold text-slate-900 dark:text-white">{u.display_name}</div>
-                                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selectedIds.includes(u.uid) ? 'border-sky-500 bg-sky-500' : 'border-slate-300 dark:border-slate-600'}`}>
-                                            {selectedIds.includes(u.uid) && <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
+                                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selectedIds.includes(u.uid) ? 'border-amber-400 bg-amber-400 text-slate-950' : 'border-slate-300 dark:border-slate-600'}`}>
+                                            {selectedIds.includes(u.uid) && <i className="bi bi-check text-xs font-bold"></i>}
                                         </div>
                                     </div>
                                 ))
                             )}
                         </div>
                         <div className="flex gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-3.5 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">Cancel</button>
-                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] rounded-xl bg-sky-600 py-3.5 text-xs font-bold uppercase tracking-wide text-white disabled:opacity-50 hover:bg-sky-700 transition-colors">
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-3.5 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300 cursor-pointer">Cancel</button>
+                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 py-3.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50 transition-colors cursor-pointer">
                                 {isSending ? 'Sending...' : `Send to ${selectedIds.length} partner${selectedIds.length !== 1 ? 's' : ''}`}
                             </button>
                         </div>
@@ -1148,15 +1136,48 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
         }
     }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast]);
 
+    // Handle clipboard paste of images
+    useEffect(() => {
+        const handlePaste = async (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        try {
+                            const { dataUrl } = await readImageAsDataUrl(file);
+                            setScannedImage(dataUrl);
+                            setAnalysisResult('');
+                            setError('');
+                            setCameraState('preview');
+                            addToast('Image pasted! Select an option to solve.', 'info');
+                        } catch (err) {
+                            console.error('Failed to process pasted image:', err);
+                            addToast('Could not read pasted image.', 'error');
+                        }
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [addToast]);
+
     // Handle shared image intent & auto scan trigger
     useEffect(() => {
         const checkSharedImageIntent = async () => {
             const sharedImage = localStorage.getItem('shared_image_intent');
-            const shouldAutoScan = localStorage.getItem('auto_scan_shared_image') === 'true';
+            localStorage.removeItem('shared_image_intent');
+            localStorage.removeItem('auto_scan_shared_image');
 
             if (sharedImage) {
-                localStorage.removeItem('shared_image_intent');
-                localStorage.removeItem('auto_scan_shared_image');
                 try {
                     let imageUri = sharedImage;
                     if (sharedImage.startsWith('content://') || sharedImage.startsWith('file://')) {
@@ -1164,13 +1185,9 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                         imageUri = normalized.dataUrl;
                     }
                     setScannedImage(imageUri);
-
-                    if (shouldAutoScan) {
-                        // Immediately trigger the visual solver AI analysis automatically!
-                        void handleSolution(imageUri);
-                    } else {
-                        setCameraState('preview');
-                    }
+                    setAnalysisResult('');
+                    setError('');
+                    setCameraState('preview');
                 } catch (err) {
                     console.error("Failed to load shared image intent:", err);
                     addToast("Failed to load shared image.", "error");
@@ -1187,7 +1204,9 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
             const image = e.detail?.image;
             if (image) {
                 setScannedImage(image);
-                void handleSolution(image);
+                setAnalysisResult('');
+                setError('');
+                setCameraState('preview');
             }
         };
 
@@ -1197,7 +1216,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
             cleanupCamera();
             window.removeEventListener('visual_solver_trigger_scan', handleDirectTriggerScan);
         };
-    }, [initializeCamera, cleanupCamera, addToast, handleSolution]);
+    }, [initializeCamera, cleanupCamera, addToast]);
 
     const handleScan = useCallback(() => {
         const video = videoRef.current;
@@ -1283,10 +1302,11 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
         }
 
         try {
-            setCameraState('preview');
-            const objectUrl = URL.createObjectURL(file);
-            setScannedImage(objectUrl);
+            const { dataUrl } = await readImageAsDataUrl(file);
+            setScannedImage(dataUrl);
+            setAnalysisResult('');
             setError('');
+            setCameraState('preview');
         } catch (error) {
             console.error('Could not process uploaded image:', error);
             addToast('Could not read the image. Please try another photo.', 'error');
@@ -1308,20 +1328,20 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
             case 'denied':
                 return (
                     <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-slate-900 text-white">
-                        <ErrorIcon className="w-12 h-12 text-yellow-400 mb-4" />
+                        <i className="bi bi-exclamation-triangle-fill text-amber-400 text-4xl mb-4"></i>
                         <h3 className="text-xl font-bold">Camera Access Denied</h3>
                         <p className="text-slate-300 mt-2 max-w-sm text-sm">{error}</p>
-                        <button onClick={initializeCamera} className="mt-6 bg-sky-600 text-white font-bold py-2.5 px-6 rounded-full hover:bg-sky-500 transition-colors">Retry</button>
+                        <button onClick={initializeCamera} className="mt-6 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 px-6 rounded-full transition-colors cursor-pointer">Retry</button>
                     </div>
                 );
 
             case 'error':
                 return (
                     <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-slate-900 text-white">
-                        <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />
+                        <i className="bi bi-x-circle-fill text-rose-500 text-4xl mb-4"></i>
                         <h3 className="text-xl font-bold">Camera Error</h3>
                         <p className="text-slate-300 mt-2 max-w-sm text-sm">{error}</p>
-                        <button onClick={initializeCamera} className="mt-6 bg-sky-600 text-white font-bold py-2.5 px-6 rounded-full hover:bg-sky-500 transition-colors">Retry</button>
+                        <button onClick={initializeCamera} className="mt-6 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 px-6 rounded-full transition-colors cursor-pointer">Retry</button>
                     </div>
                 );
             
@@ -1338,7 +1358,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                     { type: 'resize-r', cursor: 'cursor-ew-resize', pos: 'right-[-5px] top-1/2 -translate-y-1/2 h-10 w-2.5' },
                 ] as const;
                 return (
-                    <div className="w-full h-full flex flex-col bg-black">
+                    <div className="w-full h-full flex flex-col bg-slate-950">
                         {/* Camera View Area */}
                         <div className="flex-1 relative overflow-hidden flex items-center justify-center p-2 sm:p-4 bg-slate-950">
                             <video ref={videoRef} playsInline autoPlay muted className="w-full h-full object-contain rounded-2xl shadow-lg"></video>
@@ -1348,8 +1368,9 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                                     width: `calc(${cropBox.width * 100}% - 16px)`, height: `calc(${cropBox.height * 100}% - 16px)`
                                 }}
                                 className={`absolute border-4 border-dashed rounded-2xl cursor-move transition-colors duration-300 
-                                    ${cameraState === 'scanning' ? 'border-sky-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/80'}`}
+                                    ${cameraState === 'scanning' ? 'border-amber-400 animate-[scan-pulse_1s_ease-in-out_infinite]' : 'border-white/80'}`}
                                 onMouseDown={(e) => handleInteractionStart(e, 'drag')}
+                                touch-action="none"
                                 onTouchStart={(e) => handleInteractionStart(e, 'drag')}
                             >
                                 <div className="absolute inset-0" style={{ boxShadow: '0 0 0 2000px rgba(0,0,0,0.5)' }}></div>
@@ -1359,11 +1380,11 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                                         onMouseDown={(e) => handleInteractionStart(e, handle.type)}
                                         onTouchStart={(e) => handleInteractionStart(e, handle.type)}
                                     >
-                                        <div className="w-full h-full bg-sky-400 rounded-full border-2 border-white shadow-md"></div>
+                                        <div className="w-full h-full bg-amber-400 rounded-full border-2 border-white shadow-md"></div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white bg-black/70 backdrop-blur-md border border-white/10 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full pointer-events-none w-fit text-center shadow-lg">
+                            <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full pointer-events-none w-fit text-center shadow-lg">
                                 Drag and resize to frame the problem
                             </div>
                         </div>
@@ -1381,11 +1402,9 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             aria-label="Upload photo"
-                            className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-sky-600 to-indigo-600 text-white rounded-full hover:from-sky-500 hover:to-indigo-500 transition-all active:scale-90 shadow-2xl border border-white/20 z-50"
+                            className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center w-14 h-14 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-full transition-all active:scale-90 shadow-2xl border border-slate-700 z-50 cursor-pointer"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
+                            <i className="bi bi-cloud-arrow-up-fill text-2xl"></i>
                         </button>
                     </div>
                 );
@@ -1398,7 +1417,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                         {cameraState === 'analyzing' && (
                             <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center text-white p-6">
                                 <div className="relative flex items-center justify-center">
-                                    <div className="absolute h-20 w-20 rounded-full border-4 border-sky-500/20 border-t-sky-500 animate-spin" />
+                                    <div className="absolute h-20 w-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin" />
                                     <img src="/logo_icon.png" alt="AVELUT" className="w-10 h-10 object-contain animate-pulse" />
                                 </div>
                                 <p className="mt-6 text-lg font-bold text-white tracking-wide">Solving Problem...</p>
@@ -1408,48 +1427,42 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
                         {cameraState === 'preview' && (
                             <>
                                 <div className="absolute top-4 left-4 z-20">
-                                    <button onClick={handleRetake} className="flex items-center gap-1.5 p-2.5 px-4 bg-black/60 text-white rounded-2xl hover:bg-black/80 transition-colors shadow-lg backdrop-blur-md border border-white/10 text-sm font-bold">
-                                        <ArrowLeftIcon className="w-4 h-4" />
+                                    <button onClick={handleRetake} className="flex items-center gap-2 p-2.5 px-4 bg-slate-900/80 text-white rounded-2xl hover:bg-slate-800 transition-colors shadow-lg backdrop-blur-md border border-slate-700 text-sm font-bold cursor-pointer">
+                                        <i className="bi bi-arrow-left text-sm"></i>
                                         <span>Back</span>
                                     </button>
                                 </div>
-                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     <div className="w-full max-w-md space-y-3 sm:space-y-4">
                                         <div className="mb-2">
                                             <textarea
                                                 value={customPrompt}
                                                 onChange={(e) => setCustomPrompt(e.target.value)}
                                                 placeholder="Optional: Custom instructions (e.g. 'Explain step by step', 'Focus on calculus derivation', etc.)"
-                                                className="w-full bg-white/15 dark:bg-black/50 backdrop-blur-md border border-white/30 text-white placeholder-white/60 rounded-2xl p-3.5 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-all shadow-inner"
+                                                className="w-full bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white placeholder-slate-400 rounded-2xl p-3.5 text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-inner"
                                                 rows={2}
                                             />
                                         </div>
                                         <button 
                                             onClick={() => handleDetailedTutorial()} 
-                                            className="w-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-extrabold py-4 px-6 rounded-2xl hover:from-sky-500 hover:to-indigo-500 transition-all text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-xl shadow-sky-600/30 active:scale-95"
+                                            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold py-4 px-6 rounded-2xl transition-all text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-xl active:scale-95 cursor-pointer"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                            </svg>
-                                            Detailed Tutorial & Steps
+                                            <i className="bi bi-lightning-charge-fill text-lg"></i>
+                                            <span>Detailed Tutorial & Steps</span>
                                         </button>
                                         <button 
                                             onClick={() => handleSolution()} 
-                                            className="w-full bg-white/20 dark:bg-slate-800/80 border border-white/30 dark:border-slate-700 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-white/30 dark:hover:bg-slate-700 transition-all text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3.5 px-6 rounded-2xl transition-all text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            Direct Solution
+                                            <i className="bi bi-check2-circle text-lg text-amber-400"></i>
+                                            <span>Direct Solution</span>
                                         </button>
                                         <button 
                                             onClick={() => handleQuickAnswer()} 
-                                            className="w-full bg-white/20 dark:bg-slate-800/80 border border-white/30 dark:border-slate-700 text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-white/30 dark:hover:bg-slate-700 transition-all text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95"
+                                            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3.5 px-6 rounded-2xl transition-all text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            Quick Final Answer
+                                            <i className="bi bi-clock-history text-lg text-slate-400"></i>
+                                            <span>Quick Final Answer</span>
                                         </button>
                                     </div>
                                 </div>

@@ -30,7 +30,6 @@ import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
-import { Flag } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
 
 type AssistantSender = 'user' | 'assistant';
