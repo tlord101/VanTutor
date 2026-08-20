@@ -23,13 +23,30 @@ export class KittenCloudTtsEngine {
     private activeAbortController: AbortController | null = null;
 
     public getKittenApiKey(): string | null {
+        // 1. Vite import.meta.env (VITE_KITTENML_API_KEY or KITTENML_API_KEY)
         try {
-            const envKey = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
-            if (envKey && typeof envKey === 'string' && envKey.trim()) {
-                return envKey.trim();
-            }
+            const k = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
+            if (k && typeof k === 'string' && k.trim() && !k.startsWith('your_')) return k.trim();
         } catch {}
 
+        try {
+            const k = (import.meta as any)?.env?.KITTENML_API_KEY;
+            if (k && typeof k === 'string' && k.trim() && !k.startsWith('your_')) return k.trim();
+        } catch {}
+
+        // 2. Node/process env
+        try {
+            const pKey = (process as any)?.env?.VITE_KITTENML_API_KEY || (process as any)?.env?.KITTENML_API_KEY;
+            if (pKey && typeof pKey === 'string' && pKey.trim() && !pKey.startsWith('your_')) return pKey.trim();
+        } catch {}
+
+        // 3. LocalStorage keys
+        try {
+            const lsKey = localStorage.getItem('VITE_KITTENML_API_KEY') || localStorage.getItem('avelut_kittenml_api_key');
+            if (lsKey && typeof lsKey === 'string' && lsKey.trim()) return lsKey.trim();
+        } catch {}
+
+        // 4. LocalStorage App Settings
         try {
             const cached = localStorage.getItem('avelut_app_settings');
             if (cached) {

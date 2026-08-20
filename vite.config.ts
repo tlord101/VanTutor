@@ -1,6 +1,6 @@
 import path from 'path';
 import { execSync } from 'child_process';
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, loadEnv, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import Sitemap from 'vite-plugin-sitemap';
 import pkg from './package.json';
@@ -31,8 +31,16 @@ function versionManifestPlugin(): Plugin {
     };
 }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
+    const env = loadEnv(mode, process.cwd(), '');
+    const kittenApiKey = env.VITE_KITTENML_API_KEY || env.KITTENML_API_KEY || process.env.VITE_KITTENML_API_KEY || process.env.KITTENML_API_KEY || '';
+
     return {
+      define: {
+        'import.meta.env.VITE_KITTENML_API_KEY': JSON.stringify(kittenApiKey),
+        'process.env.VITE_KITTENML_API_KEY': JSON.stringify(kittenApiKey),
+        'process.env.KITTENML_API_KEY': JSON.stringify(kittenApiKey),
+      },
       // Use './' as base when building for Capacitor (native) so asset paths are relative.
       // Use '/' for Vercel web deployments so dynamic nested routes can load assets.
       base: process.env.VERCEL ? '/' : (command === 'build' ? './' : '/'),
