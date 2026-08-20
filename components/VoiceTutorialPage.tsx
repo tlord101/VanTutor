@@ -25,9 +25,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
-import { avelutVoice } from '../services/voice/AvelutVoiceEngine';
 import { kittenTts, KittenVoice } from '../services/kittenTtsService';
-import { AvelutVoiceDownloadModal } from './AvelutVoiceDownloadModal';
 
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -734,25 +732,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // ── Audio / Mic / Input / Image Attachment ────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [isMuted, setIsMuted] = useState(() => avelutVoice.getStatus().isMuted);
+    const [isMuted, setIsMuted] = useState(false);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [isMicListening, setIsMicListening] = useState(false);
     const [textInput, setTextInput] = useState('');
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
     const [micDisplay, setMicDisplay] = useState('');
-    const [showVoiceDownloadModal, setShowVoiceDownloadModal] = useState(() => avelutVoice.getStatus().state === 'NOT_INSTALLED');
-
-    // ── Subscribe to Avelut Voice Engine updates ──────────────────────────
-    useEffect(() => {
-        const unsubscribe = avelutVoice.subscribe((status) => {
-            setIsMuted(status.isMuted);
-            if (status.state === 'NOT_INSTALLED') {
-                setShowVoiceDownloadModal(true);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
 
     // ── Refs ─────────────────────────────────────────────────────────────
     const fileInputRef              = useRef<HTMLInputElement | null>(null);
@@ -3310,12 +3296,7 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Avelut Voice Installation Modal ────────────────────────────── */}
-            <AvelutVoiceDownloadModal
-                isOpen={showVoiceDownloadModal}
-                onClose={() => setShowVoiceDownloadModal(false)}
-                onReady={() => setShowVoiceDownloadModal(false)}
-            />
+
 
             {/* ── Limit Exceeded Modal (Upgrade Account / Buy Credits) ────────── */}
             <LimitExceededModal

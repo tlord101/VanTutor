@@ -13,7 +13,6 @@ import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
 import { avelutVoice, VoiceEngineStatus } from '../services/voice/AvelutVoiceEngine';
-import { AvelutVoiceDownloadModal } from './AvelutVoiceDownloadModal';
 
 // --- UTILITIES ---
 const normalizeLevelValue = (value?: string): string => {
@@ -248,7 +247,6 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<VoiceEngineStatus>(() => avelutVoice.getStatus());
-    const [showVoiceDownloadModal, setShowVoiceDownloadModal] = useState(false);
 
     // Subscribe to Avelut Voice Engine status
     useEffect(() => {
@@ -958,12 +956,6 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 balance={limitModalData.balance}
                 addToast={addToast}
                 onSuccessPurchase={() => { }}
-            />
-
-            {/* Avelut Voice Download Modal */}
-            <AvelutVoiceDownloadModal
-                isOpen={showVoiceDownloadModal}
-                onClose={() => setShowVoiceDownloadModal(false)}
             />
 
             {renderTopicPicker()}
