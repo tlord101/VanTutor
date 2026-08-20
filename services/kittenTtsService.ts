@@ -372,3 +372,4 @@ class KittenTtsService {
 export const kittenTts = new KittenTtsService();
 export { avelutVoice, AvelutVoiceEngine } from './voice/AvelutVoiceEngine';
 export { modelManager } from './voice/ModelManager';
+export { kittenWebGpu, KittenWebGpuEngine } from './voice/KittenWebGpuEngine';
