@@ -756,6 +756,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const activeDiagnosticIdxRef    = useRef(0);
     const activeLearningQuestionRef = useRef<LearningQuestion | null>(null);
 
+    const positiveActionRef         = useRef<{ label: string; text: string }>(getDefaultActions('diagnostic').positive);
+    const negativeActionRef         = useRef<{ label: string; text: string }>(getDefaultActions('diagnostic').negative);
+
     const pendingBoardLinesRef      = useRef<string[]>([]);
     const pendingVisualsRef         = useRef<{ svg: string | null; table: string | null; caption: string | null }>({ svg: null, table: null, caption: null });
 
@@ -773,6 +776,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     useEffect(() => { conceptIdxRef.current = conceptIdx; }, [conceptIdx]);
     useEffect(() => { subStepRef.current = subStep; }, [subStep]);
     useEffect(() => { activePhasePathRef.current = activePhasePath; }, [activePhasePath]);
+    useEffect(() => { positiveActionRef.current = positiveAction; }, [positiveAction]);
+    useEffect(() => { negativeActionRef.current = negativeAction; }, [negativeAction]);
     useEffect(() => { phaseIdxRef.current = phaseIdx; }, [phaseIdx]);
     useEffect(() => { conceptMasteryRef.current = conceptMastery; }, [conceptMastery]);
     useEffect(() => { difficultyStateRef.current = difficultyState; }, [difficultyState]);
@@ -2542,8 +2547,8 @@ OUTPUT VALID JSON ONLY:
     return (
         <div className="fixed inset-0 z-40 flex flex-col w-full h-full bg-[#12161A] text-white overflow-hidden select-none">
 
-            {/* ── Top Header Bar (Clean & Focused) ────────────────────── */}
-            <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 border-b border-white/10 bg-[#181C20]/95 backdrop-blur-md z-30 shadow-md shrink-0">
+            {/* ── Top Header Bar (Clean, Focused & Mobile Safe Area Padded) ────────────────────── */}
+            <header className="flex items-center justify-between px-3 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 border-b border-white/10 bg-[#181C20]/95 backdrop-blur-md z-30 shadow-md shrink-0">
                 {/* Top Left: Back to Study Guide */}
                 <div className="flex items-center gap-3 min-w-0">
                     <button
@@ -2611,27 +2616,36 @@ OUTPUT VALID JSON ONLY:
 
             {/* ── Blueprint generation screen ─────────────────────────── */}
             {isGeneratingBlueprint && (
-                <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center">
-                    <div className="w-16 h-16 rounded-3xl bg-[#1E242B] border border-amber-400/40 flex items-center justify-center shadow-xl">
-                        <i className="bi bi-journal-text text-3xl text-amber-400 animate-pulse"></i>
+                <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center animate-fade-in my-auto">
+                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-amber-400/50 flex items-center justify-center shadow-2xl relative">
+                        <i className="bi bi-mortarboard-fill text-3xl text-amber-400 animate-pulse"></i>
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+                        </span>
                     </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-white">Preparing Your Adaptive Blackboard Lesson</h3>
-                        <p className="text-sm text-slate-300 mt-1">{sessionData?.topic?.topic_name}</p>
+
+                    <div className="space-y-2 max-w-md">
+                        <span className="text-xs font-mono font-bold tracking-widest uppercase text-amber-400">
+                            Avelut Adaptive Engine
+                        </span>
+                        <h2 className="text-xl sm:text-2xl font-bold font-handwriting text-white tracking-wide">
+                            {blueprintGenStep || 'Building Lesson Blueprint...'}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-300">
+                            Customizing diagnostic checks, real-world analogies, worked examples, and socratic prompts.
+                        </p>
                     </div>
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-[#444C56] border-t-amber-400 rounded-full animate-spin" />
-                        <p className="text-sm font-medium text-amber-300 animate-pulse">{blueprintGenStep}</p>
+
+                    <div className="w-full max-w-xs bg-slate-800/80 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
+                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full animate-pulse transition-all" />
                     </div>
-                    <p className="text-xs text-slate-400 max-w-xs">
-                        AVELUT is structuring an intelligent diagnostic path and precision diagrams tailored to your mastery.
-                    </p>
                 </div>
             )}
 
             {/* ── Completion screen ─────────────────────────────────────── */}
             {isDone && !isGeneratingBlueprint && (
-                <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in">
+                <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in my-auto">
                     <div className="text-5xl">🎓</div>
                     <div>
                         <h3 className="text-2xl font-bold text-white">Topic Mastered!</h3>
@@ -2660,12 +2674,12 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Main Fullscreen Teaching Canvas ───────────────────────── */}
+            {/* ── Main Fullscreen Teaching Canvas (Full Screen Width) ───────────────────────── */}
             {!isGeneratingBlueprint && !isDone && (
-                <main className="flex-1 flex flex-col p-2 sm:p-4 max-w-6xl w-full h-full mx-auto gap-2.5 min-h-0 overflow-hidden">
+                <main className="flex-1 flex flex-col px-1.5 sm:px-4 pt-1.5 pb-2 w-full h-full gap-2 min-h-0 overflow-hidden">
 
                     {/* ── Fullscreen Charcoal Blackboard ── */}
-                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
+                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
 
                         {isModelDownloading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#181C20]/95 backdrop-blur-md rounded-3xl z-30 p-6 text-center">
@@ -2729,7 +2743,7 @@ OUTPUT VALID JSON ONLY:
                                     </div>
                                     <div className="space-y-1 max-w-sm">
                                         <h3 className="text-lg font-bold font-handwriting tracking-wide text-amber-200">
-                                            Avelut is preparing {selectedVoice} voice...
+                                            Avelut Voice is preparing audio...
                                         </h3>
                                         <p className="text-xs text-slate-300">
                                             Synchronizing on-device audio · Text and diagrams reveal line-by-line in sync with speech.
@@ -2784,18 +2798,10 @@ OUTPUT VALID JSON ONLY:
 
                                         return (
                                             <React.Fragment key={`${idx}-${line.slice(0, 15)}`}>
-                                                <div
-                                                    className={`flex items-start gap-2.5 transition-all duration-700 ease-out animate-fade-in ${
-                                                        isWritingActive ? 'border-l-2 border-amber-400 pl-3 bg-amber-400/10 rounded-r-xl shadow-xs' : ''
-                                                    }`}
-                                                >
-                                                    {!isVarLine && !isBlockFormula && !stepMatch && (
-                                                        <span className={`mt-2.5 w-1.5 h-1.5 rounded-full ${isWritingActive ? 'bg-amber-400 animate-ping' : 'bg-amber-300 opacity-80'} shrink-0`} />
-                                                    )}
-
+                                                <div className="flex items-start gap-2.5 animate-fade-in w-full">
                                                     {stepMatch ? (
-                                                        <div className="w-full flex flex-col gap-1 py-0.5">
-                                                            <span className="px-2 py-0.5 rounded-md bg-[#2D333B] border border-[#444C56] font-mono text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] w-fit">
+                                                        <div className="w-full flex flex-col gap-1 my-0.5">
+                                                            <span className="font-bold text-xs sm:text-sm text-amber-300 tracking-wide font-mono bg-amber-400/10 px-2 py-0.5 rounded-md w-fit border border-amber-400/20">
                                                                 {stepMatch[1]}
                                                             </span>
                                                             <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed overflow-x-auto pl-1">
@@ -2805,7 +2811,7 @@ OUTPUT VALID JSON ONLY:
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                                 {isWritingActive && (
-                                                                    <span className="inline-block w-2 h-4 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                                    <span className="inline-block w-2 h-3 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
                                                                 )}
                                                             </div>
                                                         </div>
@@ -2860,8 +2866,8 @@ OUTPUT VALID JSON ONLY:
                         </div>
                     )}
 
-                    {/* ── Bottom Input & Contextual Action Bar (Distraction-Free) ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-3xl p-2.5 sm:p-3 shadow-xl backdrop-blur-md w-full">
+                    {/* ── Bottom Input & Contextual Action Bar (Resting comfortably above bottom nav) ── */}
+                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-2xl sm:rounded-3xl p-2 sm:p-2.5 shadow-xl backdrop-blur-md w-full mb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:mb-2">
 
                         {/* ── Dual Dynamic Contextual Buttons ── */}
                         <div className="flex items-center gap-2 w-full">
