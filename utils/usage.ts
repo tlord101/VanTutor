@@ -221,40 +221,30 @@ export const checkAICredits = (
  * Safely decrements user AI credit balance in the database.
  */
 export const deductAICredits = async (userId: string, cost: number, featureName: string, appSettings?: AppSettings) => {
+  if (!userId || cost <= 0) return;
   try {
-    const userRef = dbRef(db, `users/${userId}`);
-    const result = await runTransaction(userRef, (profile) => {
-      if (profile) {
-        const planKey = (profile.subscription_status === 'pro' ? 'premium' : (profile.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
-        const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
-        const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
-        const defaultLimit = tiers[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers[planKey]?.credit_allocation ?? 15;
-
-        // If balance is missing, initialize with plan default before deducting
-        const currentBalance = profile.ai_credits_balance ?? defaultLimit;
-        profile.ai_credits_balance = Math.max(0, currentBalance - cost);
-      }
-      return profile;
-    });
+    const creditsRef = dbRef(db, `users/${userId}/ai_credits_balance`);
+    const result = await runTransaction(creditsRef, (currentBalance) => {
+      const balance = typeof currentBalance === 'number' ? currentBalance : 15;
+      return Math.max(0, balance - cost);
+    }, { applyLocally: true });
 
     if (result.committed) {
-      const updatedProfile = result.snapshot.val();
-      const updatedBalance = updatedProfile?.ai_credits_balance ?? 0;
-      const subStatus = updatedProfile?.subscription_status || 'free';
-      
-      saveLocalCredits(userId, updatedBalance, subStatus).catch(console.warn);
+      const updatedBalance = result.snapshot.val() ?? 0;
+      saveLocalCredits(userId, updatedBalance, 'free').catch(console.warn);
       recordLocalCreditDeduction(userId, cost, featureName).catch(console.warn);
 
-      // Log usage in cloud
+      // Log usage in cloud asynchronously
       const usageLogRef = push(dbRef(db, `usage_logs/credits/${userId}`));
-      await set(usageLogRef, {
+      void set(usageLogRef, {
         feature: featureName,
         deduction: cost,
         timestamp: Date.now(),
-      });
+      }).catch(() => {});
     }
   } catch (err) {
-    console.error('Failed to deduct AI credits:', err);
+    console.warn('[Credits] Deduction note:', err);
+    recordLocalCreditDeduction(userId, cost, featureName).catch(() => {});
   }
 };
 

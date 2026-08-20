@@ -184,6 +184,8 @@ VOICE & INTERACTION GUIDELINES:
             },
           ],
         },
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
       },
     };
 
@@ -217,7 +219,12 @@ VOICE & INTERACTION GUIDELINES:
       }
     }
 
-    // 3. Turn Complete signal
+    // 3. Output Transcription from Gemini Live
+    if (data.serverContent?.outputTranscription?.text) {
+      this.options.onTextChunk?.(data.serverContent.outputTranscription.text);
+    }
+
+    // 4. Turn Complete signal
     if (data.serverContent?.turnComplete) {
       this.options.onTurnComplete?.();
     }

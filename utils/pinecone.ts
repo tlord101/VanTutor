@@ -61,16 +61,27 @@ export async function searchPinecone(
     const pc = createPineconeClient(pineconeApiKey);
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-    // 1. Generate embedding for the search query
-    const embeddingResponse = await ai.models.embedContent({
-      model: 'text-embedding-004',
-      contents: query,
-    });
+    // 1. Generate embedding for the search query with graceful model fallbacks
+    let vectorValues: number[] | undefined;
+    const candidateModels = ['text-embedding-004', 'embedding-001', 'models/text-embedding-004', 'models/embedding-001'];
     
-    const vectorValues = embeddingResponse.embeddings?.[0]?.values || (embeddingResponse as any).embedding?.values;
+    for (const model of candidateModels) {
+      try {
+        const embeddingResponse = await ai.models.embedContent({
+          model,
+          contents: query,
+        });
+        vectorValues = embeddingResponse.embeddings?.[0]?.values || (embeddingResponse as any).embedding?.values;
+        if (vectorValues && vectorValues.length > 0) {
+          break;
+        }
+      } catch (e) {
+        // Try next candidate model
+      }
+    }
 
-    if (!vectorValues) {
-      return { success: false, message: "Failed to generate embedding for the query." };
+    if (!vectorValues || vectorValues.length === 0) {
+      return { success: false, message: "Embedding generation not available on current key." };
     }
 
     // 2. Query Pinecone
@@ -88,7 +99,7 @@ export async function searchPinecone(
       filter: Object.keys(filter).length > 0 ? filter : undefined
     });
 
-    const results = queryResponse.matches.map(match => ({
+    const results = (queryResponse.matches || []).map(match => ({
       score: match.score || 0,
       text: (match.metadata?.text || match.metadata?.text_content || "") as string,
       course_name: (match.metadata?.course_name || "") as string,
@@ -102,7 +113,7 @@ export async function searchPinecone(
 
     return { success: true, results };
   } catch (error: any) {
-    console.error("Vector search crash event:", error);
+    console.warn("[Pinecone] Vector search notice:", error?.message || error);
     return { success: false, message: error.message || "An unknown error occurred during vector search." };
   }
 }

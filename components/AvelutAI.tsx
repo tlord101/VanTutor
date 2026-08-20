@@ -9,6 +9,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { get, onValue, push, ref as dbRef, serverTimestamp, set, update, remove } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
+import { formatLatexMath } from '../utils/latexFormatter';
 // @ts-ignore: Allow importing third-party CSS without type declarations
 import 'katex/dist/katex.min.css';
 import { db, storage } from '../firebase';
@@ -188,7 +189,7 @@ const InlineMarkdownText = React.memo<{ text: string; className?: string }>(({ t
       a: ({ node, ...props }: any) => <a className="underline decoration-emerald-400 underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />,
     }}
   >
-    {text}
+    {formatLatexMath(text)}
   </ReactMarkdown>
 ));
 
@@ -2051,7 +2052,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
                                 }}
                               >
-                                {cleanVisualText}
+                                {formatLatexMath(cleanVisualText)}
                               </ReactMarkdown>
                             )}
                             {suggestions.length > 0 && (
@@ -2163,7 +2164,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
                                 }}
                               >
-                                {cleanVisualStreamingText}
+                                {formatLatexMath(cleanVisualStreamingText)}
                               </ReactMarkdown>
                               {streamingSuggestions.length > 0 && (
                                 <div className="mt-4 flex flex-wrap gap-2">
