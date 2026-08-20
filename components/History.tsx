@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchHistory, SavedItem } from '../utils/history';
+import { getLocalMaterials } from '../services/materialStorageService';
+import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { UserProfile } from '../types';
 import { XIcon } from './icons/XIcon';
 import { FlashcardsUI } from './FlashcardsUI';
@@ -10,26 +12,43 @@ interface HistoryProps {
 }
 
 export const History: React.FC<HistoryProps> = ({ userProfile }) => {
-  const [items, setItems] = useState<SavedItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<SavedItem[]>(() => {
+    if (!userProfile?.uid) return [];
+    return readCachedJson<SavedItem[]>(`avelut_history_${userProfile.uid}`, []);
+  });
+  const [isLoading, setIsLoading] = useState(() => items.length === 0);
   const [activeItem, setActiveItem] = useState<SavedItem | null>(null);
 
   useEffect(() => {
-    if (userProfile?.uid) {
-      setIsLoading(true);
-      fetchHistory(userProfile.uid)
-        .then((data) => {
-          setItems(data);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
-          setIsLoading(false);
-        });
-    } else {
-        setIsLoading(false);
+    if (!userProfile?.uid) {
+      setIsLoading(false);
+      return;
     }
-  }, [userProfile]);
+    const cacheKey = `avelut_history_${userProfile.uid}`;
+
+    // 1. Immediately hydrate from local SQLite (0ms instant render)
+    getLocalMaterials(userProfile.uid).then((localItems) => {
+      if (localItems && localItems.length > 0) {
+        setItems(localItems);
+        setIsLoading(false);
+        writeCachedJson(cacheKey, localItems, userProfile.uid);
+      }
+    }).catch(console.warn);
+
+    // 2. Fetch fresh from network/firebase in background and update inline
+    fetchHistory(userProfile.uid)
+      .then((data) => {
+        if (data && data.length > 0) {
+          setItems(data);
+          writeCachedJson(cacheKey, data, userProfile.uid);
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.warn('Background history fetch note:', err);
+        setIsLoading(false);
+      });
+  }, [userProfile?.uid]);
 
   const getLabelAndColor = (type: string) => {
     switch (type) {

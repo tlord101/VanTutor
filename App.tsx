@@ -375,18 +375,18 @@ const ALLOWED_ROUTE_ITEMS = new Set([
 ]);
 
 const resolveActiveItemFromPath = (pathname: string): string => {
-    if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
+    if (pathname === '/' || pathname === '/chat' || pathname === '/avelut-ai') return 'chat';
     const rawSegment = pathname.substring(1).split('/')[0];
-    if (!rawSegment) return 'dashboard';
+    if (!rawSegment) return 'chat';
     let decodedSegment = rawSegment;
     try {
         decodedSegment = decodeURIComponent(rawSegment);
     } catch (error) {
         console.warn('Invalid route segment encoding:', rawSegment, error);
-        return 'dashboard';
+        return 'chat';
     }
     const normalizedSegment = normalizeRouteSegment(decodedSegment);
-    return ALLOWED_ROUTE_ITEMS.has(normalizedSegment) ? normalizedSegment : 'dashboard';
+    return ALLOWED_ROUTE_ITEMS.has(normalizedSegment) ? normalizedSegment : 'chat';
 };
 
 const normalizeLevelValue = (value?: string): string => {
@@ -447,9 +447,17 @@ const App: React.FC = () => {
     // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
-    const [user, setUser] = useState<FirebaseUser | null>(null);
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const userProfileRef = useRef<UserProfile | null>(null);
+    const [user, setUser] = useState<FirebaseUser | null>(() => firebaseAuth.currentUser);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+        if (typeof window !== 'undefined') {
+            const lastUid = window.localStorage?.getItem('avelut_last_uid') || firebaseAuth.currentUser?.uid;
+            if (lastUid) {
+                return readCachedJson<UserProfile | null>(`avelut_profile_${lastUid}`, null);
+            }
+        }
+        return null;
+    });
+    const userProfileRef = useRef<UserProfile | null>(userProfile);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
 
     // Initialize local SQLite database, hydrate cache & clean expired AI cache on app startup
@@ -477,11 +485,28 @@ const App: React.FC = () => {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    const [userProgress, setUserProgress] = useState<UserProgress>({});
-    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-    const [notifications, setNotifications] = useState<NotificationType[]>([]);
-    const [examHistory, setExamHistory] = useState<ExamHistoryItem[]>([]);
-    const [departmentData, setDepartmentData] = useState<any>(null);
+    const [userProgress, setUserProgress] = useState<UserProgress>(() => {
+        const uid = userProfile?.uid || (typeof window !== 'undefined' ? window.localStorage?.getItem('avelut_last_uid') : null);
+        return uid ? readCachedJson<UserProgress>(`avelut_progress_${uid}`, {}) : {};
+    });
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(() => {
+        const uid = userProfile?.uid || (typeof window !== 'undefined' ? window.localStorage?.getItem('avelut_last_uid') : null);
+        return uid ? readCachedJson<DashboardData | null>(`avelut_dashboard_${uid}`, null) : null;
+    });
+    const [notifications, setNotifications] = useState<NotificationType[]>(() => {
+        const uid = userProfile?.uid || (typeof window !== 'undefined' ? window.localStorage?.getItem('avelut_last_uid') : null);
+        return uid ? readCachedJson<NotificationType[]>(`avelut_notifications_${uid}`, []) : [];
+    });
+    const [examHistory, setExamHistory] = useState<ExamHistoryItem[]>(() => {
+        const uid = userProfile?.uid || (typeof window !== 'undefined' ? window.localStorage?.getItem('avelut_last_uid') : null);
+        return uid ? readCachedJson<ExamHistoryItem[]>(`avelut_exam_history_${uid}`, []) : [];
+    });
+    const [departmentData, setDepartmentData] = useState<any>(() => {
+        if (userProfile?.department_id) {
+            return readCachedJson<any>(`avelut_dept_data_${userProfile.department_id}`, null);
+        }
+        return null;
+    });
     const [customHeaderConfig, setCustomHeaderConfig] = useState<HeaderConfig | null>(null);
 
     const { addToast } = useToast();
@@ -505,8 +530,8 @@ const App: React.FC = () => {
         }
     }, [notifications, addToast]);
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isProfileLoading, setIsProfileLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !userProfile);
+    const [isProfileLoading, setIsProfileLoading] = useState(() => !userProfile);
     const [authView, setAuthView] = useState<'login' | 'signup'>('login');
 
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -558,7 +583,7 @@ const App: React.FC = () => {
                 window.history.pushState(null, '', nextPath);
             }
         } else {
-            const newPath = newItem === 'dashboard' ? '/' : `/${newItem.replace(/_/g, '-')}`;
+            const newPath = newItem === 'chat' ? '/' : `/${newItem.replace(/_/g, '-')}`;
             if (getWindowPathname() !== newPath && typeof window !== 'undefined') {
                 window.history.pushState(null, '', newPath);
             }
@@ -830,19 +855,35 @@ const App: React.FC = () => {
             tourStatusRef.current = 'unknown';
             cleanupNativeNotifications();
           } else {
-            // Clear all user-specific caches on every sign-in so data is always fetched fresh
             const uid = currentUser.uid;
-            clearCachedKey(`avelut_profile_${uid}`);
-            clearCachedKey(`avelut_progress_${uid}`);
-            clearCachedKey(`avelut_dashboard_${uid}`);
-            clearCachedKey(`avelut_notifications_${uid}`);
-            // Department cache key is based on department_id, clear any that match
             try {
-              const keys = Object.keys(localStorage);
-              keys.forEach(k => {
-                if (k.startsWith('avelut_dept_data_')) localStorage.removeItem(k);
-              });
-            } catch (_) { /* ignore */ }
+              window.localStorage.setItem('avelut_last_uid', uid);
+            } catch (_) {}
+
+            // Preload user profile and data immediately from SQLite / cache (0ms instant render)
+            const cachedProfile = readCachedJson<UserProfile | null>(`avelut_profile_${uid}`, null);
+            if (cachedProfile) {
+              setUserProfile(cachedProfile);
+              userProfileRef.current = cachedProfile;
+              setIsProfileLoading(false);
+            }
+            const cachedProgress = readCachedJson<UserProgress>(`avelut_progress_${uid}`, {});
+            if (cachedProgress && Object.keys(cachedProgress).length > 0) {
+              setUserProgress(cachedProgress);
+            }
+            const cachedDashboard = readCachedJson<DashboardData | null>(`avelut_dashboard_${uid}`, null);
+            if (cachedDashboard) {
+              setDashboardData(cachedDashboard);
+            }
+            const cachedNotifs = readCachedJson<NotificationType[]>(`avelut_notifications_${uid}`, []);
+            if (cachedNotifs && cachedNotifs.length > 0) {
+              setNotifications(cachedNotifs);
+            }
+            const cachedExams = readCachedJson<ExamHistoryItem[]>(`avelut_exam_history_${uid}`, []);
+            if (cachedExams && cachedExams.length > 0) {
+              setExamHistory(cachedExams);
+            }
+
             initNativeNotifications(currentUser, addToast, setActiveItem, setPendingMessengerChatId);
           }
           setIsLoading(false);
@@ -1002,8 +1043,14 @@ const App: React.FC = () => {
             return;
         }
         const cacheKey = `avelut_profile_${user.uid}`;
-        // Always start fresh — no cache reads on login
-        setIsProfileLoading(true);
+        const cachedProfile = readCachedJson<UserProfile | null>(cacheKey, null);
+        if (cachedProfile) {
+            setUserProfile(cachedProfile);
+            userProfileRef.current = cachedProfile;
+            setIsProfileLoading(false);
+        } else {
+            setIsProfileLoading(true);
+        }
 
         const userRef = dbRef(db, `users/${user.uid}`);
         

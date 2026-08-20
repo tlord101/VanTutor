@@ -91,9 +91,13 @@ if (isConfigured) {
 }
 
 if ('serviceWorker' in navigator && typeof window !== 'undefined') {
-  // Register service worker immediately to speed up PWA installation readiness
+  // Register service worker immediately to speed up PWA installation readiness and check for updates
   navigator.serviceWorker.register('/service-worker.js')
-    .then((reg) => console.log('Service Worker registered successfully:', reg.scope))
+    .then((reg) => {
+      console.log('Service Worker registered successfully:', reg.scope);
+      // Eagerly check for updated service worker script on app launch
+      void reg.update().catch(() => {});
+    })
     .catch((err) => console.warn('Service Worker registration failed:', err));
 }
 

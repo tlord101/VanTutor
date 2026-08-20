@@ -479,7 +479,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
   const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => chats.length === 0 && allUsers.length === 0);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [tab, setTab] = useState<'chats' | 'people'>('chats');
   const [peopleSearchQuery, setPeopleSearchQuery] = useState("");

@@ -4,6 +4,7 @@ import { auth, storage, db, functions, type FirebaseUser } from '../firebase';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { ref as dbRef, get, query, orderByChild, equalTo, update } from 'firebase/database';
+import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
@@ -29,10 +30,19 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   });
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{type: 'avatar' | 'cover' | null, progress: number}>({type: null, progress: 0});
-  const [departmentName, setDepartmentName] = useState<string>('');
-  const [isDepartmentLoading, setIsDepartmentLoading] = useState(true);
-  const [levels, setLevels] = useState<string[]>([]);
-  const [isLevelsLoading, setIsLevelsLoading] = useState(true);
+  
+  const [departmentName, setDepartmentName] = useState<string>(() => {
+    const cached = readCachedJson<any>(`avelut_dept_data_${userProfile.department_id}`, null);
+    return cached?.name || cached?.department_name || (userProfile.department_id ? userProfile.department_id.replace(/_/g, ' ') : '');
+  });
+  const [isDepartmentLoading, setIsDepartmentLoading] = useState(() => !departmentName);
+  
+  const [levels, setLevels] = useState<string[]>(() => {
+    const cached = readCachedJson<any>(`avelut_dept_data_${userProfile.department_id}`, null);
+    if (!cached?.levels) return [];
+    return Array.isArray(cached.levels) ? cached.levels : Object.keys(cached.levels);
+  });
+  const [isLevelsLoading, setIsLevelsLoading] = useState(() => levels.length === 0);
   
   const [isEditingAcademics, setIsEditingAcademics] = useState(false);
   const [editSchoolId, setEditSchoolId] = useState(userProfile.school_id || '');
@@ -61,8 +71,8 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
         setIsLevelsLoading(false);
         return;
       }
-      setIsDepartmentLoading(true);
-      setIsLevelsLoading(true);
+      if (!departmentName) setIsDepartmentLoading(true);
+      if (levels.length === 0) setIsLevelsLoading(true);
       try {
         const snapshot = await get(dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`));
         const departmentData = snapshot.val();

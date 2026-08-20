@@ -99,45 +99,26 @@ export function generatePhasePath(
         dimScores.set(r.dimension, r.score);
     }
 
-    const prereq     = dimScores.get('prerequisiteKnowledge')     ?? 0;
-    const conceptual  = dimScores.get('conceptualUnderstanding')   ?? 0;
-    const procedural  = dimScores.get('proceduralFluency')         ?? 0;
-    const transfer    = dimScores.get('transferAbility')            ?? 0;
+    // ── 1. Comprehensive Grounding & Intuition ──
+    path.push('concept_map');
+    path.push('intuition', 'concept_core');
 
-    // ── Prerequisite gap → full build-up ──
-    if (prereq < 0.6) {
-        path.push('concept_map');
-    }
-
-    // ── Conceptual gap → intuition + core ──
-    if (conceptual < 0.7) {
-        path.push('intuition', 'concept_core');
-    }
-
-    // ── Always predict (even strong students benefit) ──
+    // ── 2. Active Prediction Challenge ──
     path.push('predict');
 
-    // ── Formula / procedural gap ──
-    if (procedural < 0.5) {
-        path.push('formalize', 'multi_represent');
-    } else if (procedural < 0.8) {
-        path.push('formalize');
-    }
+    // ── 3. Mathematical Formalization & Representations ──
+    path.push('formalize', 'multi_represent');
 
-    // ── Always: guided + independent (independent is NEVER skipped) ──
+    // ── 4. Socratic Worked Example & Independent Practice ──
     path.push('guided_practice', 'independent_practice');
 
-    // ── Conceptual weakness → misconception defense ──
-    if (conceptual < 0.8) {
-        path.push('misconception');
-    }
+    // ── 5. Misconception Defense ──
+    path.push('misconception');
 
-    // ── Transfer unknown or weak → include transfer ──
-    if (transfer < 0.7) {
-        path.push('transfer');
-    }
+    // ── 6. Novel Transfer Application ──
+    path.push('transfer');
 
-    // ── Always end with retrieval + mastery check ──
+    // ── 7. Memory Retrieval & Concept Mastery Synthesis ──
     path.push('retrieval', 'mastery_decision');
 
     return path;

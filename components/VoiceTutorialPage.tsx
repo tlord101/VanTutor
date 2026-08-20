@@ -1028,14 +1028,15 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const streamBoardLines = useCallback((lines: string[], spokenText?: string) => {
         clearAllStreamTimers();
         pendingBoardLinesRef.current = lines.slice(0, MAX_BOARD_LINES);
-        if (isMuted || !isTtsLoading) {
+        if (isMuted) {
             revealLinesProgressively(pendingBoardLinesRef.current, spokenText);
         } else {
+            // Keep board text hidden until voice is ready and begins reading
             setVisibleBoardLines([]);
             setIsStreaming(true);
             setActiveWritingIndex(-1);
         }
-    }, [clearAllStreamTimers, isMuted, isTtsLoading, revealLinesProgressively]);
+    }, [clearAllStreamTimers, isMuted, revealLinesProgressively]);
 
     const speakText = useCallback(async (
         text: string,
@@ -1145,36 +1146,18 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
-
-                // Fallback progressive reveal
+                // Reveal lines only if voice completely failed
                 revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
                 } else if (pendingVisualsRef.current.table) {
                     setActiveTableMarkdown(pendingVisualsRef.current.table);
                 }
-
                 onEnd?.();
             },
         });
 
         currentAudioRef.current = player as any;
-
-        // Watchdog timeout: ensures blackboard reveals within 2.2s even if initial voice initialization takes time
-        const safetyTimer = setTimeout(() => {
-            if (isActiveRef.current && playSessionIdRef.current === sessionId) {
-                setIsTtsLoading(false);
-                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
-                if (pendingVisualsRef.current.svg) {
-                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
-                } else if (pendingVisualsRef.current.table) {
-                    setActiveTableMarkdown(pendingVisualsRef.current.table);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
-                }
-            }
-        }, 2200);
-        streamTimersRef.current.push(safetyTimer);
     }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
 
     // ── Real-Time Streaming Speech Engine for Live Interaction & Q&A ──────────
@@ -1269,7 +1252,41 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             };
         }
         const rawConcepts = Array.isArray(bp.concepts) ? bp.concepts : [];
-        const concepts: BlueprintConcept[] = rawConcepts.map((c: any, i: number) => {
+        const topicLabel = bp.title || sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Core Topic Principles';
+        
+        // Ensure at least 3 deep structured concepts if empty
+        const defaultConceptsList: any[] = [
+            {
+                conceptName: `${topicLabel}: Physical Intuition & Foundations`,
+                relatableQuestion: `What happens physically in real scenarios involving ${topicLabel}?`,
+                realWorldScenario: `Everyday physical occurrence demonstrating the foundational intuition of ${topicLabel}.`,
+                keyDefinition: `Fundamental principle and governing definition of ${topicLabel}.`,
+                physicalMeaning: `Physical intuition and core behavior of ${topicLabel}.`,
+                formula: '$$\\Delta y = f(x)$$',
+                goldenRule: 'Physical quantities and conservation laws remain invariant across frames.',
+            },
+            {
+                conceptName: `${topicLabel}: Governing Mathematical Model & Laws`,
+                relatableQuestion: `How do we mathematically quantify and formulate ${topicLabel}?`,
+                realWorldScenario: `Calculations and relations predicting precise behavior in ${topicLabel}.`,
+                keyDefinition: `Mathematical formalization and equations governing ${topicLabel}.`,
+                physicalMeaning: `Relationship between variables, constants, and rates for ${topicLabel}.`,
+                formula: '$$F = m \\cdot a$$',
+                goldenRule: 'Units and dimensional homogeneity must balance across all terms in every formula.',
+            },
+            {
+                conceptName: `${topicLabel}: Applied Socratic Problem Solving & Boundary Principles`,
+                relatableQuestion: `How do we apply our equations to solve complex, multi-step problems in ${topicLabel}?`,
+                realWorldScenario: `Practical STEM scenario applying ${topicLabel}.`,
+                keyDefinition: `Step-by-step problem decomposition and solution strategy for ${topicLabel}.`,
+                physicalMeaning: `Applying governing laws to determine target unknowns accurately.`,
+                formula: '$$\\sum F = 0$$',
+                goldenRule: 'Always verify physical boundary conditions and the reasonableness of final answers.',
+            }
+        ];
+
+        const sourceConcepts = rawConcepts.length > 0 ? rawConcepts : defaultConceptsList;
+        const concepts: BlueprintConcept[] = sourceConcepts.map((c: any, i: number) => {
             const cName = c.conceptName || `Concept ${i + 1}`;
             const ex = c.example || {};
             const ind = c.independentProblem || ex;
@@ -1437,7 +1454,7 @@ The student uploaded an image of a problem/diagram.
 ` : '';
 
         const prompt = `You are AVELUT Master STEM Curriculum Architect & Adaptive Learning Engine.
-Design an intelligent, adaptive lesson blueprint for:
+Design an intelligent, highly comprehensive adaptive lesson blueprint for:
 Course: "${courseName}"
 Topic: "${topicName}"
 Level: ${level}
@@ -1445,14 +1462,15 @@ ${imageInstructions}
 ${memoryContext}
 
 PEDAGOGICAL REQUIREMENTS:
-1. Simplest Words Possible: Explain intuitively in everyday English before formal math.
-2. Concrete Real-World Analogies: Always ground abstract laws in familiar physical objects.
-3. Diagnostic Questions (2-3 per concept): Design concise diagnostic questions that test prerequisite knowledge, conceptual understanding, and formula application. Include multiple_choice or numeric format with options and 4 progressive hints.
-4. Prediction Challenges: Include a prediction scenario for each concept where the student predicts what happens before seeing the math.
-5. Socratic Worked Example & Independent Practice: Each concept must have a worked example (3 clear steps) AND a separate independent practice problem with 4 progressive hints.
-6. Misconception Traps: Explicitly craft common misunderstandings for the student to defend against.
-7. Topic Synthesis Problem: Create 1 integrated problem combining all concepts in this topic.
-8. Valid LaTeX Math: Format all math in LaTeX ($...$ or $$...$$).
+1. Deep Multi-Concept Coverage: Break down this topic thoroughly into 3 to 4 sequential, progressive concepts (Concept 1: Physical Intuition & Foundations, Concept 2: Mathematical Formalization & Governing Laws, Concept 3: Applied Socratic Problem Solving & Boundary Cases, Concept 4: Advanced Scenarios & Edge Cases). DO NOT return just 1 superficial concept.
+2. Simplest Words Possible: Explain intuitively in everyday English before formal math.
+3. Concrete Real-World Analogies: Always ground abstract laws in familiar physical objects.
+4. Diagnostic Questions (2-3 per concept): Design concise diagnostic questions that test prerequisite knowledge, conceptual understanding, and formula application. Include multiple_choice or numeric format with options and 4 progressive hints.
+5. Prediction Challenges: Include a prediction scenario for each concept where the student predicts what happens before seeing the math.
+6. Socratic Worked Example & Independent Practice: Each concept must have a worked example (3 clear steps) AND a separate independent practice problem with 4 progressive hints.
+7. Misconception Traps: Explicitly craft common misunderstandings for the student to defend against.
+8. Topic Synthesis Problem: Create 1 integrated problem combining all concepts in this topic.
+9. Valid LaTeX Math: Format all math in LaTeX ($...$ or $$...$$).
 
 OUTPUT VALID JSON ONLY:
 {
@@ -1586,6 +1604,7 @@ OUTPUT VALID JSON ONLY:
         }
 
         if (!isActiveRef.current || !bp) return;
+        setIsDone(false);
         setBlueprint(bp);
 
         let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
@@ -1647,14 +1666,9 @@ OUTPUT VALID JSON ONLY:
     ) => {
         if (!isActiveRef.current) return;
 
-        const concept = bp.concepts[cIdx];
+        const concept = bp.concepts[cIdx] || bp.concepts[0];
         if (!concept && currentPhase !== 'synthesis') {
-            setIsDone(true);
-            setVisibleBoardLines(['🎓 Topic Complete!', bp.overallSummary]);
-            setActiveDiagramSvg(null);
-            setActiveTableMarkdown(null);
-            setActiveVisualCaption(null);
-            void speakText(`Well done! ${bp.overallSummary} You have achieved topic mastery!`);
+            setIsLoadingUnit(false);
             return;
         }
 
@@ -1918,11 +1932,11 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
                 setIsLoadingUnit(false);
                 const defaultLines = getBoardLines(concept || bp.concepts[0], currentPhase, diagIdx);
                 const defaultSpoken = getSpokenText(concept || bp.concepts[0], currentPhase, diagIdx);
-                streamBoardLines(defaultLines);
+                pendingBoardLinesRef.current = defaultLines;
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(null);
                 setActiveVisualCaption(null);
-                await speakText(defaultSpoken);
+                await speakText(defaultSpoken, undefined, defaultLines);
                 return;
             }
 
@@ -2125,7 +2139,7 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
                 `💡 **Hint ${nextH.currentTier} of ${nextH.maxTier}**`,
                 nextH.activeHintText || 'Review the given values and equations.'
             ];
-            streamBoardLines(hintLines);
+            pendingBoardLinesRef.current = hintLines;
             setPositiveAction({ label: "Try Answering Now →", text: "I'll try calculating now" });
             setNegativeAction({ label: nextH.currentTier < nextH.maxTier ? "Need Next Hint 💡" : "Explain Step ↺", text: "Need more guidance" });
 
@@ -2173,7 +2187,7 @@ OUTPUT VALID JSON ONLY:
                     const raw = getResponseText(res);
                     const parsed = robustParseJson<{ spokenExplanation: string; boardLines: string[]; positiveReplyLabel: string; positiveReplyText: string; negativeReplyLabel: string; negativeReplyText: string }>(raw);
                     setIsLoadingUnit(false);
-                    if (parsed.boardLines) streamBoardLines(parsed.boardLines);
+                    if (parsed.boardLines) pendingBoardLinesRef.current = parsed.boardLines.slice(0, MAX_BOARD_LINES);
                     if (parsed.positiveReplyLabel) setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText || 'Continue' });
                     if (parsed.negativeReplyLabel) setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText || 'Explain more' });
                     dialogueHistoryRef.current.push({ role: 'tutor', text: parsed.spokenExplanation, boardSummary: (parsed.boardLines || []).join(' | ') });
@@ -2426,7 +2440,7 @@ OUTPUT VALID JSON ONLY:
                     `❌ **Let's review this step**`,
                     feedback || `Check the governing relationship for ${currentC?.conceptName}.`,
                 ];
-                streamBoardLines(feedbackLines);
+                pendingBoardLinesRef.current = feedbackLines;
                 setPositiveAction({ label: "Try Answering Again →", text: "I'll try calculating again." });
                 setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
 
@@ -2995,28 +3009,20 @@ OUTPUT VALID JSON ONLY:
                                 </span>
                             </div>
 
-                            {/* ── Voice Preparation Loading Screen (Centered with Animated Bar) ── */}
-                            {isTtsLoading && (
-                                <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center animate-fade-in my-auto">
-                                    <div className="w-16 h-16 rounded-3xl bg-[#22272E] border border-amber-400/40 flex items-center justify-center shadow-xl">
-                                        <i className="bi bi-soundwave text-3xl text-amber-400"></i>
-                                    </div>
-                                    <div className="space-y-1 max-w-sm">
-                                        <h3 className="text-lg font-bold font-handwriting tracking-wide text-amber-200">
-                                            Avelut Voice is preparing audio...
-                                        </h3>
-                                        <p className="text-xs text-slate-300">
-                                            Synchronizing on-device audio · Text and diagrams reveal line-by-line in sync with speech.
-                                        </p>
-                                    </div>
-                                    <div className="w-full max-w-xs bg-slate-800/90 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
-                                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full transition-all" />
+                            {/* ── Waiting for voice / preparation state: Blinking Colored Cursor on Clean Blackboard ── */}
+                            {visibleBoardLines.length === 0 && !isDone && (
+                                <div className="flex-1 flex flex-col items-start justify-start pt-6 sm:pt-8 px-2 animate-fade-in">
+                                    <div className="flex items-center gap-3 font-mono text-sm sm:text-base tracking-wide">
+                                        <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_12px_rgba(59,130,246,0.9)] animate-pulse" />
+                                        <span className="text-xs text-sky-300/80 font-mono italic">
+                                            {isTtsLoading ? 'Tuning audio synthesizer...' : isLoadingUnit ? 'Writing lesson...' : ''}
+                                        </span>
                                     </div>
                                 </div>
                             )}
 
                             {/* ── Blackboard Content Area (Progressive Chalk Write-In & Inline Visuals) ── */}
-                            {!isTtsLoading && visibleBoardLines.length > 0 && (
+                            {visibleBoardLines.length > 0 && (
                                 <div className="flex-1 w-full space-y-3 pb-2">
                                     {visibleBoardLines.map((line, idx) => {
                                         const trimmed = line.trim();
@@ -3061,7 +3067,7 @@ OUTPUT VALID JSON ONLY:
                                                 <div className="flex items-start gap-2.5 animate-fade-in w-full">
                                                     {stepMatch ? (
                                                         <div className="w-full flex flex-col gap-1 my-0.5">
-                                                            <span className="font-bold text-xs sm:text-sm text-amber-300 tracking-wide font-mono bg-amber-400/10 px-2 py-0.5 rounded-md w-fit border border-amber-400/20">
+                                                            <span className="font-bold text-xs sm:text-sm text-sky-300 tracking-wide font-mono bg-sky-400/10 px-2 py-0.5 rounded-md w-fit border border-sky-400/20">
                                                                 {stepMatch[1]}
                                                             </span>
                                                             <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed overflow-x-auto pl-1">
@@ -3071,7 +3077,7 @@ OUTPUT VALID JSON ONLY:
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                                 {isWritingActive && (
-                                                                    <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
+                                                                    <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
                                                                 )}
                                                             </div>
                                                         </div>
@@ -3089,7 +3095,7 @@ OUTPUT VALID JSON ONLY:
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
+                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
                                                             )}
                                                         </div>
                                                     ) : (
@@ -3098,9 +3104,9 @@ OUTPUT VALID JSON ONLY:
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                            >{formatLatexMath(line)}</ReactMarkdown>
+                                                                >{formatLatexMath(line)}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
+                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
                                                             )}
                                                         </div>
                                                     )}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelut-assets-v3';
+const CACHE_NAME = 'avelut-assets-v4';
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [

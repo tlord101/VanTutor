@@ -304,16 +304,13 @@ export class KittenCloudTtsEngine {
 
                 try {
                     await audio.play();
-                } catch {
-                    if (!hasFiredStart) {
-                        hasFiredStart = true;
-                        options?.onStart?.();
-                    }
+                } catch (err) {
+                    console.warn('[KittenTTS] Stream sentence play exception:', err);
+                    options?.onError?.(err);
                     void playIndex(index + 1);
                 }
             } else {
-                if (!hasFiredStart && index === 0) {
-                    hasFiredStart = true;
+                if (index === 0) {
                     options?.onError?.(new Error('Audio stream generation failed'));
                 }
                 void playIndex(index + 1);
@@ -389,27 +386,21 @@ export class KittenCloudTtsEngine {
                     options?.onEnd?.();
                 };
 
-                audio.onerror = () => {
+                audio.onerror = (err) => {
                     if (isStopped || this.activeSessionId !== sessionId) return;
                     this.currentAudioElement = null;
-                    options?.onError?.(new Error('Audio playback failed'));
+                    options?.onError?.(err);
                 };
 
                 try {
                     await audio.play();
                 } catch (playErr) {
-                    if (!hasFiredStart) {
-                        hasFiredStart = true;
-                        options?.onStart?.();
-                    }
-                    options?.onEnd?.();
+                    console.warn('[KittenTTS] Audio play exception:', playErr);
+                    this.currentAudioElement = null;
+                    options?.onError?.(playErr);
                 }
             } else {
-                if (!hasFiredStart) {
-                    hasFiredStart = true;
-                    options?.onError?.(new Error('Audio generation failed'));
-                }
-                options?.onEnd?.();
+                options?.onError?.(new Error('Audio generation failed'));
             }
         };
 
