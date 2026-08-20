@@ -67,7 +67,6 @@
     "html2canvas": "^1.4.1",
     "jeep-sqlite": "^2.8.0",
     "katex": "^0.16.25",
-    "kitten-tts-js": "^0.1.2",
     "lucide-react": "^1.16.0",
     "mammoth": "^1.12.0",
     "marked": "^18.0.4",

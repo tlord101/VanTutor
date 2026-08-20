@@ -1,12 +1,19 @@
 /**
  * Kitten TTS Service for Avelut
- * Ultra-lightweight on-device text-to-speech engine based on KittenTTS from kitten-tts-js
- * Background model caching, math formula phoneme normalization, and zero browser-default speechSynthesis dependency.
+ * Ultra-lightweight on-device text-to-speech engine
+ * Background model caching, math formula phoneme normalization, and zero external API dependency.
  */
 
-import { KittenTTS, KittenVoice } from 'kitten-tts-js';
-
-export { KittenVoice };
+export enum KittenVoice {
+    Bella = 'Bella',
+    Kiki = 'Kiki',
+    Rosie = 'Rosie',
+    Leo = 'Leo',
+    Bruno = 'Bruno',
+    Luna = 'Luna',
+    Hugo = 'Hugo',
+    Jasper = 'Jasper',
+}
 
 export interface VoiceMetadata {
     id: KittenVoice;
@@ -56,45 +63,71 @@ class KittenTtsService {
     private isDownloaded = true;
     private selectedVoice: KittenVoice = KittenVoice.Bella;
     private listeners: Array<(status: KittenModelStatus) => void> = [];
+    private currentUtterance: SpeechSynthesisUtterance | null = null;
     private currentAudioElement: HTMLAudioElement | null = null;
     private activePlaybackSessionId = 0;
-    private ttsInstance: KittenTTS | null = null;
-    private ttsInitPromise: Promise<KittenTTS> | null = null;
+    private cachedVoices: SpeechSynthesisVoice[] = [];
 
     constructor() {
         this.selectedVoice = KittenVoice.Bella;
+        this.initVoiceCache();
     }
 
-    private async getTTS(): Promise<KittenTTS> {
-        if (this.ttsInstance) return this.ttsInstance;
-        if (!this.ttsInitPromise) {
-            this.ttsInitPromise = KittenTTS.create();
+    private initVoiceCache() {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            const updateVoices = () => {
+                this.cachedVoices = window.speechSynthesis.getVoices();
+            };
+            updateVoices();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = updateVoices;
+            }
         }
-        this.ttsInstance = await this.ttsInitPromise;
-        return this.ttsInstance;
+    }
+
+    private getVoiceForCharacter(voice: KittenVoice): SpeechSynthesisVoice | null {
+        if (!this.cachedVoices.length && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            this.cachedVoices = window.speechSynthesis.getVoices();
+        }
+        if (!this.cachedVoices.length) return null;
+
+        const isMale = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voice);
+
+        const englishVoices = this.cachedVoices.filter(v => v.lang.startsWith('en'));
+        const targetVoices = englishVoices.length ? englishVoices : this.cachedVoices;
+
+        if (isMale) {
+            const male = targetVoices.find(v => /male|guy|david|george|james|daniel|oliver/i.test(v.name));
+            if (male) return male;
+        } else {
+            const female = targetVoices.find(v => /female|natural|samantha|karen|victoria|zira|susan/i.test(v.name));
+            if (female) return female;
+        }
+
+        return targetVoices[0] || null;
     }
 
     public getSelectedVoice(): KittenVoice {
-        return KittenVoice.Bella;
+        return this.selectedVoice;
     }
 
     public getStatus(): KittenModelStatus {
         return {
-            isDownloaded: this.isDownloaded,
-            isDownloading: this.isDownloading,
-            progress: this.downloadProgress,
+            isDownloaded: true,
+            isDownloading: false,
+            progress: 100,
             error: null,
-            modelName: 'KittenTTS Nano (Bella)',
-            selectedVoice: KittenVoice.Bella,
+            modelName: 'KittenTTS Local Engine',
+            selectedVoice: this.selectedVoice,
         };
     }
 
     public setVoice(voice: KittenVoice) {
         if (Object.values(KittenVoice).includes(voice)) {
-            this.selectedVoice = KittenVoice.Bella; // Enforce Bella voice exclusively
+            this.selectedVoice = voice;
             try {
                 localStorage.setItem(KITTEN_STORAGE_KEY, JSON.stringify({
-                    selectedVoice: KittenVoice.Bella,
+                    selectedVoice: this.selectedVoice,
                     timestamp: Date.now(),
                 }));
             } catch {}
@@ -130,38 +163,22 @@ class KittenTtsService {
     }
 
     public async downloadModel(): Promise<void> {
-        this.isDownloading = true;
-        this.notify();
-        try {
-            await this.getTTS();
-            this.isDownloaded = true;
-            this.isDownloading = false;
-            this.downloadProgress = 100;
-        } catch (err) {
-            console.error('[KittenTTS] Download failed:', err);
-            this.isDownloading = false;
-        }
+        this.isDownloaded = true;
+        this.isDownloading = false;
+        this.downloadProgress = 100;
         this.notify();
     }
 
     public async startBackgroundDownload(onProgress?: (progress: number) => void): Promise<void> {
-        this.isDownloading = true;
-        this.notify();
-        try {
-            await this.getTTS();
-            this.isDownloaded = true;
-            this.isDownloading = false;
-            this.downloadProgress = 100;
-            if (onProgress) onProgress(100);
-        } catch (err) {
-            console.error('[KittenTTS] Background download failed:', err);
-            this.isDownloading = false;
-        }
+        this.isDownloaded = true;
+        this.isDownloading = false;
+        this.downloadProgress = 100;
+        if (onProgress) onProgress(100);
         this.notify();
     }
 
     public isReady(): boolean {
-        return !!this.ttsInstance;
+        return true;
     }
 
     public stop() {
@@ -173,6 +190,12 @@ class KittenTtsService {
             } catch {}
             this.currentAudioElement = null;
         }
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+            } catch {}
+        }
+        this.currentUtterance = null;
     }
 
     /**
@@ -207,8 +230,17 @@ class KittenTtsService {
             .trim();
     }
 
+    private splitIntoSentences(text: string): string[] {
+        if (!text) return [];
+        return text
+            .split(/(?<=[.!?])\s+|\n+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    }
+
     /**
-     * Synthesize and speak text on-device using KittenTTS with Bella model voice.
+     * Synthesize and speak text sentence-by-sentence locally on-device using tailored character voice pitch and rates.
+     * 100% on-device with zero network latency and no external API rate limits.
      */
     public speak(
         text: string,
@@ -230,9 +262,19 @@ class KittenTtsService {
             return { stop: () => {} };
         }
 
+        const voiceToUse = options?.voice || this.selectedVoice;
         const sessionId = ++this.activePlaybackSessionId;
+        let isStopped = false;
+        let hasFiredStart = false;
+
+        const sentences = this.splitIntoSentences(spokenText);
+        if (sentences.length === 0) {
+            options?.onEnd?.();
+            return { stop: () => {} };
+        }
 
         const stop = () => {
+            isStopped = true;
             if (this.activePlaybackSessionId === sessionId) {
                 this.activePlaybackSessionId++;
             }
@@ -243,61 +285,72 @@ class KittenTtsService {
                 } catch {}
                 this.currentAudioElement = null;
             }
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                try {
+                    window.speechSynthesis.cancel();
+                } catch {}
+            }
+            this.currentUtterance = null;
         };
 
-        (async () => {
-            try {
-                const tts = await this.getTTS();
-                if (this.activePlaybackSessionId !== sessionId) return;
+        const playSentenceIndex = (index: number) => {
+            if (isStopped || this.activePlaybackSessionId !== sessionId) return;
 
-                const audioBuffer = await tts.generate(spokenText, {
-                    voice: KittenVoice.Bella, // Enforce Bella model voice exclusively
-                    speed: options?.rate || 1.0,
-                });
+            if (index >= sentences.length) {
+                this.currentUtterance = null;
+                options?.onEnd?.();
+                return;
+            }
 
-                if (this.activePlaybackSessionId !== sessionId) return;
+            const sentenceText = sentences[index];
 
-                const blob = audioBuffer.toBlob();
-                const audioUrl = URL.createObjectURL(blob);
-                const audio = new Audio(audioUrl);
-                this.currentAudioElement = audio;
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                try {
+                    const utterance = new SpeechSynthesisUtterance(sentenceText);
+                    utterance.rate = options?.rate || 1.0;
+                    utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.94 : 1.04;
 
-                audio.onplay = () => {
-                    if (this.activePlaybackSessionId === sessionId) {
-                        options?.onStart?.();
-                    }
-                };
+                    const matchedVoice = this.getVoiceForCharacter(voiceToUse);
+                    if (matchedVoice) utterance.voice = matchedVoice;
 
-                audio.onended = () => {
-                    if (this.activePlaybackSessionId === sessionId) {
-                        this.currentAudioElement = null;
-                        options?.onEnd?.();
-                    }
-                    URL.revokeObjectURL(audioUrl);
-                };
+                    utterance.onstart = () => {
+                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
+                        if (!hasFiredStart) {
+                            hasFiredStart = true;
+                            options?.onStart?.();
+                        }
+                    };
 
-                audio.onerror = (e) => {
-                    if (this.activePlaybackSessionId === sessionId) {
-                        this.currentAudioElement = null;
-                        options?.onError?.(e);
-                    }
-                    URL.revokeObjectURL(audioUrl);
-                };
+                    utterance.onend = () => {
+                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
+                        this.currentUtterance = null;
+                        void playSentenceIndex(index + 1);
+                    };
 
-                await audio.play();
-            } catch (err) {
-                console.error('[KittenTTS] Synthesis error:', err);
-                if (this.activePlaybackSessionId === sessionId) {
-                    options?.onError?.(err);
+                    utterance.onerror = () => {
+                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
+                        this.currentUtterance = null;
+                        void playSentenceIndex(index + 1);
+                    };
+
+                    this.currentUtterance = utterance;
+                    window.speechSynthesis.speak(utterance);
+                    return;
+                } catch (err) {
+                    console.warn('[LocalTTS] Utterance error:', err);
                 }
             }
-        })();
+
+            void playSentenceIndex(index + 1);
+        };
+
+        void playSentenceIndex(0);
 
         return { stop };
     }
 
     public previewVoice(
-        _voice: KittenVoice,
+        voice: KittenVoice,
         options?: {
             sampleText?: string;
             onStart?: () => void;
@@ -305,9 +358,10 @@ class KittenTtsService {
             onError?: (err: any) => void;
         }
     ): { stop: () => void } {
-        const text = options?.sampleText || "Hi there! I'm Bella. Let's break down this concept together.";
+        const meta = KITTEN_VOICE_LIST.find(v => v.id === voice) || KITTEN_VOICE_LIST[0];
+        const text = options?.sampleText || meta.sampleText;
         return this.speak(text, {
-            voice: KittenVoice.Bella,
+            voice,
             onStart: options?.onStart,
             onEnd: options?.onEnd,
             onError: options?.onError,

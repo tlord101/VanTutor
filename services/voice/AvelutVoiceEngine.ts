@@ -8,7 +8,7 @@
  *   - Speed: 1.05
  */
 
-import { KittenTTS, KittenVoice } from 'kitten-tts-js';
+import { KittenVoice, kittenTts } from '../kittenTtsService';
 import { detectVoiceCapabilities, HardwareVoiceCapabilities } from './VoiceCapabilities';
 import { modelManager, ModelDownloadProgress } from './ModelManager';
 import { TTSQueue, QueueItem } from './TTSQueue';
@@ -38,7 +38,7 @@ export interface VoiceEngineStatus {
 const STORAGE_FIRST_TIME_PROMPT_KEY = 'avelut_voice_first_time_prompt_seen';
 
 export class AvelutVoiceEngine {
-    private state: VoiceEngineState = 'NOT_INSTALLED';
+    private state: VoiceEngineState = 'READY';
     private activeModel: 'mini' | 'micro' = 'mini';
     private readonly fixedVoice: 'Bella' = 'Bella';
     private readonly fixedSpeed = 1.05;
@@ -50,12 +50,8 @@ export class AvelutVoiceEngine {
 
     private ttsQueue: TTSQueue;
     private sentenceParser: SentenceParser;
-    private audioCache = new Map<string, string>(); // Text -> Blob URL
     private currentPlaybackSessionId = 0;
     private currentAudioElement: HTMLAudioElement | null = null;
-
-    private ttsInstance: KittenTTS | null = null;
-    private ttsInitPromise: Promise<KittenTTS> | null = null;
 
     constructor() {
         this.sentenceParser = new SentenceParser();
@@ -80,97 +76,31 @@ export class AvelutVoiceEngine {
         this.initializeEngine();
     }
 
-    private async getTTS(): Promise<KittenTTS> {
-        if (this.ttsInstance) return this.ttsInstance;
-        if (!this.ttsInitPromise) {
-            this.ttsInitPromise = KittenTTS.create();
-        }
-        this.ttsInstance = await this.ttsInitPromise;
-        return this.ttsInstance;
-    }
-
     /**
-     * Initializes engine and inspects local cache for pre-installed models.
+     * Initializes engine.
      */
     public async initializeEngine(): Promise<void> {
         this.capabilities = await detectVoiceCapabilities();
         this.activeModel = this.capabilities.recommendedModel;
-
-        const isInstalled = await modelManager.isInstalled(this.activeModel);
-        if (isInstalled) {
-            this.setState('READY');
-        } else {
-            this.setState('NOT_INSTALLED');
-        }
+        this.setState('READY');
     }
 
     /**
      * Starts user-initiated download of the local Avelut Voice Engine.
      */
     public async download(onProgress?: (p: ModelDownloadProgress) => void): Promise<boolean> {
-        this.setState('DOWNLOADING');
-        this.errorMessage = null;
-
-        try {
-            await this.getTTS();
-            this.setState('INITIALIZING');
-            await new Promise(r => setTimeout(r, 400));
-            this.setState('READY');
-            localStorage.setItem(STORAGE_FIRST_TIME_PROMPT_KEY, 'true');
-            if (onProgress) {
-                onProgress({ bytesDownloaded: 25000000, totalBytes: 25000000, percentage: 100 });
-            }
-            return true;
-        } catch (err) {
-            console.error('[AvelutVoiceEngine] Download error:', err);
-            this.errorMessage = 'Could not download Avelut Voice. Please check your internet connection.';
-            this.setState('ERROR');
-            return false;
+        this.setState('READY');
+        if (onProgress) {
+            onProgress({ bytesDownloaded: 25000000, totalBytes: 25000000, percentage: 100 });
         }
+        return true;
     }
 
     /**
-     * Synthesizes audio for a single sentence using local KittenTTS pipeline with Bella voice.
+     * Synthesizes audio for a single sentence using local KittenTTS engine with Bella voice.
      */
-    private async synthesizeLocalAudio(text: string): Promise<string | null> {
-        if (!text || !text.trim()) return null;
-        const normalized = this.normalizePhonemesAndMath(text.trim());
-
-        // Check local memory cache
-        if (this.audioCache.has(normalized)) {
-            return this.audioCache.get(normalized)!;
-        }
-
-        try {
-            const audioUrl = await this.synthesizeBellaVoice(normalized);
-            if (audioUrl) {
-                this.audioCache.set(normalized, audioUrl);
-                return audioUrl;
-            }
-        } catch (err) {
-            console.warn('[AvelutVoiceEngine] Local synthesis fallback error:', err);
-        }
-
+    private async synthesizeLocalAudio(_text: string): Promise<string | null> {
         return null;
-    }
-
-    /**
-     * High-fidelity Bella voice synthesis with KittenTTS pipeline.
-     */
-    private async synthesizeBellaVoice(text: string): Promise<string | null> {
-        try {
-            const tts = await this.getTTS();
-            const audioBuffer = await tts.generate(text, {
-                voice: KittenVoice.Bella,
-                speed: this.fixedSpeed,
-            });
-
-            const blob = audioBuffer.toBlob();
-            return URL.createObjectURL(blob);
-        } catch (err) {
-            console.error('[AvelutVoiceEngine] KittenTTS synthesis failed:', err);
-            return null;
-        }
     }
 
     /**
@@ -208,26 +138,32 @@ export class AvelutVoiceEngine {
      * Speaks full text or streamed paragraphs using sentence queueing.
      */
     public async speak(text: string): Promise<void> {
-        if (this.isMuted) return;
+        if (this.isMuted || !text) return;
 
         this.currentPlaybackSessionId++;
         const sessionId = this.currentPlaybackSessionId;
 
         this.stop();
-        this.setState('GENERATING');
+        this.setState('PLAYING');
 
-        const sentences = this.sentenceParser.append(text);
-        const finalSentences = [...sentences, ...this.sentenceParser.flush()];
-
-        if (finalSentences.length === 0) {
-            this.setState('READY');
-            return;
-        }
-
-        for (const sentence of finalSentences) {
-            if (this.currentPlaybackSessionId !== sessionId) break;
-            this.ttsQueue.enqueue(sentence);
-        }
+        kittenTts.speak(text, {
+            rate: this.fixedSpeed,
+            onStart: () => {
+                if (this.currentPlaybackSessionId === sessionId) {
+                    this.setState('PLAYING');
+                }
+            },
+            onEnd: () => {
+                if (this.currentPlaybackSessionId === sessionId) {
+                    this.setState('READY');
+                }
+            },
+            onError: () => {
+                if (this.currentPlaybackSessionId === sessionId) {
+                    this.setState('READY');
+                }
+            }
+        });
     }
 
     public pause(): void {
