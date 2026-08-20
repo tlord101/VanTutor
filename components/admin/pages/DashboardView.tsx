@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { CreditCard, Sparkles, Users, Crown, ArrowUpRight, TrendingUp, Activity } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { UserProfile } from '../../../types';
 import type { AdminTab } from '../AdminLayout';
@@ -53,7 +52,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         last30Days.forEach(date => dataMap[date] = 0);
 
         allUsersList.forEach(user => {
-            // Use last_activity_date if created_at is not available, as a fallback approximation
             const timestamp = (user as any).created_at || user.last_activity_date || 0;
             if (!timestamp) return;
             const dateStr = new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -72,108 +70,89 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {
             title: 'Total Payments',
             value: paymentLogs.length,
-            icon: CreditCard,
-            color: 'from-blue-500 to-blue-600',
-            bg: 'bg-blue-50',
-            border: 'border-blue-100',
-            text: 'text-blue-700',
+            iconClass: 'bi bi-credit-card-fill',
             tab: 'payments' as AdminTab
         },
         {
             title: 'AI Queries',
             value: aiRequestLogs.length,
-            icon: Sparkles,
-            color: 'from-emerald-500 to-emerald-600',
-            bg: 'bg-emerald-50',
-            border: 'border-emerald-100',
-            text: 'text-emerald-700',
+            iconClass: 'bi bi-stars',
             tab: 'usage-analytics' as AdminTab
         },
         {
             title: 'Registered Users',
             value: allUsersList.length,
-            icon: Users,
-            color: 'from-amber-400 to-amber-500',
-            bg: 'bg-amber-50',
-            border: 'border-amber-100',
-            text: 'text-amber-700',
+            iconClass: 'bi bi-people-fill',
             tab: 'users' as AdminTab
         },
         {
             title: 'Premium Subs',
             value: premiumUsersCount,
-            icon: Crown,
-            color: 'from-rose-500 to-rose-600',
-            bg: 'bg-rose-50',
-            border: 'border-rose-100',
-            text: 'text-rose-700',
+            iconClass: 'bi bi-award-fill',
             tab: 'users' as AdminTab
         }
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 text-slate-900 dark:text-slate-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {cards.map((card, idx) => {
-                    const Icon = card.icon;
-                    return (
-                        <div key={idx} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-                            <div className={`absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${card.color} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`} />
-                            
-                            <div className="flex items-center justify-between relative z-10">
-                                <div className={`w-12 h-12 rounded-2xl ${card.bg} ${card.border} border flex items-center justify-center ${card.text}`}>
-                                    <Icon className="w-6 h-6" />
-                                </div>
-                                <button 
-                                    onClick={() => onNavigate(card.tab)}
-                                    className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                >
-                                    <ArrowUpRight className="w-4 h-4" />
-                                </button>
+                {cards.map((card, idx) => (
+                    <div key={idx} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-amber-500/50 transition-all duration-300">
+                        <div className="flex items-center justify-between relative z-10">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                                <i className={`${card.iconClass} text-xl`}></i>
                             </div>
-                            
-                            <div className="mt-6 relative z-10">
-                                <h3 className="text-4xl font-black  dark:text-white tracking-tight">{card.value}</h3>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{card.title}</p>
-                            </div>
+                            <button 
+                                onClick={() => onNavigate(card.tab)}
+                                className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500/50 transition-colors cursor-pointer"
+                            >
+                                <i className="bi bi-arrow-up-right text-xs"></i>
+                            </button>
                         </div>
-                    );
-                })}
+                        
+                        <div className="mt-6 relative z-10">
+                            <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{card.value}</h3>
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{card.title}</p>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                    <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-blue-500" /> Revenue (Last 30 Days)
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                        <i className="bi bi-graph-up text-amber-500"></i>
+                        <span>Revenue (Last 30 Days)</span>
                     </h3>
                     <div className="flex-grow w-full h-full min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={revenueData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} tickFormatter={(val) => `₦${val}`} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dx={-10} tickFormatter={(val) => `₦${val}`} />
                                 <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc' }}
                                     formatter={(value: number) => [`₦${value.toLocaleString()}`, 'Revenue']}
                                 />
-                                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#0f172a' }} activeDot={{ r: 6 }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
                 
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                    <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
-                        <Users className="w-5 h-5 text-amber-500" /> User Signups (Last 30 Days)
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                        <i className="bi bi-people-fill text-amber-500"></i>
+                        <span>User Signups (Last 30 Days)</span>
                     </h3>
                     <div className="flex-grow w-full h-full min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={userGrowthData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dx={-10} />
                                 <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc' }}
                                     formatter={(value: number) => [value, 'New Users']}
                                 />
                                 <Bar dataKey="users" fill="#f59e0b" radius={[4, 4, 0, 0]} />

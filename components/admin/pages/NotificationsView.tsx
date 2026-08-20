@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, push, update, set } from 'firebase/database';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Send, Sparkles, Bell } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -179,20 +178,20 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     };
 
     return (
-        <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
+        <div className="max-w-4xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-8 text-slate-900 dark:text-slate-100">
             <div>
-                <h3 className="font-black text-xl  dark:text-white mb-1 flex items-center gap-2">
-                    <Bell className="w-5 h-5 text-indigo-500" />
-                    Push Notifications
+                <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    <i className="bi bi-bell-fill text-amber-500"></i>
+                    <span>Push Notifications</span>
                 </h3>
-                <p className="text-sm text-slate-500">Send direct push notifications to user devices.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Send direct push notifications to user devices.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                    <h4 className="font-bold  dark:text-white text-sm">Recipient Selection</h4>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Recipient Selection</h4>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Audience</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Audience</label>
                         <select
                             value={notificationAudience}
                             onChange={(e) => {
@@ -200,7 +199,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                                 setNotificationAudience(nextAudience);
                                 setRecipientMode(nextAudience === 'personal' ? 'single' : 'all');
                             }}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm cursor-pointer"
                         >
                             <option value="general">General info for all users</option>
                             <option value="personal">Personal notification</option>
@@ -209,11 +208,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
 
                     {recipientMode === 'single' && (
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select User</label>
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Select User</label>
                             <select
                                 value={selectedRecipientId}
                                 onChange={(e) => setSelectedRecipientId(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select a user...</option>
                                 {allUsersList.map(user => (
@@ -227,14 +226,14 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                    <h4 className="font-bold  dark:text-white text-sm">Notification Content</h4>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Notification Content</h4>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notification Category</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Notification Category</label>
                         <select
                             value={notificationType}
                             onChange={(e) => setNotificationType(e.target.value as any)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm cursor-pointer"
                         >
                             {notificationStyles.map(style => (
                                 <option key={style.value} value={style.value}>{style.label}</option>
@@ -243,11 +242,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Open Page</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Open Page</label>
                         <select
                             value={notificationRoute}
                             onChange={(e) => setNotificationRoute(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm cursor-pointer"
                         >
                             {notificationRoutes.map(route => (
                                 <option key={route.value} value={route.value}>{route.label}</option>
@@ -256,10 +255,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between">
-                            Title
-                            <button onClick={handleSuggestAnnouncement} disabled={isSendingPush || !ai} className="text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-50">
-                                <Sparkles className="w-3 h-3" /> Auto-suggest
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between">
+                            <span>Title</span>
+                            <button onClick={handleSuggestAnnouncement} disabled={isSendingPush || !ai} className="text-amber-500 flex items-center gap-1 hover:text-amber-400 disabled:opacity-50 cursor-pointer">
+                                <i className="bi bi-stars"></i>
+                                <span>Auto-suggest</span>
                             </button>
                         </label>
                         <input
@@ -267,28 +267,28 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
                             placeholder="e.g. Server Maintenance"
                             value={announcementTitle}
                             onChange={(e) => setAnnouncementTitle(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm"
                         />
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Message</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Message</label>
                         <textarea
                             rows={3}
                             placeholder="Enter notification content..."
                             value={announcementMessage}
                             onChange={(e) => setAnnouncementMessage(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm resize-none"
                         />
                     </div>
 
                     <button
                         onClick={handleSendPushNotification}
                         disabled={isSendingPush || !announcementTitle.trim() || !announcementMessage.trim()}
-                        className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50"
+                        className="w-full py-4 bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
                     >
-                        <Send className="w-5 h-5" />
-                        {isSendingPush ? 'Sending...' : 'Send Push Notification'}
+                        <i className="bi bi-send-fill text-sm"></i>
+                        <span>{isSendingPush ? 'Sending...' : 'Send Push Notification'}</span>
                     </button>
                 </div>
             </div>

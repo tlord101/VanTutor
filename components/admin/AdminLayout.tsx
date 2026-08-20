@@ -1,9 +1,4 @@
 import React, { useState } from 'react';
-import { 
-    Home, Building, BookOpen, HelpCircle, Users, Settings, 
-    CreditCard, Activity, LogOut, Menu, X, Bell, Shield, 
-    ChevronRight, CreditCard as PaymentsIcon, Mail, Smartphone, MessageSquare, Code as Github
-} from 'lucide-react';
 import type { UserProfile } from '../../types';
 
 export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
@@ -16,23 +11,23 @@ interface AdminLayoutProps {
 }
 
 const SIDEBAR_ITEMS = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'departments', label: 'Academic Units', icon: Building },
-    { id: 'courses', label: 'Course Catalog', icon: BookOpen },
-    { id: 'questions', label: 'Past Questions', icon: HelpCircle },
-    { id: 'users', label: 'User Control', icon: Users },
-    { id: 'firebase-users', label: 'Auth Users', icon: Shield },
-    { id: 'payments', label: 'Payments', icon: PaymentsIcon },
-    { id: 'usage-analytics', label: 'Analytics', icon: Activity },
-    { id: 'notifications', label: 'Push Notifications', icon: Bell },
-    { id: 'emails', label: 'SMTP Emails', icon: Mail },
-    { id: 'app', label: 'System Settings', icon: Settings },
-    { id: 'app-updates', label: 'App Updates', icon: Smartphone },
-    { id: 'tickets', label: 'Support Tickets', icon: Mail },
-    { id: 'cofounders', label: 'Co-Founders', icon: Users },
-    { id: 'seo', label: 'SEO & Marketing', icon: Activity },
-    { id: 'feedback', label: 'User Feedback', icon: MessageSquare },
-    { id: 'github-integration', label: 'CI/CD & GitHub', icon: Github },
+    { id: 'dashboard', label: 'Dashboard', iconClass: 'bi bi-house-door-fill' },
+    { id: 'departments', label: 'Academic Units', iconClass: 'bi bi-buildings-fill' },
+    { id: 'courses', label: 'Course Catalog', iconClass: 'bi bi-book-fill' },
+    { id: 'questions', label: 'Past Questions', iconClass: 'bi bi-question-circle-fill' },
+    { id: 'users', label: 'User Control', iconClass: 'bi bi-people-fill' },
+    { id: 'firebase-users', label: 'Auth Users', iconClass: 'bi bi-shield-lock-fill' },
+    { id: 'payments', label: 'Payments', iconClass: 'bi bi-credit-card-fill' },
+    { id: 'usage-analytics', label: 'Analytics', iconClass: 'bi bi-graph-up' },
+    { id: 'notifications', label: 'Push Notifications', iconClass: 'bi bi-bell-fill' },
+    { id: 'emails', label: 'SMTP Emails', iconClass: 'bi bi-envelope-fill' },
+    { id: 'app', label: 'System Settings', iconClass: 'bi bi-gear-fill' },
+    { id: 'app-updates', label: 'App Updates', iconClass: 'bi bi-phone-fill' },
+    { id: 'tickets', label: 'Support Tickets', iconClass: 'bi bi-inbox-fill' },
+    { id: 'cofounders', label: 'Co-Founders', iconClass: 'bi bi-person-badge-fill' },
+    { id: 'seo', label: 'SEO & Marketing', iconClass: 'bi bi-globe2' },
+    { id: 'feedback', label: 'User Feedback', iconClass: 'bi bi-chat-left-dots-fill' },
+    { id: 'github-integration', label: 'CI/CD & GitHub', iconClass: 'bi bi-github' },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ 
@@ -46,53 +41,58 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc]  dark:text-white font-sans flex overflow-hidden selection:bg-lime-200">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex overflow-hidden">
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white backdrop-blur-xl border-r border-slate-200 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="p-6 flex items-center justify-between border-b border-slate-100">
+            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
+                <div className="p-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-400 to-lime-600 shadow-lg shadow-lime-500/30 flex items-center justify-center text-white">
-                            <Shield className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 shadow-sm flex items-center justify-center font-black">
+                            <i className="bi bi-shield-lock-fill text-lg"></i>
                         </div>
                         <div>
-                            <h1 className="font-black text-xl tracking-tight  dark:text-white leading-tight">Admin<span className="text-lime-600">Pro</span></h1>
+                            <h1 className="font-black text-xl tracking-tight text-slate-900 dark:text-white leading-tight">Admin<span className="text-amber-500">Pro</span></h1>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Command Center</p>
                         </div>
                     </div>
-                    <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition">
-                        <X className="w-5 h-5" />
+                    <button 
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="md:hidden p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                        <i className="bi bi-x-lg text-lg"></i>
                     </button>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
-                    {SIDEBAR_ITEMS.map(item => {
-                        const Icon = item.icon;
+                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                    {SIDEBAR_ITEMS.map((item) => {
                         const isActive = activeTab === item.id;
                         return (
                             <button
                                 key={item.id}
                                 onClick={() => handleNav(item.id as AdminTab)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all relative group overflow-hidden ${
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 cursor-pointer ${
                                     isActive 
-                                        ? 'text-lime-700 bg-lime-50/80 shadow-sm border border-lime-100/50' 
-                                        : 'text-slate-500 hover: dark:text-white hover:bg-slate-50'
+                                        ? 'bg-amber-500 text-slate-950 shadow-sm font-black' 
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                             >
-                                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-lime-500 rounded-r-full shadow-sm" />}
-                                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                <span>{item.label}</span>
-                                {isActive && <ChevronRight className="w-4 h-4 ml-auto text-lime-400" />}
+                                <div className="flex items-center gap-3">
+                                    <i className={`${item.iconClass} text-lg ${isActive ? 'text-slate-950' : 'text-slate-400'}`}></i>
+                                    <span>{item.label}</span>
+                                </div>
+                                {isActive && <i className="bi bi-chevron-right text-xs text-slate-950 font-black"></i>}
                             </button>
                         );
                     })}
-                </nav>
+                </div>
 
-                <div className="p-4 border-t border-slate-100">
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center gap-3">
-                        <img src={userProfile.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.display_name || 'Admin')}&background=0D8ABC&color=fff`} alt="Admin" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold  dark:text-white truncate">{userProfile.display_name}</p>
-                            <p className="text-xs font-semibold text-slate-500 truncate">{userProfile.email}</p>
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-black text-slate-700 dark:text-slate-300 text-sm">
+                            {userProfile.display_name?.charAt(0) || 'A'}
+                        </div>
+                        <div className="overflow-hidden">
+                            <p className="font-black text-xs text-slate-900 dark:text-white truncate">{userProfile.display_name}</p>
+                            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Master Admin</p>
                         </div>
                     </div>
                 </div>

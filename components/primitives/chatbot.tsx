@@ -19,13 +19,6 @@ import { cn } from "@/lib/utils"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import type { UIMessage } from "ai"
-import {
-  AlertTriangle,
-  ArrowUp,
-  Copy,
-  ThumbsDown,
-  ThumbsUp,
-} from "lucide-react"
 import { memo, useState } from "react"
 
 type MessageComponentProps = {
@@ -62,17 +55,17 @@ export const MessageComponent = memo(
             >
               <MessageAction tooltip="Copy">
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Copy />
+                  <i className="bi bi-copy text-sm"></i>
                 </Button>
               </MessageAction>
               <MessageAction tooltip="Upvote">
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <ThumbsUp />
+                  <i className="bi bi-hand-thumbs-up text-sm"></i>
                 </Button>
               </MessageAction>
               <MessageAction tooltip="Downvote">
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <ThumbsDown />
+                  <i className="bi bi-hand-thumbs-down text-sm"></i>
                 </Button>
               </MessageAction>
             </MessageActions>
@@ -91,7 +84,7 @@ export const MessageComponent = memo(
             >
               <MessageAction tooltip="Copy">
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Copy />
+                  <i className="bi bi-copy text-sm"></i>
                 </Button>
               </MessageAction>
             </MessageActions>
@@ -119,9 +112,9 @@ LoadingMessage.displayName = "LoadingMessage"
 const ErrorMessage = memo(({ error }: { error: Error }) => (
   <Message className="not-prose mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-0 md:px-10">
     <div className="group flex w-full flex-col items-start gap-0">
-      <div className="text-primary flex min-w-0 flex-1 flex-row items-center gap-2 rounded-lg border-2 border-red-300 bg-red-300/20 px-2 py-1">
-        <AlertTriangle size={16} className="text-red-500" />
-        <p className="text-red-500">{error.message}</p>
+      <div className="text-primary flex min-w-0 flex-1 flex-row items-center gap-2 rounded-lg border-2 border-rose-300 bg-rose-300/20 px-2 py-1">
+        <i className="bi bi-exclamation-triangle text-rose-500 text-sm"></i>
+        <p className="text-rose-500">{error.message}</p>
       </div>
     </div>
   </Message>
@@ -188,12 +181,12 @@ function ConversationPromptInput() {
                     !input.trim() || (status !== "ready" && status !== "error")
                   }
                   onClick={handleSubmit}
-                  className="size-9 rounded-full"
+                  className="size-9 rounded-full bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950"
                 >
                   {status === "ready" || status === "error" ? (
-                    <ArrowUp size={18} />
+                    <i className="bi bi-arrow-up text-sm"></i>
                   ) : (
-                    <span className="size-3 rounded-xs bg-white dark:bg-black" />
+                    <span className="size-3 rounded-xs bg-white dark:bg-slate-950" />
                   )}
                 </Button>
               </div>

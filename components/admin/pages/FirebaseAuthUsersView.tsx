@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { functions } from '../../../firebase';
 import { httpsCallable } from 'firebase/functions';
-import { Trash2, RefreshCw, AlertCircle, Search, Trash } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 
 interface FirebaseAuthUsersViewProps {
@@ -117,7 +116,6 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
             addToast(`Failed to delete ${failCount} user(s). Check console.`, "error");
         }
 
-        // Refresh current page
         const tokenToUse = currentPageIndex === 0 ? undefined : pageTokens[currentPageIndex - 1];
         fetchUsers(tokenToUse);
     };
@@ -134,7 +132,6 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
             await deleteAuthUser({ adminPin, uid: user.uid });
             addToast(`Successfully deleted ${user.email || user.displayName}.`, "success");
             
-            // Refresh current page
             const tokenToUse = currentPageIndex === 0 ? undefined : pageTokens[currentPageIndex - 1];
             fetchUsers(tokenToUse);
         } catch (err: any) {
@@ -152,14 +149,14 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 text-slate-900 dark:text-slate-100">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white tracking-wider flex items-center gap-3">
-                        <AlertCircle className="w-6 h-6 text-lime-500" />
-                        FIREBASE AUTH USERS
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-wider flex items-center gap-3">
+                        <i className="bi bi-shield-lock-fill text-amber-500"></i>
+                        <span>FIREBASE AUTH USERS</span>
                     </h2>
-                    <p className="text-gray-400 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         View and manage all authenticated users directly from Firebase. Deletions are permanent.
                     </p>
                 </div>
@@ -168,10 +165,10 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
                         <button
                             onClick={handleDeleteSelected}
                             disabled={isDeleting}
-                            className="flex items-center gap-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 px-4 py-2 rounded-lg transition-colors border border-red-500/30 disabled:opacity-50"
+                            className="flex items-center gap-2 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 px-4 py-2 rounded-xl transition-colors border border-rose-500/30 disabled:opacity-50 font-bold text-sm cursor-pointer"
                         >
-                            <Trash2 className="w-4 h-4" />
-                            Delete Selected ({selectedUserIds.size})
+                            <i className="bi bi-trash"></i>
+                            <span>Delete Selected ({selectedUserIds.size})</span>
                         </button>
                     )}
                     <button
@@ -180,38 +177,38 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
                             fetchUsers(tokenToUse);
                         }}
                         disabled={isLoading || isDeleting}
-                        className="flex items-center gap-2 bg-gray-800 text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors border border-gray-700 disabled:opacity-50"
+                        className="flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-amber-500 px-4 py-2 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 disabled:opacity-50 text-sm font-bold shadow-sm cursor-pointer"
                     >
-                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        Refresh
+                        <i className={`bi bi-arrow-repeat ${isLoading ? 'animate-spin' : ''}`}></i>
+                        <span>Refresh</span>
                     </button>
                 </div>
             </div>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-2xl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-900/50 border-b border-gray-700">
+                            <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                                 <th className="p-4 w-12">
                                     <input
                                         type="checkbox"
                                         checked={users.length > 0 && selectedUserIds.size === users.length}
                                         onChange={handleSelectAll}
-                                        className="rounded border-gray-600 text-lime-500 focus:ring-lime-500 bg-gray-700"
+                                        className="rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
                                     />
                                 </th>
-                                <th className="p-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">User</th>
-                                <th className="p-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">UID</th>
-                                <th className="p-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Created</th>
-                                <th className="p-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Sign In</th>
-                                <th className="p-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                                <th className="p-4">User</th>
+                                <th className="p-4">UID</th>
+                                <th className="p-4">Created</th>
+                                <th className="p-4">Last Sign In</th>
+                                <th className="p-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-700/50">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {users.length === 0 && !isLoading && (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-400">
+                                    <td colSpan={6} className="p-8 text-center text-slate-500 dark:text-slate-400">
                                         No users found on this page.
                                     </td>
                                 </tr>
@@ -220,8 +217,8 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center">
                                         <div className="flex items-center justify-center space-x-2">
-                                            <RefreshCw className="w-5 h-5 text-lime-500 animate-spin" />
-                                            <span className="text-gray-400">Loading users...</span>
+                                            <i className="bi bi-arrow-repeat text-amber-500 animate-spin text-lg"></i>
+                                            <span className="text-slate-500 dark:text-slate-400 font-bold">Loading users...</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -229,50 +226,50 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
                                 users.map(user => (
                                     <tr 
                                         key={user.uid} 
-                                        className={`hover:bg-gray-750 transition-colors ${selectedUserIds.has(user.uid) ? 'bg-lime-900/10' : ''}`}
+                                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedUserIds.has(user.uid) ? 'bg-amber-500/10' : ''}`}
                                     >
                                         <td className="p-4">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedUserIds.has(user.uid)}
                                                 onChange={() => handleSelectUser(user.uid)}
-                                                className="rounded border-gray-600 text-lime-500 focus:ring-lime-500 bg-gray-700"
+                                                className="rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
                                             />
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 {user.photoURL ? (
-                                                    <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-gray-600" />
+                                                    <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover" />
                                                 ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center border border-gray-600">
-                                                        <span className="text-xs text-gray-400 font-bold">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                                                        <span className="text-xs text-slate-500 font-bold">
                                                             {user.displayName ? user.displayName.charAt(0).toUpperCase() : '?'}
                                                         </span>
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <div className="text-sm font-medium text-white">{user.displayName || 'No Name'}</div>
-                                                    <div className="text-xs text-gray-400">{user.email || 'No Email'}</div>
+                                                    <div className="text-sm font-bold text-slate-900 dark:text-white">{user.displayName || 'No Name'}</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">{user.email || 'No Email'}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-sm text-gray-400 font-mono">
+                                        <td className="p-4 text-xs text-slate-500 dark:text-slate-400 font-mono">
                                             {user.uid}
                                         </td>
-                                        <td className="p-4 text-sm text-gray-300">
+                                        <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
                                             {formatDate(user.creationTime)}
                                         </td>
-                                        <td className="p-4 text-sm text-gray-300">
+                                        <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
                                             {formatDate(user.lastSignInTime)}
                                         </td>
                                         <td className="p-4 text-right">
                                             <button
                                                 onClick={() => handleDeleteSingle(user)}
                                                 disabled={isDeleting}
-                                                className="text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                                                className="text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                                                 title="Delete User"
                                             >
-                                                <Trash className="w-5 h-5" />
+                                                <i className="bi bi-trash text-base"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -282,22 +279,22 @@ export const FirebaseAuthUsersView: React.FC<FirebaseAuthUsersViewProps> = ({ ad
                     </table>
                 </div>
 
-                <div className="p-4 border-t border-gray-700 bg-gray-800 flex items-center justify-between">
-                    <div className="text-sm text-gray-400">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                         Page {currentPageIndex + 1}
                     </div>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handlePrevPage}
                             disabled={currentPageIndex === 0 || isLoading || isDeleting}
-                            className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50 transition-colors text-sm"
+                            className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors text-xs font-bold cursor-pointer"
                         >
                             Previous
                         </button>
                         <button
                             onClick={handleNextPage}
                             disabled={!pageToken || isLoading || isDeleting}
-                            className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50 transition-colors text-sm"
+                            className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors text-xs font-bold cursor-pointer"
                         >
                             Next
                         </button>

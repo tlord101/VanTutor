@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, push, set, get, query, limitToLast } from 'firebase/database';
-import { Mail, Send, Users, UserCheck, Download } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -38,6 +37,7 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
                 addToast('Failed to load Play Store early access emails.', 'error');
                 setPlaystoreEmails([]);
             } finally {
+                setIsLoadingEmails(false);
             }
         };
         fetchPlaystoreEmails();
@@ -80,7 +80,6 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
     };
 
     const generateEmailHtml = (subject: string, bodyText: string) => {
-        // A beautifully designed HTML email template
         const formattedBody = bodyText.replace(/\n/g, '<br />');
         
         return `
@@ -93,60 +92,61 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
         body {
             margin: 0;
             padding: 0;
-            background-color: #f8fafc;
+            background-color: #0f172a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
         .container {
             max-width: 600px;
             margin: 40px auto;
-            background-color: #ffffff;
+            background-color: #1e293b;
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 1px solid #e2e8f0;
+            border: 1px solid #334155;
         }
         .header {
-            background-color: #002D62;
+            background-color: #0f172a;
             padding: 32px 24px;
             text-align: center;
+            border-bottom: 1px solid #334155;
         }
         .logo {
             font-size: 28px;
             font-weight: 900;
-            color: #ffffff;
+            color: #f8fafc;
             letter-spacing: 2px;
             margin: 0;
             text-transform: uppercase;
         }
         .logo-span {
-            color: #84cc16; /* lime-500 */
+            color: #f59e0b;
         }
         .content {
             padding: 40px 32px;
-            color: #334155;
+            color: #cbd5e1;
             font-size: 16px;
             line-height: 1.6;
         }
         .subject-title {
             font-size: 20px;
             font-weight: 700;
-            color: #0f172a;
+            color: #f8fafc;
             margin-top: 0;
             margin-bottom: 24px;
         }
         .footer {
-            background-color: #f1f5f9;
+            background-color: #0f172a;
             padding: 24px;
             text-align: center;
-            color: #64748b;
+            color: #94a3b8;
             font-size: 13px;
+            border-top: 1px solid #334155;
         }
         .button {
             display: inline-block;
-            background-color: #4f46e5;
-            color: #ffffff !important;
-            font-weight: 600;
+            background-color: #f59e0b;
+            color: #0f172a !important;
+            font-weight: 700;
             padding: 12px 24px;
             border-radius: 8px;
             text-decoration: none;
@@ -164,7 +164,7 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
             <div>
                 ${formattedBody}
             </div>
-            <a href="https://avelut.com" class="button">Visit Avelut</a>
+            <a href="https://avelut.xyz" class="button">Visit Avelut</a>
         </div>
         <div class="footer">
             <p>&copy; ${new Date().getFullYear()} Avelut. All rights reserved.</p>
@@ -245,135 +245,139 @@ export const EmailsView: React.FC<EmailsViewProps> = ({
     };
 
     return (
-        <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
-            <div>
-                <h3 className="font-black text-xl  dark:text-white mb-1 flex items-center gap-2">
-                    <Mail className="w-5 h-5 text-indigo-500" />
-                    SMTP Emails
-                </h3>
-                <p className="text-sm text-slate-500">Send beautifully formatted HTML emails via your configured SMTP server.</p>
-            </div>
+        <div className="space-y-8 text-slate-900 dark:text-slate-100 max-w-4xl">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-8">
+                <div>
+                    <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                        <i className="bi bi-envelope-fill text-amber-500"></i>
+                        <span>SMTP Emails</span>
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Send beautifully formatted HTML emails via your configured SMTP server.</p>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                    <h4 className="font-bold  dark:text-white text-sm">Recipient Selection</h4>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setRecipientMode('all')}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                                recipientMode === 'all'
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            <Users className="w-4 h-4" /> All Users
-                        </button>
-                        <button
-                            onClick={() => setRecipientMode('single')}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                                recipientMode === 'single'
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            <UserCheck className="w-4 h-4" /> Single User
-                        </button>
-                    </div>
-
-                    {recipientMode === 'single' && (
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select User</label>
-                            <select
-                                value={selectedRecipientId}
-                                onChange={(e) => setSelectedRecipientId(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm bg-white"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">Recipient Selection</h4>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setRecipientMode('all')}
+                                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
+                                    recipientMode === 'all'
+                                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
+                                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
                             >
-                                <option value="" disabled>Select a user...</option>
-                                {allUsersList.map(user => (
-                                    <option key={user.uid} value={user.uid}>
-                                        {user.display_name || 'Unnamed'} ({user.email || 'No email'})
-                                    </option>
-                                ))}
-                            </select>
+                                <i className="bi bi-people-fill"></i>
+                                <span>All Users</span>
+                            </button>
+                            <button
+                                onClick={() => setRecipientMode('single')}
+                                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
+                                    recipientMode === 'single'
+                                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
+                                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <i className="bi bi-person-check-fill"></i>
+                                <span>Single User</span>
+                            </button>
                         </div>
-                    )}
-                </div>
 
-                <div className="space-y-4">
-                    <h4 className="font-bold  dark:text-white text-sm">Email Content</h4>
-                    
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Avelut Mid-term Update"
-                            value={emailSubject}
-                            onChange={(e) => setEmailSubject(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm"
-                        />
+                        {recipientMode === 'single' && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Select User</label>
+                                <select
+                                    value={selectedRecipientId}
+                                    onChange={(e) => setSelectedRecipientId(e.target.value)}
+                                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-amber-500 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer"
+                                >
+                                    <option value="" disabled>Select a user...</option>
+                                    {allUsersList.map(user => (
+                                        <option key={user.uid} value={user.uid}>
+                                            {user.display_name || 'Unnamed'} ({user.email || 'No email'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Body</label>
-                        <textarea
-                            rows={6}
-                            placeholder="Type your email body here... It will be beautifully formatted inside the Avelut template."
-                            value={emailBody}
-                            onChange={(e) => setEmailBody(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm resize-none"
-                        />
-                    </div>
+                    <div className="space-y-4">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">Email Content</h4>
+                        
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Avelut Mid-term Update"
+                                value={emailSubject}
+                                onChange={(e) => setEmailSubject(e.target.value)}
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm"
+                            />
+                        </div>
 
-                    <button
-                        onClick={handleSendEmail}
-                        disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim()}
-                        className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50"
-                    >
-                        <Send className="w-5 h-5" />
-                        {isSendingEmail ? 'Queueing...' : 'Send HTML Email'}
-                    </button>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Body</label>
+                            <textarea
+                                rows={6}
+                                placeholder="Type your email body here... It will be beautifully formatted inside the Avelut template."
+                                value={emailBody}
+                                onChange={(e) => setEmailBody(e.target.value)}
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm resize-none"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleSendEmail}
+                            disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim()}
+                            className="w-full py-4 bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+                        >
+                            <i className="bi bi-send-fill text-sm"></i>
+                            <span>{isSendingEmail ? 'Queueing...' : 'Send HTML Email'}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 mt-8">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 className="font-black text-xl dark:text-white mb-1 flex items-center gap-2">
-                            <Mail className="w-5 h-5 text-emerald-500" />
-                            Play Store Early Access Emails
+                        <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                            <i className="bi bi-phone-fill text-amber-500"></i>
+                            <span>Play Store Early Access Emails</span>
                         </h3>
-                        <p className="text-sm text-slate-500">Emails collected from the landing page Play Store modal.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Emails collected from the landing page Play Store modal.</p>
                     </div>
-                    <button onClick={downloadPlaystoreEmails} disabled={playstoreEmails.length === 0} className="px-6 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition disabled:opacity-50 border border-emerald-200">
-                        <Download className="w-4 h-4" />
-                        Download CSV ({playstoreEmails.length})
+                    <button onClick={downloadPlaystoreEmails} disabled={playstoreEmails.length === 0} className="px-6 py-3 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-500/20 transition disabled:opacity-50 border border-amber-500/30 cursor-pointer">
+                        <i className="bi bi-download"></i>
+                        <span>Download CSV ({playstoreEmails.length})</span>
                     </button>
                 </div>
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px]">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold text-[10px]">
                             <tr>
                                 <th className="p-4">Email</th>
                                 <th className="p-4">Date Collected</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {isLoadingEmails ? (
                                 <tr><td colSpan={2} className="p-8 text-center text-slate-500">Loading...</td></tr>
                             ) : playstoreEmails.length === 0 ? (
                                 <tr><td colSpan={2} className="p-8 text-center text-slate-500">No emails collected yet.</td></tr>
                             ) : (
                                 playstoreEmails.slice(0, 10).map((item, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50">
-                                        <td className="p-4 font-medium text-slate-700">{item.email}</td>
-                                        <td className="p-4 text-slate-500">{new Date(item.timestamp).toLocaleString()}</td>
+                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                        <td className="p-4 font-medium text-slate-700 dark:text-slate-300">{item.email}</td>
+                                        <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(item.timestamp).toLocaleString()}</td>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
                     {playstoreEmails.length > 10 && (
-                        <div className="p-4 bg-slate-50 text-center text-xs text-slate-500 border-t border-slate-200">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800">
                             Showing latest 10 emails. Download CSV to see all {playstoreEmails.length} emails.
                         </div>
                     )}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Sparkles, RefreshCw, HelpCircle, CheckCircle, UploadCloud } from 'lucide-react';
 
 interface PastQuestionsViewProps {
     allDepartments: any[];
@@ -32,24 +31,24 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
     const availableCourses = (filteredGlobalCourses || []).filter(c => (!uploadDepartmentId || c.deptId === uploadDepartmentId) && (!uploadLevel || c.level === uploadLevel));
     
     return (
-        <div className="space-y-8 max-w-4xl">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
+        <div className="space-y-8 max-w-4xl text-slate-900 dark:text-slate-100">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-8">
                 <div>
-                    <h3 className="font-black text-xl  dark:text-white mb-1 flex items-center gap-2">
-                        <HelpCircle className="w-6 h-6 text-indigo-500" />
+                    <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                        <i className="bi bi-question-circle text-amber-500"></i>
                         <span>Past Questions Management</span>
                     </h3>
-                    <p className="text-sm text-slate-500">Automate extraction using AI, or manually input individual questions. If the PDF contains course information, the AI can detect it automatically.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Automate extraction using AI, or manually input individual questions. If the PDF contains course information, the AI can detect it automatically.</p>
                 </div>
 
                 {/* Common Target Configuration */}
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4">
                     <label className="text-xs font-black uppercase tracking-widest text-slate-400">Target Assignment</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <select 
                             value={uploadDepartmentId} 
                             onChange={e => setUploadDepartmentId(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-amber-500 transition cursor-pointer"
                         >
                             <option value="">Department (Optional)</option>
                             {allDepartments.map(dept => (
@@ -59,7 +58,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <select 
                             value={uploadLevel} 
                             onChange={e => setUploadLevel(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-amber-500 transition cursor-pointer"
                         >
                             <option value="">Level (Optional)</option>
                             {LEVELS.map(lvl => (
@@ -69,7 +68,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <select 
                             value={uploadCourseName} 
                             onChange={e => setUploadCourseName(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-amber-500 transition cursor-pointer"
                         >
                             <option value="">Course (Optional)</option>
                             {availableCourses.map(({ course }) => (
@@ -81,7 +80,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                         <input 
                             type="text" placeholder="Year (e.g. 2023)" 
                             value={year} onChange={e => setYear(e.target.value)}
-                            className="p-3 border border-slate-200 rounded-xl bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition"
+                            className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-amber-500 transition"
                         />
                     </div>
                 </div>
@@ -89,17 +88,17 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
                     {/* Automated Extraction */}
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-indigo-600 mb-2">
-                            <Sparkles className="w-5 h-5" />
-                            <h4 className="font-bold text-sm uppercase tracking-widest">AI Extraction</h4>
+                        <div className="flex items-center gap-2 text-amber-500 mb-2">
+                            <i className="bi bi-stars"></i>
+                            <h4 className="font-bold text-sm uppercase tracking-widest text-slate-900 dark:text-white">AI Extraction</h4>
                         </div>
-                        <div className="p-6 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 flex flex-col items-center justify-center text-center space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500">
-                                <UploadCloud className="w-8 h-8" />
+                        <div className="p-6 rounded-2xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 flex flex-col items-center justify-center text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                                <i className="bi bi-cloud-arrow-up text-2xl"></i>
                             </div>
                             <div>
-                                <p className="font-bold  dark:text-white text-sm">Upload Exam PDF</p>
-                                <p className="text-xs text-slate-500 max-w-[200px] mt-1">Our AI will automatically extract and format the questions and answers.</p>
+                                <p className="font-bold text-slate-900 dark:text-white text-sm">Upload Exam PDF</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[200px] mt-1">Our AI will automatically extract and format the questions and answers.</p>
                             </div>
                             
                             <div className="w-full space-y-3 pt-2">
@@ -107,21 +106,21 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                     type="file"
                                     accept="application/pdf"
                                     onChange={e => setPqFile(e.target.files?.[0] || null)}
-                                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+                                    className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500/10 file:text-amber-600 dark:file:text-amber-400 hover:file:bg-amber-500/20 cursor-pointer"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => handleGoogleDrivePick((files) => setPqFile(files[0] || null))}
-                                    className="w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition border border-slate-200 flex items-center justify-center gap-2 shadow-sm"
+                                    className="w-full py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                                 >
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="" className="w-4 h-4" />
-                                    Import from Drive
+                                    <span>Import from Drive</span>
                                 </button>
                             </div>
 
                             {isPQProcessing && (
-                                <div className="w-full p-3 bg-white rounded-xl border border-indigo-100 shadow-sm flex items-center justify-center gap-2 text-indigo-600 text-xs font-bold animate-pulse">
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                <div className="w-full p-3 bg-white dark:bg-slate-800 rounded-xl border border-amber-500/30 shadow-sm flex items-center justify-center gap-2 text-amber-500 text-xs font-bold">
+                                    <i className="bi bi-arrow-repeat animate-spin"></i>
                                     <span>{extractionProgress}</span>
                                 </div>
                             )}
@@ -129,7 +128,7 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                             <button 
                                 onClick={handlePQUpload}
                                 disabled={isPQProcessing || !pqFile}
-                                className="w-full py-3.5 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition disabled:opacity-50 shadow-md shadow-indigo-600/20"
+                                className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-black uppercase tracking-widest text-xs transition disabled:opacity-50 shadow-sm cursor-pointer"
                             >
                                 {isPQProcessing ? 'Processing...' : 'Run AI Extraction'}
                             </button>
@@ -139,15 +138,15 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                     {/* Manual Entry */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-bold text-sm uppercase tracking-widest text-slate-400">Manual Entry</h4>
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-300">Alternative</span>
+                            <h4 className="font-bold text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400">Manual Entry</h4>
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Alternative</span>
                         </div>
                         <div className="space-y-3">
                             <textarea 
                                 placeholder="Question Content" 
                                 value={newQuestion.question || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, question: e.target.value})}
-                                className="w-full p-4 border border-slate-200 rounded-2xl h-28 bg-slate-50 focus:bg-white outline-none focus:ring-4 focus:ring-indigo-100 transition resize-none text-sm"
+                                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl h-28 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-amber-500 transition resize-none text-sm"
                             />
                             
                             <div className="grid grid-cols-2 gap-3">
@@ -155,11 +154,11 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                     <input 
                                         key={i} type="text" placeholder={`Option ${String.fromCharCode(65+i)}`}
                                         value={newQuestion.options?.[i] || ''} onChange={e => {
-                                            const opts = [...(newQuestion.options || [])];
-                                            opts[i] = e.target.value;
-                                            setNewQuestion({...newQuestion, options: opts});
-                                        }}
-                                        className="p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500"
+                                             const opts = [...(newQuestion.options || [])];
+                                             opts[i] = e.target.value;
+                                             setNewQuestion({...newQuestion, options: opts});
+                                         }}
+                                        className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm outline-none focus:border-amber-500"
                                     />
                                 ))}
                             </div>
@@ -168,21 +167,22 @@ export const PastQuestionsView: React.FC<PastQuestionsViewProps> = ({
                                 type="text" placeholder="Correct Answer (Exact string match)" 
                                 value={newQuestion.correctAnswer || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, correctAnswer: e.target.value})}
-                                className="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 font-bold text-emerald-600 placeholder:text-slate-400 placeholder:font-normal"
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-sm outline-none focus:border-amber-500 font-bold text-emerald-600 dark:text-emerald-400 placeholder:text-slate-400 placeholder:font-normal"
                             />
                             
                             <textarea 
                                 placeholder="Explanation (Optional)" 
                                 value={newQuestion.explanation || ''} 
                                 onChange={e => setNewQuestion({...newQuestion, explanation: e.target.value})}
-                                className="w-full p-3 border border-slate-200 rounded-xl h-20 bg-slate-50 focus:bg-white outline-none focus:border-indigo-500 resize-none text-sm"
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl h-20 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-amber-500 resize-none text-sm"
                             />
 
                             <button 
                                 onClick={handleAddQuestion}
-                                className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition shadow-md flex items-center justify-center gap-2"
+                                className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-black uppercase tracking-widest text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                             >
-                                <CheckCircle className="w-4 h-4" /> Save Manually
+                                <i className="bi bi-check-circle-fill"></i>
+                                <span>Save Manually</span>
                             </button>
                         </div>
                     </div>

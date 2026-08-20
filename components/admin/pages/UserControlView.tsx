@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Users, Search, Edit3, Trash2, CheckCircle, Shield, AlertCircle, RefreshCw } from 'lucide-react';
 import { db } from '../../../firebase';
 import { ref as dbRef, update, remove } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
@@ -123,31 +122,19 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         }
     };
 
-    // Pagination Logic
-    const [currentPage, setCurrentPage] = useState(1);
-    const usersPerPage = 20;
-
-    React.useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, statusFilter]);
-
-    const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-    const startIndex = (currentPage - 1) * usersPerPage;
-    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
-
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 text-slate-900 dark:text-slate-100">
             {/* Header & Controls */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                        <Users className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                        <i className="bi bi-people-fill text-2xl"></i>
                     </div>
                     <div>
-                        <h3 className="font-black text-xl  dark:text-white leading-tight">User Control</h3>
+                        <h3 className="font-black text-xl text-slate-900 dark:text-white leading-tight">User Control</h3>
                         <div className="flex items-center gap-3 mt-1">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
-                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 {allUsersList.filter(u => u.is_online || (u.last_seen && Date.now() - u.last_seen < 5 * 60 * 1000)).length} Active Now
                             </span>
@@ -157,19 +144,19 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
 
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                         <input 
                             type="text" 
                             placeholder="Search name or email..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
+                            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 dark:text-white transition-all"
                         />
                     </div>
                     <select 
                         value={statusFilter}
                         onChange={(e: any) => setStatusFilter(e.target.value)}
-                        className="py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all cursor-pointer"
+                        className="py-2.5 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all cursor-pointer"
                     >
                         <option value="all">All Users</option>
                         <option value="premium">Premium</option>
@@ -178,25 +165,25 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                     {selectedUsers.size > 0 && (
                         <button
                             onClick={handleBatchDeleteUsers}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-xl hover:bg-red-100 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-xl hover:bg-rose-100 transition-colors cursor-pointer"
                         >
-                            <Trash2 className="w-4 h-4" />
-                            Delete ({selectedUsers.size})
+                            <i className="bi bi-trash"></i>
+                            <span>Delete ({selectedUsers.size})</span>
                         </button>
                     )}
                 </div>
             </div>
 
             {/* User List */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                                 <th className="px-6 py-4 w-12">
                                     <input 
                                         type="checkbox" 
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
                                         checked={filteredUsers.length > 0 && selectedUsers.size === filteredUsers.length}
                                         onChange={toggleAllUsersSelection}
                                     />
@@ -209,21 +196,21 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                                    <td colSpan={7} className="px-6 py-12 text-center">
+                                        <i className="bi bi-exclamation-circle text-3xl text-slate-400 mx-auto mb-2 block"></i>
                                         <p className="text-slate-500 font-bold">No users found matching your criteria.</p>
                                     </td>
                                 </tr>
                             ) : (
                                 paginatedUsers.map(user => (
-                                    <tr key={user.uid} className="hover:bg-slate-50 transition-colors group">
+                                    <tr key={user.uid} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group">
                                         <td className="px-6 py-4">
                                             <input 
                                                 type="checkbox" 
-                                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
                                                 checked={selectedUsers.has(user.uid)}
                                                 onChange={() => toggleUserSelection(user.uid)}
                                             />
@@ -231,17 +218,17 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <img 
-                                                    src={user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.display_name || 'U')}&background=f1f5f9&color=64748b`} 
+                                                    src={user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.display_name || 'U')}&background=1e293b&color=f8fafc`} 
                                                     alt="" 
-                                                    className="w-10 h-10 rounded-full border border-slate-200 object-cover"
+                                                    className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
                                                 />
                                                 <div>
-                                                    <p className="text-sm font-bold  dark:text-white flex items-center gap-1.5">
-                                                        {user.display_name || 'Anonymous User'}
-                                                        {(user.role === 'superadmin' || user.is_admin) && <span title="Super Admin"><Shield className="w-3.5 h-3.5 text-indigo-500" /></span>}
-                                                        {user.role === 'deptadmin' && <span title="Department Admin"><Shield className="w-3.5 h-3.5 text-blue-400" /></span>}
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                        <span>{user.display_name || 'Anonymous User'}</span>
+                                                        {(user.role === 'superadmin' || user.is_admin) && <span title="Super Admin"><i className="bi bi-shield-fill-check text-amber-500 text-xs"></i></span>}
+                                                        {user.role === 'deptadmin' && <span title="Department Admin"><i className="bi bi-shield-fill text-slate-400 text-xs"></i></span>}
                                                     </p>
-                                                    <p className="text-xs font-semibold text-slate-500">{user.email || 'No email provided'}</p>
+                                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{user.email || 'No email provided'}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -256,7 +243,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                         const defaultCredits = DEFAULT_USAGE_SETTINGS.tiers[planKey]?.credit_allocation ?? 30;
                                                         setEditCredits(defaultCredits);
                                                     }}
-                                                    className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                    className="p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-amber-500"
                                                 >
                                                     <option value="free">Free</option>
                                                     <option value="basic">Basic</option>
@@ -265,9 +252,9 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                 </select>
                                             ) : (
                                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
-                                                    user.subscription_status === 'premium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                    user.subscription_status === 'basic' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                    'bg-slate-100 text-slate-600 border-slate-200'
+                                                    user.subscription_status === 'premium' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' :
+                                                    user.subscription_status === 'basic' ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' :
+                                                    'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                                                 }`}>
                                                     {user.subscription_status || 'Free'}
                                                 </span>
@@ -280,28 +267,28 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                         type="number" 
                                                         value={editXp} 
                                                         onChange={e => setEditXp(Number(e.target.value))}
-                                                        className="w-24 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                        className="w-24 p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-amber-500"
                                                         title="XP Points"
                                                     />
                                                     <input 
                                                         type="number" 
                                                         value={editCredits} 
                                                         onChange={e => setEditCredits(Number(e.target.value))}
-                                                        className="w-24 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 bg-indigo-50"
+                                                        className="w-24 p-2 border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm outline-none"
                                                         title="AI Credits"
                                                     />
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-sm font-bold text-slate-700">{user.xp || 0} XP</span>
-                                                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded w-max">{user.ai_credits_balance ?? 0} Credits</span>
+                                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{user.xp || 0} XP</span>
+                                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded w-max">{user.ai_credits_balance ?? 0} Credits</span>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1 text-[10px] uppercase font-bold tracking-wider">
-                                                <span className="text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-max">Tokens: {(user.total_tokens_used || 0).toLocaleString()}</span>
-                                                <span className="text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded w-max">Time: {Math.floor((user.time_spent_in_app || 0) / 60)} min</span>
+                                                <span className="text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded w-max">Tokens: {(user.total_tokens_used || 0).toLocaleString()}</span>
+                                                <span className="text-slate-500 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 px-2 py-1 rounded w-max">Time: {Math.floor((user.time_spent_in_app || 0) / 60)} min</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -310,17 +297,17 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                     <select 
                                                         value={editStatus} 
                                                         onChange={e => setEditStatus(e.target.value)}
-                                                        className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                        className="p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-amber-500"
                                                     >
                                                         <option value="active">Active</option>
                                                         <option value="suspended">Suspended</option>
                                                     </select>
                                                     {(currentUserProfile?.role === 'superadmin' || currentUserProfile?.is_admin) && (
-                                                        <div className="flex flex-col gap-2 mt-2 border-t border-slate-100 pt-2">
+                                                        <div className="flex flex-col gap-2 mt-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                                                             <select 
                                                                 value={editRole} 
                                                                 onChange={e => setEditRole(e.target.value as any)}
-                                                                className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                                                className="p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-amber-500"
                                                             >
                                                                 <option value="user">User</option>
                                                                 <option value="deptadmin">Department Admin</option>
@@ -336,7 +323,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                                             const options = Array.from(e.target.selectedOptions, option => option.value);
                                                                             setEditAdminDepts(options);
                                                                         }}
-                                                                        className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 h-24"
+                                                                        className="p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-amber-500 h-24"
                                                                     >
                                                                         {allDepartments?.map(dept => (
                                                                             <option key={dept.id} value={dept.id}>{dept.departmentName || dept.name || dept.id}</option>
@@ -350,11 +337,11 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                 </div>
                                             ) : (
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${
-                                                    user.status === 'suspended' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                                    user.status === 'deleted' ? 'bg-slate-100 text-slate-500 border border-slate-200' :
-                                                    'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                    user.status === 'suspended' ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40' :
+                                                    user.status === 'deleted' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700' :
+                                                    'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40'
                                                 }`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'suspended' ? 'bg-red-500' : user.status === 'deleted' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'suspended' ? 'bg-rose-500' : user.status === 'deleted' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
                                                     {user.status || 'Active'}
                                                 </span>
                                             )}
@@ -365,34 +352,34 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                                                     <>
                                                         <button 
                                                             onClick={handleSaveEdit}
-                                                            className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                                                            className="p-2 bg-amber-500 text-slate-950 rounded-lg hover:bg-amber-400 transition cursor-pointer font-bold"
                                                             title="Save Changes"
                                                         >
-                                                            <CheckCircle className="w-4 h-4" />
+                                                            <i className="bi bi-check-lg"></i>
                                                         </button>
                                                         <button 
                                                             onClick={() => setEditingUserId(null)}
-                                                            className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition"
+                                                            className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
                                                             title="Cancel"
                                                         >
-                                                            Cancel
+                                                            <i className="bi bi-x-lg"></i>
                                                         </button>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <button 
                                                             onClick={() => handleEditStart(user)}
-                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                                            className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
                                                             title="Edit User"
                                                         >
-                                                            <Edit3 className="w-4 h-4" />
+                                                            <i className="bi bi-pencil"></i>
                                                         </button>
                                                         <button 
                                                             onClick={() => handleDeleteUser(user.uid, user.display_name)}
-                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
                                                             title="Delete User"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <i className="bi bi-trash"></i>
                                                         </button>
                                                     </>
                                                 )}
@@ -405,25 +392,25 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                     </table>
                 </div>
                 {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
                             Showing {startIndex + 1} to {Math.min(startIndex + usersPerPage, filteredUsers.length)} of {filteredUsers.length}
                         </span>
                         <div className="flex gap-2">
                             <button 
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                             >
                                 Previous
                             </button>
-                            <span className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg">
+                            <span className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg">
                                 Page {currentPage} of {totalPages}
                             </span>
                             <button 
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition"
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                             >
                                 Next
                             </button>

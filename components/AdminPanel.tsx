@@ -15,38 +15,6 @@ import { StudyGuideIcon } from './icons/StudyGuideIcon';
 import { ExamIcon } from './icons/ExamIcon';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { CheckIcon } from './icons/CheckIcon';
-import { 
-    Folder, 
-    BookOpen, 
-    HelpCircle, 
-    Users, 
-    Settings as SettingsIcon, 
-    LogOut, 
-    ChevronDown, 
-    ChevronRight,
-    Moon,
-    Sparkles, 
-    RefreshCw, 
-    Trash2,
-    Shield,
-    TrendingUp,
-    Clock,
-    UserCheck,
-    CreditCard,
-    Key,
-    Activity,
-    Plus,
-    X,
-    Building,
-    Home,
-    Bell,
-    Send,
-    Mail,
-    CheckCircle,
-    AlertCircle,
-    MessageSquare,
-    ArrowUpRight
-} from 'lucide-react';
 import { getWindowPathname } from '../utils/pathname';
 import { APP_SETTINGS_PATH, DEFAULT_APP_SETTINGS, DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
 import { getFeatureModel } from '../utils/usage';

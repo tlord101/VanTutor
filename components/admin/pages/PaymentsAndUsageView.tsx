@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { CreditCard, Activity, Search, Download, CheckCircle, BrainCircuit, Key, Server } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { UserProfile } from '../../../types';
 
@@ -19,7 +18,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
     );
 
     const totalRevenue = paymentLogs.reduce((acc, log) => {
-        const isSuccess = log.status === 'success' || log.status === 'successful' || !log.status; // Assume old logs without status are successful
+        const isSuccess = log.status === 'success' || log.status === 'successful' || !log.status;
         return isSuccess ? acc + (Number(log.amount) || 0) : acc;
     }, 0);
 
@@ -58,8 +57,8 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
         });
         
         return [
-            { name: 'Platform API Key', value: platformCount, color: '#10b981' }, // Emerald
-            { name: 'User Personal Key', value: personalCount, color: '#f59e0b' } // Amber
+            { name: 'Platform API Key', value: platformCount, color: '#f59e0b' }, // Amber
+            { name: 'User Personal Key', value: personalCount, color: '#64748b' } // Slate
         ];
     }, [aiRequestLogs]);
 
@@ -74,69 +73,65 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
         return Object.keys(modelCounts).map(model => ({
             name: model,
             count: modelCounts[model]
-        })).sort((a, b) => b.count - a.count); // Sort descending
+        })).sort((a, b) => b.count - a.count);
     }, [aiRequestLogs]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 text-slate-900 dark:text-slate-100">
             {/* Header Tabs */}
-            <div className="flex gap-4 border-b border-slate-200">
+            <div className="flex gap-4 border-b border-slate-200 dark:border-slate-800">
                 <button 
                     onClick={() => setActiveTab('payments')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'payments' ? 'border-emerald-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'payments' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
-                    <CreditCard className="w-4 h-4" />
-                    Financial Logs
+                    <i className="bi bi-credit-card-fill"></i>
+                    <span>Financial Logs</span>
                 </button>
                 <button 
                     onClick={() => setActiveTab('usage')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'usage' ? 'border-emerald-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'usage' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
-                    <Activity className="w-4 h-4" />
-                    System Usage Analytics
+                    <i className="bi bi-activity"></i>
+                    <span>System Usage Analytics</span>
                 </button>
             </div>
 
             {activeTab === 'payments' && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden">
-                            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white rounded-full blur-xl" />
-                            <p className="text-emerald-100 text-xs font-black uppercase tracking-widest mb-1">Total Revenue</p>
-                            <h3 className="text-4xl font-black">₦{totalRevenue.toLocaleString()}</h3>
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                            <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total Revenue</p>
+                            <h3 className="text-4xl font-black text-amber-500">₦{totalRevenue.toLocaleString()}</h3>
                         </div>
-                        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
                             <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total Transactions</p>
-                            <h3 className="text-4xl font-black  dark:text-white">{paymentLogs.length}</h3>
+                            <h3 className="text-4xl font-black text-slate-900 dark:text-white">{paymentLogs.length}</h3>
                         </div>
-                        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
                             <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Premium Users</p>
-                            <h3 className="text-4xl font-black  dark:text-white">{allUsersList.filter(u => u.subscription_status === 'premium').length}</h3>
+                            <h3 className="text-4xl font-black text-slate-900 dark:text-white">{allUsersList.filter(u => u.subscription_status === 'premium').length}</h3>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <h3 className="font-black text-lg  dark:text-white">Transaction History</h3>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <h3 className="font-black text-lg text-slate-900 dark:text-white">Transaction History</h3>
                             <div className="flex gap-3">
                                 <div className="relative">
-                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                                     <input 
                                         type="text" 
                                         placeholder="Search reference or email..." 
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
-                                        className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500"
+                                        className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm outline-none focus:border-amber-500"
                                     />
                                 </div>
-                                <button className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition flex items-center gap-2">
-                                    <Download className="w-4 h-4" /> Export
-                                </button>
                             </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                                     <tr>
                                         <th className="px-6 py-4">Reference</th>
                                         <th className="px-6 py-4">Student</th>
@@ -146,7 +141,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                         <th className="px-6 py-4 text-right">Date & Time</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                                     {filteredPayments.map((log, i) => {
                                         const itemName = log.purchase_type === 'subscription'
                                             ? `${(log.plan_key || log.tier_id || 'Subscription').toUpperCase()} Plan`
@@ -155,42 +150,42 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                         const isPending = log.status === 'initiated' || log.status === 'pending';
 
                                         return (
-                                            <tr key={i} className="hover:bg-slate-50 transition">
-                                                <td className="px-6 py-4 font-mono text-xs text-slate-600 select-all">
+                                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                                                <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400 select-all">
                                                     {log.reference || log.id || '—'}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold dark:text-white leading-tight">
+                                                    <div className="font-bold text-slate-900 dark:text-white leading-tight">
                                                         {log.user_name || log.metadata?.user_name || 'Student'}
                                                     </div>
-                                                    <div className="text-xs text-slate-500">
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">
                                                         {log.user_email || log.email || '—'}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                                         {itemName}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 font-bold dark:text-white">
+                                                <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
                                                     ₦{(Number(log.amount) || 0).toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {isSuccess ? (
-                                                        <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-emerald-200">
-                                                            <CheckCircle className="w-3.5 h-3.5" /> Success
+                                                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-emerald-200 dark:border-emerald-900/40">
+                                                            <i className="bi bi-check-circle-fill"></i> Success
                                                         </span>
                                                     ) : isPending ? (
-                                                        <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-amber-200">
-                                                            <Activity className="w-3.5 h-3.5" /> Pending
+                                                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-amber-200 dark:border-amber-900/40">
+                                                            <i className="bi bi-clock-fill"></i> Pending
                                                         </span>
                                                     ) : (
-                                                        <span className="flex items-center gap-1 text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-red-200">
-                                                            <div className="w-3.5 h-3.5 rounded-full border-2 border-red-500 flex items-center justify-center text-[8px] font-bold">!</div> Failed
+                                                        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md text-[10px] font-black uppercase w-max border border-rose-200 dark:border-rose-900/40">
+                                                            <i className="bi bi-x-circle-fill"></i> Failed
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 text-right text-slate-500 font-medium text-xs">
+                                                <td className="px-6 py-4 text-right text-slate-500 dark:text-slate-400 font-medium text-xs">
                                                     {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
                                                 </td>
                                             </tr>
@@ -213,27 +208,28 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
             {activeTab === 'usage' && (
                 <div className="space-y-6">
                     {/* Top Row: AI Volume */}
-                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                        <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
-                            <BrainCircuit className="w-5 h-5 text-emerald-500" /> AI Query Volume (Last 30 Days)
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                        <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                            <i className="bi bi-cpu text-amber-500"></i>
+                            <span>AI Query Volume (Last 30 Days)</span>
                         </h3>
                         <div className="flex-grow w-full h-full min-h-[250px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={queryVolumeData}>
                                     <defs>
                                         <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dx={-10} />
                                     <Tooltip 
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc' }}
                                         formatter={(value: number) => [value, 'Total AI Queries']}
                                     />
-                                    <Area type="monotone" dataKey="queries" stroke="#10b981" fillOpacity={1} fill="url(#colorQueries)" strokeWidth={3} activeDot={{ r: 6 }} />
+                                    <Area type="monotone" dataKey="queries" stroke="#f59e0b" fillOpacity={1} fill="url(#colorQueries)" strokeWidth={3} activeDot={{ r: 6 }} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -242,9 +238,10 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                     {/* Bottom Row: Pies and Bars */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Token Type Distribution */}
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                            <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
-                                <Key className="w-5 h-5 text-amber-500" /> Token Authorization Source
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                                <i className="bi bi-key-fill text-amber-500"></i>
+                                <span>Token Authorization Source</span>
                             </h3>
                             <div className="flex-grow w-full h-full min-h-[250px] flex items-center justify-center">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -263,7 +260,7 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                                             ))}
                                         </Pie>
                                         <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc' }}
                                             formatter={(value: number) => [value, 'Requests']}
                                         />
                                         <Legend verticalAlign="bottom" height={36} iconType="circle" />
@@ -273,22 +270,23 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
                         </div>
 
                         {/* Model Usage */}
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
-                            <h3 className="font-bold  dark:text-white mb-6 flex items-center gap-2">
-                                <Server className="w-5 h-5 text-indigo-500" /> API Model Traffic
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm min-h-[350px] flex flex-col">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                                <i className="bi bi-hdd-network-fill text-amber-500"></i>
+                                <span>API Model Traffic</span>
                             </h3>
                             <div className="flex-grow w-full h-full min-h-[250px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={modelUsageData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                                        <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#475569' }} />
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
+                                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                                        <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                                         <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc' }}
                                             formatter={(value: number) => [value, 'Queries']}
-                                            cursor={{fill: '#f1f5f9'}}
+                                            cursor={{fill: 'rgba(255,255,255,0.05)'}}
                                         />
-                                        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={24} />
+                                        <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>

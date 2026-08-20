@@ -19,54 +19,28 @@ const REACTION_EMOJIS = ['🔥', '😂', '😍', '👏', '😮', '😭', '👍',
 
 // ================= REPLICA ICONS =================
 
-const DoubleCheckIcon = ({ color = "#8696a0" }) => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 12l5 5L20 4M7 12l5 5L20 7" />
-  </svg>
+const DoubleCheckIcon = ({ color = "#8696a0" }: { color?: string }) => (
+  <i className="bi bi-check2-all inline-block text-base" style={{ color }} />
 );
 
 const AttachmentIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
-    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-  </svg>
+  <i className="bi bi-paperclip text-lg text-slate-500 dark:text-slate-400" />
 );
 
 const CameraIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
-    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-    <circle cx="12" cy="13" r="4" />
-  </svg>
+  <i className="bi bi-camera text-lg text-slate-500 dark:text-slate-400" />
 );
 
 const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-    <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-  </svg>
+  <i className="bi bi-send-fill text-base" />
 );
 
 const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-red-500">
-    <polyline points="3 6 5 6 21 6"></polyline>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-    <line x1="10" y1="11" x2="10" y2="17"></line>
-    <line x1="14" y1="11" x2="14" y2="17"></line>
-  </svg>
+  <i className="bi bi-trash text-lg text-rose-500" />
 );
 
 const LockIcon = ({ locked }: { locked: boolean }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-[#6C757D] dark:text-gray-400">
-    {locked ? (
-      <>
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </>
-    ) : (
-      <>
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-      </>
-    )}
-  </svg>
+  <i className={`bi ${locked ? 'bi-lock-fill' : 'bi-unlock-fill'} text-lg text-slate-500 dark:text-slate-400`} />
 );
 
 const formatLastSeen = (value?: number) => {

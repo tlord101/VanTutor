@@ -23,12 +23,12 @@ const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
     aria-checked={checked}
     onClick={() => onChange(!checked)}
     disabled={disabled}
-    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-      checked ? 'bg-blue-600' : 'bg-slate-200'
+    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+      checked ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
     }`}
   >
     <span
-      className={`inline-block w-4 h-4 transform bg-white dark:bg-black rounded-full transition-transform duration-200 ease-in-out shadow-sm ${
+      className={`inline-block w-4 h-4 transform bg-white dark:bg-slate-900 rounded-full transition-transform duration-200 ease-in-out shadow-sm ${
         checked ? 'translate-x-6' : 'translate-x-1'
       }`}
     />
@@ -112,22 +112,29 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
   return (
     <div className="p-4 sm:p-6 space-y-6 animate-in fade-in duration-300 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Account Settings</h2>
-        <p className="text-sm text-slate-500 dark:text-gray-400 font-medium mt-1">Manage your security, notifications, and preferences.</p>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+          <i className="bi bi-gear-fill text-amber-500"></i>
+          <span>Account Settings</span>
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">Manage your security, notifications, and preferences.</p>
       </div>
 
-      <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Security</h3>
+      {/* Security */}
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+          <i className="bi bi-shield-lock text-amber-500"></i>
+          <span>Security</span>
+        </h3>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <span className=" dark:text-white font-bold block mb-1">Change Password</span>
-              <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">We will send a secure link to your email to reset your password.</p>
+              <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Change Password</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">We will send a secure link to your email to reset your password.</p>
             </div>
             <button
                 onClick={handlePasswordReset}
                 disabled={isResetEmailSending}
-                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200  dark:text-white text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 disabled:opacity-50"
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
             >
                 {isResetEmailSending ? 'Sending...' : 'Send Reset Link'}
             </button>
@@ -135,13 +142,17 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
         </div>
       </div>
 
-      <div className="bg-white dark:bg-black dark:bg-card p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 dark:border-border shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Appearance</h3>
+      {/* Appearance */}
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+          <i className="bi bi-moon-stars text-amber-500"></i>
+          <span>Appearance</span>
+        </h3>
         <div className="space-y-6">
           <div className="flex justify-between items-center gap-4">
               <div>
-                  <span className="text-slate-800 dark:text-slate-200 font-bold block mb-1">Dark Mode</span>
-                  <p className="text-xs text-slate-500 dark:text-gray-400 dark:text-slate-400 font-medium">
+                  <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Dark Mode</span>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                       Toggle between light and dark mode.
                   </p>
               </div>
@@ -150,16 +161,19 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
                   onChange={(checked) => setMode(checked ? 'dark' : 'light')}
               />
           </div>
-
         </div>
       </div>
 
-      <div className="bg-white dark:bg-black dark:bg-card p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 dark:border-border shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Notifications</h3>
+      {/* Notifications */}
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+          <i className="bi bi-bell text-amber-500"></i>
+          <span>Notifications</span>
+        </h3>
         <div className="flex justify-between items-center gap-4">
             <div>
-                <span className=" dark:text-white font-bold block mb-1">Push Notifications</span>
-                 <p className="text-xs text-slate-500 dark:text-gray-400 font-medium">
+                <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Push Notifications</span>
+                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Get reminders, progress updates, and message alerts.
                 </p>
             </div>
@@ -171,32 +185,40 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
         </div>
       </div>
 
-      <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Legal & Support</h3>
-         <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+      {/* Legal & Support */}
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+          <i className="bi bi-file-earmark-text text-amber-500"></i>
+          <span>Legal & Support</span>
+        </h3>
+         <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
            <a
               href="/t&c"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black  dark:text-white font-bold hover:bg-slate-100 transition-colors"
+              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <span>Terms & Conditions</span>
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              <i className="bi bi-chevron-right text-slate-400 text-sm"></i>
             </a>
             <a
               href="https://www.avelut.xyz/policy"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-black  dark:text-white font-bold hover:bg-slate-100 transition-colors"
+              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <span>Privacy Policy</span>
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              <i className="bi bi-chevron-right text-slate-400 text-sm"></i>
             </a>
          </div>
       </div>
 
-      <div className="bg-red-50 p-6 sm:p-8 rounded-2xl border border-red-100 shadow-sm">
-        <h3 className="text-lg font-bold text-red-900 mb-2">Danger Zone</h3>
-        <p className="text-sm text-red-700/80 font-medium mb-6">Once you delete your account, there is no going back. Please be certain.</p>
+      {/* Danger Zone */}
+      <div className="bg-rose-50 dark:bg-rose-950/20 p-6 sm:p-8 rounded-2xl border border-rose-200 dark:border-rose-900/40 shadow-sm">
+        <h3 className="text-lg font-bold text-rose-900 dark:text-rose-300 mb-2 flex items-center gap-2">
+          <i className="bi bi-exclamation-triangle-fill text-rose-500"></i>
+          <span>Danger Zone</span>
+        </h3>
+        <p className="text-sm text-rose-700/80 dark:text-rose-400/80 font-medium mb-6">Once you delete your account, there is no going back. Please be certain.</p>
         <button
           onClick={() => setIsDeleteModalOpen(true)}
-          className="px-6 py-2.5 bg-white dark:bg-black border border-red-200 hover:border-red-300 text-red-600 text-sm font-bold rounded-xl transition-all shadow-sm"
+          className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/60 hover:border-rose-400 text-rose-600 dark:text-rose-400 text-sm font-bold rounded-xl transition-all shadow-sm cursor-pointer"
         >
           Delete Account
         </button>

@@ -4,7 +4,6 @@ import { ref as dbRef, get, set } from 'firebase/database';
 import { GoogleGenAI, Type } from '@google/genai';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
-import { RefreshCw, Save, Smartphone, Sparkles } from 'lucide-react';
 
 const PLAYSTORE_UPDATE_PATH = 'app_updates/playstore/latest';
 const PLAYSTORE_PACKAGE_ID = 'com.avelut.app';
@@ -183,125 +182,125 @@ Return only JSON with keys: title, message, version_name.`;
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
+        <div className="max-w-5xl mx-auto space-y-6 text-slate-900 dark:text-slate-100">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div>
-                        <h3 className="font-black text-2xl dark:text-white flex items-center gap-2">
-                            <Smartphone className="w-6 h-6 text-sky-600" />
-                            Play Store Update Control
+                        <h3 className="font-black text-2xl text-slate-900 dark:text-white flex items-center gap-2">
+                            <i className="bi bi-phone-fill text-amber-500"></i>
+                            <span>Play Store Update Control</span>
                         </h3>
-                        <p className="text-sm text-slate-500 mt-1">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                             Set the minimum version code in Firebase. The app checks this every time it opens.
                         </p>
                     </div>
                     <button
                         onClick={() => void loadConfig()}
                         disabled={isLoading}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition disabled:opacity-50"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition disabled:opacity-50 cursor-pointer"
                     >
-                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        Refresh
+                        <i className={`bi bi-arrow-repeat ${isLoading ? 'animate-spin' : ''}`}></i>
+                        <span>Refresh</span>
                     </button>
                 </div>
 
                 <form onSubmit={handleSave} className="space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Version Code</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Version Code</label>
                             <input
                                 type="number"
                                 min={1}
                                 value={versionCode}
                                 onChange={(e) => setVersionCode(e.target.value)}
                                 placeholder="e.g. 106"
-                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-sky-500 bg-white"
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-amber-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                             />
                             <p className="text-[11px] text-slate-400 mt-1">If this is higher than the device version code, users will get the update prompt.</p>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Version Name (Optional)</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Version Name (Optional)</label>
                             <input
                                 type="text"
                                 value={versionName}
                                 onChange={(e) => setVersionName(e.target.value)}
                                 placeholder="e.g. 4.18.0"
-                                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-sky-500 bg-white"
+                                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-amber-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center justify-between gap-3">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center justify-between gap-3">
                             <span>Prompt Title</span>
                             <button
                                 type="button"
                                 onClick={() => void handleGenerateCopy()}
                                 disabled={isGenerating || isSaving || isLoading || !ai}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-black uppercase tracking-wider hover:bg-indigo-100 transition disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-black uppercase tracking-wider hover:bg-amber-500/20 transition disabled:opacity-50 cursor-pointer"
                                 title={!ai ? 'Configure Avelut AI API key in App Settings first' : 'Generate update title/message with AI'}
                             >
-                                <Sparkles className="w-3.5 h-3.5" />
-                                {isGenerating ? 'Generating...' : 'AI Generate'}
+                                <i className="bi bi-stars"></i>
+                                <span>{isGenerating ? 'Generating...' : 'AI Generate'}</span>
                             </button>
                         </label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-sky-500 bg-white"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-amber-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Prompt Message</label>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Prompt Message</label>
                         <textarea
                             rows={3}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-sky-500 bg-white resize-none"
+                            className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-amber-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none"
                         />
                     </div>
 
-                    <label className="flex items-start gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+                    <label className="flex items-start gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 cursor-pointer">
                         <input
                             type="checkbox"
                             checked={mandatory}
                             onChange={(e) => setMandatory(e.target.checked)}
-                            className="mt-0.5 w-4 h-4"
+                            className="mt-0.5 w-4 h-4 text-amber-500 focus:ring-amber-500"
                         />
-                        <span className="text-sm text-amber-900 font-semibold">
+                        <span className="text-sm text-slate-900 dark:text-slate-100 font-semibold">
                             Force update (hide Skip button)
                         </span>
                     </label>
 
-                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Play Store Target</p>
-                        <p className="text-sm font-semibold text-slate-700 mt-1">com.avelut.app</p>
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Play Store Target</p>
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mt-1">com.avelut.app</p>
                     </div>
 
                     <button
                         type="submit"
                         disabled={isSaving || isLoading}
-                        className="w-full py-3.5 rounded-xl bg-sky-600 text-white font-black uppercase tracking-widest text-xs hover:bg-sky-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-black uppercase tracking-widest text-xs transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                     >
-                        <Save className="w-4 h-4" />
-                        {isSaving ? 'Saving...' : 'Save Update Version'}
+                        <i className="bi bi-floppy-fill"></i>
+                        <span>{isSaving ? 'Saving...' : 'Save Update Version'}</span>
                     </button>
                 </form>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 mb-2">Current Live Config</h4>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Current Live Config</h4>
                 {currentConfig ? (
-                    <div className="space-y-1 text-sm text-slate-700">
+                    <div className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
                         <p><strong>Version code:</strong> {currentConfig.versionCode}</p>
                         <p><strong>Version name:</strong> {currentConfig.versionName || 'Not set'}</p>
                         <p><strong>Mandatory:</strong> {currentConfig.mandatory ? 'Yes' : 'No'}</p>
                         <p><strong>Updated by:</strong> {currentConfig.updatedBy || 'Unknown'}</p>
                     </div>
                 ) : (
-                    <p className="text-sm text-slate-500">No Play Store update config found yet.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No Play Store update config found yet.</p>
                 )}
             </div>
         </div>
