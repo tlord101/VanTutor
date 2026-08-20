@@ -41,6 +41,7 @@ import { createInitialDifficultyState, recordQuestionPerformance, DifficultyStat
 import { calculateInitialReview, saveSpacedReviewItem, scheduleSpacedReviewItem } from '../services/spacedReviewService';
 import { recordConceptDimensionalMastery } from '../services/tutorMemoryService';
 import type { LearningQuestion, QuestionDifficulty } from '../types/learningQuestion';
+import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
 
 export type { TutorPhase };
 
@@ -498,123 +499,8 @@ function getDefaultActions(step: TutorPhase): {
     }
 }
 
-// ── Visual Diagram Helpers with KaTeX Math Rendering ─────────────────────────
-function renderKatexInSvg(svgString: string): string {
-    return svgString.replace(/<text([^>]*)>([\s\S]*?)<\/text>/gi, (fullMatch, attrStr, content) => {
-        const rawContent = content.trim();
-        const hasMath = rawContent.includes('$') || /\\(frac|sqrt|text|theta|alpha|beta|gamma|lambda|omega|pi|sum|int|partial|times|cdot|approx|ne|le|ge|pm|infty|vec|hat|bar|dot|ddot|[a-zA-Z]+)/.test(rawContent);
-        if (!hasMath) {
-            return fullMatch;
-        }
-
-        const xMatch = attrStr.match(/\bx=["']?(-?[\d.]+)/i);
-        const yMatch = attrStr.match(/\by=["']?(-?[\d.]+)/i);
-        const fillMatch = attrStr.match(/\bfill=["']?([^"'\s>]+)/i);
-        const sizeMatch = attrStr.match(/\bfont-size=["']?([^"'\s>]+)/i);
-        const anchorMatch = attrStr.match(/\btext-anchor=["']?([^"'\s>]+)/i);
-        const weightMatch = attrStr.match(/\bfont-weight=["']?([^"'\s>]+)/i);
-
-        const origX = xMatch ? parseFloat(xMatch[1]) : 0;
-        const origY = yMatch ? parseFloat(yMatch[1]) : 0;
-        const fill = fillMatch ? fillMatch[1] : '#FFFFFF';
-        const fontSize = sizeMatch ? sizeMatch[1].replace(/px$/, '') + 'px' : '13px';
-        const anchor = anchorMatch ? anchorMatch[1].toLowerCase() : 'start';
-        const fontWeight = weightMatch ? weightMatch[1] : 'normal';
-
-        const foWidth = 200;
-        const foHeight = 60;
-
-        let foX = origX;
-        let justify = 'flex-start';
-        let textAlign = 'left';
-
-        if (anchor === 'middle') {
-            foX = origX - (foWidth / 2);
-            justify = 'center';
-            textAlign = 'center';
-        } else if (anchor === 'end') {
-            foX = origX - foWidth;
-            justify = 'flex-end';
-            textAlign = 'right';
-        }
-
-        const foY = origY - 30;
-
-        let formattedContent = rawContent;
-        if (formattedContent.includes('$')) {
-            formattedContent = formattedContent
-                .replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
-                    try {
-                        return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
-                    } catch {
-                        return math;
-                    }
-                })
-                .replace(/\$([^\$]+)\$/g, (_, math) => {
-                    try {
-                        return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
-                    } catch {
-                        return math;
-                    }
-                });
-        } else {
-            try {
-                formattedContent = katex.renderToString(rawContent, { displayMode: false, throwOnError: false });
-            } catch {
-                formattedContent = rawContent;
-            }
-        }
-
-        return `<foreignObject x="${foX}" y="${foY}" width="${foWidth}" height="${foHeight}" overflow="visible">
-  <div xmlns="http://www.w3.org/1999/xhtml" style="color: ${fill}; font-size: ${fontSize}; font-family: system-ui, -apple-system, sans-serif; font-weight: ${fontWeight}; display: flex; align-items: center; justify-content: ${justify}; text-align: ${textAlign}; width: 100%; height: 100%; pointer-events: none; line-height: 1.1;">
-    ${formattedContent}
-  </div>
-</foreignObject>`;
-    });
-}
-
 function sanitizeSvg(rawSvg: string | null | undefined): string | null {
-    if (!rawSvg || typeof rawSvg !== 'string') return null;
-    let cleaned = rawSvg.trim();
-    cleaned = cleaned.replace(/^```(?:xml|svg|html)?\s*/i, '').replace(/```$/i, '').trim();
-
-    const match = cleaned.match(/<svg[\s\S]*?<\/svg>/i);
-    if (match) {
-        cleaned = match[0];
-    } else if (!cleaned.startsWith('<svg')) {
-        return null;
-    }
-
-    if (!cleaned.includes('viewBox')) {
-        cleaned = cleaned.replace(/<svg/i, '<svg viewBox="0 0 420 220"');
-    }
-    if (!cleaned.includes('xmlns=')) {
-        cleaned = cleaned.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
-    }
-
-    const defs = `<defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D9CCBC" /></marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38BDF8" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#F87171" /></marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#34D399" /></marker>
-    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FBBF24" /></marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#A78BFA" /></marker>
-    <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35"/><stop offset="100%" stop-color="#0284C7" stop-opacity="0.12"/></linearGradient>
-    <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34D399" stop-opacity="0.35"/><stop offset="100%" stop-color="#059669" stop-opacity="0.12"/></linearGradient>
-    <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FBBF24" stop-opacity="0.35"/><stop offset="100%" stop-color="#D97706" stop-opacity="0.12"/></linearGradient>
-    <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A78BFA" stop-opacity="0.35"/><stop offset="100%" stop-color="#7C3AED" stop-opacity="0.12"/></linearGradient>
-    <linearGradient id="grad-dark" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1E293B" stop-opacity="0.9"/><stop offset="100%" stop-color="#0F172A" stop-opacity="0.95"/></linearGradient>
-    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
-  </defs>`;
-
-    if (cleaned.includes('<defs>')) {
-        cleaned = cleaned.replace(/<defs>/i, `<defs>${defs.replace('<defs>', '').replace('</defs>', '')}`);
-    } else {
-        cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
-    }
-
-    cleaned = renderKatexInSvg(cleaned);
-    return cleaned;
+    return sanitizeAndValidateSvg(rawSvg);
 }
 
 // ── Pure Board Content Generators for Fallback ────────────────────────────────
@@ -1883,13 +1769,7 @@ You embody Adaptive Teaching Engine methodology:
 - REAL-WORLD OBJECT ANALOGIES: Always use familiar physical objects.
 - LaTeX Math: Format all formulas, powers, superscripts, subscripts, fractions, and units in LaTeX ($...$ or $$...$$).
 
-DIAGRAM SVG SPECIFICATIONS (HIGH PRECISION STEM ILLUSTRATION):
-- When diagramSvg is provided, draw a HIGH-PRECISION, BEAUTIFULLY DETAILED STEM ILLUSTRATION in valid SVG (viewBox="0 0 420 220").
-- Use dark-mode optimized aesthetics: Dark slate background or transparent, crisp high-contrast strokes.
-- Palette: #38BDF8 (Sky Blue for objects, trajectories, forces), #34D399 (Emerald Green for target quantities, velocities), #F87171 (Coral Red for resistance, friction, normal forces), #FBBF24 (Amber for givens, angles, dimensions), #A78BFA (Purple for field lines, components), #E2E8F0 (Text labels).
-- Real physical scenario detail: Draw recognizable physical objects (cars with wheels, inclined planes with angles and surface hatching, circuits with standard schematic symbols, pulleys with grooved wheels, springs with realistic coils, vectors with arrow markers).
-- Vector arrows: Always use marker-end="url(#arrow-blue)", "url(#arrow-red)", or "url(#arrow-green)".
-- Labeled parameters: Dimension arrows, angle arcs $\\theta$, and variables in LaTeX format ($F$, $m$, $a$, $v$, $t$).
+${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
 
 CURRENT TOPIC: "${sessionData?.topic?.topic_name}"
 CURRENT CONCEPT: "${concept?.conceptName}"
@@ -1901,7 +1781,7 @@ OUTPUT VALID JSON ONLY:
 {
   "boardLines": ["Line 1 with LaTeX", "[DIAGRAM]", "Line 2 with LaTeX", "Line 3 with LaTeX"],
   "spokenExplanation": "Conversational spoken English text without raw LaTeX codes",
-  "diagramSvg": "SVG string with viewBox=\\"0 0 420 220\\" or null",
+  "diagramSvg": "Complete realistic SVG string (viewBox=\\"0 0 800 480\\") with actual recognizable objects drawn from scratch or null",
   "tableMarkdown": "Markdown table with LaTeX or null",
   "diagramCaption": "Caption string or null",
   "positiveReplyLabel": "Button text",
@@ -1939,7 +1819,7 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
-                config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 3000 },
+                config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 4096 },
             });
 
             if (!isActiveRef.current) return;
@@ -2617,23 +2497,23 @@ OUTPUT VALID JSON ONLY:
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div className="w-full my-2.5 flex flex-col items-center justify-center p-3 rounded-2xl bg-[#22272E]/95 border border-[#373E47] shadow-lg relative group animate-fade-in transition-all">
+            <div className="w-full my-3 flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-[#22272E]/95 border border-[#373E47] shadow-xl relative group animate-fade-in transition-all">
                 <button
                     onClick={() => setIsDiagramZoomed(true)}
-                    className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs cursor-pointer opacity-80 hover:opacity-100 transition-opacity z-10 flex items-center gap-1 shadow-xs"
+                    className="absolute top-3 right-3 px-2.5 py-1 rounded-xl bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity z-10 flex items-center gap-1.5 shadow-xs"
                     title="Fullscreen Diagram View"
                 >
-                    <i className="bi bi-arrows-fullscreen"></i>
-                    <span className="text-[10px] hidden sm:inline">Zoom</span>
+                    <i className="bi bi-arrows-fullscreen text-xs"></i>
+                    <span className="text-[11px] hidden sm:inline">Inspect Vector</span>
                 </button>
                 {activeVisualCaption && (
-                    <span className="text-[11px] font-mono font-bold text-amber-300 mb-1 tracking-wider uppercase">
+                    <span className="text-[11px] font-mono font-bold text-amber-300 mb-1.5 tracking-wider uppercase">
                         {activeVisualCaption}
                     </span>
                 )}
                 <div
                     key={`svg-${diagramKey}`}
-                    className="w-full max-h-[260px] sm:max-h-[300px] flex items-center justify-center board-diagram-animated py-1 overflow-visible"
+                    className="w-full max-h-[320px] sm:max-h-[380px] flex items-center justify-center board-diagram-animated py-1 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[320px] sm:[&>svg]:max-h-[380px]"
                     dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                 />
             </div>
@@ -3101,23 +2981,26 @@ OUTPUT VALID JSON ONLY:
             {isDiagramZoomed && activeDiagramSvg && (
                 <div
                     onClick={() => setIsDiagramZoomed(false)}
-                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
+                    className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 cursor-pointer animate-fade-in"
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-[#181C20] border-2 border-[#373E47] rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-white"
+                        className="bg-[#181C20] border-2 border-[#373E47] rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-white max-h-[92vh] overflow-y-auto"
                     >
                         <div className="flex items-center justify-between border-b border-white/20 pb-3">
-                            <h3 className="font-bold text-base text-white">Diagram Inspection</h3>
+                            <div className="flex items-center gap-2">
+                                <i className="bi bi-diagram-3-fill text-sky-400 text-lg"></i>
+                                <h3 className="font-bold text-base text-white">Realistic Scientific Illustration</h3>
+                            </div>
                             <button
                                 onClick={() => setIsDiagramZoomed(false)}
-                                className="w-8 h-8 rounded-full bg-[#2D333B] hover:bg-[#444C56] text-white flex items-center justify-center cursor-pointer"
+                                className="w-8 h-8 rounded-full bg-[#2D333B] hover:bg-[#444C56] text-white flex items-center justify-center cursor-pointer transition-colors"
                             >
-                                <i className="bi bi-x-lg"></i>
+                                <i className="bi bi-x-lg text-xs"></i>
                             </button>
                         </div>
                         <div
-                            className="w-full flex items-center justify-center p-4 bg-[#22272E] rounded-2xl border border-[#373E47]"
+                            className="w-full flex items-center justify-center p-4 sm:p-6 bg-[#22272E] rounded-2xl border border-[#373E47] overflow-auto [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[65vh]"
                             dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                         />
                     </div>
