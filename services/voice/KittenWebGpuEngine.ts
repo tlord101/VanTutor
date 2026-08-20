@@ -186,19 +186,55 @@ export class KittenWebGpuEngine {
             await this.initialize();
             if (!this.session || !window.ort) return null;
 
-            const tokens = this.tokenize(normalized);
-            const inputTensor = new window.ort.Tensor('int64', BigInt64Array.from(tokens.map(t => BigInt(t))), [1, tokens.length]);
-            
-            const speakerData = new Float32Array(128).fill(0.12);
-            const speakerTensor = new window.ort.Tensor('float32', speakerData, [1, 128]);
+            const inputNames: string[] = this.session.inputNames || [];
+            const outputNames: string[] = this.session.outputNames || [];
 
-            const feeds: Record<string, any> = {
-                tokens: inputTensor,
-                speaker: speakerTensor,
-            };
+            const tokens = this.tokenize(normalized);
+            const tokenArray = BigInt64Array.from(tokens.map(t => BigInt(t)));
+            const inputIdsTensor = new window.ort.Tensor('int64', tokenArray, [1, tokens.length]);
+            const maskTensor = new window.ort.Tensor('int64', new BigInt64Array(tokens.length).fill(1n), [1, tokens.length]);
+            const speedTensor = new window.ort.Tensor('float32', new Float32Array([speed]), [1]);
+            const speakerTensor = new window.ort.Tensor('float32', new Float32Array(128).fill(0.12), [1, 128]);
+            const sidTensor = new window.ort.Tensor('int64', new BigInt64Array([0n]), [1]);
+
+            const feeds: Record<string, any> = {};
+
+            if (inputNames.length > 0) {
+                for (const name of inputNames) {
+                    const lower = name.toLowerCase();
+                    if (lower.includes('mask')) {
+                        feeds[name] = maskTensor;
+                    } else if (lower.includes('speed') || lower.includes('scale') || lower.includes('rate') || lower.includes('length')) {
+                        feeds[name] = speedTensor;
+                    } else if (lower.includes('style') || lower.includes('embed') || lower.includes('voice')) {
+                        feeds[name] = speakerTensor;
+                    } else if (lower === 'speaker_id' || lower === 'sid' || lower === 'speaker') {
+                        feeds[name] = sidTensor;
+                    } else if (lower.includes('input') || lower.includes('token') || lower.includes('text') || lower.includes('id')) {
+                        feeds[name] = inputIdsTensor;
+                    } else {
+                        feeds[name] = inputIdsTensor;
+                    }
+                }
+            } else {
+                feeds['input_ids'] = inputIdsTensor;
+                feeds['tokens'] = inputIdsTensor;
+                feeds['speaker'] = speakerTensor;
+            }
+
+            // Always ensure input_ids is populated if expected
+            if (inputNames.includes('input_ids') && !feeds['input_ids']) {
+                feeds['input_ids'] = inputIdsTensor;
+            }
 
             const results = await this.session.run(feeds);
-            const outputTensor = results.audio || results.output || Object.values(results)[0];
+            let outputTensor = results.audio || results.waveform || results.output || results.output_0 || results.logits;
+            if (!outputTensor && outputNames.length > 0) {
+                outputTensor = results[outputNames[0]];
+            }
+            if (!outputTensor) {
+                outputTensor = Object.values(results)[0];
+            }
 
             if (outputTensor && outputTensor.data) {
                 const pcm = outputTensor.data instanceof Float32Array 
