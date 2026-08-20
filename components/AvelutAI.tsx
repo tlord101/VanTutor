@@ -463,6 +463,13 @@ const FolderOutlineIcon = ({ className = "w-5 h-5" }: { className?: string }) =>
   </svg>
 );
 
+const FlagIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <line x1="4" y1="22" x2="4" y2="15" />
+  </svg>
+);
+
 interface AnimatedMoonOrbProps {
   isListening?: boolean;
   isSpeaking?: boolean;
@@ -1437,7 +1444,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       // 1. Save user message to SQLite immediately (0ms)
       void saveLocalMessage({
-        id: userMessageId,
+        id: userMessage.id,
         conversation_id: conversationId,
         user_id: userProfile.uid,
         sender: 'user',
@@ -2105,7 +2112,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                 aria-label="Report message"
                                 title="Report inappropriate content"
                               >
-                                <Flag className="h-3.5 w-3.5" />
+                                <FlagIcon className="h-3.5 w-3.5" />
                                 Report
                               </button>
                             </div>

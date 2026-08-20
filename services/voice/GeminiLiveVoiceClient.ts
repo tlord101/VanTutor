@@ -1,9 +1,9 @@
 /**
  * ==============================================================================
  * GEMINI MULTIMODAL LIVE TWO-WAY VOICE CLIENT (WebSocket / BidiGenerateContent)
- * Model: gemini-3.1-flash-live-preview (with automatic fallback to gemini-2.0-flash-exp)
+ * Model: models/gemini-2.0-flash-exp (Fast, high-fidelity native audio streaming)
  * Protocol: Stateful WebSocket (WSS) 16kHz PCM Input -> 24kHz PCM Output
- * Features: Two-way live voice streaming, real-time interruption, natural cadence,
+ * Features: AudioWorklet low-latency processing, real-time interruption, natural cadence,
  * and automatic student metadata injection (Name, Department, Level, Courses).
  * ==============================================================================
  */
@@ -43,7 +43,8 @@ export class GeminiLiveVoiceClient {
   private inputAudioCtx: AudioContext | null = null;
   private micStream: MediaStream | null = null;
   private micSourceNode: MediaStreamAudioSourceNode | null = null;
-  private processorNode: ScriptProcessorNode | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private legacyProcessorNode: ScriptProcessorNode | null = null;
 
   // Audio Playback (24kHz Output)
   private outputAudioCtx: AudioContext | null = null;
@@ -139,10 +140,14 @@ export class GeminiLiveVoiceClient {
     const department = meta.departmentName || 'Academic Studies';
     const institution = meta.institutionName || 'University';
     const level = meta.level || 'Higher Education';
-    const courses = meta.enrolledCourses?.length ? meta.enrolledCourses.join(', ') : 'Science, Technology, Engineering, Mathematics, and General Courses';
+    const courses = meta.enrolledCourses?.length ? meta.enrolledCourses.join(', ') : 'Academic Curriculum';
     const context = meta.courseContext ? `Current study context: ${meta.courseContext}` : '';
 
-    const modelName = this.options.model || 'models/gemini-3.1-flash-live-preview';
+    let modelName = this.options.model || 'models/gemini-2.0-flash-exp';
+    if (!modelName.startsWith('models/')) {
+      modelName = `models/${modelName}`;
+    }
+
     const voiceName = this.options.voiceName || 'Aoede';
 
     const systemPrompt = `You are AVELUT AI, an intelligent, empathetic, voice-first personal academic tutor and study partner.
@@ -155,9 +160,9 @@ ${context}
 
 VOICE & INTERACTION GUIDELINES:
 1. Speak in a natural, friendly, conversational tone with clean cadence and clear explanations.
-2. Keep your spoken responses concise, punchy, and clear so the conversation flows naturally.
+2. Keep your spoken responses concise, punchy, and conversational (2-3 sentences max).
 3. Be ready to be interrupted naturally whenever ${studentName} speaks.
-4. If ${studentName} asks about their courses, department, or academic concepts, tailor your analogies and explanations directly to their background.`;
+4. When ${studentName} speaks or asks questions, immediately respond warmly with voice.`;
 
     const setupMessage = {
       setup: {
@@ -205,7 +210,7 @@ VOICE & INTERACTION GUIDELINES:
         }
 
         // Inline 24kHz PCM Audio data
-        if (part.inlineData?.data && part.inlineData?.mimeType?.includes('audio')) {
+        if (part.inlineData?.data && (part.inlineData?.mimeType?.includes('audio') || part.inlineData?.mimeType?.includes('pcm'))) {
           const base64Audio = part.inlineData.data;
           this.playAudioChunk(base64Audio);
         }
@@ -228,7 +233,61 @@ VOICE & INTERACTION GUIDELINES:
   }
 
   /**
-   * Starts capturing microphone audio at 16kHz PCM.
+   * Processes a Float32Array channel chunk from microphone, converts to 16kHz PCM 16-bit,
+   * computes audio levels for UI animation, and streams to WebSocket.
+   */
+  private processAudioInputChunk(inputChannel: Float32Array): void {
+    if (this.isMuted || !this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.options.onInputAudioLevel?.(0);
+      return;
+    }
+
+    // Calculate audio RMS level for visual pulsation
+    let sumSquares = 0;
+    for (let i = 0; i < inputChannel.length; i++) {
+      sumSquares += inputChannel[i] * inputChannel[i];
+    }
+    const rms = Math.sqrt(sumSquares / inputChannel.length);
+    const normalizedLevel = Math.min(1, rms * 5.0);
+    this.options.onInputAudioLevel?.(normalizedLevel);
+
+    // Convert Float32Array (-1.0 to 1.0) to 16-bit Linear PCM Little-Endian
+    const pcm16 = new Int16Array(inputChannel.length);
+    for (let i = 0; i < inputChannel.length; i++) {
+      const s = Math.max(-1, Math.min(1, inputChannel[i]));
+      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+
+    // Convert PCM buffer to base64
+    const uint8 = new Uint8Array(pcm16.buffer);
+    let binary = '';
+    const len = uint8.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const base64Data = btoa(binary);
+
+    // Send realtime audio chunk to Gemini Live API
+    const realtimeMsg = {
+      realtimeInput: {
+        mediaChunks: [
+          {
+            mimeType: 'audio/pcm;rate=16000',
+            data: base64Data,
+          },
+        ],
+      },
+    };
+
+    try {
+      this.ws.send(JSON.stringify(realtimeMsg));
+    } catch (err) {
+      console.warn('[GeminiLive] Error sending audio chunk:', err);
+    }
+  }
+
+  /**
+   * Starts capturing microphone audio using AudioWorkletNode (with ScriptProcessor fallback).
    */
   private async startMicrophoneCapture(): Promise<void> {
     try {
@@ -247,63 +306,68 @@ VOICE & INTERACTION GUIDELINES:
       const ctx = new AudioCtx({ sampleRate: 16000 });
       this.inputAudioCtx = ctx;
 
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
       const source = ctx.createMediaStreamSource(stream);
       this.micSourceNode = source;
 
-      // Buffer size of 4096 gives ~256ms audio chunks at 16kHz
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      this.processorNode = processor;
+      // Try modern AudioWorkletNode first
+      let workletLoaded = false;
+      if (ctx.audioWorklet) {
+        try {
+          const workletCode = `
+            class PCMRecorderProcessor extends AudioWorkletProcessor {
+              process(inputs, outputs, parameters) {
+                const input = inputs[0];
+                if (input && input.length > 0) {
+                  const channel = input[0];
+                  if (channel && channel.length > 0) {
+                    this.port.postMessage(channel);
+                  }
+                }
+                return true;
+              }
+            }
+            registerProcessor('pcm-recorder-processor', PCMRecorderProcessor);
+          `;
+          const blob = new Blob([workletCode], { type: 'application/javascript' });
+          const url = URL.createObjectURL(blob);
+          await ctx.audioWorklet.addModule(url);
+          URL.revokeObjectURL(url);
 
-      processor.onaudioprocess = (e) => {
-        if (this.isMuted || !this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-          this.options.onInputAudioLevel?.(0);
-          return;
+          const workletNode = new AudioWorkletNode(ctx, 'pcm-recorder-processor');
+          this.workletNode = workletNode;
+
+          workletNode.port.onmessage = (e) => {
+            const channelData = e.data;
+            if (channelData instanceof Float32Array) {
+              this.processAudioInputChunk(channelData);
+            }
+          };
+
+          source.connect(workletNode);
+          workletNode.connect(ctx.destination);
+          workletLoaded = true;
+        } catch (workletErr) {
+          console.warn('[GeminiLive] AudioWorklet initialization fallback:', workletErr);
         }
+      }
 
-        const inputChannel = e.inputBuffer.getChannelData(0);
-        
-        // Calculate audio RMS level for visual pulsation
-        let sumSquares = 0;
-        for (let i = 0; i < inputChannel.length; i++) {
-          sumSquares += inputChannel[i] * inputChannel[i];
-        }
-        const rms = Math.sqrt(sumSquares / inputChannel.length);
-        const normalizedLevel = Math.min(1, rms * 4.5);
-        this.options.onInputAudioLevel?.(normalizedLevel);
+      // Fallback to ScriptProcessorNode if AudioWorklet unavailable
+      if (!workletLoaded) {
+        const processor = ctx.createScriptProcessor(4096, 1, 1);
+        this.legacyProcessorNode = processor;
 
-        // Convert Float32Array (-1.0 to 1.0) to 16-bit Linear PCM Little-Endian
-        const pcm16 = new Int16Array(inputChannel.length);
-        for (let i = 0; i < inputChannel.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputChannel[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-        }
-
-        // Convert PCM buffer to base64
-        const uint8 = new Uint8Array(pcm16.buffer);
-        let binary = '';
-        const len = uint8.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(uint8[i]);
-        }
-        const base64Data = btoa(binary);
-
-        // Send realtime audio chunk to Gemini Live API
-        const realtimeMsg = {
-          realtimeInput: {
-            mediaChunks: [
-              {
-                mimeType: 'audio/pcm;rate=16000',
-                data: base64Data,
-              },
-            ],
-          },
+        processor.onaudioprocess = (e) => {
+          const inputChannel = e.inputBuffer.getChannelData(0);
+          this.processAudioInputChunk(inputChannel);
         };
 
-        this.ws.send(JSON.stringify(realtimeMsg));
-      };
-
-      source.connect(processor);
-      processor.connect(ctx.destination);
+        source.connect(processor);
+        processor.connect(ctx.destination);
+      }
     } catch (err) {
       console.error('[GeminiLive] Mic capture failed:', err);
       this.options.onError?.(err);
@@ -349,30 +413,32 @@ VOICE & INTERACTION GUIDELINES:
         sumSquares += val * val;
       }
 
-      // Output sound energy level for moon orb pulsation
       const rms = Math.sqrt(sumSquares / numSamples);
-      this.options.onOutputAudioLevel?.(Math.min(1, rms * 3.5));
-      this.setModelSpeaking(true);
+      const normalizedLevel = Math.min(1, rms * 4.5);
+      this.options.onOutputAudioLevel?.(normalizedLevel);
 
-      // Create AudioBuffer at 24kHz mono
       const audioBuffer = this.outputAudioCtx.createBuffer(1, numSamples, 24000);
-      audioBuffer.getChannelData(0).set(float32);
+      audioBuffer.copyToChannel(float32, 0);
 
-      const sourceNode = this.outputAudioCtx.createBufferSource();
-      sourceNode.buffer = audioBuffer;
-      sourceNode.connect(this.outputAudioCtx.destination);
+      const source = this.outputAudioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.outputAudioCtx.destination);
 
       const currentTime = this.outputAudioCtx.currentTime;
-      const startTime = Math.max(this.nextPlayTime, currentTime);
-      sourceNode.start(startTime);
+      if (this.nextPlayTime < currentTime) {
+        this.nextPlayTime = currentTime;
+      }
 
-      this.nextPlayTime = startTime + audioBuffer.duration;
-      this.activeAudioSources.push(sourceNode);
+      source.start(this.nextPlayTime);
+      this.nextPlayTime += audioBuffer.duration;
+      this.activeAudioSources.push(source);
 
-      sourceNode.onended = () => {
-        const index = this.activeAudioSources.indexOf(sourceNode);
-        if (index > -1) {
-          this.activeAudioSources.splice(index, 1);
+      this.setModelSpeaking(true);
+
+      source.onended = () => {
+        const idx = this.activeAudioSources.indexOf(source);
+        if (idx > -1) {
+          this.activeAudioSources.splice(idx, 1);
         }
         if (this.activeAudioSources.length === 0) {
           this.setModelSpeaking(false);
@@ -451,34 +517,33 @@ VOICE & INTERACTION GUIDELINES:
     }
   }
 
-  public getMuteState(): boolean {
-    return this.isMuted;
-  }
-
   /**
-   * Stops microphone capture.
+   * Stops microphone audio streaming.
    */
   private stopMicrophoneCapture(): void {
-    if (this.processorNode) {
-      try {
-        this.processorNode.disconnect();
-      } catch {}
-      this.processorNode = null;
+    if (this.micStream) {
+      this.micStream.getTracks().forEach((track) => track.stop());
+      this.micStream = null;
     }
-
+    if (this.workletNode) {
+      try {
+        this.workletNode.disconnect();
+      } catch {}
+      this.workletNode = null;
+    }
+    if (this.legacyProcessorNode) {
+      try {
+        this.legacyProcessorNode.disconnect();
+      } catch {}
+      this.legacyProcessorNode = null;
+    }
     if (this.micSourceNode) {
       try {
         this.micSourceNode.disconnect();
       } catch {}
       this.micSourceNode = null;
     }
-
-    if (this.micStream) {
-      this.micStream.getTracks().forEach((track) => track.stop());
-      this.micStream = null;
-    }
-
-    if (this.inputAudioCtx && this.inputAudioCtx.state !== 'closed') {
+    if (this.inputAudioCtx) {
       try {
         void this.inputAudioCtx.close();
       } catch {}
@@ -487,14 +552,14 @@ VOICE & INTERACTION GUIDELINES:
   }
 
   /**
-   * Closes the entire Gemini Live Session.
+   * Disconnects the live session cleanly.
    */
   public disconnect(): void {
     this.isConnected = false;
     this.stopAudioPlayback();
     this.stopMicrophoneCapture();
 
-    if (this.outputAudioCtx && this.outputAudioCtx.state !== 'closed') {
+    if (this.outputAudioCtx) {
       try {
         void this.outputAudioCtx.close();
       } catch {}
