@@ -373,15 +373,15 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         )}
         <div className="w-full flex items-end gap-2 relative">
           {!isRecording && !isLocked && (
-            <div className="flex-1 min-h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#009EE2]/20 focus-within:border-[#009EE2]/50">
+            <div className="flex-1 min-h-[50px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex items-center px-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500/50">
               <div className="relative flex items-center h-full">
-                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-[#A0ABC0]">
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStickerClick} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full text-slate-400">
+                  <i className="bi bi-emoji-smile text-xl"></i>
                 </button>
                 {showStickerPopup && (
-                  <div className="absolute -top-10 left-2 bg-white  dark:text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
+                  <div className="absolute -top-10 left-2 bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
                     Coming soon
-                    <div className="absolute -bottom-1 left-4 w-2 h-2 bg-white rotate-45"></div>
+                    <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
                   </div>
                 )}
               </div>
@@ -392,50 +392,50 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                   onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
                   onKeyDown={(e) => e.key === 'Enter' && executeTextSend()}
                   placeholder="Message"
-                  className="w-full h-full bg-transparent text-[17px] text-black dark:text-white placeholder-[#80868B] outline-none border-none focus:ring-0 pl-1 pr-2"
+                  className="w-full h-full bg-transparent text-[17px] text-slate-900 dark:text-white placeholder-slate-400 outline-none border-none focus:ring-0 pl-1 pr-2"
                 />
               </div>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-[#A0ABC0]">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-10 h-full text-slate-400">
+                <i className="bi bi-paperclip text-xl"></i>
               </button>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-[#A0ABC0]">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => imageInputRef.current?.click()} className="hover:opacity-85 transition active:scale-90 flex items-center justify-center w-11 h-full pr-1 text-slate-400">
+                <i className="bi bi-image text-xl"></i>
               </button>
             </div>
           )}
 
           {isRecording && !isLocked && (
-            <div className="flex-1 h-[50px] bg-white dark:bg-[#202C33] rounded-3xl flex items-center shadow-sm relative overflow-hidden">
+            <div className="flex-1 h-[50px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex items-center shadow-sm relative overflow-hidden">
               <div className="flex items-center h-full w-full">
-                <div className="pl-5 w-20 text-[18px] text-white tabular-nums font-normal">
+                <div className="pl-5 w-20 text-[18px] text-slate-900 dark:text-white tabular-nums font-normal">
                   {formatTime(recordDuration)}
                 </div>
                 <div className="flex-1 flex items-center justify-end pr-14 z-10 transition-transform duration-75" style={{ transform: `translateX(${swipeDeltaX * 0.8}px)` }}>
-                  <span className="text-[15px] font-normal text-[#A0ABC0] flex items-center gap-1.5">
+                  <span className="text-[15px] font-normal text-slate-400 flex items-center gap-1.5">
                     <span className="inline-block font-bold text-lg text-slate-400">&lt;</span> Slide to cancel
                   </span>
                 </div>
               </div>
-              <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-[#121A2F]/40 to-transparent w-24 pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-slate-900/40 to-transparent w-24 pointer-events-none" />
             </div>
           )}
 
           {isLocked && (
-            <div className="flex-1 bg-white dark:bg-[#202C33] rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative">
+            <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden flex flex-col justify-center py-2 px-2 h-[86px] shadow-sm relative">
               <div className="flex items-center justify-between mb-4 px-3 w-full">
-                <span className="text-[17px] text-black dark:text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
+                <span className="text-[17px] text-slate-900 dark:text-white tabular-nums font-normal">{formatTime(recordDuration)}</span>
                 <div className="flex-1 mx-3 flex items-center gap-[3px]">
                   {[...Array(24)].map((_, i) => (
-                    <div key={i} className="w-[3px] rounded-full bg-[#009EE2] animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
+                    <div key={i} className="w-[3px] rounded-full bg-amber-500 animate-pulse" style={{ height: `${Math.max(4, Math.random() * 16)}px`, animationDelay: `${i * 0.05}s` }} />
                   ))}
                 </div>
               </div>
               <div className="flex items-center justify-between px-3 w-full">
-                <button onClick={discardVoice} className="w-7 h-7 flex items-center justify-center text-[#A0ABC0] active:scale-90 transition-transform">
-                  <Trash2 className="w-5 h-5" />
+                <button onClick={discardVoice} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-transform cursor-pointer">
+                  <i className="bi bi-trash text-lg"></i>
                 </button>
-                <button onClick={() => stopRecording(true)} className="w-8 h-8 rounded-full bg-[#009EE2] text-white flex items-center justify-center hover:scale-105 transition-transform">
-                  <Send className="w-4 h-4 ml-1" />
+                <button onClick={() => stopRecording(true)} className="w-8 h-8 rounded-full bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer">
+                  <i className="bi bi-send-fill text-xs"></i>
                 </button>
               </div>
             </div>
@@ -443,8 +443,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 
           <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
             {hasText || attachedImage ? (
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-[#009EE2]">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white dark:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-slate-900 dark:bg-amber-500 cursor-pointer">
+                <i className="bi bi-send-fill text-lg"></i>
               </button>
             ) : (
               <button
@@ -457,9 +457,9 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
                 onMouseLeave={handleVoiceRelease}
                 onTouchEnd={handleVoiceRelease}
                 onTouchCancel={handleVoiceRelease}
-                className={`w-[50px] h-[50px] rounded-full flex items-center justify-center shadow-md transition-all duration-100 outline-none select-none ${isRecording ? 'bg-red-500 text-white scale-110' : 'bg-[#009EE2] text-white hover:brightness-95 active:scale-95'}`}
+                className={`w-[50px] h-[50px] rounded-full flex items-center justify-center shadow-md transition-all duration-100 outline-none select-none cursor-pointer ${isRecording ? 'bg-rose-600 text-white scale-110' : 'bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 hover:brightness-95 active:scale-95'}`}
               >
-                <Mic className="w-6 h-6" />
+                <i className="bi bi-mic-fill text-xl"></i>
               </button>
             )}
           </div>
