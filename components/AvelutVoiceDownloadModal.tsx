@@ -62,9 +62,8 @@ export const AvelutVoiceDownloadModal: React.FC<AvelutVoiceDownloadModalProps> =
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-5 text-amber-400 text-3xl sm:text-4xl shadow-inner relative">
                     <i className={`bi ${isReady ? 'bi-check-circle-fill text-emerald-400' : isError ? 'bi-exclamation-triangle-fill text-rose-400' : 'bi-mic-fill animate-pulse'}`}></i>
                     {isDownloading && (
-                        <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+                        <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+                            <span className="inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 border-2 border-[#181C20]"></span>
                         </span>
                     )}
                 </div>

@@ -138,7 +138,7 @@ const SidebarContent: React.FC<{
       <div className="flex-shrink-0">
         <div className={`mt-6 p-3 rounded-xl border relative ${isModal ? 'bg-slate-50 dark:bg-black dark:bg-slate-800/50 border-slate-100 dark:border-slate-700' : 'bg-white dark:bg-black/45 backdrop-blur-sm border-white/50 shadow-sm'}`}>
           {unreadCount > 0 && (
-             <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse ring-2 ring-white dark:ring-slate-800" title={`${unreadCount} unread notifications`} />
+             <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" title={`${unreadCount} unread notifications`} />
           )}
           <div className="flex items-center">
             <Avatar display_name={userProfile?.display_name || null} photo_url={userProfile?.photo_url} className="w-10 h-10 flex-shrink-0" />

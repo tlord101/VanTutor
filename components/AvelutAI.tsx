@@ -1558,7 +1558,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   <div className="flex justify-start mt-2 mb-2">
                     {uploadProgress ? (
                       <div className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-sm sm:max-w-[75%] rounded-tl-sm flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                         <span>{uploadProgress}</span>
                       </div>
                     ) : (

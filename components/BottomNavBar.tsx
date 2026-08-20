@@ -177,15 +177,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
           <path d={pathD} stroke="rgba(255, 255, 255, 0.45)" strokeWidth="1.8" fill="none" />
         </svg>
 
-        {/* Yellow Ambient Glow behind the Camera button */}
-        <div 
-          className="absolute -top-11 left-1/2 -translate-x-1/2 w-28 h-28 bg-[#FACC15]/35 rounded-full blur-2xl pointer-events-none z-10 animate-pulse" 
-          style={{ animationDuration: '4s' }}
-        />
-
         <button
           onClick={() => onCenterActionClick ? onCenterActionClick() : onItemClick(navItems[2].id)}
-          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-black border-[5px] border-[#002D62] dark:border-black flex items-center justify-center shadow-[0_8px_24px_rgba(0,45,98,0.18)] hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#002D62]/20 dark:ring-white/20 animate-pulse' : ''}`}
+          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-black border-[5px] border-[#002D62] dark:border-black flex items-center justify-center shadow-[0_8px_24px_rgba(0,45,98,0.18)] hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#002D62]/20 dark:ring-white/20' : ''}`}
         >
           {activeItem === 'visual_solver' ? (
             <ShutterIcon className="w-8 h-8 text-[#002D62] dark:text-gray-400" />

@@ -148,7 +148,7 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                         <div className="flex items-center gap-3 mt-1">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{allUsersList.length} Total Registered</p>
                             <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 {allUsersList.filter(u => u.is_online || (u.last_seen && Date.now() - u.last_seen < 5 * 60 * 1000)).length} Active Now
                             </span>
                         </div>

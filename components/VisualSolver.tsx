@@ -518,7 +518,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 <div className="flex items-center justify-between px-5 sm:px-8 pb-3 border-b border-slate-100 dark:border-slate-800/80">
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
                             <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">Step-By-Step Solution</p>
                         </div>
                         <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">Problem Breakdown</h3>

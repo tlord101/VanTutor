@@ -1,12 +1,12 @@
 /**
  * KittenWebGpuEngine.ts — On-Device KittenTTS Inference using WebGPU and ONNX Runtime Web
  *
- * Runs KittenTTS directly on the client's GPU via WebGPU execution provider with WASM fallback.
- * Loads ONNX runtime in browser without problematic native Node dependencies.
+ * Runs KittenTTS Micro (41 MB) directly on the client's GPU via WebGPU execution provider with WASM fallback.
+ * Encodes audio tensors into 24 kHz WAV audio blobs for seamless queue playback without browser TTS.
  */
 
 import { detectVoiceCapabilities } from './VoiceCapabilities';
-import { MODEL_SPECS, ModelManager, modelManager } from './ModelManager';
+import { MODEL_SPECS, modelManager } from './ModelManager';
 
 declare global {
     interface Window {
@@ -17,19 +17,56 @@ declare global {
 export interface WebGpuVoiceOptions {
     voice?: string;
     speed?: number;
+    cleanText?: boolean;
     onStart?: () => void;
     onEnd?: () => void;
     onError?: (err: any) => void;
+}
+
+function pcmToWavBlob(samples: Float32Array, sampleRate: number = 24000): Blob {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    // RIFF chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true); // 16-bit
+
+    // data sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, string: string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
 }
 
 export class KittenWebGpuEngine {
     private session: any = null;
     private isInitializing = false;
     private initPromise: Promise<boolean> | null = null;
-    private audioContext: AudioContext | null = null;
-    private currentSource: AudioBufferSourceNode | null = null;
+    private currentAudioElement: HTMLAudioElement | null = null;
     private activeSessionId = 0;
-    private voicesMap: Record<string, number[]> = {};
+    private audioCache = new Map<string, string>(); // Text -> Blob URL
 
     private async loadOrtScript(): Promise<any> {
         if (typeof window === 'undefined') return null;
@@ -41,7 +78,6 @@ export class KittenWebGpuEngine {
             script.crossOrigin = 'anonymous';
             script.onload = () => {
                 if (window.ort) {
-                    // Configure ONNX Web environment
                     window.ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 2);
                     window.ort.env.wasm.simd = true;
                     resolve(window.ort);
@@ -49,7 +85,7 @@ export class KittenWebGpuEngine {
                     reject(new Error('Failed to initialize ONNX Runtime Web.'));
                 }
             };
-            script.onerror = () => reject(new Error('Failed to load ONNX Runtime Web script from CDN.'));
+            script.onerror = () => reject(new Error('Failed to load ONNX Runtime Web script.'));
             document.head.appendChild(script);
         });
     }
@@ -65,7 +101,7 @@ export class KittenWebGpuEngine {
                 if (!ort) return false;
 
                 const capabilities = await detectVoiceCapabilities();
-                const modelType = 'mini'; // Locked to KittenTTS Mini 0.8 (24 kHz high-fidelity)
+                const modelType = 'micro';
                 const spec = MODEL_SPECS[modelType];
 
                 // Check cache or download model
@@ -117,52 +153,15 @@ export class KittenWebGpuEngine {
 
     public stop(): void {
         this.activeSessionId++;
-        if (this.currentSource) {
+        if (this.currentAudioElement) {
             try {
-                this.currentSource.stop();
-                this.currentSource.disconnect();
+                this.currentAudioElement.pause();
+                this.currentAudioElement.currentTime = 0;
             } catch {}
-            this.currentSource = null;
+            this.currentAudioElement = null;
         }
     }
 
-    /**
-     * Converts a raw PCM float32 array to an AudioBuffer and plays it.
-     */
-    private async playPcm(pcm: Float32Array, sampleRate = 24000, options?: WebGpuVoiceOptions): Promise<void> {
-        if (typeof window === 'undefined') return;
-
-        if (!this.audioContext || this.audioContext.state === 'closed') {
-            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-            this.audioContext = new AudioCtx({ sampleRate });
-        }
-
-        if (this.audioContext.state === 'suspended') {
-            await this.audioContext.resume();
-        }
-
-        const buffer = this.audioContext.createBuffer(1, pcm.length, sampleRate);
-        buffer.copyToChannel(pcm, 0);
-
-        const source = this.audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(this.audioContext.destination);
-        this.currentSource = source;
-
-        source.onended = () => {
-            if (this.currentSource === source) {
-                this.currentSource = null;
-                options?.onEnd?.();
-            }
-        };
-
-        options?.onStart?.();
-        source.start(0);
-    }
-
-    /**
-     * Simple character-level phoneme tokenizer for KittenTTS onnx models
-     */
     private tokenize(text: string): number[] {
         const tokens: number[] = [];
         for (let i = 0; i < text.length; i++) {
@@ -173,29 +172,24 @@ export class KittenWebGpuEngine {
     }
 
     /**
-     * Synthesizes and plays speech using WebGPU ONNX Runtime model.
+     * Synthesizes audio for a single sentence and returns a playable WAV Blob URL.
      */
-    public async speak(text: string, options?: WebGpuVoiceOptions): Promise<{ stop: () => void }> {
-        this.stop();
-        const sessionId = ++this.activeSessionId;
+    public async generateAudioBlobUrl(text: string, voice = 'Bella', speed = 1.2): Promise<string | null> {
+        if (!text || !text.trim()) return null;
+        const normalized = text.trim();
 
-        const stop = () => {
-            if (this.activeSessionId === sessionId) {
-                this.stop();
-            }
-        };
+        if (this.audioCache.has(normalized)) {
+            return this.audioCache.get(normalized)!;
+        }
 
         try {
-            const isReady = await this.initialize();
-            if (!isReady || !this.session || this.activeSessionId !== sessionId) {
-                throw new Error('WebGPU session not available');
-            }
+            await this.initialize();
+            if (!this.session || !window.ort) return null;
 
-            const tokens = this.tokenize(text);
+            const tokens = this.tokenize(normalized);
             const inputTensor = new window.ort.Tensor('int64', BigInt64Array.from(tokens.map(t => BigInt(t))), [1, tokens.length]);
             
-            // Default speaker vector (Bella)
-            const speakerData = new Float32Array(128).fill(0.1);
+            const speakerData = new Float32Array(128).fill(0.12);
             const speakerTensor = new window.ort.Tensor('float32', speakerData, [1, 128]);
 
             const feeds: Record<string, any> = {
@@ -206,22 +200,151 @@ export class KittenWebGpuEngine {
             const results = await this.session.run(feeds);
             const outputTensor = results.audio || results.output || Object.values(results)[0];
 
-            if (this.activeSessionId !== sessionId) return { stop };
-
             if (outputTensor && outputTensor.data) {
                 const pcm = outputTensor.data instanceof Float32Array 
                     ? outputTensor.data 
                     : new Float32Array(outputTensor.data);
-                await this.playPcm(pcm, 24000, options);
-            } else {
-                throw new Error('Invalid audio tensor produced by KittenTTS WebGPU model');
+                
+                const blob = pcmToWavBlob(pcm, 24000);
+                const url = URL.createObjectURL(blob);
+                this.audioCache.set(normalized, url);
+                return url;
             }
         } catch (err) {
-            console.warn('[KittenWebGpuEngine] Speech synthesis error, routing to fallback:', err);
-            if (this.activeSessionId === sessionId) {
-                options?.onError?.(err);
-            }
+            console.warn('[KittenWebGpuEngine] Sentence synthesis error:', err);
         }
+
+        return null;
+    }
+
+    /**
+     * Normalizes LaTeX math, Greek letters, and formulas into spoken phonemes.
+     */
+    public normalizeMathForSpeech(text: string): string {
+        if (!text) return '';
+        return text
+            .replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ')
+            .replace(/\$([^\$]+)\$/g, ' $1 ')
+            .replace(/\\text\{([^\}]+)\}/g, '$1')
+            .replace(/\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '$1 over $2')
+            .replace(/\\sqrt\{([^\}]+)\}/g, 'square root of $1')
+            .replace(/v_f/g, 'v final')
+            .replace(/v_i/g, 'v initial')
+            .replace(/F_\{net\}|F_net/g, 'net force')
+            .replace(/\\theta/g, 'theta')
+            .replace(/\\Delta/g, 'delta ')
+            .replace(/\\alpha/g, 'alpha')
+            .replace(/\\beta/g, 'beta')
+            .replace(/\\pi/g, 'pi')
+            .replace(/\^2/g, ' squared')
+            .replace(/\^3/g, ' cubed')
+            .replace(/m\/s\^2|\\text\{m\/s\}\^2/g, 'meters per second squared')
+            .replace(/m\/s|\\text\{m\/s\}/g, 'meters per second')
+            .replace(/kg/g, 'kilograms')
+            .replace(/=/g, ' equals ')
+            .replace(/\+/g, ' plus ')
+            .replace(/-/g, ' minus ')
+            .replace(/\*/g, ' times ')
+            .replace(/#/g, '')
+            .replace(/\*\*/g, '')
+            .replace(/\[\/?(diagram|visual|table|highlight)\]/gi, '')
+            .replace(/`{1,3}[^`]*`{1,3}/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    public splitIntoSentences(text: string): string[] {
+        if (!text) return [];
+        return text
+            .split(/(?<=[.!?])\s+|\n+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    }
+
+    /**
+     * Synthesizes and plays speech using background sentence queueing with KittenTTS Micro.
+     */
+    public speak(
+        text: string,
+        options?: WebGpuVoiceOptions
+    ): { stop: () => void } {
+        this.stop();
+
+        const spokenText = options?.cleanText !== false ? this.normalizeMathForSpeech(text) : text;
+        if (!spokenText) {
+            options?.onEnd?.();
+            return { stop: () => {} };
+        }
+
+        const sessionId = ++this.activeSessionId;
+        const sentences = this.splitIntoSentences(spokenText);
+        let isStopped = false;
+        let hasFiredStart = false;
+
+        const stop = () => {
+            isStopped = true;
+            if (this.activeSessionId === sessionId) {
+                this.activeSessionId++;
+            }
+            if (this.currentAudioElement) {
+                try {
+                    this.currentAudioElement.pause();
+                    this.currentAudioElement.currentTime = 0;
+                } catch {}
+                this.currentAudioElement = null;
+            }
+        };
+
+        // Queue-based audio playback loop
+        const playSentence = async (index: number) => {
+            if (isStopped || this.activeSessionId !== sessionId) return;
+
+            if (index >= sentences.length) {
+                options?.onEnd?.();
+                return;
+            }
+
+            const sentence = sentences[index];
+            const audioUrl = await this.generateAudioBlobUrl(sentence, options?.voice || 'Bella', options?.speed || 1.2);
+
+            if (isStopped || this.activeSessionId !== sessionId) return;
+
+            if (audioUrl) {
+                const audio = new Audio(audioUrl);
+                audio.playbackRate = options?.speed || 1.2;
+                this.currentAudioElement = audio;
+
+                audio.onplay = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    if (!hasFiredStart) {
+                        hasFiredStart = true;
+                        options?.onStart?.();
+                    }
+                };
+
+                audio.onended = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    this.currentAudioElement = null;
+                    void playSentence(index + 1);
+                };
+
+                audio.onerror = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    this.currentAudioElement = null;
+                    void playSentence(index + 1);
+                };
+
+                try {
+                    await audio.play();
+                } catch {
+                    void playSentence(index + 1);
+                }
+            } else {
+                void playSentence(index + 1);
+            }
+        };
+
+        void playSentence(0);
 
         return { stop };
     }

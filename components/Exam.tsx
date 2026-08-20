@@ -893,7 +893,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
                     </div>
                     
                     <div className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border ${timeLeft < 30 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-lime-50/50 border-lime-100 text-lime-700'}`}>
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${timeLeft < 30 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-lime-500 shadow-[0_0_8px_rgba(132,204,22,0.6)]'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${timeLeft < 30 ? 'bg-red-500' : 'bg-lime-500'}`}></div>
                         <span className="font-black tracking-widest tabular-nums">
                             {Math.floor(timeLeft / 60)}:{('0' + (timeLeft % 60)).slice(-2)}
                         </span>

@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
                             </h2>
                             {userProfile?.use_personal_token && userProfile?.personal_api_key && (
                                 <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                     AI Token Active
                                 </span>
                             )}
@@ -117,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <i className="bi bi-bell text-lg"></i>
                             {unreadCount > 0 && (
                                 <div className="absolute top-1.5 right-1.5">
-                                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                    <span className="flex h-2 w-2 rounded-full bg-amber-500" />
                                 </div>
                             )}
                         </button>

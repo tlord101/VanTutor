@@ -1668,7 +1668,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             <p className="text-[12px] text-[#6C757D] dark:text-gray-400 font-normal mt-0.5 flex items-center">
               {activeChat.otherUser.is_online ? (
                 <>
-                  <span className="w-1.5 h-1.5 bg-[#28A745] rounded-full mr-1 animate-pulse"></span>
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span>
                   <span className="text-[#28A745]">Online</span>
                 </>
               ) : formatLastSeen(activeChat.otherUser.last_seen)}
