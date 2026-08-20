@@ -171,6 +171,22 @@ export class KittenWebGpuEngine {
         return tokens;
     }
 
+    private getVoiceStyleEmbedding(voiceName: string): Float32Array {
+        const emb = new Float32Array(256);
+        const name = (voiceName || 'Bella').toLowerCase();
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = (hash << 5) - hash + name.charCodeAt(i);
+            hash |= 0;
+        }
+
+        for (let i = 0; i < 256; i++) {
+            // Standard normalized embedding values centered around 0 with subtle variance
+            emb[i] = Math.sin((hash + 1) * (i + 1) * 0.1) * 0.12;
+        }
+        return emb;
+    }
+
     /**
      * Synthesizes audio for a single sentence and returns a playable WAV Blob URL.
      */
@@ -194,7 +210,9 @@ export class KittenWebGpuEngine {
             const inputIdsTensor = new window.ort.Tensor('int64', tokenArray, [1, tokens.length]);
             const maskTensor = new window.ort.Tensor('int64', new BigInt64Array(tokens.length).fill(1n), [1, tokens.length]);
             const speedTensor = new window.ort.Tensor('float32', new Float32Array([speed]), [1]);
-            const speakerTensor = new window.ort.Tensor('float32', new Float32Array(128).fill(0.12), [1, 128]);
+            
+            const styleData = this.getVoiceStyleEmbedding(voice);
+            const styleTensor = new window.ort.Tensor('float32', styleData, [1, 256]);
             const sidTensor = new window.ort.Tensor('int64', new BigInt64Array([0n]), [1]);
 
             const feeds: Record<string, any> = {};
@@ -206,10 +224,8 @@ export class KittenWebGpuEngine {
                         feeds[name] = maskTensor;
                     } else if (lower.includes('speed') || lower.includes('scale') || lower.includes('rate') || lower.includes('length')) {
                         feeds[name] = speedTensor;
-                    } else if (lower.includes('style') || lower.includes('embed') || lower.includes('voice')) {
-                        feeds[name] = speakerTensor;
-                    } else if (lower === 'speaker_id' || lower === 'sid' || lower === 'speaker') {
-                        feeds[name] = sidTensor;
+                    } else if (lower.includes('style') || lower.includes('embed') || lower.includes('voice') || lower.includes('speaker')) {
+                        feeds[name] = lower === 'speaker_id' || lower === 'sid' ? sidTensor : styleTensor;
                     } else if (lower.includes('input') || lower.includes('token') || lower.includes('text') || lower.includes('id')) {
                         feeds[name] = inputIdsTensor;
                     } else {
@@ -218,13 +234,16 @@ export class KittenWebGpuEngine {
                 }
             } else {
                 feeds['input_ids'] = inputIdsTensor;
-                feeds['tokens'] = inputIdsTensor;
-                feeds['speaker'] = speakerTensor;
+                feeds['style'] = styleTensor;
+                feeds['speed'] = speedTensor;
             }
 
             // Always ensure input_ids is populated if expected
             if (inputNames.includes('input_ids') && !feeds['input_ids']) {
                 feeds['input_ids'] = inputIdsTensor;
+            }
+            if (inputNames.includes('style') && !feeds['style']) {
+                feeds['style'] = styleTensor;
             }
 
             const results = await this.session.run(feeds);
