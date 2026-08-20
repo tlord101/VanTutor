@@ -63,7 +63,7 @@ class KittenTtsService {
     private isDownloading = false;
     private downloadProgress = 100;
     private isDownloaded = true;
-    private selectedVoice: KittenVoice = KittenVoice.Rosie;
+    private selectedVoice: KittenVoice = KittenVoice.Bella;
     private listeners: Array<(status: KittenModelStatus) => void> = [];
     private currentUtterance: SpeechSynthesisUtterance | null = null;
     private currentAudioElement: HTMLAudioElement | null = null;
@@ -74,7 +74,7 @@ class KittenTtsService {
     private isApiReachable = true;
 
     constructor() {
-        this.checkStoredStatus();
+        this.selectedVoice = KittenVoice.Bella;
         this.initVoiceCache();
     }
 
@@ -119,22 +119,8 @@ class KittenTtsService {
         }
     }
 
-    private checkStoredStatus() {
-        try {
-            const raw = localStorage.getItem(KITTEN_STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed.selectedVoice && Object.values(KittenVoice).includes(parsed.selectedVoice)) {
-                    this.selectedVoice = parsed.selectedVoice;
-                }
-            }
-        } catch {
-            this.selectedVoice = KittenVoice.Rosie;
-        }
-    }
-
     public getSelectedVoice(): KittenVoice {
-        return this.selectedVoice;
+        return KittenVoice.Bella;
     }
 
     public getStatus(): KittenModelStatus {
@@ -143,8 +129,8 @@ class KittenTtsService {
             isDownloading: false,
             progress: 100,
             error: null,
-            modelName: `KittenTTS Mini 0.8 (24 kHz ${this.selectedVoice})`,
-            selectedVoice: this.selectedVoice,
+            modelName: 'KittenTTS Mini 0.8 (Bella)',
+            selectedVoice: KittenVoice.Bella,
         };
     }
 
@@ -546,4 +532,7 @@ class KittenTtsService {
 }
 
 export const kittenTts = new KittenTtsService();
+export { avelutVoice, AvelutVoiceEngine } from './voice/AvelutVoiceEngine';
+export { modelManager } from './voice/ModelManager';
+
 

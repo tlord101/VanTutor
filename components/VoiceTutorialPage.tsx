@@ -25,7 +25,9 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
-import { kittenTts, KittenVoice, KITTEN_VOICE_LIST } from '../services/kittenTtsService';
+import { avelutVoice } from '../services/voice/AvelutVoiceEngine';
+import { AvelutVoiceDownloadModal } from './AvelutVoiceDownloadModal';
+
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BOARD_LINES = 6;
@@ -717,22 +719,22 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     // ── Audio / Mic / Input / Image Attachment ────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(() => avelutVoice.getStatus().isMuted);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [isMicListening, setIsMicListening] = useState(false);
     const [textInput, setTextInput] = useState('');
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
     const [micDisplay, setMicDisplay] = useState('');
-    const [selectedVoice, setSelectedVoice] = useState<KittenVoice>(() => kittenTts.getSelectedVoice());
-    const [showVoiceModal, setShowVoiceModal] = useState(false);
-    const [previewingVoice, setPreviewingVoice] = useState<KittenVoice | null>(null);
-    const previewPlayerRef = useRef<{ stop: () => void } | null>(null);
+    const [showVoiceDownloadModal, setShowVoiceDownloadModal] = useState(() => avelutVoice.getStatus().state === 'NOT_INSTALLED');
 
-    // ── Subscribe to voice updates ────────────────────────────────────────
+    // ── Subscribe to Avelut Voice Engine updates ──────────────────────────
     useEffect(() => {
-        const unsubscribe = kittenTts.subscribe((status) => {
-            setSelectedVoice(status.selectedVoice);
+        const unsubscribe = avelutVoice.subscribe((status) => {
+            setIsMuted(status.isMuted);
+            if (status.state === 'NOT_INSTALLED') {
+                setShowVoiceDownloadModal(true);
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -2572,7 +2574,7 @@ OUTPUT VALID JSON ONLY:
                     </span>
                 </div>
 
-                {/* Top Right: Voice Dropdown & Mute Controls */}
+                {/* Top Right: Scanned Problem & Audio Controls */}
                 <div className="flex items-center gap-2 shrink-0">
                     {sessionData?.image && (
                         <button
@@ -2585,24 +2587,14 @@ OUTPUT VALID JSON ONLY:
                         </button>
                     )}
 
-                    {/* Voice Selection Dropdown Button */}
-                    <button
-                        onClick={() => setShowVoiceModal(prev => !prev)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white shadow-xs transition-all cursor-pointer active:scale-95"
-                        title="Choose Tutor Voice (8 KittenTTS Models)"
-                    >
-                        <i className="bi bi-mic-fill text-amber-400 text-xs"></i>
-                        <span>{selectedVoice}</span>
-                        <i className={`bi bi-chevron-${showVoiceModal ? 'up' : 'down'} text-[10px] text-amber-400`}></i>
-                    </button>
-
-                    {/* Mute Button */}
+                    {/* Mute / Audio Toggle Button */}
                     <button
                         onClick={toggleMute}
-                        className="p-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors active:scale-95"
-                        title={isMuted ? 'Unmute' : 'Mute'}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors active:scale-95"
+                        title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
                     >
-                        <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-red-400' : 'bi-volume-up'} text-sm`}></i>
+                        <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-rose-400' : 'bi-volume-up text-amber-400'} text-sm`}></i>
+                        <span className="text-[11px] text-slate-200 hidden sm:inline">{isMuted ? 'Muted' : 'Avelut Voice'}</span>
                     </button>
                 </div>
             </header>
@@ -3042,119 +3034,12 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Voice Selection Dropdown Modal (8 KittenTTS Voices) ───────── */}
-            {showVoiceModal && (
-                <div
-                    onClick={() => {
-                        if (previewPlayerRef.current) {
-                            previewPlayerRef.current.stop();
-                            previewPlayerRef.current = null;
-                        }
-                        setPreviewingVoice(null);
-                        setShowVoiceModal(false);
-                    }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer animate-fade-in"
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-[#FAF7F2] border border-[#E5DACD] rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-[#2C241D] animate-scale-in max-h-[90vh] overflow-y-auto [scrollbar-width:thin]"
-                    >
-                        <div className="flex items-center justify-between border-b border-[#E5DACD] pb-3 shrink-0">
-                            <div>
-                                <h3 className="font-extrabold text-base text-[#2C241D] flex items-center gap-2">
-                                    <i className="bi bi-mic-fill text-[#8B5A2B]"></i>
-                                    <span>Select AI Tutor Voice</span>
-                                </h3>
-                                <p className="text-xs text-[#7A6B5C] mt-0.5">
-                                    8 High-Fidelity 24 kHz KittenTTS Models · Click ▶ to preview
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    if (previewPlayerRef.current) {
-                                        previewPlayerRef.current.stop();
-                                        previewPlayerRef.current = null;
-                                    }
-                                    setPreviewingVoice(null);
-                                    setShowVoiceModal(false);
-                                }}
-                                className="w-8 h-8 rounded-full bg-[#EFE5D8] hover:bg-[#E5D7C5] text-[#5A4D3E] flex items-center justify-center cursor-pointer transition-colors"
-                            >
-                                <i className="bi bi-x-lg text-xs"></i>
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-1">
-                            {KITTEN_VOICE_LIST.map((v) => {
-                                const isSelected = selectedVoice === v.id;
-                                const isPreviewing = previewingVoice === v.id;
-
-                                return (
-                                    <div
-                                        key={v.id}
-                                        onClick={() => handleSelectVoice(v.id)}
-                                        className={`flex flex-col justify-between p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs ${
-                                            isSelected
-                                                ? 'bg-[#EFE5D8] border-[#8B5A2B] ring-2 ring-[#8B5A2B]/20'
-                                                : 'bg-[#FFFDFB] hover:bg-[#F6EFE6] border-[#DFD1C0]'
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                                                    v.gender === 'female' ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                                                }`}>
-                                                    {v.name[0]}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <span className="font-extrabold text-sm text-[#2C241D] block truncate">
-                                                        {v.name}
-                                                    </span>
-                                                    <span className="text-[10px] text-[#7A6B5C] block truncate">
-                                                        {v.tone}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {isSelected && (
-                                                <span className="px-2 py-0.5 rounded-full bg-[#8B5A2B] text-white text-[10px] font-extrabold shrink-0">
-                                                    Active
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[#EFE5D8]">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handlePreviewVoice(v.id, e)}
-                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                                                    isPreviewing
-                                                        ? 'bg-amber-600 text-white animate-pulse'
-                                                        : 'bg-[#EAE0D2] hover:bg-[#DFD1C0] text-[#5A4D3E]'
-                                                }`}
-                                                title={`Preview ${v.name} voice`}
-                                            >
-                                                <i className={`bi ${isPreviewing ? 'bi-stop-fill text-xs' : 'bi-play-fill text-sm'}`}></i>
-                                                <span>{isPreviewing ? 'Stop' : 'Preview'}</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleSelectVoice(v.id)}
-                                                className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors ${
-                                                    isSelected ? 'text-[#8B5A2B]' : 'text-[#7A6B5C] hover:text-[#2C241D]'
-                                                }`}
-                                            >
-                                                {isSelected ? '✓ Selected' : 'Choose'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* ── Avelut Voice Installation Modal ────────────────────────────── */}
+            <AvelutVoiceDownloadModal
+                isOpen={showVoiceDownloadModal}
+                onClose={() => setShowVoiceDownloadModal(false)}
+                onReady={() => setShowVoiceDownloadModal(false)}
+            />
 
             {/* ── Limit Exceeded Modal (Upgrade Account / Buy Credits) ────────── */}
             <LimitExceededModal
