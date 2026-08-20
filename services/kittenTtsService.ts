@@ -376,30 +376,8 @@ class KittenTtsService {
     }
 
     /**
-     * Preview sample audio for any of the 8 KittenTTS voices
-     */
-    public previewVoice(
-        voice: KittenVoice,
-        options?: {
-            onStart?: () => void;
-            onEnd?: () => void;
-            onError?: (err: any) => void;
-        }
-    ): { stop: () => void } {
-        const meta = KITTEN_VOICE_LIST.find(v => v.id === voice) || KITTEN_VOICE_LIST[0];
-        return this.speak(meta.sampleText, {
-            voice,
-            rate: 1.0,
-            cleanText: false,
-            onStart: options?.onStart,
-            onEnd: options?.onEnd,
-            onError: options?.onError,
-        });
-    }
-
-    /**
-     * Synthesize and speak text sentence-by-sentence in background pipeline using selected KittenTTS 24 kHz voice.
-     * Starts immediately upon synthesizing sentence 0 while pre-fetching subsequent sentences in background.
+     * Synthesize and speak text sentence-by-sentence locally on-device using tailored character voice pitch and rates.
+     * 100% on-device with zero network latency and no external API rate limits.
      */
     public speak(
         text: string,
@@ -452,74 +430,7 @@ class KittenTtsService {
             this.currentUtterance = null;
         };
 
-        // Cache of audio promises for sentences
-        const audioPromises = new Map<number, Promise<string | null>>();
-        const prefetchSentenceAudio = (index: number) => {
-            if (index >= sentences.length || audioPromises.has(index)) return;
-            const sent = sentences[index];
-            const p = this.fetchKittenMLAudio(sent, options?.rate || 1.0, voiceToUse, 1);
-            audioPromises.set(index, p);
-        };
-
-        // Immediately start prefetching sentence 0 and sentence 1
-        prefetchSentenceAudio(0);
-        if (sentences.length > 1) {
-            prefetchSentenceAudio(1);
-        }
-
-        const playSentenceIndex = async (index: number) => {
-            if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-
-            if (index >= sentences.length) {
-                this.currentAudioElement = null;
-                options?.onEnd?.();
-                return;
-            }
-
-            // Prefetch upcoming sentences
-            prefetchSentenceAudio(index + 1);
-            prefetchSentenceAudio(index + 2);
-
-            const sentenceText = sentences[index];
-            const audioUrl = await (audioPromises.get(index) || this.fetchKittenMLAudio(sentenceText, options?.rate || 1.0, voiceToUse, 1));
-
-            if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-
-            if (audioUrl) {
-                try {
-                    const audio = new Audio(audioUrl);
-                    this.currentAudioElement = audio;
-
-                    audio.onplay = () => {
-                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        if (!hasFiredStart) {
-                            hasFiredStart = true;
-                            options?.onStart?.();
-                        }
-                    };
-
-                    audio.onended = () => {
-                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        void playSentenceIndex(index + 1);
-                    };
-
-                    audio.onerror = () => {
-                        if (isStopped || this.activePlaybackSessionId !== sessionId) return;
-                        playFallbackSentence(index);
-                    };
-
-                    await audio.play();
-                    return;
-                } catch (err) {
-                    console.warn('[KittenTTS] Sentence play error, fallback:', err);
-                }
-            }
-
-            // Fallback for this single sentence
-            playFallbackSentence(index);
-        };
-
-        const playFallbackSentence = (index: number) => {
+        const playSentenceIndex = (index: number) => {
             if (isStopped || this.activePlaybackSessionId !== sessionId) return;
 
             if (index >= sentences.length) {
@@ -533,8 +444,8 @@ class KittenTtsService {
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
                 try {
                     const utterance = new SpeechSynthesisUtterance(sentenceText);
-                    utterance.rate = 1.0;
-                    utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.95 : 1.02;
+                    utterance.rate = options?.rate || 1.0;
+                    utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.94 : 1.04;
 
                     const matchedVoice = this.getVoiceForCharacter(voiceToUse);
                     if (matchedVoice) utterance.voice = matchedVoice;
@@ -553,7 +464,7 @@ class KittenTtsService {
                         void playSentenceIndex(index + 1);
                     };
 
-                    utterance.onerror = (e) => {
+                    utterance.onerror = () => {
                         if (isStopped || this.activePlaybackSessionId !== sessionId) return;
                         this.currentUtterance = null;
                         void playSentenceIndex(index + 1);
@@ -563,7 +474,7 @@ class KittenTtsService {
                     window.speechSynthesis.speak(utterance);
                     return;
                 } catch (err) {
-                    console.warn('[KittenTTS] Fallback utterance error:', err);
+                    console.warn('[LocalTTS] Utterance error:', err);
                 }
             }
 
@@ -573,23 +484,6 @@ class KittenTtsService {
         void playSentenceIndex(0);
 
         return { stop };
-    }
-
-    public stop(): void {
-        this.activePlaybackSessionId++;
-        if (this.currentAudioElement) {
-            try {
-                this.currentAudioElement.pause();
-                this.currentAudioElement.currentTime = 0;
-            } catch {}
-            this.currentAudioElement = null;
-        }
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            try {
-                window.speechSynthesis.cancel();
-            } catch {}
-        }
-        this.currentUtterance = null;
     }
 }
 

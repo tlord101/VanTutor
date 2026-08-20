@@ -2666,19 +2666,14 @@ OUTPUT VALID JSON ONLY:
         };
     }, [setCustomHeaderConfig, sessionData, currentConcept, conceptIdx, totalConcepts, isMuted, isNavigatingBack, handleGoBack]);
 
-    // Helper to render embedded diagram directly inside the blackboard
+    // Helper to render embedded diagram directly inside the blackboard (clean, diagram-only, space-efficient)
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div className="w-full my-2 flex flex-col items-center justify-center bg-transparent border-0 shadow-none animate-fade-in transition-all">
-                {activeVisualCaption && (
-                    <span className="text-[11px] font-mono font-bold text-amber-400 mb-1 tracking-wider uppercase">
-                        {activeVisualCaption}
-                    </span>
-                )}
+            <div className="w-full my-1 flex items-center justify-center bg-transparent border-0 shadow-none animate-fade-in transition-all">
                 <div
                     key={`svg-${diagramKey}`}
-                    className="w-full max-h-[260px] sm:max-h-[320px] flex items-center justify-center py-1 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[260px] sm:[&>svg]:max-h-[320px]"
+                    className="w-full max-h-[190px] sm:max-h-[230px] flex items-center justify-center py-0.5 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[190px] sm:[&>svg]:max-h-[230px]"
                     dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                 />
             </div>
