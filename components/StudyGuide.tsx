@@ -620,15 +620,15 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             aria-label="Close modal"
                             title="Close"
                         >
-                            <X className="w-5 h-5" />
+                            <i className="bi bi-x-lg text-sm"></i>
                         </button>
                     </div>
 
                     <div className="p-4 overflow-y-auto space-y-3 flex-1 [scrollbar-width:thin]">
                         {coursePinned.length > 0 && (
                             <div className="space-y-2 mb-4">
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                                    <Pin className="w-3.5 h-3.5" />
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                                    <i className="bi bi-pin-angle-fill text-xs"></i>
                                     <span>Pinned Topics</span>
                                 </div>
                                 {coursePinned.map((p) => (
