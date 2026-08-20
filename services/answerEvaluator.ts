@@ -204,14 +204,22 @@ IMPORTANT: Be encouraging but honest. If the student is wrong, classify the erro
             score: typeof parsed.score === 'number' ? parsed.score : (parsed.isCorrect ? 1.0 : 0.0),
         };
     } catch (err) {
-        console.warn('[AnswerEvaluator] AI evaluation failed:', err);
-        // Fallback: assume partially correct to avoid penalizing due to AI failure
+        console.warn('[AnswerEvaluator] AI evaluation fallback activated:', err);
+        // Smart fallback on network failure: fuzzy match student tokens against expected answer
+        const sClean = studentAnswer.toLowerCase().replace(/[^\w\s]/g, '');
+        const eClean = expectedAnswer.toLowerCase().replace(/[^\w\s]/g, '');
+        const eWords = eClean.split(/\s+/).filter(w => w.length > 3);
+        const matchCount = eWords.filter(w => sClean.includes(w)).length;
+        const isFuzzyCorrect = eWords.length > 0 && (matchCount / eWords.length >= 0.5);
+
         return {
-            isCorrect: false,
-            confidence: 0.3,
-            evaluatedLocally: false,
-            feedback: 'I had trouble evaluating your answer. Let\'s continue.',
-            score: 0.5,
+            isCorrect: isFuzzyCorrect,
+            confidence: 0.6,
+            evaluatedLocally: true,
+            feedback: isFuzzyCorrect
+                ? 'Great thinking! Your explanation touches on the core concept.'
+                : 'Good effort. Let us take a closer look at the key relationship here.',
+            score: isFuzzyCorrect ? 1.0 : 0.5,
         };
     }
 }

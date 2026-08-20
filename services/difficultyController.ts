@@ -38,17 +38,30 @@ export function createInitialDifficultyState(startingLevel: QuestionDifficulty =
  * Adjusts the current difficulty state based on recent student question execution.
  */
 export function recordQuestionPerformance(
-    state: DifficultyState,
-    performance: { correct: boolean; hintsUsed: number }
-): { newState: DifficultyState; levelChanged: 'increased' | 'decreased' | 'unchanged' } {
-    const { correct, hintsUsed } = performance;
-    let newLevel = state.currentLevel;
-    let consecutiveCorrect = state.consecutiveCorrect;
-    let consecutiveIncorrect = state.consecutiveIncorrect;
-    let levelChanged: 'increased' | 'decreased' | 'unchanged' = 'unchanged';
+    state: any,
+    performanceOrCorrect: boolean | { correct: boolean; hintsUsed?: number },
+    hintsUsedArg: boolean | number = 0,
+    _difficulty?: QuestionDifficulty
+): DifficultyState {
+    const rawState = state?.newState || state || {};
+    let newLevel: QuestionDifficulty = typeof rawState.currentLevel === 'number' ? rawState.currentLevel : 2;
+    let consecutiveCorrect = typeof rawState.consecutiveCorrect === 'number' ? rawState.consecutiveCorrect : 0;
+    let consecutiveIncorrect = typeof rawState.consecutiveIncorrect === 'number' ? rawState.consecutiveIncorrect : 0;
+    const history: DifficultyRecord[] = Array.isArray(rawState.history) ? rawState.history : [];
+
+    let correct: boolean;
+    let hintsUsed: number;
+
+    if (typeof performanceOrCorrect === 'object' && performanceOrCorrect !== null) {
+        correct = Boolean(performanceOrCorrect.correct);
+        hintsUsed = typeof performanceOrCorrect.hintsUsed === 'number' ? performanceOrCorrect.hintsUsed : 0;
+    } else {
+        correct = Boolean(performanceOrCorrect);
+        hintsUsed = typeof hintsUsedArg === 'number' ? hintsUsedArg : (hintsUsedArg ? 1 : 0);
+    }
 
     const historyRecord: DifficultyRecord = {
-        difficulty: state.currentLevel,
+        difficulty: newLevel,
         correct,
         hintsUsed,
         timestamp: Date.now(),
@@ -62,7 +75,6 @@ export function recordQuestionPerformance(
             if (consecutiveCorrect >= 2 && newLevel < 5) {
                 newLevel = (newLevel + 1) as QuestionDifficulty;
                 consecutiveCorrect = 0;
-                levelChanged = 'increased';
             }
         } else {
             consecutiveCorrect = 0;
@@ -73,16 +85,13 @@ export function recordQuestionPerformance(
         if (consecutiveIncorrect >= 2 && newLevel > 1) {
             newLevel = (newLevel - 1) as QuestionDifficulty;
             consecutiveIncorrect = 0;
-            levelChanged = 'decreased';
         }
     }
 
-    const newState: DifficultyState = {
+    return {
         currentLevel: newLevel,
         consecutiveCorrect,
         consecutiveIncorrect,
-        history: [...state.history.slice(-19), historyRecord],
+        history: [...history.slice(-19), historyRecord],
     };
-
-    return { newState, levelChanged };
 }
