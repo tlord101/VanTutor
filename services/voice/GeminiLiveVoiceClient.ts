@@ -143,7 +143,7 @@ export class GeminiLiveVoiceClient {
     const courses = meta.enrolledCourses?.length ? meta.enrolledCourses.join(', ') : 'Academic Curriculum';
     const context = meta.courseContext ? `Current study context: ${meta.courseContext}` : '';
 
-    let modelName = this.options.model || 'models/gemini-2.0-flash-exp';
+    let modelName = this.options.model || 'models/gemini-3.1-flash-live-preview';
     if (!modelName.startsWith('models/')) {
       modelName = `models/${modelName}`;
     }
