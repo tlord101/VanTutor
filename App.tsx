@@ -1747,6 +1747,8 @@ const App: React.FC = () => {
                     leftActions={customHeaderConfig?.leftActions}
                     rightActions={customHeaderConfig?.rightActions}
                     className={customHeaderConfig?.className}
+                    hideTitle={customHeaderConfig?.hideTitle}
+                    hideDefaultRightActions={customHeaderConfig?.hideDefaultRightActions}
                     onNavigate={(route) => setActiveItem(route)}
                     onLogoutClick={handleLogout}
                 />

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { type FirebaseUser } from '../firebase';
-import { ChevronDown } from 'lucide-react';
 import { SchoolHierarchySelector } from './SchoolHierarchySelector';
 
 interface OnboardingProps {
@@ -81,7 +80,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
                      <option value="" disabled>Select your level...</option>
                      {levelOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                    </select>
-                   <ChevronDown className="w-5 h-5 text-gray-400 pointer-events-none absolute right-4" />
+                   <i className="bi bi-chevron-down text-gray-400 pointer-events-none absolute right-4"></i>
                 </div>
               </div>
             </div>
@@ -90,13 +89,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
               <button
                 type="submit"
                 disabled={isSubmitting || !!error || !selectedSchool || !selectedCollege || !selectedDepartment || !selectedLevel}
-                className="w-full bg-gradient-to-r from-lime-500 to-teal-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-lg"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3.5 px-4 rounded-xl shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-base cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <i className="bi bi-arrow-repeat animate-spin mr-2 text-lg"></i>
                     <span>Saving...</span>
                   </>
                 ) : (

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Sparkles, BrainCircuit, BookOpen, Layers, ShieldCheck, ChevronRight, Users, MessageSquare, X, Smartphone, Apple } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FeatureCarousel } from './marketing/FeatureCarousel';
 import { Testimonials } from './marketing/Testimonials';
@@ -45,31 +44,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]  dark:text-white font-sans overflow-x-hidden selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-white font-sans overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
       <SEO />
       {/* Dynamic Background Elements */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-100 rounded-full blur-[120px] mix-blend-multiply animate-pulse duration-10000" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-sky-100 rounded-full blur-[150px] mix-blend-multiply" />
-        <div className="absolute top-[40%] left-[20%] w-[30%] h-[30%] bg-blue-50 rounded-full blur-[100px] mix-blend-multiply" />
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white dark:bg-slate-950">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-amber-100/40 dark:bg-amber-950/10 rounded-full blur-[120px] mix-blend-multiply" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-slate-200/40 dark:bg-slate-900/40 rounded-full blur-[150px] mix-blend-multiply" />
       </div>
 
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white backdrop-blur-xl border-b border-slate-200 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center">
             <img src="/logo_full.png" alt="Avelut Logo" className="h-8 object-contain" />
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
-            <a href="#features" className="hover:text-brand-600 transition">Features</a>
-            <a href="#how-it-works" className="hover:text-brand-600 transition">How it Works</a>
-            <a href="#testimonials" className="hover:text-brand-600 transition">Wall of Love</a>
+          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600 dark:text-slate-300">
+            <a href="#features" className="hover:text-amber-500 transition">Features</a>
+            <a href="#how-it-works" className="hover:text-amber-500 transition">How it Works</a>
+            <a href="#testimonials" className="hover:text-amber-500 transition">Wall of Love</a>
           </div>
           <div className="flex items-center">
             <button onClick={() => {
               onLogin();
               window.dispatchEvent(new Event('popstate'));
-            }} className="bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">Log In</button>
+            }} className="bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 dark:hover:bg-amber-400 transition cursor-pointer">Log In</button>
           </div>
         </div>
       </nav>
@@ -82,33 +80,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
             <img 
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2500&q=80" 
               alt="Students collaborating" 
-              className="w-full h-full object-cover opacity-60" 
+              className="w-full h-full object-cover opacity-60 dark:opacity-30" 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-50/60 via-slate-50/70 to-white" />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-50/60 via-slate-50/70 to-white dark:from-slate-950/80 dark:via-slate-950/90 dark:to-slate-950" />
           </div>
 
           <div className="max-w-4xl mx-auto flex flex-col items-center relative z-10 w-full text-center space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-600 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3 h-3" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
+              <i className="bi bi-stars text-amber-500"></i>
               <span>Hyper-Personalized AI Tutoring</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]  dark:text-white">
-              The AI Tutor That Won't Rest Until Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-sky-500">GPA Rises</span>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] text-slate-900 dark:text-white">
+              The AI Tutor That Won't Rest Until Your <span className="text-amber-500">GPA Rises</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
               Meet your new context-aware personal tutor. Custom-trained on your exact syllabus, Avelut breaks down the hardest concepts step-by-step so you can master them instantly.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center pt-4">
               <button onClick={() => {
                 onSignUp();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold text-base transition flex items-center justify-center gap-2">
-                Start Learning for Free <ArrowRight className="w-4 h-4" />
+              }} className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-400 text-white dark:text-slate-950 rounded-xl font-bold text-base transition flex items-center justify-center gap-2 cursor-pointer shadow-md">
+                Start Learning for Free <i className="bi bi-arrow-right font-bold"></i>
               </button>
               <button onClick={() => {
                 onLogin();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-base transition border border-slate-300">
+              }} className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-base transition border border-slate-300 dark:border-slate-700 cursor-pointer">
                 Sign In to Dashboard
               </button>
             </div>
@@ -166,15 +164,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                             window.history.pushState(null, '', '/about');
                             window.dispatchEvent(new Event('popstate'));
                         }
-                    }} className="inline-flex items-center gap-2 font-bold text-white hover:text-brand-300 transition">
-                        Read Our Story <ArrowRight className="w-5 h-5" />
+                    }} className="inline-flex items-center gap-2 font-bold text-white hover:text-amber-400 transition cursor-pointer">
+                        Read Our Story <i className="bi bi-arrow-right font-bold"></i>
                     </button>
                 </div>
             </div>
 
-            <div className="bg-slate-900 rounded-[32px] p-10 md:p-12 shadow-xl shadow-slate-900/20 border border-slate-800 flex flex-col justify-between group overflow-hidden relative text-white">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-800 rounded-bl-full flex items-center justify-center opacity-50 group-hover:scale-110 transition duration-500">
-                    <MessageSquare className="w-10 h-10 text-brand-400 absolute top-6 right-6" />
+            <div className="bg-slate-900 rounded-[32px] p-10 md:p-12 shadow-xl border border-slate-800 flex flex-col justify-between group overflow-hidden relative text-white">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-800/80 rounded-bl-full flex items-center justify-center opacity-50 group-hover:scale-110 transition duration-500">
+                    <i className="bi bi-chat-dots-fill text-3xl text-amber-400 absolute top-6 right-6"></i>
                 </div>
                 <div className="relative z-10">
                     <h3 className="text-3xl font-black mb-4">We're Here to Help</h3>
@@ -186,8 +184,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
                             window.history.pushState(null, '', '/contact');
                             window.dispatchEvent(new Event('popstate'));
                         }
-                    }} className="inline-flex items-center gap-2 font-bold text-brand-400 hover:text-brand-300 transition">
-                        Contact Support <ArrowRight className="w-5 h-5" />
+                    }} className="inline-flex items-center gap-2 font-bold text-amber-400 hover:text-amber-300 transition cursor-pointer">
+                        Contact Support <i className="bi bi-arrow-right font-bold"></i>
                     </button>
                 </div>
             </div>
@@ -201,15 +199,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp }) =
 
         {/* Final CTA */}
         <section className="py-32 px-6">
-          <div className="max-w-4xl mx-auto bg-gradient-to-br from-brand-600 to-sky-500 rounded-[40px] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-brand-500/20">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
+          <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-[40px] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl">
             <div className="relative z-10 space-y-8">
               <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white">Ready to elevate your grades?</h2>
-              <p className="text-xl text-brand-50 font-medium max-w-2xl mx-auto">Join the revolution in personalized AI tutoring. Start for free and cancel anytime.</p>
+              <p className="text-xl text-slate-300 font-medium max-w-2xl mx-auto">Join the revolution in personalized AI tutoring. Start for free and cancel anytime.</p>
               <button onClick={() => {
                 onSignUp();
                 window.dispatchEvent(new Event('popstate'));
-              }} className="px-10 py-5 bg-white text-brand-700 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl">
+              }} className="px-10 py-5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-xl hover:scale-105 transition duration-300 shadow-xl cursor-pointer">
                 Get Started Now
               </button>
             </div>

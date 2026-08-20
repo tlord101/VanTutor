@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus } from 'lucide-react';
 
 const faqs = [
     {
@@ -32,7 +31,7 @@ export const FAQs: React.FC = () => {
         <section className="py-24 px-6 max-w-4xl mx-auto" id="faqs">
             <div className="text-center mb-16 space-y-4">
                 <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">Frequently Asked Questions</h2>
-                <p className="text-lg text-slate-600 font-medium">Everything you need to know about the product and billing.</p>
+                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium">Everything you need to know about the product and billing.</p>
             </div>
 
             <div className="space-y-4">
@@ -42,17 +41,17 @@ export const FAQs: React.FC = () => {
                     return (
                         <div 
                             key={index} 
-                            className={`border ${isOpen ? 'border-brand-500 shadow-md' : 'border-slate-200 dark:border-white/10'} rounded-2xl bg-white dark:bg-black overflow-hidden transition-all duration-300`}
+                            className={`border ${isOpen ? 'border-amber-500 shadow-md' : 'border-slate-200 dark:border-slate-800'} rounded-2xl bg-white dark:bg-slate-900 overflow-hidden transition-all duration-300`}
                         >
                             <button
                                 onClick={() => setOpenIndex(isOpen ? null : index)}
-                                className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
+                                className="w-full flex items-center justify-between p-6 text-left focus:outline-none cursor-pointer"
                             >
-                                <span className={`text-lg font-bold ${isOpen ? 'text-brand-600' : 'text-slate-900 dark:text-white'}`}>
+                                <span className={`text-lg font-bold ${isOpen ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                     {faq.question}
                                 </span>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-brand-100 text-brand-600' : 'bg-slate-50 dark:bg-black text-slate-400'}`}>
-                                    {isOpen ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                    <i className={`bi ${isOpen ? 'bi-dash' : 'bi-plus'} text-lg font-bold`}></i>
                                 </div>
                             </button>
                             
@@ -64,7 +63,7 @@ export const FAQs: React.FC = () => {
                                         exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.3, ease: "easeInOut" }}
                                     >
-                                        <div className="px-6 pb-6 text-slate-600 leading-relaxed">
+                                        <div className="px-6 pb-6 text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
                                             {faq.answer}
                                         </div>
                                     </motion.div>

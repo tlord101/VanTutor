@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase';
 import { ref as dbRef, get, set, update } from 'firebase/database';
-import { Search, ChevronDown, Check, Plus, Loader2 } from 'lucide-react';
 import { NIGERIAN_FACULTIES } from '../lib/academic-constants';
 import type { School, College, Department } from '../types';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -104,19 +103,19 @@ const CustomSearchableSelect: React.FC<CustomSearchableSelectProps> = ({
     <div className="relative" ref={dropdownRef}>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
       <div 
-        className={`w-full bg-gray-50 dark:bg-[#0b1120] border border-gray-300 dark:border-white/10 rounded-lg py-3 px-4 flex items-center justify-between text-gray-900 dark:text-white focus-within:ring-2 focus-within:ring-lime-500 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full bg-gray-50 dark:bg-[#0b1120] border border-gray-300 dark:border-white/10 rounded-lg py-3 px-4 flex items-center justify-between text-gray-900 dark:text-white focus-within:ring-2 focus-within:ring-amber-500 cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className={value ? 'text-gray-900 dark:text-white line-clamp-1' : 'text-gray-400 dark:text-gray-500 line-clamp-1'}>
           {value ? selectedOption.name : placeholder}
         </span>
-        <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />
+        <i className="bi bi-chevron-down text-gray-400 shrink-0"></i>
       </div>
 
       {isOpen && (
         <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-white/10 rounded-lg shadow-xl max-h-60 flex flex-col">
           <div className="p-2 border-b border-gray-100 dark:border-white/10 flex items-center bg-gray-50 dark:bg-black/50 rounded-t-lg">
-            <Search className="w-4 h-4 text-gray-400 ml-2 mr-2 shrink-0" />
+            <i className="bi bi-search text-gray-400 ml-2 mr-2 shrink-0"></i>
             <input
               type="text"
               className="w-full bg-transparent border-none focus:outline-none text-sm py-1 text-gray-900 dark:text-white"
@@ -136,21 +135,21 @@ const CustomSearchableSelect: React.FC<CustomSearchableSelectProps> = ({
               filteredOptions.map((opt) => (
                 <div
                   key={opt.id}
-                  className={`p-3 text-sm rounded-md cursor-pointer flex items-center justify-between ${value === opt.id ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 font-medium' : 'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-900 dark:text-gray-200'}`}
+                  className={`p-3 text-sm rounded-md cursor-pointer flex items-center justify-between ${value === opt.id ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 font-medium' : 'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-900 dark:text-gray-200'}`}
                   onClick={() => handleSelect(opt)}
                 >
                   <span className="line-clamp-1 pr-2">{opt.name}</span>
-                  {value === opt.id && <Check className="w-4 h-4 text-lime-600 shrink-0" />}
+                  {value === opt.id && <i className="bi bi-check-lg text-amber-600 dark:text-amber-400 shrink-0 font-bold"></i>}
                 </div>
               ))
             )}
             
             {showAddNew && (
                 <div
-                  className={`p-3 text-sm rounded-md flex items-center bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 border border-dashed border-lime-300 dark:border-lime-700 mt-1 font-medium transition-colors ${isAddingNew ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:bg-lime-100 dark:hover:bg-lime-900/40'}`}
+                  className={`p-3 text-sm rounded-md flex items-center bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-dashed border-amber-300 dark:border-amber-700 mt-1 font-medium transition-colors ${isAddingNew ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}
                   onClick={!isAddingNew ? handleAddNew : undefined}
                 >
-                  {isAddingNew ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {isAddingNew ? <i className="bi bi-arrow-repeat animate-spin mr-2"></i> : <i className="bi bi-plus-lg mr-2"></i>}
                   {isAddingNew ? 'Standardizing...' : `Add "${searchQuery}"`}
                 </div>
             )}

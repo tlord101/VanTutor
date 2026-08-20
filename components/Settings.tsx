@@ -6,7 +6,6 @@ import { useToast } from '../hooks/useToast';
 import { ConfirmationModal } from './ConfirmationModal';
 import { isNative } from '../utils/capacitorUtils';
 import { useTheme } from '../contexts/ThemeContext';
-import { Palette, MessageSquare } from 'lucide-react';
 
 interface SettingsProps {
   user: FirebaseUser | null;

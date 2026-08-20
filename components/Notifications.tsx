@@ -7,7 +7,6 @@ import { clearDeliveredNotifications } from '../utils/nativeNotifications';
 import { db, auth } from '../firebase';
 import { ref as dbRef, push, set, serverTimestamp as firebaseServerTimestamp } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
-import { Send } from 'lucide-react';
 
 const timeAgo = (timestamp: number): string => {
   const now = Date.now();

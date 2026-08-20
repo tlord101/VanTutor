@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Quote } from 'lucide-react';
 
 const testimonials = [
     {
@@ -48,7 +47,7 @@ export const Testimonials: React.FC = () => {
     }, []);
 
     return (
-        <section className="py-24 px-6 bg-slate-900 text-white overflow-hidden" id="testimonials">
+        <section className="py-24 px-6 bg-slate-950 text-white overflow-hidden" id="testimonials">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16 space-y-4">
                     <h2 className="text-4xl md:text-5xl font-black tracking-tight">Wall of Love</h2>
@@ -69,14 +68,14 @@ export const Testimonials: React.FC = () => {
                                     transition={{ duration: 0.6, ease: "easeInOut" }}
                                     className="absolute w-full px-4"
                                 >
-                                    <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 md:p-12 rounded-[32px] text-center relative max-w-3xl mx-auto">
-                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-brand-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-600/30 border-4 border-slate-900">
-                                            <Quote className="w-6 h-6 text-white fill-white" />
+                                    <div className="bg-slate-900 border border-slate-800 p-8 md:p-12 rounded-[32px] text-center relative max-w-3xl mx-auto shadow-xl">
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-950 text-slate-950 text-xl">
+                                            <i className="bi bi-quote"></i>
                                         </div>
                                         
-                                        <div className="flex justify-center gap-1 mb-6 mt-4">
+                                        <div className="flex justify-center gap-1.5 mb-6 mt-4">
                                             {[...Array(t.rating)].map((_, i) => (
-                                                <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                                                <i key={i} className="bi bi-star-fill text-amber-400 text-sm"></i>
                                             ))}
                                         </div>
 
@@ -92,7 +91,7 @@ export const Testimonials: React.FC = () => {
                                             />
                                             <div className="text-left">
                                                 <div className="font-bold text-white">{t.name}</div>
-                                                <div className="text-brand-400 text-sm">{t.university}</div>
+                                                <div className="text-amber-400 text-sm">{t.university}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -107,7 +106,7 @@ export const Testimonials: React.FC = () => {
                         <button
                             key={index}
                             onClick={() => setCurrentIndex(index)}
-                            className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentIndex ? 'bg-brand-500 w-8' : 'bg-slate-700 hover:bg-slate-600'}`}
+                            className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${index === currentIndex ? 'bg-amber-500 w-8' : 'bg-slate-800 hover:bg-slate-700 w-2.5'}`}
                         />
                     ))}
                 </div>

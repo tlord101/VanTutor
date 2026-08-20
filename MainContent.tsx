@@ -114,9 +114,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'dashboard':
                         return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'study_guide':
-                        return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} />;
+                        return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
                     case 'voice_tutorial':
-                        return <VoiceTutorialPage userProfile={userProfile} appSettings={appSettings} onNavigate={onNavigate} />;
+                        return <VoiceTutorialPage userProfile={userProfile} appSettings={appSettings} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
                     case 'leaderboard':
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':

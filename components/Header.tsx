@@ -22,6 +22,8 @@ interface HeaderProps {
   className?: string;
   onNavigate?: (route: string) => void;
   onLogoutClick?: () => void;
+  hideTitle?: boolean;
+  hideDefaultRightActions?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -37,7 +39,9 @@ export const Header: React.FC<HeaderProps> = ({
     userProfile,
     className,
     onNavigate,
-    onLogoutClick
+    onLogoutClick,
+    hideTitle,
+    hideDefaultRightActions
 }) => {
     const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -60,66 +64,65 @@ export const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8 pb-6 ${className || 'bg-transparent'}`}>
-            <div className="flex items-center">
-                <div className="flex items-center gap-3">
-                    {leftActions && <div className="flex items-center">{leftActions}</div>}
-                    <h2 className="text-2xl md:text-3xl font-bold text-charcoal dark:text-white tracking-tighter uppercase">
-                        {currentPageLabel}
-                    </h2>
-                    {userProfile?.use_personal_token && userProfile?.personal_api_key && (
-                        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-lime-500 to-emerald-600 text-white text-[10px] font-black tracking-widest uppercase rounded-full shadow-sm shadow-lime-500/20 border border-lime-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-black animate-pulse" />
-                            Google AI Token Active
-                        </span>
+        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 py-3.5 sm:py-4 border-b border-slate-200/80 dark:border-slate-800/80 ${className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}>
+            <div className="flex items-center min-w-0 flex-1 mr-2">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {leftActions && <div className="flex items-center min-w-0 flex-1">{leftActions}</div>}
+                    {!hideTitle && (
+                        <>
+                            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase truncate">
+                                {currentPageLabel}
+                            </h2>
+                            {userProfile?.use_personal_token && userProfile?.personal_api_key && (
+                                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    AI Token Active
+                                </span>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                <AppUpdateBadge />
-                {rightActions ? rightActions : (
+            <div className="flex items-center gap-2 shrink-0">
+                {!hideDefaultRightActions && <AppUpdateBadge />}
+                {rightActions ? rightActions : (!hideDefaultRightActions && (
                     <>
                         <button 
                             onClick={onCalendarClick}
-                            className="relative text-blue-500 dark:text-white hover:text-blue-600 dark:hover:text-white p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                            className="relative text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                             aria-label="Study Timetable"
                             title="Study Timetable"
                         >
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                            </svg>
+                            <i className="bi bi-calendar3 text-lg"></i>
                         </button>
                         <button 
                             onClick={onMessengerClick}
                             data-tour-id="header-messenger"
-                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:bg-black dark:hover:bg-slate-800 transition-all"
+                            className="relative text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                             aria-label={`Messenger (${unreadMessagesCount} unread)`}
                         >
-                            <MessengerIcon />
+                            <i className="bi bi-chat-dots text-lg"></i>
                             {unreadMessagesCount > 0 && (
-                                <div className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-red-600 px-1 text-[10px] font-bold leading-5 text-white shadow-sm ring-2 ring-white dark:ring-slate-800">
+                                <div className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-4 text-slate-950 shadow-xs flex items-center justify-center">
                                     {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                                 </div>
                             )}
                         </button>
                         <button 
                             onClick={onNotificationsClick}
-                            className="relative text-charcoal dark:text-white opacity-60 hover:opacity-100 p-2 rounded-full hover:bg-white dark:bg-black dark:hover:bg-slate-800 transition-all"
+                            className="relative text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                             aria-label={`Notifications (${unreadCount} unread)`}
                         >
-                            <NotificationBellIcon />
+                            <i className="bi bi-bell text-lg"></i>
                             {unreadCount > 0 && (
-                                <div className="absolute top-1 right-1">
-                                    <span className="flex h-2 w-2 rounded-full bg-red-600 ring-2 ring-white dark:ring-slate-800 animate-pulse" />
+                                <div className="absolute top-1.5 right-1.5">
+                                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                                 </div>
                             )}
                         </button>
                     </>
-                )}
+                ))}
                 
                 {/* Profile Avatar always shows */}
                 <div className="relative ml-2" ref={menuRef}>

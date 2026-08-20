@@ -11,7 +11,6 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useGoogleDrivePicker } from '../hooks/useGoogleDrivePicker';
 import type { Course, Topic } from '../types';
 import { getWindowPathname } from '../utils/pathname';
-import { BookOpen, UploadCloud, Trash2, Plus, LayoutDashboard, ChevronRight, List, HardDrive, FolderOpen, Layers, FileQuestion, Menu, X } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import { PageSkeleton } from './Skeleton';
 import { SchoolHierarchySelector } from './SchoolHierarchySelector';

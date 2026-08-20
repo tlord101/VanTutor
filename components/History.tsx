@@ -5,8 +5,6 @@ import { XIcon } from './icons/XIcon';
 import { FlashcardsUI } from './FlashcardsUI';
 import { HistorySkeleton } from './Skeleton';
 
-import { HelpCircle } from 'lucide-react';
-
 interface HistoryProps {
   userProfile: UserProfile | null;
 }

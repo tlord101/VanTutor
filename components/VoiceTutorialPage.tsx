@@ -414,6 +414,7 @@ export interface VoiceTutorialPageProps {
     onNavigate?:   (tab: string) => void;
     initialSessionData?: VoiceTutorialSessionData | null;
     onBack?:       () => void;
+    setCustomHeaderConfig?: (config: any) => void;
 }
 
 // ── Dynamic Action Button Helpers for All 15 Adaptive Phases ──────────────────
@@ -668,6 +669,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     onNavigate,
     initialSessionData,
     onBack,
+    setCustomHeaderConfig,
 }) => {
     const { settings: hookAppSettings } = useAppSettings();
     const appSettings = propAppSettings || hookAppSettings;
@@ -2054,6 +2056,57 @@ OUTPUT VALID JSON ONLY:
 
         // ── 3. Evaluate Interactive Answers (Diagnostic & Practice) ───────────
         try {
+            // Check if student is explicitly asking to retry calculating
+            const isTryAgainIntent = /^(try answering again|i'll try calculating again|try calculating again|let me calculate|let me try|i'll try again|retry calculation|try again)/i.test(userText.trim());
+            if (isTryAgainIntent) {
+                const promptMsg = `Take your time to work out the calculation. Whenever you're ready, type or speak your answer!`;
+                dialogueHistoryRef.current.push({ role: 'tutor', text: promptMsg, boardSummary: 'Ready for calculation attempt' });
+                setPositiveAction({ label: "Submit Answer →", text: "Ready to submit answer" });
+                setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
+                await speakText(promptMsg);
+                return;
+            }
+
+            // Check if student is explicitly requesting a step-by-step walkthrough / explanation
+            const isWalkthroughIntent = /^(walk through step|please explain this step in detail|explain this step|walk me through|step by step|show me how to solve|how to solve this|need walkthrough|need more guidance|i don't know the answer)/i.test(userText.trim());
+            if (isWalkthroughIntent && blueprint) {
+                setIsLoadingUnit(true);
+                const currentAttempts = repairAttemptRef.current + 1;
+                setRepairAttempt(currentAttempts);
+                repairAttemptRef.current = currentAttempts;
+
+                const strategy = selectRepairStrategy(
+                    'definition_confusion',
+                    repairStrategiesUsedRef.current
+                );
+                const updatedUsed = [...repairStrategiesUsedRef.current, strategy];
+                setRepairStrategiesUsed(updatedUsed);
+                repairStrategiesUsedRef.current = updatedUsed;
+
+                const adaptedPath = adaptPath(
+                    currentPath,
+                    currentPIdx,
+                    {
+                        phase: currentPhase,
+                        score: 0,
+                        success: false,
+                        errorType: 'definition_confusion',
+                        misconceptionDetail: 'Student requested step-by-step walkthrough',
+                        hintsUsed: hintStateRef.current.hintsUsed,
+                        difficulty: activeLearningQuestionRef.current?.difficulty,
+                    },
+                    conceptMasteryRef.current
+                );
+                setActivePhasePath(adaptedPath);
+                activePhasePathRef.current = adaptedPath;
+
+                setSubStep('repair');
+                subStepRef.current = 'repair';
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, 'repair', 0);
+                return;
+            }
+
             setIsLoadingUnit(true);
             let isCorrect = true;
             let misconceptionType: MisconceptionType | undefined;
@@ -2169,13 +2222,14 @@ OUTPUT VALID JSON ONLY:
                 const feedbackLines = [
                     `❌ **Let's review this step**`,
                     feedback || `Check the governing relationship for ${currentC?.conceptName}.`,
-                    `💡 **Key Insight**: ${REPAIR_STRATEGY_INSTRUCTIONS[strategy] || 'Consider the physical balance.'}`,
                 ];
                 streamBoardLines(feedbackLines);
                 setPositiveAction({ label: "Try Answering Again →", text: "I'll try calculating again." });
                 setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
 
-                const spokenFeedback = `Not quite. ${feedback} ${REPAIR_STRATEGY_INSTRUCTIONS[strategy] || 'Let\'s think about the fundamental law.'} Take a moment and try answering again, or tap below for a step-by-step walkthrough.`;
+                const spokenFeedback = feedback
+                    ? `${feedback} Take a moment and try answering again, or tap Walk Through Step below for a step-by-step walkthrough.`
+                    : `Let's double-check our calculation. Take a moment and try answering again, or tap Walk Through Step below for a step-by-step walkthrough.`;
                 dialogueHistoryRef.current.push({ role: 'tutor', text: spokenFeedback, boardSummary: feedbackLines.join(' | ') });
                 setIsLoadingUnit(false);
                 await speakText(spokenFeedback, undefined, feedbackLines);
@@ -2501,6 +2555,68 @@ OUTPUT VALID JSON ONLY:
 
     const hasVisualElement = !!(activeDiagramSvg || activeTableMarkdown);
 
+    // ── Dynamic App Header Synchronization ──
+    useEffect(() => {
+        if (setCustomHeaderConfig) {
+            const topicName = sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Voice Tutorial';
+            setCustomHeaderConfig({
+                hideTitle: true,
+                hideDefaultRightActions: true,
+                leftActions: (
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+                        <button
+                            onClick={handleGoBack}
+                            disabled={isNavigatingBack}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-white/20 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-900 dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+                        >
+                            <i className="bi bi-arrow-left text-sm font-bold"></i>
+                            <span className="whitespace-nowrap">Back to Study Guide</span>
+                        </button>
+                        <div className="min-w-0 flex flex-col justify-center">
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px] sm:max-w-[280px] md:max-w-[400px]">
+                                {topicName}
+                            </span>
+                            {currentConcept && (
+                                <span className="text-[10px] text-amber-500 dark:text-amber-400 font-mono truncate max-w-[120px] sm:max-w-[280px]">
+                                    Concept {conceptIdx + 1}/{totalConcepts}: {currentConcept.conceptName}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                ),
+                rightActions: (
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        {sessionData?.image && (
+                            <button
+                                onClick={() => setShowScannedImageModal(true)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-900/70 hover:bg-sky-800 border border-sky-500/60 text-sky-200 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                                title="View original problem scan"
+                            >
+                                <i className="bi bi-image text-xs"></i>
+                                <span className="hidden sm:inline">Scan</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={toggleMute}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-white/20 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-bold text-slate-800 dark:text-white cursor-pointer transition-colors active:scale-95 shadow-xs"
+                            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+                        >
+                            <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-rose-400' : 'bi-volume-up-fill text-amber-500'} text-sm`}></i>
+                            <span className="text-[11px] hidden md:inline">{isMuted ? 'Muted' : 'Voice'}</span>
+                        </button>
+                    </div>
+                ),
+                className: 'bg-[#181C20]/95 border-b border-white/10 backdrop-blur-md'
+            });
+        }
+
+        return () => {
+            if (setCustomHeaderConfig) {
+                setCustomHeaderConfig(null);
+            }
+        };
+    }, [setCustomHeaderConfig, sessionData, currentConcept, conceptIdx, totalConcepts, isMuted, isNavigatingBack, handleGoBack]);
+
     // Helper to render inline diagram card
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
@@ -2546,64 +2662,7 @@ OUTPUT VALID JSON ONLY:
 
     // ── Render ────────────────────────────────────────────────────────────
     return (
-        <div className="fixed inset-0 z-40 flex flex-col w-full h-full bg-[#12161A] text-white overflow-hidden select-none">
-
-            {/* ── Top Header Bar (Clean, Focused & Mobile Safe Area Padded) ────────────────────── */}
-            <header className="flex items-center justify-between px-3 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 border-b border-white/10 bg-[#181C20]/95 backdrop-blur-md z-30 shadow-md shrink-0">
-                {/* Top Left: Back to Study Guide */}
-                <div className="flex items-center gap-3 min-w-0">
-                    <button
-                        onClick={handleGoBack}
-                        disabled={isNavigatingBack}
-                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer shadow-xs transition-all shrink-0"
-                    >
-                        <i className="bi bi-arrow-left text-sm font-bold"></i>
-                        <span>Back to Study Guide</span>
-                    </button>
-                    
-                    <div className="min-w-0 hidden md:flex flex-col">
-                        <span className="text-xs font-bold text-white truncate">
-                            {sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Voice Tutorial'}
-                        </span>
-                        {currentConcept && (
-                            <span className="text-[10px] text-amber-300/90 font-mono truncate">
-                                Concept {conceptIdx + 1}/{totalConcepts}: {currentConcept.conceptName}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Top Center / Subtitle Indicator (Mobile & Tablet) */}
-                <div className="flex items-center gap-2 md:hidden truncate min-w-0 px-2">
-                    <span className="text-xs font-bold text-white truncate">
-                        {currentConcept?.conceptName || sessionData?.topic?.topic_name}
-                    </span>
-                </div>
-
-                {/* Top Right: Scanned Problem & Audio Controls */}
-                <div className="flex items-center gap-2 shrink-0">
-                    {sessionData?.image && (
-                        <button
-                            onClick={() => setShowScannedImageModal(true)}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-900/70 hover:bg-sky-800 border border-sky-500/60 text-sky-200 text-xs font-bold shadow-xs transition-all cursor-pointer"
-                            title="View original problem scan"
-                        >
-                            <i className="bi bi-image text-xs"></i>
-                            <span className="hidden sm:inline">Scanned Problem</span>
-                        </button>
-                    )}
-
-                    {/* Mute / Audio Toggle Button */}
-                    <button
-                        onClick={toggleMute}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors active:scale-95"
-                        title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-                    >
-                        <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-rose-400' : 'bi-volume-up text-amber-400'} text-sm`}></i>
-                        <span className="text-[11px] text-slate-200 hidden sm:inline">{isMuted ? 'Muted' : 'Avelut Voice'}</span>
-                    </button>
-                </div>
-            </header>
+        <div className="flex-1 w-full h-full flex flex-col bg-[#12161A] text-white overflow-hidden select-none relative">
 
             {/* ── Progress bar ────────────────────────────────────────── */}
             {blueprint && !isGeneratingBlueprint && (

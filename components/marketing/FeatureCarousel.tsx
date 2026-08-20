@@ -1,35 +1,34 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSwipeable } from 'react-swipeable';
-import { BrainCircuit, BookOpen, Layers, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const features = [
     {
         id: 'tutor',
         title: 'Context-Aware AI Tutor',
         description: 'Chat with an AI that has literally read your textbook. It knows your syllabus, your department, and exactly what you need to know for the exam.',
-        icon: <BrainCircuit className="w-8 h-8" />,
+        icon: <i className="bi bi-cpu text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'scanner',
         title: 'Visual Problem Scanner',
         description: 'Stuck on a problem? Snap a photo. The AI extracts the text, math, and context instantly and provides step-by-step guidance.',
-        icon: <BookOpen className="w-8 h-8" />,
+        icon: <i className="bi bi-camera text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1516383740770-fbcc5ccbece0?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'import',
         title: 'Cloud Document Import',
         description: 'Import textbooks directly from Google Drive. We parse it, chunk it, and index it into your personal study environment in seconds.',
-        icon: <Layers className="w-8 h-8" />,
+        icon: <i className="bi bi-cloud-arrow-up text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'messenger',
         title: 'Real-Time Peer Messenger',
         description: 'Collaborate with your classmates, share notes, and discuss complex topics in dedicated course channels instantly.',
-        icon: <MessageSquare className="w-8 h-8" />,
+        icon: <i className="bi bi-chat-dots text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80'
     }
 ];
@@ -128,23 +127,23 @@ export const FeatureCarousel: React.FC = () => {
                 <div className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 flex items-center gap-6">
                     <button 
                         onClick={handlePrev}
-                        className="w-12 h-12 rounded-full bg-white dark:bg-black shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
+                        className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-md border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 hover:scale-110 transition cursor-pointer"
                     >
-                        <ChevronLeft className="w-6 h-6" />
+                        <i className="bi bi-chevron-left text-lg"></i>
                     </button>
                     <div className="flex gap-2">
                         {features.map((_, i) => (
                             <div 
                                 key={i} 
-                                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-brand-600 w-6' : 'bg-slate-300'}`} 
+                                className={`h-2.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-amber-500 w-6' : 'bg-slate-300 dark:bg-slate-700 w-2.5'}`} 
                             />
                         ))}
                     </div>
                     <button 
                         onClick={handleNext}
-                        className="w-12 h-12 rounded-full bg-white dark:bg-black shadow-lg border border-slate-100 flex items-center justify-center text-slate-600 hover:text-brand-600 hover:scale-110 transition"
+                        className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-md border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 hover:scale-110 transition cursor-pointer"
                     >
-                        <ChevronRight className="w-6 h-6" />
+                        <i className="bi bi-chevron-right text-lg"></i>
                     </button>
                 </div>
             </div>

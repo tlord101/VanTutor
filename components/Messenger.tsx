@@ -12,7 +12,6 @@ import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remov
 import { ref as storageRef, uploadBytes, uploadString, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { useTheme } from '../contexts/ThemeContext';
-import { Trash2, Send, Mic, FileText, Image as ImageIcon, Sticker } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
 

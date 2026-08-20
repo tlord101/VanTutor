@@ -196,6 +196,7 @@ export interface StudyGuideProps {
     userProfile: UserProfile;
     userProgress?: UserProgress;
     onNavigate?: (tab: string) => void;
+    setCustomHeaderConfig?: (config: any) => void;
 }
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any; info?: any }> {
@@ -221,7 +222,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                 <div className="p-8 text-center max-w-xl mx-auto my-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl">
                     <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Something went wrong</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Could not load Study Guide. Please retry.</p>
-                    <button onClick={this.reset} className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-500 transition-colors">
+                    <button onClick={this.reset} className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl shadow-md hover:bg-amber-400 transition-colors">
                         Retry
                     </button>
                 </div>
@@ -232,7 +233,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 // --- MAIN CONTENT ---
-const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onNavigate }) => {
+const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgress, onNavigate, setCustomHeaderConfig }) => {
     const [courses, setCourses] = useState<Course[]>(() => {
         const key = `avelut_courses_${userProfile?.uid || 'anon'}`;
         return readCachedJson<Course[]>(key, []);
@@ -574,8 +575,12 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     setTopicToOpen(null);
                     setActiveExternalSession(null);
                     writeCachedJson('avelut_active_voice_tutorial', null);
+                    if (setCustomHeaderConfig) {
+                        setCustomHeaderConfig(null);
+                    }
                 }}
                 onNavigate={onNavigate}
+                setCustomHeaderConfig={setCustomHeaderConfig}
             />
         );
     }

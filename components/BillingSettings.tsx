@@ -6,7 +6,6 @@ import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
 import { db } from '../firebase';
 import { ref as dbRef, query, orderByChild, equalTo, get } from 'firebase/database';
-import { CheckCircle, Clock } from 'lucide-react';
 
 interface BillingSettingsProps {
   userProfile: UserProfile;
@@ -98,7 +97,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
            <div className="py-8 text-center text-sm text-slate-500">Loading transactions...</div>
         ) : transactions.length === 0 ? (
            <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5">
-             <Clock className="w-8 h-8 text-slate-300 mb-3" />
+             <i className="bi bi-clock text-2xl text-slate-300 mb-3"></i>
              <p className="text-sm font-bold text-slate-600 dark:text-slate-400">No transactions yet</p>
            </div>
         ) : (
@@ -128,7 +127,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
                         <div className="flex justify-center">
                           {(!tx.status || tx.status === 'success' || tx.status === 'successful') ? (
                               <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md text-[10px] font-black uppercase">
-                                  <CheckCircle className="w-3 h-3" /> Success
+                                  <i className="bi bi-check-circle-fill text-xs"></i> Success
                               </span>
                           ) : (
                               <span className="flex items-center gap-1 text-red-600 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-md text-[10px] font-black uppercase">
