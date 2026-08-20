@@ -25,11 +25,11 @@ const getGradientClasses = (id: string) => {
     switch (id) {
         case 'dashboard': return 'from-blue-500 to-indigo-500';
         case 'messenger': return 'from-emerald-400 to-teal-500';
-        case 'exam': return 'from-orange-400 to-red-500';
+        case 'exam': return 'from-blue-500 to-indigo-600';
         case 'visual_solver': return 'from-purple-500 to-pink-500';
-        case 'study_guide': return 'from-yellow-400 to-amber-500';
+        case 'study_guide': return 'from-sky-400 to-blue-500';
         case 'upload_center': return 'from-green-400 to-emerald-500';
-        case 'leaderboard': return 'from-yellow-500 to-orange-500';
+        case 'leaderboard': return 'from-sky-500 to-blue-600';
         case 'admin_panel': return 'from-rose-500 to-red-600';
         case 'ai_tutor': return 'from-cyan-400 to-blue-500';
         case 'help': return 'from-sky-400 to-indigo-400';

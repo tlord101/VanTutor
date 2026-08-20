@@ -47,8 +47,8 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
         >
           <defs>
             <linearGradient id="fire-active" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#f97316" />
-              <stop offset="1" stopColor="#ef4444" />
+              <stop stopColor="#3b82f6" />
+              <stop offset="1" stopColor="#6366f1" />
             </linearGradient>
           </defs>
           <path
@@ -73,7 +73,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
         <span
           className={`font-black tabular-nums leading-none ${textSize} ${
             active
-              ? 'bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent'
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent'
               : 'text-gray-400'
           }`}
         >

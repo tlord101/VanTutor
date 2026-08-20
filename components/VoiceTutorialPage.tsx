@@ -2908,7 +2908,7 @@ OUTPUT VALID JSON ONLY:
             {blueprint && !isGeneratingBlueprint && (
                 <div className="h-1 bg-white/10 shrink-0">
                     <div
-                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400 transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-500 transition-all duration-500"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
@@ -2917,12 +2917,12 @@ OUTPUT VALID JSON ONLY:
             {/* ── Blueprint generation screen ─────────────────────────── */}
             {isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center animate-fade-in my-auto">
-                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-amber-400/50 flex items-center justify-center shadow-2xl">
-                        <i className="bi bi-mortarboard-fill text-3xl text-amber-400"></i>
+                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-blue-400/50 flex items-center justify-center shadow-2xl">
+                        <i className="bi bi-mortarboard-fill text-3xl text-blue-400"></i>
                     </div>
 
                     <div className="space-y-2 max-w-md">
-                        <span className="text-xs font-mono font-bold tracking-widest uppercase text-amber-400">
+                        <span className="text-xs font-mono font-bold tracking-widest uppercase text-blue-400">
                             Avelut Adaptive Engine
                         </span>
                         <h2 className="text-xl sm:text-2xl font-bold font-handwriting text-white tracking-wide">
@@ -2934,7 +2934,7 @@ OUTPUT VALID JSON ONLY:
                     </div>
 
                     <div className="w-full max-w-xs bg-slate-800/80 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
-                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full animate-pulse transition-all" />
+                        <div className="bg-gradient-to-r from-blue-400 via-sky-400 to-indigo-400 h-full rounded-full w-full animate-pulse transition-all" />
                     </div>
                 </div>
             )}

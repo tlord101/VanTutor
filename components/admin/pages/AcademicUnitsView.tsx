@@ -306,7 +306,7 @@ export const AcademicUnitsView: React.FC = () => {
                     <Database className="w-4 h-4" />
                     Data Migration
                     {oldDepartments.length > 0 && (
-                        <span className="ml-1.5 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] uppercase font-black">{oldDepartments.length}</span>
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] uppercase font-black">{oldDepartments.length}</span>
                     )}
                 </button>
                 <button 
@@ -450,25 +450,24 @@ export const AcademicUnitsView: React.FC = () => {
                 </div>
             )}
 
+            {/* Tab: Migrate Old Departments */}
             {activeTab === 'migrate' && (
-                <div className="max-w-3xl">
+                <div className="space-y-8 animate-in fade-in duration-300">
                     {oldDepartments.length === 0 ? (
-                        <div className="bg-white rounded-3xl p-12 border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-4">
-                                <Database className="w-8 h-8" />
-                            </div>
+                        <div className="bg-white  rounded-3xl p-12 text-center border border-slate-200  shadow-sm">
+                            <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                             <h3 className="font-black text-xl  dark:text-white mb-2">No Legacy Data Found</h3>
                             <p className="text-slate-500 text-sm max-w-sm">
                                 Your system is clean! There are no legacy departments to migrate. You can manage your academic units normally.
                             </p>
                         </div>
                     ) : (
-                        <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-3xl p-6 sm:p-10 border border-orange-200/60 shadow-sm space-y-8 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl" />
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-3xl p-6 sm:p-10 border border-blue-200/60 shadow-sm space-y-8 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
                             
                             <div className="relative z-10">
-                                <h3 className="font-black text-2xl text-orange-950 mb-2">Migrate Legacy Data</h3>
-                                <p className="text-sm text-orange-800/80 max-w-xl leading-relaxed">
+                                <h3 className="font-black text-2xl text-blue-950 mb-2">Migrate Legacy Data</h3>
+                                <p className="text-sm text-blue-800/80 max-w-xl leading-relaxed">
                                     Move old department structures into the new hierarchy. You can migrate everything into a single School/College, or map them individually.
                                 </p>
                             </div>
@@ -476,12 +475,12 @@ export const AcademicUnitsView: React.FC = () => {
                             <div className="space-y-6 relative z-10">
                                 {/* Target */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-orange-900 uppercase tracking-widest">Source Department</label>
-                                    <select value={migrateTargetDeptId} onChange={e => setMigrateTargetDeptId(e.target.value)} className="w-full p-4 border border-orange-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/20 shadow-sm">
+                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Source Department</label>
+                                    <select value={migrateTargetDeptId} onChange={e => setMigrateTargetDeptId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
                                         <option value="all">Migrate All Old Departments ({oldDepartments.length} remaining)</option>
                                         <optgroup label="Specific Departments">
                                             {oldDepartments.map(d => (
-                                                <option key={d.id} value={d.id}>{d.department_name || d.name}</option>
+                                                 <option key={d.id} value={d.id}>{d.department_name || d.name}</option>
                                             ))}
                                         </optgroup>
                                     </select>
@@ -490,8 +489,8 @@ export const AcademicUnitsView: React.FC = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     {/* Destination School */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-orange-900 uppercase tracking-widest">Destination School</label>
-                                        <select value={migrateDestSchoolId} onChange={e => { setMigrateDestSchoolId(e.target.value); setMigrateDestCollegeId(''); }} className="w-full p-4 border border-orange-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/20 shadow-sm">
+                                        <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination School</label>
+                                        <select value={migrateDestSchoolId} onChange={e => { setMigrateDestSchoolId(e.target.value); setMigrateDestCollegeId(''); }} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
                                             <option value="">Select School...</option>
                                             <option value="new">+ Create New School</option>
                                             {Object.keys(schoolsData || {}).map(id => (
@@ -500,15 +499,15 @@ export const AcademicUnitsView: React.FC = () => {
                                         </select>
                                         {migrateDestSchoolId === 'new' && (
                                             <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                                                <input type="text" placeholder="New School Name" value={migrateNewSchoolName} onChange={e => setMigrateNewSchoolName(e.target.value)} className="w-full p-4 border border-orange-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-orange-500/20 shadow-inner" />
+                                                <input type="text" placeholder="New School Name" value={migrateNewSchoolName} onChange={e => setMigrateNewSchoolName(e.target.value)} className="w-full p-4 border border-blue-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-blue-500/20 shadow-inner" />
                                             </div>
                                         )}
                                     </div>
 
                                     {/* Destination College */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-orange-900 uppercase tracking-widest">Destination College</label>
-                                        <select value={migrateDestCollegeId} onChange={e => setMigrateDestCollegeId(e.target.value)} disabled={!migrateDestSchoolId} className="w-full p-4 border border-orange-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/20 shadow-sm disabled:opacity-50">
+                                        <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination College</label>
+                                        <select value={migrateDestCollegeId} onChange={e => setMigrateDestCollegeId(e.target.value)} disabled={!migrateDestSchoolId} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm disabled:opacity-50">
                                             <option value="">Select College...</option>
                                             {migrateDestSchoolId && <option value="new">+ Create New College</option>}
                                             {migrateDestSchoolId && migrateDestSchoolId !== 'new' && schoolsData[migrateDestSchoolId]?.colleges && Object.keys(schoolsData[migrateDestSchoolId].colleges).map(id => (
@@ -517,17 +516,17 @@ export const AcademicUnitsView: React.FC = () => {
                                         </select>
                                         {migrateDestCollegeId === 'new' && (
                                             <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                                                <input type="text" placeholder="New College Name" value={migrateNewCollegeName} onChange={e => setMigrateNewCollegeName(e.target.value)} className="w-full p-4 border border-orange-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-orange-500/20 shadow-inner" />
+                                                <input type="text" placeholder="New College Name" value={migrateNewCollegeName} onChange={e => setMigrateNewCollegeName(e.target.value)} className="w-full p-4 border border-blue-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-blue-500/20 shadow-inner" />
                                             </div>
                                         )}
                                     </div>
                                 </div>
                                 
-                                <div className="pt-6 border-t border-orange-200/50 flex justify-end">
+                                <div className="pt-6 border-t border-blue-200/50 flex justify-end">
                                     <button 
                                         onClick={handleMigrateOldDepartments} 
                                         disabled={!migrateDestSchoolId || !migrateDestCollegeId} 
-                                        className="px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50 disabled:shadow-none w-full sm:w-auto"
+                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none w-full sm:w-auto"
                                     >
                                         Execute Migration
                                     </button>

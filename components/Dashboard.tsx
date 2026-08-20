@@ -129,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                     </p>
                 </div>
                 <div className="rounded-full border border-gray-200 dark:border-transparent bg-white dark:bg-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-gray-700 shadow-sm flex items-center gap-2">
-                    Daily Streak: <span className="text-orange-500 font-bold">{userProfile.current_streak} {userProfile.current_streak === 1 ? 'day' : 'days'}</span> 🔥
+                    Daily Streak: <span className="text-blue-600 dark:text-blue-400 font-bold">{userProfile.current_streak} {userProfile.current_streak === 1 ? 'day' : 'days'}</span> 🔥
                 </div>
             </div>
 
