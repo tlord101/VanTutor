@@ -847,9 +847,16 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
     function stopMicImmediate() {
         if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch (_) {}
+            try { 
+                recognitionRef.current.abort();
+            } catch (_) {
+                try { recognitionRef.current.stop(); } catch (_) {}
+            }
+            recognitionRef.current = null;
         }
         setIsMicListening(false);
+        setMicDisplay('');
+        spokenTextRef.current = '';
     }
 
     function clearAllStreamTimers() {
@@ -881,12 +888,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SR) return;
         stopMicImmediate();
+
         try {
             const rec = new SR();
-            rec.continuous      = true;
+            rec.continuous      = false; // Single utterance turn to prevent recording subsequent AI speech
             rec.interimResults  = true;
             rec.lang            = 'en-US';
             let speechTimeout: ReturnType<typeof setTimeout> | null = null;
+            let hasSubmitted = false;
 
             rec.onstart = () => {
                 if (isActiveRef.current) {
@@ -895,62 +904,54 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                     spokenTextRef.current = '';
                 }
             };
+
+            const submitSpeech = (text: string) => {
+                if (hasSubmitted) return;
+                hasSubmitted = true;
+                if (speechTimeout) clearTimeout(speechTimeout);
+
+                // Immediately turn off and deactivate microphone
+                stopMicImmediate();
+
+                const final = text.trim();
+                if (final.length > 1) {
+                    addToast(`Heard: "${final}"`, 'info');
+                    void handleStudentReplyRef.current(final, attachedImage);
+                }
+            };
+
             rec.onresult = (e: any) => {
                 const resultsArr = Array.from(e.results);
                 const t = resultsArr.map((r: any) => r[0].transcript).join(' ').trim();
                 spokenTextRef.current = t;
                 if (isActiveRef.current) setMicDisplay(t);
 
-                // If user speaks a meaningful response, wait for 1.8s pause to submit their answer
+                // When speech pause detected (1.4s), deactivate mic and submit
                 if (speechTimeout) clearTimeout(speechTimeout);
                 if (t.length > 1) {
                     speechTimeout = setTimeout(() => {
-                        if (!isActiveRef.current || isSpeakingRef.current) return;
-                        const final = spokenTextRef.current.trim();
-                        if (final.length > 1) {
-                            try { rec.stop(); } catch (_) {}
-                            setIsMicListening(false);
-                            setMicDisplay('');
-                            spokenTextRef.current = '';
-                            addToast(`Heard: "${final}"`, 'info');
-                            void handleStudentReplyRef.current(final, attachedImage);
-                        }
-                    }, 1800);
+                        submitSpeech(spokenTextRef.current);
+                    }, 1400);
                 }
             };
+
             rec.onend = () => {
                 if (!isActiveRef.current) return;
-                const final = spokenTextRef.current.trim();
-                if (final.length > 1) {
-                    setIsMicListening(false);
-                    spokenTextRef.current = '';
-                    setMicDisplay('');
-                    addToast(`Heard: "${final}"`, 'info');
-                    void handleStudentReplyRef.current(final, attachedImage);
-                } else if (!isPaused && !isSpeakingRef.current && isActiveRef.current) {
-                    // Patiently keep listening without auto-submitting or auto-advancing!
-                    try {
-                        rec.start();
-                    } catch (_) {
-                        setIsMicListening(false);
-                    }
+                if (!hasSubmitted && spokenTextRef.current.trim().length > 1) {
+                    submitSpeech(spokenTextRef.current);
                 } else {
-                    setIsMicListening(false);
+                    stopMicImmediate();
                 }
             };
-            rec.onerror = (e: any) => {
-                if (e?.error === 'no-speech') {
-                    // Silence detected: do not advance, stay ready for user
-                    return;
-                }
-                if (isActiveRef.current) {
-                    setIsMicListening(false);
-                }
+
+            rec.onerror = () => {
+                stopMicImmediate();
             };
+
             recognitionRef.current = rec;
             rec.start();
         } catch (_) {
-            setIsMicListening(false);
+            stopMicImmediate();
         }
     }, [addToast, attachedImage, isPaused]);
 
