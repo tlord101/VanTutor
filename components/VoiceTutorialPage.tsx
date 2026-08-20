@@ -1110,6 +1110,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         const player = kittenTts.speak(cleanedText, {
             cleanText: true,
+            voice: KittenVoice.Bella,
+            rate: 1.2,
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);

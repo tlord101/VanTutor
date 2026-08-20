@@ -307,7 +307,7 @@ class KittenTtsService {
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
                 try {
                     const utterance = new SpeechSynthesisUtterance(sentenceText);
-                    utterance.rate = options?.rate || 1.0;
+                    utterance.rate = options?.rate || 1.2;
                     utterance.pitch = [KittenVoice.Bruno, KittenVoice.Jasper, KittenVoice.Hugo, KittenVoice.Leo].includes(voiceToUse) ? 0.94 : 1.04;
 
                     const matchedVoice = this.getVoiceForCharacter(voiceToUse);

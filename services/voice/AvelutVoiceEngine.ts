@@ -41,7 +41,7 @@ export class AvelutVoiceEngine {
     private state: VoiceEngineState = 'READY';
     private activeModel: 'mini' | 'micro' = 'mini';
     private readonly fixedVoice: 'Bella' = 'Bella';
-    private readonly fixedSpeed = 1.05;
+    private readonly fixedSpeed = 1.2;
     private isMuted = false;
     private errorMessage: string | null = null;
     private capabilities: HardwareVoiceCapabilities | null = null;
