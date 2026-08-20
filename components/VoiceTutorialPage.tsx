@@ -1172,6 +1172,22 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         });
 
         currentAudioRef.current = player as any;
+
+        // Watchdog timeout: ensures blackboard reveals within 2.2s even if initial voice initialization takes time
+        const safetyTimer = setTimeout(() => {
+            if (isActiveRef.current && playSessionIdRef.current === sessionId) {
+                setIsTtsLoading(false);
+                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                if (pendingVisualsRef.current.svg) {
+                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                } else if (pendingVisualsRef.current.table) {
+                    setActiveTableMarkdown(pendingVisualsRef.current.table);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                }
+            }
+        }, 2200);
+        streamTimersRef.current.push(safetyTimer);
     }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {

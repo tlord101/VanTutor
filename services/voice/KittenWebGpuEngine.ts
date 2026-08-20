@@ -78,8 +78,10 @@ export class KittenWebGpuEngine {
             script.crossOrigin = 'anonymous';
             script.onload = () => {
                 if (window.ort) {
-                    window.ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 2);
+                    const isIsolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
+                    window.ort.env.wasm.numThreads = isIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
                     window.ort.env.wasm.simd = true;
+                    window.ort.env.wasm.proxy = false;
                     resolve(window.ort);
                 } else {
                     reject(new Error('Failed to initialize ONNX Runtime Web.'));
@@ -131,7 +133,7 @@ export class KittenWebGpuEngine {
 
                 this.session = await ort.InferenceSession.create(modelBuffer, {
                     executionProviders,
-                    graphOptimizationLevel: 'all',
+                    graphOptimizationLevel: 'basic',
                 });
 
                 console.log(`[KittenWebGpuEngine] Session created with [${executionProviders.join(', ')}]`);
@@ -168,7 +170,7 @@ export class KittenWebGpuEngine {
             const code = text.charCodeAt(i);
             tokens.push(code % 256);
         }
-        return tokens;
+        return tokens.length > 0 ? tokens : [0];
     }
 
     private getVoiceStyleEmbedding(voiceName: string): Float32Array {
@@ -181,7 +183,6 @@ export class KittenWebGpuEngine {
         }
 
         for (let i = 0; i < 256; i++) {
-            // Standard normalized embedding values centered around 0 with subtle variance
             emb[i] = Math.sin((hash + 1) * (i + 1) * 0.1) * 0.12;
         }
         return emb;
@@ -226,8 +227,6 @@ export class KittenWebGpuEngine {
                         feeds[name] = speedTensor;
                     } else if (lower.includes('style') || lower.includes('embed') || lower.includes('voice') || lower.includes('speaker')) {
                         feeds[name] = lower === 'speaker_id' || lower === 'sid' ? sidTensor : styleTensor;
-                    } else if (lower.includes('input') || lower.includes('token') || lower.includes('text') || lower.includes('id')) {
-                        feeds[name] = inputIdsTensor;
                     } else {
                         feeds[name] = inputIdsTensor;
                     }
@@ -236,14 +235,6 @@ export class KittenWebGpuEngine {
                 feeds['input_ids'] = inputIdsTensor;
                 feeds['style'] = styleTensor;
                 feeds['speed'] = speedTensor;
-            }
-
-            // Always ensure input_ids is populated if expected
-            if (inputNames.includes('input_ids') && !feeds['input_ids']) {
-                feeds['input_ids'] = inputIdsTensor;
-            }
-            if (inputNames.includes('style') && !feeds['style']) {
-                feeds['style'] = styleTensor;
             }
 
             const results = await this.session.run(feeds);
@@ -392,9 +383,17 @@ export class KittenWebGpuEngine {
                 try {
                     await audio.play();
                 } catch {
+                    if (!hasFiredStart) {
+                        hasFiredStart = true;
+                        options?.onStart?.();
+                    }
                     void playSentence(index + 1);
                 }
             } else {
+                if (!hasFiredStart && index === 0) {
+                    hasFiredStart = true;
+                    options?.onError?.(new Error('Audio generation failed'));
+                }
                 void playSentence(index + 1);
             }
         };
