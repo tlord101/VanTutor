@@ -203,3 +203,28 @@ export async function getDueSpacedReviews(userId: string): Promise<SpacedReviewI
 
     return cached.filter(r => r.nextReviewTimestamp <= now);
 }
+
+/**
+ * Convenience helper to calculate and save a spaced review item.
+ */
+export async function scheduleSpacedReviewItem(
+    userId: string,
+    courseId: string,
+    topicId: string,
+    conceptName: string,
+    mastery: DimensionalMastery,
+    qualityRating: number = 4
+): Promise<void> {
+    const item = calculateInitialReview(
+        userId,
+        courseId,
+        'Course',
+        topicId,
+        'Topic',
+        conceptName,
+        mastery,
+        [`Explain the core physical mechanism of ${conceptName}.`]
+    );
+    const updated = updateReviewScheduleSM2(item, qualityRating, mastery);
+    await saveSpacedReviewItem(updated);
+}

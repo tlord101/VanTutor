@@ -225,3 +225,71 @@ export function isHintRequest(studentAnswer: string): boolean {
     const hintPatterns = /\b(hint|help|clue|stuck|don'?t know|idk|not sure|no idea|confused|i give up|show me)\b/i;
     return hintPatterns.test(studentAnswer.trim());
 }
+
+import type { LearningQuestion } from '../types/learningQuestion';
+
+/**
+ * Main 2-layer evaluation orchestrator:
+ * 1. Checks Layer 1 deterministic evaluation (exact, numeric tolerance, normalized formula).
+ * 2. Falls back to Layer 2 Gemini AI model for conceptual and open-ended student answers.
+ */
+export async function evaluateStudentAnswer(
+    question: LearningQuestion,
+    studentAnswer: string,
+    dialogueContext: string,
+    aiClient: any,
+    model: string = 'gemini-3.1-flash-lite'
+): Promise<{
+    isCorrect: boolean;
+    misconceptionType?: MisconceptionType;
+    feedback: string;
+    score: number;
+    evaluatedLocally: boolean;
+}> {
+    if (!question) {
+        return {
+            isCorrect: true,
+            feedback: 'Good response. Let us continue.',
+            score: 1.0,
+            evaluatedLocally: true,
+        };
+    }
+
+    // 1. Try Layer 1 Local Deterministic Evaluation
+    const localRes = evaluateLocally(studentAnswer, question.expectedAnswer, question.type);
+    if (localRes !== null) {
+        return {
+            isCorrect: localRes.isCorrect,
+            misconceptionType: (localRes.errorType as MisconceptionType) || undefined,
+            feedback: localRes.feedback,
+            score: localRes.score,
+            evaluatedLocally: true,
+        };
+    }
+
+    if (!aiClient) {
+        return {
+            isCorrect: true,
+            feedback: 'Proceeding to next step.',
+            score: 1.0,
+            evaluatedLocally: true,
+        };
+    }
+
+    // 2. Fall back to Layer 2 AI Evaluation
+    const aiRes = await evaluateWithAI(
+        studentAnswer,
+        question.expectedAnswer,
+        `Question: ${question.questionText}\nContext: ${dialogueContext}`,
+        aiClient,
+        model
+    );
+
+    return {
+        isCorrect: aiRes.isCorrect,
+        misconceptionType: (aiRes.errorType as MisconceptionType) || undefined,
+        feedback: aiRes.feedback,
+        score: aiRes.score,
+        evaluatedLocally: false,
+    };
+}

@@ -90,7 +90,7 @@ export const REPAIR_STRATEGY_INSTRUCTIONS: Record<RepairStrategy, string> = {
  */
 export function generatePhasePath(
     dimensionResults: DiagnosticDimensionResult[],
-    _studentMastery: DimensionalMastery,
+    _studentMastery?: DimensionalMastery,
 ): TutorPhase[] {
     const path: TutorPhase[] = [];
 

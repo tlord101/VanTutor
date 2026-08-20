@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { readCachedJson } from '../utils/cache';
+import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { GoogleGenAI } from '@google/genai';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -32,11 +32,11 @@ const LINE_STREAM_MS = 300;
 // ── Adaptive Teaching Phases (capabilities, not fixed sequence) ───────────────
 import type { TutorPhase, DiagnosticDimensionResult, RepairStrategy } from '../services/adaptivePathEngine';
 import { generatePhasePath, adaptPath, selectRepairStrategy, scoreDiagnosticAnswers, REPAIR_STRATEGY_INSTRUCTIONS } from '../services/adaptivePathEngine';
-import { DimensionalMastery, defaultMastery, updateMastery, generateMasteryNarration, evaluateReadiness, PhaseResult, MisconceptionType } from '../services/masteryModel';
-import { evaluateLocally, evaluateWithAI, isHintRequest, EvaluationResult } from '../services/answerEvaluator';
+import { DimensionalMastery, defaultMastery, updateMastery, updateMasteryOnAnswer, generateMasteryNarration, evaluateReadiness, PhaseResult, MisconceptionType } from '../services/masteryModel';
+import { evaluateLocally, evaluateWithAI, evaluateStudentAnswer, isHintRequest, EvaluationResult } from '../services/answerEvaluator';
 import { createInitialHintState, getNextHint, HintState } from '../services/hintEngine';
 import { createInitialDifficultyState, recordQuestionPerformance, DifficultyState } from '../services/difficultyController';
-import { calculateInitialReview, saveSpacedReviewItem } from '../services/spacedReviewService';
+import { calculateInitialReview, saveSpacedReviewItem, scheduleSpacedReviewItem } from '../services/spacedReviewService';
 import { recordConceptDimensionalMastery } from '../services/tutorMemoryService';
 import type { LearningQuestion, QuestionDifficulty } from '../types/learningQuestion';
 
@@ -229,10 +229,62 @@ export function robustParseJson<T = any>(raw: string): T {
             .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, () => '\\\\')
             .replace(/,\s*([\}\]])/g, '$1');
         return JSON.parse(sanitized) as T;
-    } catch (err) {
-        console.error('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 400));
-        throw err;
-    }
+    } catch (_) {}
+
+    // Attempt 5: Resilient regex-field extractor for truncated or malformed responses
+    try {
+        const obj: any = {};
+
+        // Extract boardLines array
+        const boardMatch = cleaned.match(/"boardLines"\s*:\s*\[([\s\S]*?)(\]|$)/);
+        if (boardMatch) {
+            const rawItems = boardMatch[1].match(/"((?:[^"\\]|\\.)*)"/g);
+            if (rawItems && rawItems.length > 0) {
+                obj.boardLines = rawItems.map(item => item.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\'));
+            }
+        }
+
+        // Extract spokenExplanation
+        const spokenMatch = cleaned.match(/"spokenExplanation"\s*:\s*"((?:[^"\\]|\\.)*)/);
+        if (spokenMatch) {
+            obj.spokenExplanation = spokenMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+
+        // Extract diagramSvg
+        const svgMatch = cleaned.match(/"diagramSvg"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
+        if (svgMatch && svgMatch[1] !== 'null') {
+            obj.diagramSvg = svgMatch[1].slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+
+        // Extract tableMarkdown
+        const tableMatch = cleaned.match(/"tableMarkdown"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
+        if (tableMatch && tableMatch[1] !== 'null') {
+            obj.tableMarkdown = tableMatch[1].slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+
+        // Extract action buttons
+        const posLabelMatch = cleaned.match(/"positiveReplyLabel"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (posLabelMatch) obj.positiveReplyLabel = posLabelMatch[1];
+        const posTextMatch = cleaned.match(/"positiveReplyText"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (posTextMatch) obj.positiveReplyText = posTextMatch[1];
+        const negLabelMatch = cleaned.match(/"negativeReplyLabel"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (negLabelMatch) obj.negativeReplyLabel = negLabelMatch[1];
+        const negTextMatch = cleaned.match(/"negativeReplyText"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (negTextMatch) obj.negativeReplyText = negTextMatch[1];
+
+        if (obj.boardLines || obj.spokenExplanation) {
+            if (!obj.boardLines) obj.boardLines = [];
+            if (!obj.spokenExplanation) obj.spokenExplanation = obj.boardLines.join(' ');
+            return obj as T;
+        }
+    } catch (_) {}
+
+    console.warn('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 300));
+    // Return a safe minimal fallback object instead of throwing
+    return {
+        boardLines: ['Interactive Tutorial Step'],
+        spokenExplanation: 'Let us continue our interactive lesson.',
+    } as any as T;
 }
 
 export interface BlueprintVariable {
@@ -538,13 +590,24 @@ function sanitizeSvg(rawSvg: string | null | undefined): string | null {
         cleaned = cleaned.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
     }
 
-    if (cleaned.includes('marker-end') && !cleaned.includes('<defs>')) {
-        const defs = `<defs>
+    const defs = `<defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#D9CCBC" /></marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#63B3ED" /></marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FC8181" /></marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#68D391" /></marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38BDF8" /></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#F87171" /></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#34D399" /></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FBBF24" /></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#A78BFA" /></marker>
+    <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35"/><stop offset="100%" stop-color="#0284C7" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34D399" stop-opacity="0.35"/><stop offset="100%" stop-color="#059669" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FBBF24" stop-opacity="0.35"/><stop offset="100%" stop-color="#D97706" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A78BFA" stop-opacity="0.35"/><stop offset="100%" stop-color="#7C3AED" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="grad-dark" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1E293B" stop-opacity="0.9"/><stop offset="100%" stop-color="#0F172A" stop-opacity="0.95"/></linearGradient>
+    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
   </defs>`;
+
+    if (cleaned.includes('<defs>')) {
+        cleaned = cleaned.replace(/<defs>/i, `<defs>${defs.replace('<defs>', '').replace('</defs>', '')}`);
+    } else {
         cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${defs}`);
     }
 
@@ -1811,6 +1874,14 @@ You embody Adaptive Teaching Engine methodology:
 - REAL-WORLD OBJECT ANALOGIES: Always use familiar physical objects.
 - LaTeX Math: Format all formulas, powers, superscripts, subscripts, fractions, and units in LaTeX ($...$ or $$...$$).
 
+DIAGRAM SVG SPECIFICATIONS (HIGH PRECISION STEM ILLUSTRATION):
+- When diagramSvg is provided, draw a HIGH-PRECISION, BEAUTIFULLY DETAILED STEM ILLUSTRATION in valid SVG (viewBox="0 0 420 220").
+- Use dark-mode optimized aesthetics: Dark slate background or transparent, crisp high-contrast strokes.
+- Palette: #38BDF8 (Sky Blue for objects, trajectories, forces), #34D399 (Emerald Green for target quantities, velocities), #F87171 (Coral Red for resistance, friction, normal forces), #FBBF24 (Amber for givens, angles, dimensions), #A78BFA (Purple for field lines, components), #E2E8F0 (Text labels).
+- Real physical scenario detail: Draw recognizable physical objects (cars with wheels, inclined planes with angles and surface hatching, circuits with standard schematic symbols, pulleys with grooved wheels, springs with realistic coils, vectors with arrow markers).
+- Vector arrows: Always use marker-end="url(#arrow-blue)", "url(#arrow-red)", or "url(#arrow-green)".
+- Labeled parameters: Dimension arrows, angle arcs $\\theta$, and variables in LaTeX format ($F$, $m$, $a$, $v$, $t$).
+
 CURRENT TOPIC: "${sessionData?.topic?.topic_name}"
 CURRENT CONCEPT: "${concept?.conceptName}"
 CURRENT ADAPTIVE PHASE: "${currentPhase}" (${PHASE_LABEL[currentPhase]})
@@ -1858,7 +1929,7 @@ OUTPUT VALID JSON ONLY:
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
-                config: { responseMimeType: 'application/json', temperature: 0.35 },
+                config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 3000 },
             });
 
             if (!isActiveRef.current) return;
@@ -1961,14 +2032,136 @@ OUTPUT VALID JSON ONLY:
             return;
         }
 
-        // ── 2. Two-Layer Answer Evaluation & Decision Logic ─────────────────────
+        const isInteractivePhase = Boolean(
+            activeLearningQuestionRef.current &&
+            (currentPhase === 'diagnostic' || currentPhase === 'predict' || currentPhase === 'guided_practice' ||
+             currentPhase === 'independent_practice' || currentPhase === 'misconception' || currentPhase === 'transfer' ||
+             currentPhase === 'retrieval' || currentPhase === 'synthesis')
+        );
+
+        // ── 2. Handle Non-Interactive Presentation Phases ──────────────────────
+        if (!isInteractivePhase) {
+            const isAffirmative = /^(continue|next|ok|okay|got it|makes sense|let's go|proceed|clear|yes|understood|i see|let me predict|explore|formula clear)/i.test(userText.toLowerCase()) ||
+                userText === positiveActionRef.current.text;
+
+            // Student asked a question or asked to explain again during presentation phase
+            if (!isAffirmative && aiClient) {
+                try {
+                    setIsLoadingUnit(true);
+                    const clarifyPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
+The student is in presentation phase "${currentPhase}" for "${currentC?.conceptName}".
+Student said: "${userText}"
+
+Provide a warm, concise clarification (2-3 sentences) answering their specific question without skipping ahead, plus 2-3 crisp blackboard lines in LaTeX.
+OUTPUT VALID JSON ONLY:
+{
+  "spokenExplanation": "Spoken clarification in plain English",
+  "boardLines": ["Clarification point 1 with LaTeX", "Clarification point 2 with LaTeX"],
+  "positiveReplyLabel": "Got it, continue →",
+  "positiveReplyText": "I understand now, let's continue.",
+  "negativeReplyLabel": "Ask another question ↺",
+  "negativeReplyText": "Could you explain more about this?"
+}`;
+                    const res = await aiClient.models.generateContent({
+                        model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
+                        contents: [{ role: 'user', parts: [{ text: clarifyPrompt }] }],
+                        config: { responseMimeType: 'application/json', temperature: 0.3 },
+                    });
+                    const raw = getResponseText(res);
+                    const parsed = robustParseJson<{ spokenExplanation: string; boardLines: string[]; positiveReplyLabel: string; positiveReplyText: string; negativeReplyLabel: string; negativeReplyText: string }>(raw);
+                    setIsLoadingUnit(false);
+                    if (parsed.boardLines) streamBoardLines(parsed.boardLines);
+                    if (parsed.positiveReplyLabel) setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText || 'Continue' });
+                    if (parsed.negativeReplyLabel) setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText || 'Explain more' });
+                    dialogueHistoryRef.current.push({ role: 'tutor', text: parsed.spokenExplanation, boardSummary: (parsed.boardLines || []).join(' | ') });
+                    await speakText(parsed.spokenExplanation, undefined, parsed.boardLines);
+                    return;
+                } catch (e) {
+                    console.warn('[HandleStudentReply] clarification error:', e);
+                    setIsLoadingUnit(false);
+                }
+            }
+
+            // Standard progression along path for presentation phase
+            const nextPIdx = currentPIdx + 1;
+            if (nextPIdx < currentPath.length) {
+                const nextPhase = currentPath[nextPIdx];
+                setPhaseIdx(nextPIdx);
+                phaseIdxRef.current = nextPIdx;
+                setSubStep(nextPhase);
+                subStepRef.current = nextPhase;
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+                return;
+            }
+
+            // End of concept path
+            const readiness = evaluateReadiness(conceptMasteryRef.current);
+            if (currentC) {
+                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, readiness.readyToAdvance);
+                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, 3);
+            }
+
+            const nextCIdx = conceptIdxRef.current + 1;
+            if (nextCIdx < blueprint.concepts.length) {
+                conceptIdxRef.current = nextCIdx;
+                setConceptIdx(nextCIdx);
+                const freshPath: TutorPhase[] = ['diagnostic'];
+                setActivePhasePath(freshPath);
+                activePhasePathRef.current = freshPath;
+                setPhaseIdx(0);
+                phaseIdxRef.current = 0;
+                setSubStep('diagnostic');
+                subStepRef.current = 'diagnostic';
+                setActiveDiagnosticIdx(0);
+                activeDiagnosticIdxRef.current = 0;
+                setRepairAttempt(0);
+                repairAttemptRef.current = 0;
+                setRepairStrategiesUsed([]);
+                repairStrategiesUsedRef.current = [];
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
+                return;
+            }
+
+            if (currentPhase !== 'synthesis' && blueprint.synthesisProblem) {
+                const synthPath: TutorPhase[] = ['synthesis'];
+                setActivePhasePath(synthPath);
+                activePhasePathRef.current = synthPath;
+                setPhaseIdx(0);
+                phaseIdxRef.current = 0;
+                setSubStep('synthesis');
+                subStepRef.current = 'synthesis';
+                setIsLoadingUnit(false);
+                await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
+                return;
+            }
+
+            // Topic Mastered
+            setIsDone(true);
+            setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
+            setActiveDiagramSvg(null);
+            setActiveTableMarkdown(null);
+            setActiveVisualCaption(null);
+            void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
+            void saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, 'mastery_decision', true, blueprint, {
+                phasePath: activePhasePathRef.current,
+                mastery: conceptMasteryRef.current,
+                difficultyLevel: difficultyStateRef.current.currentLevel,
+            });
+            void speakText(`Congratulations! ${blueprint.overallSummary} You have demonstrated mastery across all concepts!`);
+            setIsLoadingUnit(false);
+            return;
+        }
+
+        // ── 3. Evaluate Interactive Answers (Diagnostic & Practice) ───────────
         try {
             setIsLoadingUnit(true);
             let isCorrect = true;
             let misconceptionType: MisconceptionType | undefined;
             let feedback = '';
 
-            if (activeLearningQuestionRef.current && currentPhase !== 'concept_map' && currentPhase !== 'intuition' && currentPhase !== 'concept_core' && currentPhase !== 'formalize' && currentPhase !== 'multi_represent') {
+            if (activeLearningQuestionRef.current) {
                 const evalResult = await evaluateStudentAnswer(
                     activeLearningQuestionRef.current,
                     userText,
@@ -1996,13 +2189,15 @@ OUTPUT VALID JSON ONLY:
                     currentPhase,
                     isCorrect,
                     hintStateRef.current.hintsUsed,
-                    activeLearningQuestionRef.current.difficulty
+                    activeLearningQuestionRef.current.difficulty,
+                    misconceptionType,
+                    feedback
                 );
                 setConceptMastery(newMastery);
                 conceptMasteryRef.current = newMastery;
             }
 
-            // ── 3. Diagnostic Phase Branching ──────────────────────────────────
+            // ── Diagnostic Phase Handling ──
             if (currentPhase === 'diagnostic') {
                 diagnosticAnswersRef.current.push({
                     questionIdx: currentDiagIdx,
@@ -2022,7 +2217,7 @@ OUTPUT VALID JSON ONLY:
 
                 // Diagnostic complete for this concept -> evaluate dimensions independently
                 const scoredDims = scoreDiagnosticAnswers(diagnosticAnswersRef.current);
-                const generatedPath = generatePhasePath(scoredDims);
+                const generatedPath = generatePhasePath(scoredDims, conceptMasteryRef.current);
                 diagnosticAnswersRef.current = [];
                 setActiveDiagnosticIdx(0);
                 activeDiagnosticIdxRef.current = 0;
@@ -2041,71 +2236,79 @@ OUTPUT VALID JSON ONLY:
                 return;
             }
 
-            // ── 4. Practice Misconception & Repair Adaptation ──────────────────
-            if (!isCorrect && (currentPhase === 'guided_practice' || currentPhase === 'independent_practice' || currentPhase === 'predict' || currentPhase === 'misconception')) {
+            // ── Interactive Practice / Predict / Misconception: If Incorrect ──
+            if (!isCorrect) {
                 const currentAttempts = repairAttemptRef.current + 1;
                 setRepairAttempt(currentAttempts);
                 repairAttemptRef.current = currentAttempts;
 
                 const strategy = selectRepairStrategy(
                     misconceptionType || 'definition_confusion',
-                    currentAttempts,
                     repairStrategiesUsedRef.current
                 );
                 const updatedUsed = [...repairStrategiesUsedRef.current, strategy];
                 setRepairStrategiesUsed(updatedUsed);
                 repairStrategiesUsedRef.current = updatedUsed;
 
-                const adaptedPath = adaptPath(currentPath, currentPIdx, 'inject_repair', strategy);
+                const adaptedPath = adaptPath(
+                    currentPath,
+                    currentPIdx,
+                    {
+                        phase: currentPhase,
+                        score: 0,
+                        success: false,
+                        errorType: misconceptionType,
+                        misconceptionDetail: feedback,
+                        hintsUsed: hintStateRef.current.hintsUsed,
+                        difficulty: activeLearningQuestionRef.current?.difficulty,
+                    },
+                    conceptMasteryRef.current
+                );
                 setActivePhasePath(adaptedPath);
                 activePhasePathRef.current = adaptedPath;
 
-                const nextPIdx = currentPIdx + 1;
-                const nextPhase = adaptedPath[nextPIdx] || 'repair';
-                setPhaseIdx(nextPIdx);
-                phaseIdxRef.current = nextPIdx;
-                setSubStep(nextPhase);
-                subStepRef.current = nextPhase;
+                // Show corrective feedback and allow retry or repair
+                const feedbackLines = [
+                    `❌ **Let's review this step**`,
+                    feedback || `Check the governing relationship for ${currentC?.conceptName}.`,
+                    `💡 **Key Insight**: ${REPAIR_STRATEGY_INSTRUCTIONS[strategy] || 'Consider the physical balance.'}`,
+                ];
+                streamBoardLines(feedbackLines);
+                setPositiveAction({ label: "Try Answering Again →", text: "I'll try calculating again." });
+                setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
 
+                const spokenFeedback = `Not quite. ${feedback} ${REPAIR_STRATEGY_INSTRUCTIONS[strategy] || 'Let\'s think about the fundamental law.'} Take a moment and try answering again, or tap below for a step-by-step walkthrough.`;
+                dialogueHistoryRef.current.push({ role: 'tutor', text: spokenFeedback, boardSummary: feedbackLines.join(' | ') });
                 setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+                await speakText(spokenFeedback, undefined, feedbackLines);
                 return;
             }
 
-            // ── 5. Standard Phase Progression Along Adaptive Path ─────────────
-            const nextPIdx = currentPIdx + 1;
+            // ── Interactive Practice: If Correct ──
+            setRepairAttempt(0);
+            repairAttemptRef.current = 0;
 
+            const nextPIdx = currentPIdx + 1;
             if (nextPIdx < currentPath.length) {
                 const nextPhase = currentPath[nextPIdx];
                 setPhaseIdx(nextPIdx);
                 phaseIdxRef.current = nextPIdx;
                 setSubStep(nextPhase);
                 subStepRef.current = nextPhase;
-
-                // Reset repair state on successful advancement
-                if (isCorrect) {
-                    setRepairAttempt(0);
-                    repairAttemptRef.current = 0;
-                }
-
                 setIsLoadingUnit(false);
                 await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
                 return;
             }
 
-            // ── 6. End of Concept Path: Evaluate Mastery or Advance ───────────
+            // End of concept path
             const readiness = evaluateReadiness(conceptMasteryRef.current);
-
-            // Record concept mastery in student memory & SQLite
             if (currentC) {
                 void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, readiness.readyToAdvance);
-                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, isCorrect ? 4 : 2);
+                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, 4);
             }
 
             const nextCIdx = conceptIdxRef.current + 1;
-
             if (nextCIdx < blueprint.concepts.length) {
-                // Advance to next concept's diagnostic
                 conceptIdxRef.current = nextCIdx;
                 setConceptIdx(nextCIdx);
 
@@ -2128,7 +2331,7 @@ OUTPUT VALID JSON ONLY:
                 return;
             }
 
-            // ── 7. All Concepts Done: Topic Synthesis Phase ───────────────────
+            // Synthesis phase
             if (currentPhase !== 'synthesis' && blueprint.synthesisProblem) {
                 const synthPath: TutorPhase[] = ['synthesis'];
                 setActivePhasePath(synthPath);
@@ -2143,7 +2346,7 @@ OUTPUT VALID JSON ONLY:
                 return;
             }
 
-            // ── 8. Topic Completely Mastered ──────────────────────────────────
+            // All completed with demonstrated mastery
             setIsDone(true);
             setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
             setActiveDiagramSvg(null);
@@ -2161,8 +2364,9 @@ OUTPUT VALID JSON ONLY:
             setIsLoadingUnit(false);
 
         } catch (err) {
-            console.warn('[HandleStudentReply] intelligence engine fallback:', err);
+            console.warn('[HandleStudentReply] intelligence engine error:', err);
             setIsLoadingUnit(false);
+            // Safe fallback without abruptly completing topic
             const nextPIdx = currentPIdx + 1;
             if (nextPIdx < currentPath.length) {
                 const nextPhase = currentPath[nextPIdx];
@@ -2172,9 +2376,7 @@ OUTPUT VALID JSON ONLY:
                 subStepRef.current = nextPhase;
                 await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
             } else {
-                setIsDone(true);
-                setVisibleBoardLines(['🎓 Topic Complete!', blueprint.overallSummary]);
-                await speakText(`Great job! ${blueprint.overallSummary}`);
+                await speakText("Let's review this step together. Take another look at the key principle on the board.");
             }
         }
     }, [blueprint, speakText, presentUnit, userProfile, sessionData, appSettings, streamBoardLines, visibleBoardLines, attachedImage]);

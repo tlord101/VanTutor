@@ -266,9 +266,32 @@ export function evaluateReadiness(m: DimensionalMastery): ReadinessResult {
             reinforcementPhases: ['retrieval'],
         });
     }
-
     return {
         ready: weakDimensions.length === 0,
+        readyToAdvance: weakDimensions.length === 0,
         weakDimensions,
     };
+}
+
+/**
+ * Convenient helper to update 5-axis mastery based on a single student question answer.
+ */
+export function updateMasteryOnAnswer(
+    current: DimensionalMastery,
+    phase: TutorPhaseKey,
+    isCorrect: boolean,
+    hintsUsed: number = 0,
+    difficulty?: QuestionDifficulty,
+    errorType?: MisconceptionType | null,
+    misconceptionDetail?: string
+): DimensionalMastery {
+    return updateMastery(current, {
+        phase,
+        score: isCorrect ? 1.0 : 0.0,
+        success: isCorrect,
+        hintsUsed,
+        difficulty,
+        errorType,
+        misconceptionDetail,
+    });
 }
