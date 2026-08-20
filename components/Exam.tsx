@@ -474,7 +474,6 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
           
           return 'completed';
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, userProfile.department_id, userProfile.uid, currentExamId, examFormat, addToast]);
 
   useEffect(() => {

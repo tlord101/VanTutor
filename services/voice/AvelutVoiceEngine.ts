@@ -3,14 +3,14 @@
  *
  * Provides a unified local voice engine for Avelut StudyGuide.
  * Fixed Configuration:
- *   - Primary Model: KittenTTS Mini 0.8 (24 kHz)
- *   - Automatic Fallback: KittenTTS Micro 0.8
+ *   - Primary Model: KittenTTS (via kitten-tts-js)
  *   - Voice: Bella (Exclusively)
  *   - Speed: 1.05
  */
 
+import { KittenTTS, KittenVoice } from 'kitten-tts-js';
 import { detectVoiceCapabilities, HardwareVoiceCapabilities } from './VoiceCapabilities';
-import { modelManager, ModelDownloadProgress, MODEL_SPECS } from './ModelManager';
+import { modelManager, ModelDownloadProgress } from './ModelManager';
 import { TTSQueue, QueueItem } from './TTSQueue';
 import { SentenceParser } from './SentenceParser';
 
@@ -52,6 +52,10 @@ export class AvelutVoiceEngine {
     private sentenceParser: SentenceParser;
     private audioCache = new Map<string, string>(); // Text -> Blob URL
     private currentPlaybackSessionId = 0;
+    private currentAudioElement: HTMLAudioElement | null = null;
+
+    private ttsInstance: KittenTTS | null = null;
+    private ttsInitPromise: Promise<KittenTTS> | null = null;
 
     constructor() {
         this.sentenceParser = new SentenceParser();
@@ -76,6 +80,15 @@ export class AvelutVoiceEngine {
         this.initializeEngine();
     }
 
+    private async getTTS(): Promise<KittenTTS> {
+        if (this.ttsInstance) return this.ttsInstance;
+        if (!this.ttsInitPromise) {
+            this.ttsInitPromise = KittenTTS.create();
+        }
+        this.ttsInstance = await this.ttsInitPromise;
+        return this.ttsInstance;
+    }
+
     /**
      * Initializes engine and inspects local cache for pre-installed models.
      */
@@ -98,31 +111,18 @@ export class AvelutVoiceEngine {
         this.setState('DOWNLOADING');
         this.errorMessage = null;
 
-        const success = await modelManager.downloadModel(this.activeModel, (progress) => {
-            this.downloadProgressData = progress;
-            this.notify();
-            if (onProgress) onProgress(progress);
-        });
-
-        if (success) {
+        try {
+            await this.getTTS();
             this.setState('INITIALIZING');
             await new Promise(r => setTimeout(r, 400));
             this.setState('READY');
             localStorage.setItem(STORAGE_FIRST_TIME_PROMPT_KEY, 'true');
-            return true;
-        } else {
-            // If Mini failed on device, try Micro fallback
-            if (this.activeModel === 'mini') {
-                console.warn('[AvelutVoiceEngine] Mini installation failed, attempting Micro fallback');
-                this.activeModel = 'micro';
-                this.setState('FALLBACK');
-                const microSuccess = await modelManager.downloadModel('micro', onProgress);
-                if (microSuccess) {
-                    this.setState('READY');
-                    return true;
-                }
+            if (onProgress) {
+                onProgress({ bytesDownloaded: 25000000, totalBytes: 25000000, percentage: 100 });
             }
-
+            return true;
+        } catch (err) {
+            console.error('[AvelutVoiceEngine] Download error:', err);
             this.errorMessage = 'Could not download Avelut Voice. Please check your internet connection.';
             this.setState('ERROR');
             return false;
@@ -130,7 +130,7 @@ export class AvelutVoiceEngine {
     }
 
     /**
-     * Synthesizes audio for a single sentence using local ONNX / WebAudio / TTS pipeline.
+     * Synthesizes audio for a single sentence using local KittenTTS pipeline with Bella voice.
      */
     private async synthesizeLocalAudio(text: string): Promise<string | null> {
         if (!text || !text.trim()) return null;
@@ -142,67 +142,35 @@ export class AvelutVoiceEngine {
         }
 
         try {
-            // 1. In-browser local speech synthesis audio pipeline with Bella voice profile
             const audioUrl = await this.synthesizeBellaVoice(normalized);
             if (audioUrl) {
                 this.audioCache.set(normalized, audioUrl);
                 return audioUrl;
             }
         } catch (err) {
-            console.warn('[AvelutVoiceEngine] Local synthesis fallback:', err);
+            console.warn('[AvelutVoiceEngine] Local synthesis fallback error:', err);
         }
 
         return null;
     }
 
     /**
-     * High-fidelity Bella voice synthesis with acoustic pitch and formant tuning.
+     * High-fidelity Bella voice synthesis with KittenTTS pipeline.
      */
     private async synthesizeBellaVoice(text: string): Promise<string | null> {
-        return new Promise((resolve) => {
-            if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-                resolve(null);
-                return;
-            }
+        try {
+            const tts = await this.getTTS();
+            const audioBuffer = await tts.generate(text, {
+                voice: KittenVoice.Bella,
+                speed: this.fixedSpeed,
+            });
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-
-            // Find best natural female voice matching Bella's profile
-            const bellaVoice = voices.find(v =>
-                v.name.includes('Bella') ||
-                v.name.includes('Natural') ||
-                v.name.includes('Samantha') ||
-                v.name.includes('Karen') ||
-                v.name.includes('Victoria') ||
-                (v.lang.startsWith('en') && (v as any).gender === 'female')
-            ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
-
-            if (bellaVoice) {
-                utterance.voice = bellaVoice;
-            }
-
-            utterance.rate = this.fixedSpeed;
-            utterance.pitch = 1.05; // Bella's bright, clear, encouraging tutoring tone
-
-            // For instant real-time response, speak directly through utterance coordinator
-            utterance.onstart = () => {
-                this.setState('PLAYING');
-            };
-            utterance.onend = () => {
-                this.setState('READY');
-            };
-            utterance.onerror = () => {
-                this.setState('READY');
-            };
-
-            if (!this.isMuted) {
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utterance);
-            }
-
-            resolve(null);
-        });
+            const blob = audioBuffer.toBlob();
+            return URL.createObjectURL(blob);
+        } catch (err) {
+            console.error('[AvelutVoiceEngine] KittenTTS synthesis failed:', err);
+            return null;
+        }
     }
 
     /**
@@ -265,8 +233,10 @@ export class AvelutVoiceEngine {
     public pause(): void {
         this.setState('PAUSED');
         this.ttsQueue.pause();
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.pause();
+        if (this.currentAudioElement) {
+            try {
+                this.currentAudioElement.pause();
+            } catch {}
         }
     }
 
@@ -274,8 +244,10 @@ export class AvelutVoiceEngine {
         if (this.state === 'PAUSED') {
             this.setState('PLAYING');
             this.ttsQueue.resume();
-            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                window.speechSynthesis.resume();
+            if (this.currentAudioElement) {
+                try {
+                    void this.currentAudioElement.play();
+                } catch {}
             }
         }
     }
@@ -284,8 +256,12 @@ export class AvelutVoiceEngine {
         this.currentPlaybackSessionId++;
         this.sentenceParser.reset();
         this.ttsQueue.stop();
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
+        if (this.currentAudioElement) {
+            try {
+                this.currentAudioElement.pause();
+                this.currentAudioElement.currentTime = 0;
+            } catch {}
+            this.currentAudioElement = null;
         }
         if (this.state === 'PLAYING' || this.state === 'GENERATING' || this.state === 'PAUSED') {
             this.setState('READY');

@@ -4,3 +4,6 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   puppeteer: true
+
+patchedDependencies:
+  kitten-tts-js: patches/kitten-tts-js.patch
