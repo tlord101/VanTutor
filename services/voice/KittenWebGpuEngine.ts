@@ -120,48 +120,55 @@ export class KittenCloudTtsEngine {
         }
 
         const apiKey = this.getKittenApiKey();
-        if (!apiKey) {
-            console.warn('[KittenTTS API] No KittenML API Key found in App Settings or environment.');
-            return null;
-        }
 
-        try {
-            const response = await fetch('https://api.kittenml.com/v1/audio/speech', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+        // 1. Try local/Vercel serverless proxy endpoint to prevent browser CORS blocks
+        const endpoints = ['/api/speech', 'https://www.avelut.xyz/api/speech', 'https://api.kittenml.com/v1/audio/speech'];
+
+        for (const endpoint of endpoints) {
+            try {
+                const headers: Record<string, string> = {
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: 'kitten-tts-mini-0.8',
-                    voice: voice || 'Bella',
-                    input: normalized,
-                    response_format: 'mp3',
-                    speed: speed || 1.1,
-                }),
-                signal,
-            });
+                };
+                if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
 
-            if (!response.ok) {
-                const errText = await response.text().catch(() => '');
-                console.error(`[KittenTTS API] Error (${response.status}):`, errText);
-                return null;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        model: 'kitten-tts-mini-0.8',
+                        voice: voice || 'Bella',
+                        input: normalized,
+                        response_format: 'mp3',
+                        speed: speed || 1.1,
+                    }),
+                    signal,
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    console.warn(`[KittenTTS API] Endpoint ${endpoint} returned (${response.status}):`, errText);
+                    continue; // Try next endpoint fallback
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                if (!arrayBuffer || arrayBuffer.byteLength === 0) continue;
+
+                const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
+                const url = URL.createObjectURL(blob);
+                this.audioCache.set(cacheKey, url);
+                return url;
+            } catch (err: any) {
+                if (err?.name === 'AbortError') {
+                    return null;
+                }
+                // Try next endpoint fallback
             }
-
-            const arrayBuffer = await response.arrayBuffer();
-            if (!arrayBuffer || arrayBuffer.byteLength === 0) return null;
-
-            const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
-            const url = URL.createObjectURL(blob);
-            this.audioCache.set(cacheKey, url);
-            return url;
-        } catch (err: any) {
-            if (err?.name === 'AbortError') {
-                return null;
-            }
-            console.error('[KittenTTS API] Network/Generation error:', err);
-            return null;
         }
+
+        console.error('[KittenTTS API] All speech generation endpoints failed.');
+        return null;
     }
 
     /**
