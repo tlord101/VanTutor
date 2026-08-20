@@ -24,19 +24,19 @@ export class KittenCloudTtsEngine {
 
     public getKittenApiKey(): string | null {
         try {
+            const envKey = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
+            if (envKey && typeof envKey === 'string' && envKey.trim()) {
+                return envKey.trim();
+            }
+        } catch {}
+
+        try {
             const cached = localStorage.getItem('avelut_app_settings');
             if (cached) {
                 const parsed = JSON.parse(cached);
                 if (parsed.kittenml_api_key && typeof parsed.kittenml_api_key === 'string' && parsed.kittenml_api_key.trim()) {
                     return parsed.kittenml_api_key.trim();
                 }
-            }
-        } catch {}
-
-        try {
-            const envKey = (import.meta as any)?.env?.VITE_KITTENML_API_KEY;
-            if (envKey && typeof envKey === 'string' && envKey.trim()) {
-                return envKey.trim();
             }
         } catch {}
 

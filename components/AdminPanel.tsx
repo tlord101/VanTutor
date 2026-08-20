@@ -2772,31 +2772,6 @@ FORMAT:
         );
     }
 
-    const navigationItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/admin' },
-        { id: 'departments', label: 'Departments', icon: Building, path: '/admin/departments' },
-        { id: 'courses', label: 'Course Catalog', icon: BookOpen, path: '/admin/courses/manager' },
-        { id: 'questions', label: 'Past Questions', icon: HelpCircle, path: '/admin/questions' },
-        { id: 'users', label: 'User Control', icon: Users, path: '/admin/users' },
-        { id: 'notifications', label: 'Send Notifications', icon: Bell, path: '/admin/notifications' },
-        { id: 'emails', label: 'Send Emails', icon: Mail, path: '/admin/emails' },
-        { id: 'payments', label: 'Payments Control', icon: CreditCard, path: '/admin/payments' },
-        { id: 'app', label: 'App Settings', icon: SettingsIcon, path: '/admin/app' },
-        { id: 'email-configs', label: 'Email Settings', icon: Mail, path: '/admin/email-configs' },
-        { id: 'usage-settings', label: 'Usage Settings', icon: SettingsIcon, path: '/admin/usage-settings' },
-        { id: 'usage-analytics', label: 'Usage Analytics', icon: Activity, path: '/admin/usage-analytics' },
-        { id: 'purchase-logs', label: 'Purchase Logs', icon: CreditCard, path: '/admin/purchase-logs' },
-    ];
-
-    const activeNavItems = navigationItems.filter(item => {
-        if (!visibleTabs.includes(item.id as any)) return false;
-        if (isDeptAdmin) {
-            // Dept Admins can only see Dashboard, Courses, Questions, Users, Notifications
-            return ['dashboard', 'courses', 'questions', 'users', 'notifications'].includes(item.id);
-        }
-        return true;
-    });
-
     const scopedDepartments = isSuperAdmin 
         ? allDepartments 
         : allDepartments.filter(d => (userProfile.admin_department_ids || []).includes(d.id));
