@@ -1890,7 +1890,7 @@ INSTRUCTION: ${phaseInstructions[currentPhase]}
 
 OUTPUT VALID JSON ONLY:
 {
-  "boardLines": ["Line 1 with LaTeX", "Line 2 with LaTeX", "Line 3 with LaTeX"],
+  "boardLines": ["Line 1 with LaTeX", "[DIAGRAM]", "Line 2 with LaTeX", "Line 3 with LaTeX"],
   "spokenExplanation": "Conversational spoken English text without raw LaTeX codes",
   "diagramSvg": "SVG string with viewBox=\\"0 0 420 220\\" or null",
   "tableMarkdown": "Markdown table with LaTeX or null",
@@ -1899,7 +1899,8 @@ OUTPUT VALID JSON ONLY:
   "positiveReplyText": "Spoken text if affirmative button tapped",
   "negativeReplyLabel": "Button text",
   "negativeReplyText": "Spoken text if question/hint button tapped"
-}`;
+}
+NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines array (at any line index) where the illustration or table best fits the visual explanation!`;
 
         const cost = getFeatureCost('study_guide_lesson', appSettings);
         if (userProfile) {
@@ -2603,91 +2604,125 @@ OUTPUT VALID JSON ONLY:
 
     const hasVisualElement = !!(activeDiagramSvg || activeTableMarkdown);
 
+    // Helper to render inline diagram card
+    const renderInlineDiagram = () => {
+        if (!activeDiagramSvg) return null;
+        return (
+            <div className="w-full my-2.5 flex flex-col items-center justify-center p-3 rounded-2xl bg-[#22272E]/95 border border-[#373E47] shadow-lg relative group animate-fade-in transition-all">
+                <button
+                    onClick={() => setIsDiagramZoomed(true)}
+                    className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs cursor-pointer opacity-80 hover:opacity-100 transition-opacity z-10 flex items-center gap-1 shadow-xs"
+                    title="Fullscreen Diagram View"
+                >
+                    <i className="bi bi-arrows-fullscreen"></i>
+                    <span className="text-[10px] hidden sm:inline">Zoom</span>
+                </button>
+                {activeVisualCaption && (
+                    <span className="text-[11px] font-mono font-bold text-amber-300 mb-1 tracking-wider uppercase">
+                        {activeVisualCaption}
+                    </span>
+                )}
+                <div
+                    key={`svg-${diagramKey}`}
+                    className="w-full max-h-[260px] sm:max-h-[300px] flex items-center justify-center board-diagram-animated py-1 overflow-visible"
+                    dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
+                />
+            </div>
+        );
+    };
+
+    // Helper to render inline table
+    const renderInlineTable = () => {
+        if (!activeTableMarkdown) return null;
+        return (
+            <div className="w-full my-2.5 overflow-x-auto p-3 bg-[#1C2128] rounded-2xl border border-[#373E47] text-xs sm:text-sm font-mono text-white shadow-inner animate-fade-in">
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {formatLatexMath(activeTableMarkdown)}
+                </ReactMarkdown>
+            </div>
+        );
+    };
+
+    // Check if boardLines explicitly contain diagram/table placeholders
+    const hasExplicitDiagramTag = visibleBoardLines.some(l => /\[(diagram|visual|image)\]/i.test(l));
+    const hasExplicitTableTag = visibleBoardLines.some(l => /\[table\]/i.test(l));
+
     // ── Render ────────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col flex-1 h-full w-full bg-[#FAF7F2] text-[#2C241D] overflow-hidden select-none">
+        <div className="fixed inset-0 z-40 flex flex-col w-full h-full bg-[#12161A] text-white overflow-hidden select-none">
 
-            {/* ── Header ──────────────────────────────────────────────── */}
-            <header className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-[#E5DACD] bg-[#F4ECE2]/95 backdrop-blur-md z-30 shadow-xs shrink-0">
+            {/* ── Top Header Bar (Clean & Focused) ────────────────────── */}
+            <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 border-b border-white/10 bg-[#181C20]/95 backdrop-blur-md z-30 shadow-md shrink-0">
+                {/* Top Left: Back to Study Guide */}
                 <div className="flex items-center gap-3 min-w-0">
                     <button
                         onClick={handleGoBack}
                         disabled={isNavigatingBack}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-[#4A3E31] text-xs font-bold active:scale-95 cursor-pointer shadow-xs transition-all shrink-0"
+                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer shadow-xs transition-all shrink-0"
                     >
-                        <i className="bi bi-arrow-left text-sm"></i>
-                        <span className="hidden sm:inline">Back</span>
+                        <i className="bi bi-arrow-left text-sm font-bold"></i>
+                        <span>Back to Study Guide</span>
                     </button>
-                    <div className="min-w-0">
-                        <h1 className="text-sm font-bold text-[#2C241D] truncate flex items-center gap-2">
-                            <span>{sessionData?.topic?.topic_name || 'Interactive Voice & Visual Tutorial'}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EFE5D8] text-[#8B5A2B] font-bold border border-[#DFD1C0] hidden md:inline">
-                                Adaptive AI Engine
+                    
+                    <div className="min-w-0 hidden md:flex flex-col">
+                        <span className="text-xs font-bold text-white truncate">
+                            {sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Voice Tutorial'}
+                        </span>
+                        {currentConcept && (
+                            <span className="text-[10px] text-amber-300/90 font-mono truncate">
+                                Concept {conceptIdx + 1}/{totalConcepts}: {currentConcept.conceptName}
                             </span>
-                        </h1>
-                        <p className="text-[11px] text-[#7A6B5C] truncate">
-                            {sessionData?.course?.course_name || 'Course Topic'}
-                        </p>
+                        )}
                     </div>
                 </div>
 
+                {/* Top Center / Subtitle Indicator (Mobile & Tablet) */}
+                <div className="flex items-center gap-2 md:hidden truncate min-w-0 px-2">
+                    <span className="text-xs font-bold text-white truncate">
+                        {currentConcept?.conceptName || sessionData?.topic?.topic_name}
+                    </span>
+                </div>
+
+                {/* Top Right: Voice Dropdown & Mute Controls */}
                 <div className="flex items-center gap-2 shrink-0">
                     {sessionData?.image && (
                         <button
                             onClick={() => setShowScannedImageModal(true)}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-100 hover:bg-sky-200 dark:bg-sky-950/80 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-200 text-xs font-bold shadow-xs transition-all cursor-pointer"
-                            title="View scanned problem"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-900/70 hover:bg-sky-800 border border-sky-500/60 text-sky-200 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                            title="View original problem scan"
                         >
                             <i className="bi bi-image text-xs"></i>
                             <span className="hidden sm:inline">Scanned Problem</span>
                         </button>
                     )}
 
-                    {/* 1. Voice Selection Dropdown Button */}
+                    {/* Voice Selection Dropdown Button */}
                     <button
                         onClick={() => setShowVoiceModal(prev => !prev)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] hover:bg-[#E5D7C5] border border-[#DFD1C0] text-xs font-bold text-[#5A4D3E] shadow-2xs transition-all cursor-pointer active:scale-95"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white shadow-xs transition-all cursor-pointer active:scale-95"
                         title="Choose Tutor Voice (8 KittenTTS Models)"
                     >
-                        <i className="bi bi-mic-fill text-[#8B5A2B] text-xs"></i>
+                        <i className="bi bi-mic-fill text-amber-400 text-xs"></i>
                         <span>{selectedVoice}</span>
-                        <i className={`bi bi-chevron-${showVoiceModal ? 'up' : 'down'} text-[10px] text-[#8B5A2B]`}></i>
+                        <i className={`bi bi-chevron-${showVoiceModal ? 'up' : 'down'} text-[10px] text-amber-400`}></i>
                     </button>
 
-                    {/* 2. Live State Status Badge */}
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EFE5D8] border border-[#DFD1C0] text-xs font-semibold text-[#5A4D3E]">
-                        {isTtsLoading ? (
-                            <span className="w-2 h-2 rounded-full bg-[#8B5A2B] animate-ping shrink-0" />
-                        ) : (
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${isSpeaking ? 'bg-[#8B5A2B] animate-pulse' : 'bg-[#C2B2A3]'}`} />
-                        )}
-                        <span>
-                            {isTtsLoading ? `Generating ${selectedVoice}...` : isPaused ? 'Paused' : isSpeaking ? 'Speaking' : selectedVoice}
-                        </span>
-                    </div>
-
-                    {/* 3. Mastery Badge */}
-                    <div className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[11px] font-bold text-amber-800 dark:text-amber-200">
-                        <i className="bi bi-mortarboard-fill text-amber-600"></i>
-                        <span>Mastery {Math.round((conceptMastery.conceptualUnderstanding + conceptMastery.proceduralFluency + conceptMastery.transferAbility) / 3)}%</span>
-                    </div>
-
-                    {/* 4. Mute Button */}
+                    {/* Mute Button */}
                     <button
                         onClick={toggleMute}
-                        className="p-1.5 sm:px-2 sm:py-1 rounded-xl border border-[#D9CCBC] bg-[#FFFDFB] hover:bg-[#EDE2D4] text-xs font-bold text-[#4A3E31] cursor-pointer shadow-xs transition-colors"
+                        className="p-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer shadow-xs transition-colors active:scale-95"
                         title={isMuted ? 'Unmute' : 'Mute'}
                     >
-                        <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-red-600' : 'bi-volume-up'} text-sm`}></i>
+                        <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-red-400' : 'bi-volume-up'} text-sm`}></i>
                     </button>
                 </div>
             </header>
 
             {/* ── Progress bar ────────────────────────────────────────── */}
             {blueprint && !isGeneratingBlueprint && (
-                <div className="h-0.5 bg-[#E5DACD] shrink-0">
+                <div className="h-1 bg-white/10 shrink-0">
                     <div
-                        className="h-full bg-[#8B5A2B] transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400 transition-all duration-500"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
@@ -2696,19 +2731,19 @@ OUTPUT VALID JSON ONLY:
             {/* ── Blueprint generation screen ─────────────────────────── */}
             {isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-[#EFE5D8] border border-[#DFD1C0] flex items-center justify-center shadow-md">
-                        <i className="bi bi-journal-text text-3xl text-[#8B5A2B]"></i>
+                    <div className="w-16 h-16 rounded-3xl bg-[#1E242B] border border-amber-400/40 flex items-center justify-center shadow-xl">
+                        <i className="bi bi-journal-text text-3xl text-amber-400 animate-pulse"></i>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-[#2C241D]">Preparing Your Adaptive Lesson</h3>
-                        <p className="text-sm text-[#7A6B5C] mt-1">{sessionData?.topic?.topic_name}</p>
+                        <h3 className="text-xl font-bold text-white">Preparing Your Adaptive Blackboard Lesson</h3>
+                        <p className="text-sm text-slate-300 mt-1">{sessionData?.topic?.topic_name}</p>
                     </div>
                     <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-[#C2B2A3] border-t-[#8B5A2B] rounded-full animate-spin" />
-                        <p className="text-sm font-medium text-[#5A4D3E] animate-pulse">{blueprintGenStep}</p>
+                        <div className="w-8 h-8 border-2 border-[#444C56] border-t-amber-400 rounded-full animate-spin" />
+                        <p className="text-sm font-medium text-amber-300 animate-pulse">{blueprintGenStep}</p>
                     </div>
-                    <p className="text-xs text-[#A09080] max-w-xs">
-                        AVELUT is designing an adaptive, diagnostic-driven curriculum tailored to your exact mastery level.
+                    <p className="text-xs text-slate-400 max-w-xs">
+                        AVELUT is structuring an intelligent diagnostic path and precision diagrams tailored to your mastery.
                     </p>
                 </div>
             )}
@@ -2718,16 +2753,16 @@ OUTPUT VALID JSON ONLY:
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in">
                     <div className="text-5xl">🎓</div>
                     <div>
-                        <h3 className="text-2xl font-bold text-[#2C241D]">Topic Mastered!</h3>
-                        <p className="text-xs font-semibold text-[#8B5A2B] mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
+                        <h3 className="text-2xl font-bold text-white">Topic Mastered!</h3>
+                        <p className="text-xs font-semibold text-amber-400 mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
                     </div>
-                    <p className="text-sm text-[#5A4D3E] max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
+                    <p className="text-sm text-slate-300 max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
                     
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
                         {nextTopic ? (
                             <button
                                 onClick={handleNextTopic}
-                                className="w-full sm:flex-1 py-3.5 px-6 bg-[#8B5A2B] hover:bg-[#7A4D24] text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full sm:flex-1 py-3.5 px-6 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                             >
                                 <span>Next Topic: {nextTopic.topic_name}</span>
                                 <i className="bi bi-arrow-right font-bold"></i>
@@ -2735,7 +2770,7 @@ OUTPUT VALID JSON ONLY:
                         ) : null}
                         <button
                             onClick={handleGoBack}
-                            className={`w-full ${nextTopic ? 'sm:flex-1' : 'sm:w-auto px-8'} py-3.5 bg-[#FFFDFB] hover:bg-[#EFE5D8] border border-[#D9CCBC] text-[#5A4D3E] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2`}
+                            className={`w-full ${nextTopic ? 'sm:flex-1' : 'sm:w-auto px-8'} py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2`}
                         >
                             <i className="bi bi-journal-check"></i>
                             <span>Return to Study Guide</span>
@@ -2744,25 +2779,12 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Main teaching area ────────────────────────────────────── */}
+            {/* ── Main Fullscreen Teaching Canvas ───────────────────────── */}
             {!isGeneratingBlueprint && !isDone && (
-                <main className="flex-1 flex flex-col p-2.5 sm:p-4 max-w-5xl w-full mx-auto gap-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-[calc(76px+env(safe-area-inset-bottom,0px))] md:pb-3">
+                <main className="flex-1 flex flex-col p-2 sm:p-4 max-w-6xl w-full h-full mx-auto gap-2.5 min-h-0 overflow-hidden">
 
-                    {/* Concept breadcrumb */}
-                    {currentConcept && (
-                        <div className="flex items-center justify-between text-xs text-[#6B5E51] shrink-0">
-                            <span className="flex items-center gap-1.5 font-semibold text-[#3D3328] truncate">
-                                <i className="bi bi-journal-bookmark text-[#8B5A2B]"></i>
-                                {sessionData?.topic?.topic_name}
-                            </span>
-                            <span className="font-bold text-[#8B5A2B] px-2 py-0.5 rounded-lg bg-[#EFE5D8] border border-[#DFD1C0] shrink-0 ml-2 truncate max-w-[220px]">
-                                Concept {conceptIdx + 1}/{totalConcepts} · {PHASE_LABEL[subStep] || subStep}
-                            </span>
-                        </div>
-                    )}
-
-                    {/* ── Charcoal Blackboard (Typical Blackboard Look) ── */}
-                    <div className="relative flex-1 min-h-[265px] sm:min-h-[325px] max-h-[calc(100vh-250px)] flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
+                    {/* ── Fullscreen Charcoal Blackboard ── */}
+                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
 
                         {isModelDownloading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#181C20]/95 backdrop-blur-md rounded-3xl z-30 p-6 text-center">
@@ -2829,7 +2851,7 @@ OUTPUT VALID JSON ONLY:
                                             Avelut is preparing {selectedVoice} voice...
                                         </h3>
                                         <p className="text-xs text-slate-300">
-                                            Synchronizing on-device audio · Text will reveal line-by-line in sync with speech.
+                                            Synchronizing on-device audio · Text and diagrams reveal line-by-line in sync with speech.
                                         </p>
                                     </div>
                                     <div className="w-full max-w-xs bg-slate-800/90 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
@@ -2838,20 +2860,50 @@ OUTPUT VALID JSON ONLY:
                                 </div>
                             )}
 
-                            {/* ── Blackboard Content Area (Progressive Chalk Write-In) ── */}
+                            {/* ── Blackboard Content Area (Progressive Chalk Write-In & Inline Visuals) ── */}
                             {!isTtsLoading && visibleBoardLines.length > 0 && (
-                                <div className={`flex-1 w-full ${hasVisualElement ? 'grid grid-cols-1 lg:grid-cols-12 gap-4 items-start' : 'space-y-3'}`}>
+                                <div className="flex-1 w-full space-y-3 pb-2">
+                                    {visibleBoardLines.map((line, idx) => {
+                                        const trimmed = line.trim();
+                                        const isExplicitDiagram = /\[(diagram|visual|image)\]/i.test(trimmed);
+                                        const isExplicitTable = /\[table\]/i.test(trimmed);
 
-                                    <div className={`${hasVisualElement ? 'lg:col-span-6 space-y-3' : 'space-y-3.5'}`}>
-                                        {visibleBoardLines.map((line, idx) => {
-                                            const isVarLine       = line.includes('→');
-                                            const isBlockFormula  = line.trim().startsWith('$$');
-                                            const stepMatch       = line.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
-                                            const isWritingActive = (idx === activeWritingIndex || (idx === visibleBoardLines.length - 1 && isStreaming)) && isStreaming;
-
+                                        // Render inline diagram if tag present
+                                        if (isExplicitDiagram) {
                                             return (
+                                                <div key={`inline-diag-${idx}`}>
+                                                    {renderInlineDiagram()}
+                                                </div>
+                                            );
+                                        }
+
+                                        // Render inline table if tag present
+                                        if (isExplicitTable) {
+                                            return (
+                                                <div key={`inline-table-${idx}`}>
+                                                    {renderInlineTable()}
+                                                </div>
+                                            );
+                                        }
+
+                                        const isVarLine       = trimmed.includes('→');
+                                        const isBlockFormula  = trimmed.startsWith('$$');
+                                        const stepMatch       = trimmed.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
+                                        const isWritingActive = (idx === activeWritingIndex || (idx === visibleBoardLines.length - 1 && isStreaming)) && isStreaming;
+
+                                        // Auto-insert diagram right after line 1 (or after the first concept line) if no explicit tag exists
+                                        const shouldAutoInsertDiagram = !hasExplicitDiagramTag && activeDiagramSvg && (
+                                            idx === 0 || (visibleBoardLines.length === 1 && idx === 0)
+                                        );
+
+                                        // Auto-insert table right after formula line if no explicit table tag exists
+                                        const shouldAutoInsertTable = !hasExplicitTableTag && activeTableMarkdown && (
+                                            isBlockFormula || idx === 1
+                                        );
+
+                                        return (
+                                            <React.Fragment key={`${idx}-${line.slice(0, 15)}`}>
                                                 <div
-                                                    key={`${idx}-${line.slice(0, 15)}`}
                                                     className={`flex items-start gap-2.5 transition-all duration-700 ease-out animate-fade-in ${
                                                         isWritingActive ? 'border-l-2 border-amber-400 pl-3 bg-amber-400/10 rounded-r-xl shadow-xs' : ''
                                                     }`}
@@ -2906,59 +2958,36 @@ OUTPUT VALID JSON ONLY:
                                                         </div>
                                                     )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
 
-                                    {hasVisualElement && (
-                                        <div className="lg:col-span-6 flex flex-col items-center justify-center p-2 rounded-2xl bg-[#22272E]/90 border border-[#373E47] shadow-md relative group animate-fade-in transition-all duration-700 w-full">
-                                            {activeDiagramSvg && (
-                                                <div className="w-full flex flex-col items-center animate-scale-in">
-                                                    <button
-                                                        onClick={() => setIsDiagramZoomed(true)}
-                                                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#2D333B] hover:bg-[#444C56] text-[#E2E8F0] text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity z-10"
-                                                    >
-                                                        <i className="bi bi-arrows-fullscreen"></i>
-                                                    </button>
-                                                    <div
-                                                        key={`svg-${diagramKey}`}
-                                                        className="w-full max-h-[220px] sm:max-h-[260px] flex items-center justify-center board-diagram-animated py-1 overflow-visible"
-                                                        dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
-                                                    />
-                                                </div>
-                                            )}
+                                                {/* Auto-injected diagram anywhere on board */}
+                                                {shouldAutoInsertDiagram && renderInlineDiagram()}
 
-                                            {activeTableMarkdown && (
-                                                <div className="w-full overflow-x-auto p-2.5 bg-[#1C2128] rounded-xl border border-[#373E47] text-xs sm:text-sm font-mono text-white">
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[remarkGfm, remarkMath]}
-                                                        rehypePlugins={[rehypeKatex]}
-                                                    >{formatLatexMath(activeTableMarkdown)}</ReactMarkdown>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                {/* Auto-injected table anywhere on board */}
+                                                {shouldAutoInsertTable && renderInlineTable()}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {isMicListening && micDisplay && (
-                        <div className="shrink-0 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-[#8B5A2B] animate-pulse px-3 py-1 bg-[#F4ECE2] rounded-full w-fit mx-auto border border-[#E5DACD]">
-                            <i className="bi bi-mic-fill text-red-600"></i>
+                        <div className="shrink-0 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-amber-300 animate-pulse px-3 py-1 bg-white/10 rounded-full w-fit mx-auto border border-white/20">
+                            <i className="bi bi-mic-fill text-red-400"></i>
                             <span>"{micDisplay}..."</span>
                         </div>
                     )}
 
-                    {/* ── Expanded Full-Width Input Card ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#F4ECE2]/95 border border-[#E5DACD] rounded-3xl p-2.5 sm:p-3.5 shadow-md backdrop-blur-md w-full">
+                    {/* ── Bottom Input & Contextual Action Bar (Distraction-Free) ── */}
+                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-3xl p-2.5 sm:p-3 shadow-xl backdrop-blur-md w-full">
 
                         {/* ── Dual Dynamic Contextual Buttons ── */}
                         <div className="flex items-center gap-2 w-full">
                             <button
                                 onClick={() => void handleStudentReply(negativeAction.text)}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
-                                className="flex-1 py-2.5 px-3 rounded-2xl bg-[#FFFDFB] hover:bg-[#F3EBE1] border border-[#D9CCBC] text-[#6B5A4B] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                                className="flex-1 py-2 px-3 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/25 border border-white/15 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
                             >
                                 <i className="bi bi-arrow-counterclockwise text-xs"></i>
                                 <span className="truncate">{negativeAction.label}</span>
@@ -2967,7 +2996,7 @@ OUTPUT VALID JSON ONLY:
                             <button
                                 onClick={() => void handleStudentReply(positiveAction.text)}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
-                                className="flex-1 py-2.5 px-3 rounded-2xl bg-[#8B5A2B] hover:bg-[#764920] active:bg-[#5C3817] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                                className="flex-1 py-2 px-3 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
                             >
                                 <span className="truncate">{positiveAction.label}</span>
                                 <i className="bi bi-arrow-right text-xs font-bold"></i>
@@ -2976,12 +3005,12 @@ OUTPUT VALID JSON ONLY:
 
                         {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
                         {attachedImage && (
-                            <div className="flex items-center gap-2 p-1.5 px-3 bg-[#FFFDFB] border border-[#D9CCBC] rounded-2xl w-fit animate-fade-in shadow-xs">
-                                <img src={attachedImage.base64} alt="Attached work" className="w-9 h-9 object-cover rounded-xl border border-[#C2B2A3]" />
-                                <span className="text-xs font-bold text-[#5A4D3E]">Photo attached</span>
+                            <div className="flex items-center gap-2 p-1.5 px-3 bg-[#22272E] border border-[#373E47] rounded-2xl w-fit animate-fade-in shadow-xs">
+                                <img src={attachedImage.base64} alt="Attached work" className="w-9 h-9 object-cover rounded-xl border border-white/20" />
+                                <span className="text-xs font-bold text-slate-200">Photo attached</span>
                                 <button
                                     onClick={() => setAttachedImage(null)}
-                                    className="w-5 h-5 rounded-full bg-[#EDE2D4] hover:bg-[#DFD1C0] flex items-center justify-center text-xs text-[#3D2817] cursor-pointer"
+                                    className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs text-white cursor-pointer"
                                 >
                                     <i className="bi bi-x"></i>
                                 </button>
@@ -2995,7 +3024,7 @@ OUTPUT VALID JSON ONLY:
                                 onClick={togglePauseAI}
                                 disabled={isTtsLoading || !blueprint}
                                 className={`flex items-center justify-center w-10 h-10 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ${
-                                    isSpeaking ? 'bg-[#EFE5D8] border-[#DFD1C0] text-[#8B5A2B]' : 'bg-[#FFFDFB] border-[#D9CCBC] text-[#5A4D3E]'
+                                    isSpeaking ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-white/10 border-white/15 text-slate-200'
                                 }`}
                             >
                                 <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
@@ -3006,7 +3035,7 @@ OUTPUT VALID JSON ONLY:
                                 onClick={toggleMic}
                                 disabled={isGeneratingBlueprint || !blueprint}
                                 className={`flex items-center gap-1.5 px-3.5 sm:px-4 h-10 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ${
-                                    isMicListening ? 'bg-red-600 text-white animate-pulse' : 'bg-[#8B5A2B] hover:bg-[#7A4D24] text-white'
+                                    isMicListening ? 'bg-red-600 text-white animate-pulse' : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950'
                                 }`}
                             >
                                 <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-sm`}></i>
@@ -3021,8 +3050,8 @@ OUTPUT VALID JSON ONLY:
                                     onChange={(e) => setTextInput(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
                                     disabled={isGeneratingBlueprint}
-                                    placeholder="Type your question or snap a photo..."
-                                    className="w-full h-10 pl-3.5 pr-20 bg-[#FFFDFB] border border-[#D9CCBC] focus:border-[#8B5A2B] focus:ring-1 focus:ring-[#8B5A2B] rounded-2xl text-xs sm:text-sm text-[#2C241D] placeholder-[#9E8E7E] outline-none shadow-2xs transition-all"
+                                    placeholder="Type your question or answer here..."
+                                    className="w-full h-10 pl-3.5 pr-20 bg-[#22272E] border border-[#373E47] focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-2xl text-xs sm:text-sm text-white placeholder-slate-400 outline-none shadow-2xs transition-all"
                                 />
 
                                 {/* Camera Icon Button on the RIGHT */}
@@ -3030,7 +3059,7 @@ OUTPUT VALID JSON ONLY:
                                     onClick={() => fileInputRef.current?.click()}
                                     type="button"
                                     title="Snap or upload picture"
-                                    className="absolute right-9 w-7 h-7 rounded-xl hover:bg-[#EDE2D4] text-[#6B5A4B] hover:text-[#8B5A2B] flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+                                    className="absolute right-9 w-7 h-7 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
                                 >
                                     <i className="bi bi-camera text-base"></i>
                                 </button>
@@ -3039,9 +3068,9 @@ OUTPUT VALID JSON ONLY:
                                 {(textInput.trim() || attachedImage) && (
                                     <button
                                         onClick={handleSendText}
-                                        className="absolute right-1.5 w-7 h-7 rounded-xl bg-[#8B5A2B] hover:bg-[#7A4D24] text-white flex items-center justify-center cursor-pointer active:scale-95 animate-fade-in"
+                                        className="absolute right-1.5 w-7 h-7 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center cursor-pointer active:scale-95 animate-fade-in"
                                     >
-                                        <i className="bi bi-arrow-up-short text-lg"></i>
+                                        <i className="bi bi-arrow-up-short text-lg font-bold"></i>
                                     </button>
                                 )}
 
