@@ -65,7 +65,7 @@ export class KittenWebGpuEngine {
                 if (!ort) return false;
 
                 const capabilities = await detectVoiceCapabilities();
-                const modelType = capabilities.recommendedModel;
+                const modelType = 'mini'; // Locked to KittenTTS Mini 0.8 (24 kHz high-fidelity)
                 const spec = MODEL_SPECS[modelType];
 
                 // Check cache or download model

@@ -117,7 +117,7 @@ class KittenTtsService {
             isDownloading: false,
             progress: 100,
             error: null,
-            modelName: 'KittenTTS Local Engine',
+            modelName: 'KittenTTS Mini 0.8 (24 kHz)',
             selectedVoice: this.selectedVoice,
         };
     }
