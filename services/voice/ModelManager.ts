@@ -15,7 +15,7 @@ export interface ModelDownloadProgress {
     error?: string;
 }
 
-const CACHE_NAME = 'avelut-voice-engine-v1';
+const CACHE_NAME = 'avelut-voice-engine-v2';
 const STORAGE_STATUS_KEY = 'avelut_local_voice_engine_status';
 
 // Model specifications

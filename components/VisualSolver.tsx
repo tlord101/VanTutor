@@ -1167,7 +1167,7 @@ Provide a clear, readable step-by-step solution with distinct equations on separ
 
                     if (shouldAutoScan) {
                         // Immediately trigger the visual solver AI analysis automatically!
-                        void handleAnalyze(imageUri);
+                        void handleSolution(imageUri);
                     } else {
                         setCameraState('preview');
                     }

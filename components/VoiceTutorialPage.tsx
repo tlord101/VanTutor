@@ -2617,12 +2617,8 @@ OUTPUT VALID JSON ONLY:
             {/* ── Blueprint generation screen ─────────────────────────── */}
             {isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center animate-fade-in my-auto">
-                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-amber-400/50 flex items-center justify-center shadow-2xl relative">
-                        <i className="bi bi-mortarboard-fill text-3xl text-amber-400 animate-pulse"></i>
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
-                        </span>
+                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-amber-400/50 flex items-center justify-center shadow-2xl">
+                        <i className="bi bi-mortarboard-fill text-3xl text-amber-400"></i>
                     </div>
 
                     <div className="space-y-2 max-w-md">
@@ -2681,35 +2677,10 @@ OUTPUT VALID JSON ONLY:
                     {/* ── Fullscreen Charcoal Blackboard ── */}
                     <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
 
-                        {isModelDownloading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#181C20]/95 backdrop-blur-md rounded-3xl z-30 p-6 text-center">
-                                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                                    <i className="bi bi-cpu-fill text-2xl animate-pulse"></i>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-white mb-1">
-                                        Downloading On-Device Voice Model
-                                    </h3>
-                                    <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
-                                        Caching Kitten TTS (25MB) locally so your interactive voice lessons run offline with zero cloud audio quota.
-                                    </p>
-                                </div>
-                                <div className="w-full max-w-xs bg-slate-800 rounded-full h-3 overflow-hidden border border-white/10 shadow-inner">
-                                    <div 
-                                        className="bg-gradient-to-r from-emerald-400 to-teal-400 h-full rounded-full transition-all duration-300"
-                                        style={{ width: `${modelDownloadProgress}%` }}
-                                    />
-                                </div>
-                                <span className="text-xs font-mono font-bold text-emerald-400">
-                                    {modelDownloadProgress}% Downloaded
-                                </span>
-                            </div>
-                        )}
-
                         {isLoadingUnit && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#181C20]/90 backdrop-blur-xs rounded-3xl z-20">
                                 <div className="w-8 h-8 border-2 border-[#444C56] border-t-amber-400 rounded-full animate-spin" />
-                                <p className="text-sm font-handwriting text-[#E2E8F0] tracking-wide animate-pulse">
+                                <p className="text-sm font-handwriting text-[#E2E8F0] tracking-wide">
                                     Writing on blackboard...
                                 </p>
                             </div>
@@ -2734,12 +2705,8 @@ OUTPUT VALID JSON ONLY:
                             {/* ── Voice Preparation Loading Screen (Centered with Animated Bar) ── */}
                             {isTtsLoading && (
                                 <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center animate-fade-in my-auto">
-                                    <div className="w-16 h-16 rounded-3xl bg-[#22272E] border border-amber-400/40 flex items-center justify-center shadow-xl relative">
-                                        <i className="bi bi-soundwave text-3xl text-amber-400 animate-pulse"></i>
-                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                                        </span>
+                                    <div className="w-16 h-16 rounded-3xl bg-[#22272E] border border-amber-400/40 flex items-center justify-center shadow-xl">
+                                        <i className="bi bi-soundwave text-3xl text-amber-400"></i>
                                     </div>
                                     <div className="space-y-1 max-w-sm">
                                         <h3 className="text-lg font-bold font-handwriting tracking-wide text-amber-200">
@@ -2750,7 +2717,7 @@ OUTPUT VALID JSON ONLY:
                                         </p>
                                     </div>
                                     <div className="w-full max-w-xs bg-slate-800/90 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
-                                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full animate-pulse transition-all" />
+                                        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-300 h-full rounded-full w-full transition-all" />
                                     </div>
                                 </div>
                             )}
@@ -2811,7 +2778,7 @@ OUTPUT VALID JSON ONLY:
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                                 {isWritingActive && (
-                                                                    <span className="inline-block w-2 h-3 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                                    <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
                                                                 )}
                                                             </div>
                                                         </div>
@@ -2829,7 +2796,7 @@ OUTPUT VALID JSON ONLY:
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2 h-3 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                                <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
                                                             )}
                                                         </div>
                                                     ) : (
@@ -2840,7 +2807,7 @@ OUTPUT VALID JSON ONLY:
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line)}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2 h-4 ml-1.5 bg-amber-400 rounded-xs animate-pulse align-middle shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                                                <span className="inline-block w-1.5 h-3 ml-1 bg-amber-400 rounded-xs align-middle" />
                                                             )}
                                                         </div>
                                                     )}
