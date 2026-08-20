@@ -1,19 +1,13 @@
 /**
- * KittenWebGpuEngine.ts — On-Device & Official KittenML Cloud API TTS Engine
+ * KittenCloudTtsEngine (formerly KittenWebGpuEngine)
+ * Official KittenML Cloud API Client for Avelut
  *
- * Supports high-speed Cloud API synthesis via https://api.kittenml.com/v1/audio/speech
- * with automatic natural paragraph chunking and pipelined pre-fetching,
- * plus local on-device WebGPU/WASM inference fallback.
+ * Exclusively uses the high-performance Official KittenML Cloud API:
+ * Endpoint: https://api.kittenml.com/v1/audio/speech
+ * Format: mp3 stream
+ * Features: Smart paragraph batching, in-memory audio caching, and pipelined pre-fetching.
+ * Zero WebGPU / WASM / ONNX runtime dependencies.
  */
-
-import { detectVoiceCapabilities } from './VoiceCapabilities';
-import { MODEL_SPECS, modelManager } from './ModelManager';
-
-declare global {
-    interface Window {
-        ort?: any;
-    }
-}
 
 export interface WebGpuVoiceOptions {
     voice?: string;
@@ -24,50 +18,10 @@ export interface WebGpuVoiceOptions {
     onError?: (err: any) => void;
 }
 
-function pcmToWavBlob(samples: Float32Array, sampleRate: number = 24000): Blob {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    // RIFF chunk descriptor
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeString(view, 8, 'WAVE');
-
-    // fmt sub-chunk
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM Mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true); // 16-bit
-
-    // data sub-chunk
-    writeString(view, 36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-
-    let offset = 44;
-    for (let i = 0; i < samples.length; i++, offset += 2) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    }
-
-    return new Blob([view], { type: 'audio/wav' });
-}
-
-function writeString(view: DataView, offset: number, string: string) {
-    for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-    }
-}
-
-export class KittenWebGpuEngine {
-    private session: any = null;
-    private isInitializing = false;
-    private initPromise: Promise<boolean> | null = null;
+export class KittenCloudTtsEngine {
     private currentAudioElement: HTMLAudioElement | null = null;
     private activeSessionId = 0;
-    private audioCache = new Map<string, string>(); // Text -> Blob URL
+    private audioCache = new Map<string, string>(); // Cache key -> Blob URL
 
     private getKittenApiKey(): string | null {
         try {
@@ -90,89 +44,12 @@ export class KittenWebGpuEngine {
         return null;
     }
 
-    private async loadOrtScript(): Promise<any> {
-        if (typeof window === 'undefined') return null;
-        if (window.ort) return window.ort;
-
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.webgpu.min.js';
-            script.crossOrigin = 'anonymous';
-            script.onload = () => {
-                if (window.ort) {
-                    const isIsolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
-                    window.ort.env.wasm.numThreads = isIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
-                    window.ort.env.wasm.simd = true;
-                    window.ort.env.wasm.proxy = false;
-                    resolve(window.ort);
-                } else {
-                    reject(new Error('Failed to initialize ONNX Runtime Web.'));
-                }
-            };
-            script.onerror = () => reject(new Error('Failed to load ONNX Runtime Web script.'));
-            document.head.appendChild(script);
-        });
-    }
-
     public async initialize(): Promise<boolean> {
-        if (this.session) return true;
-        if (this.initPromise) return this.initPromise;
-
-        this.initPromise = (async () => {
-            this.isInitializing = true;
-            try {
-                const ort = await this.loadOrtScript();
-                if (!ort) return false;
-
-                const capabilities = await detectVoiceCapabilities();
-                const modelType = 'micro';
-                const spec = MODEL_SPECS[modelType];
-
-                // Check cache or download model
-                const isReady = await modelManager.isInstalled(modelType);
-                if (!isReady) {
-                    await modelManager.downloadModel(modelType);
-                }
-
-                // Retrieve model binary from Cache API or Network
-                let modelBuffer: ArrayBuffer;
-                if ('caches' in window) {
-                    const cache = await caches.open('avelut-voice-engine-v2');
-                    const response = await cache.match(spec.url);
-                    if (response && response.ok) {
-                        modelBuffer = await response.arrayBuffer();
-                    } else {
-                        const netRes = await fetch(spec.url);
-                        modelBuffer = await netRes.arrayBuffer();
-                    }
-                } else {
-                    const netRes = await fetch(spec.url);
-                    modelBuffer = await netRes.arrayBuffer();
-                }
-
-                // Choose execution provider: WebGPU preferred, wasm fallback
-                const executionProviders = capabilities.hasWebGPU ? ['webgpu', 'wasm'] : ['wasm'];
-
-                this.session = await ort.InferenceSession.create(modelBuffer, {
-                    executionProviders,
-                    graphOptimizationLevel: 'basic',
-                });
-
-                console.log(`[KittenWebGpuEngine] Session created with [${executionProviders.join(', ')}]`);
-                return true;
-            } catch (err) {
-                console.warn('[KittenWebGpuEngine] Failed to initialize WebGPU session:', err);
-                return false;
-            } finally {
-                this.isInitializing = false;
-            }
-        })();
-
-        return this.initPromise;
+        return true;
     }
 
     public isReady(): boolean {
-        return !!this.session || !!this.getKittenApiKey();
+        return true;
     }
 
     public stop(): void {
@@ -186,33 +63,8 @@ export class KittenWebGpuEngine {
         }
     }
 
-    private tokenize(text: string): number[] {
-        const tokens: number[] = [];
-        for (let i = 0; i < text.length; i++) {
-            const code = text.charCodeAt(i);
-            tokens.push(code % 256);
-        }
-        return tokens.length > 0 ? tokens : [0];
-    }
-
-    private getVoiceStyleEmbedding(voiceName: string): Float32Array {
-        const emb = new Float32Array(256);
-        const name = (voiceName || 'Bella').toLowerCase();
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = (hash << 5) - hash + name.charCodeAt(i);
-            hash |= 0;
-        }
-
-        for (let i = 0; i < 256; i++) {
-            emb[i] = Math.sin((hash + 1) * (i + 1) * 0.1) * 0.12;
-        }
-        return emb;
-    }
-
     /**
-     * Synthesizes audio for text and returns a playable Audio Blob URL.
-     * Uses the Official KittenML Cloud API if configured, falling back to on-device WebGPU.
+     * Synthesizes audio for text via the Official KittenML Cloud API.
      */
     public async generateAudioBlobUrl(text: string, voice = 'Bella', speed = 1.1): Promise<string | null> {
         if (!text || !text.trim()) return null;
@@ -223,102 +75,43 @@ export class KittenWebGpuEngine {
             return this.audioCache.get(cacheKey)!;
         }
 
-        // 1. First priority: Official KittenML Cloud API
         const apiKey = this.getKittenApiKey();
-        if (apiKey) {
-            try {
-                const response = await fetch('https://api.kittenml.com/v1/audio/speech', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        model: 'kitten-tts-mini-0.8',
-                        voice: voice || 'Bella',
-                        input: normalized,
-                        response_format: 'mp3',
-                        speed: speed || 1.1,
-                    }),
-                });
-
-                if (response.ok) {
-                    const arrayBuffer = await response.arrayBuffer();
-                    const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
-                    const url = URL.createObjectURL(blob);
-                    this.audioCache.set(cacheKey, url);
-                    return url;
-                } else {
-                    console.warn('[KittenTTS API] Cloud API responded with status:', response.status, await response.text());
-                }
-            } catch (apiErr) {
-                console.warn('[KittenTTS API] Cloud API fetch failed, trying local fallback:', apiErr);
-            }
+        if (!apiKey) {
+            console.warn('[KittenTTS API] No KittenML API Key found in App Settings or environment.');
+            return null;
         }
 
-        // 2. Fallback: On-Device WebGPU / WASM Inference
         try {
-            await this.initialize();
-            if (!this.session || !window.ort) return null;
+            const response = await fetch('https://api.kittenml.com/v1/audio/speech', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'kitten-tts-mini-0.8',
+                    voice: voice || 'Bella',
+                    input: normalized,
+                    response_format: 'mp3',
+                    speed: speed || 1.1,
+                }),
+            });
 
-            const inputNames: string[] = this.session.inputNames || [];
-            const outputNames: string[] = this.session.outputNames || [];
-
-            const tokens = this.tokenize(normalized);
-            const tokenArray = BigInt64Array.from(tokens.map(t => BigInt(t)));
-            const inputIdsTensor = new window.ort.Tensor('int64', tokenArray, [1, tokens.length]);
-            const maskTensor = new window.ort.Tensor('int64', new BigInt64Array(tokens.length).fill(1n), [1, tokens.length]);
-            const speedTensor = new window.ort.Tensor('float32', new Float32Array([speed]), [1]);
-            
-            const styleData = this.getVoiceStyleEmbedding(voice);
-            const styleTensor = new window.ort.Tensor('float32', styleData, [1, 256]);
-            const sidTensor = new window.ort.Tensor('int64', new BigInt64Array([0n]), [1]);
-
-            const feeds: Record<string, any> = {};
-
-            if (inputNames.length > 0) {
-                for (const name of inputNames) {
-                    const lower = name.toLowerCase();
-                    if (lower.includes('mask')) {
-                        feeds[name] = maskTensor;
-                    } else if (lower.includes('speed') || lower.includes('scale') || lower.includes('rate') || lower.includes('length')) {
-                        feeds[name] = speedTensor;
-                    } else if (lower.includes('style') || lower.includes('embed') || lower.includes('voice') || lower.includes('speaker')) {
-                        feeds[name] = lower === 'speaker_id' || lower === 'sid' ? sidTensor : styleTensor;
-                    } else {
-                        feeds[name] = inputIdsTensor;
-                    }
-                }
-            } else {
-                feeds['input_ids'] = inputIdsTensor;
-                feeds['style'] = styleTensor;
-                feeds['speed'] = speedTensor;
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '');
+                console.error(`[KittenTTS API] Error (${response.status}):`, errText);
+                return null;
             }
 
-            const results = await this.session.run(feeds);
-            let outputTensor = results.audio || results.waveform || results.output || results.output_0 || results.logits;
-            if (!outputTensor && outputNames.length > 0) {
-                outputTensor = results[outputNames[0]];
-            }
-            if (!outputTensor) {
-                outputTensor = Object.values(results)[0];
-            }
-
-            if (outputTensor && outputTensor.data) {
-                const pcm = outputTensor.data instanceof Float32Array 
-                    ? outputTensor.data 
-                    : new Float32Array(outputTensor.data);
-                
-                const blob = pcmToWavBlob(pcm, 24000);
-                const url = URL.createObjectURL(blob);
-                this.audioCache.set(cacheKey, url);
-                return url;
-            }
+            const arrayBuffer = await response.arrayBuffer();
+            const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            this.audioCache.set(cacheKey, url);
+            return url;
         } catch (err) {
-            console.warn('[KittenWebGpuEngine] On-device synthesis error:', err);
+            console.error('[KittenTTS API] Network/Generation error:', err);
+            return null;
         }
-
-        return null;
     }
 
     /**
@@ -423,7 +216,7 @@ export class KittenWebGpuEngine {
             }
         };
 
-        // Queue-based audio playback loop with parallel next-chunk pre-fetching
+        // Audio playback loop with pipelined next-chunk pre-fetching
         const playChunk = async (index: number) => {
             if (isStopped || this.activeSessionId !== sessionId) return;
 
@@ -436,7 +229,7 @@ export class KittenWebGpuEngine {
             const voice = options?.voice || 'Bella';
             const speed = options?.speed || 1.1;
 
-            // Pipeline pre-fetch: trigger synthesis for the NEXT chunk ahead of time
+            // Pipeline pre-fetch: pre-request NEXT chunk while current chunk is loading/playing
             if (index + 1 < chunks.length) {
                 void this.generateAudioBlobUrl(chunks[index + 1], voice, speed);
             }
@@ -494,4 +287,7 @@ export class KittenWebGpuEngine {
     }
 }
 
-export const kittenWebGpu = new KittenWebGpuEngine();
+// Backward-compatible aliases
+export const KittenWebGpuEngine = KittenCloudTtsEngine;
+export const kittenWebGpu = new KittenCloudTtsEngine();
+export const kittenCloudTts = kittenWebGpu;

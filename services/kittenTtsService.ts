@@ -76,10 +76,10 @@ class KittenTtsService {
     public getStatus(): KittenModelStatus {
         return {
             isDownloaded: true,
-            isDownloading: this.isDownloading,
-            progress: this.downloadProgress,
+            isDownloading: false,
+            progress: 100,
             error: null,
-            modelName: 'KittenTTS Micro (40M)',
+            modelName: 'KittenTTS Mini 0.8 (Official Cloud API)',
             selectedVoice: this.selectedVoice,
         };
     }
@@ -113,19 +113,11 @@ class KittenTtsService {
     }
 
     public async downloadModel(): Promise<boolean> {
-        this.isDownloading = true;
         this.notify();
-        const success = await modelManager.downloadModel('micro', (p) => {
-            this.downloadProgress = p.percentage;
-            this.notify();
-        });
-        this.isDownloading = false;
-        this.notify();
-        return success;
+        return true;
     }
 
     public async startBackgroundDownload(onProgress?: (progress: number) => void): Promise<void> {
-        await this.downloadModel();
         if (onProgress) onProgress(100);
     }
 
