@@ -26,6 +26,7 @@ import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { avelutVoice } from '../services/voice/AvelutVoiceEngine';
+import { kittenTts, KittenVoice } from '../services/kittenTtsService';
 import { AvelutVoiceDownloadModal } from './AvelutVoiceDownloadModal';
 
 
