@@ -2,11 +2,9 @@
  * KittenCloudTtsEngine (formerly KittenWebGpuEngine)
  * Official KittenML Cloud API Client for Avelut
  *
- * Exclusively uses the high-performance Official KittenML Cloud API:
+ * Implements board-by-board audio generation, background pre-fetching,
+ * streaming engine for live voice Q&A, and in-memory caching.
  * Endpoint: https://api.kittenml.com/v1/audio/speech
- * Format: mp3 stream
- * Features: Smart paragraph batching, in-memory audio caching, and pipelined pre-fetching.
- * Zero WebGPU / WASM / ONNX runtime dependencies.
  */
 
 export interface WebGpuVoiceOptions {
@@ -22,8 +20,9 @@ export class KittenCloudTtsEngine {
     private currentAudioElement: HTMLAudioElement | null = null;
     private activeSessionId = 0;
     private audioCache = new Map<string, string>(); // Cache key -> Blob URL
+    private activeAbortController: AbortController | null = null;
 
-    private getKittenApiKey(): string | null {
+    public getKittenApiKey(): string | null {
         try {
             const cached = localStorage.getItem('avelut_app_settings');
             if (cached) {
@@ -54,6 +53,12 @@ export class KittenCloudTtsEngine {
 
     public stop(): void {
         this.activeSessionId++;
+        if (this.activeAbortController) {
+            try {
+                this.activeAbortController.abort();
+            } catch {}
+            this.activeAbortController = null;
+        }
         if (this.currentAudioElement) {
             try {
                 this.currentAudioElement.pause();
@@ -64,11 +69,30 @@ export class KittenCloudTtsEngine {
     }
 
     /**
-     * Synthesizes audio for text via the Official KittenML Cloud API.
+     * Pre-fetches audio for the next board in the background to ensure instantaneous board flips.
      */
-    public async generateAudioBlobUrl(text: string, voice = 'Bella', speed = 1.1): Promise<string | null> {
+    public async prefetchAudio(text: string, voice = 'Bella', speed = 1.1): Promise<void> {
+        if (!text || !text.trim()) return;
+        const normalized = this.normalizeMathForSpeech(text).trim();
+        const cacheKey = `${voice}_${speed}_${normalized}`;
+        if (this.audioCache.has(cacheKey)) return;
+
+        try {
+            void this.generateAudioBlobUrl(normalized, voice, speed);
+        } catch {}
+    }
+
+    /**
+     * Synthesizes audio for a board text via the Official KittenML Cloud API.
+     */
+    public async generateAudioBlobUrl(
+        text: string, 
+        voice = 'Bella', 
+        speed = 1.1,
+        signal?: AbortSignal
+    ): Promise<string | null> {
         if (!text || !text.trim()) return null;
-        const normalized = text.trim();
+        const normalized = this.normalizeMathForSpeech(text).trim();
         const cacheKey = `${voice}_${speed}_${normalized}`;
 
         if (this.audioCache.has(cacheKey)) {
@@ -95,6 +119,7 @@ export class KittenCloudTtsEngine {
                     response_format: 'mp3',
                     speed: speed || 1.1,
                 }),
+                signal,
             });
 
             if (!response.ok) {
@@ -104,11 +129,16 @@ export class KittenCloudTtsEngine {
             }
 
             const arrayBuffer = await response.arrayBuffer();
+            if (!arrayBuffer || arrayBuffer.byteLength === 0) return null;
+
             const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
             const url = URL.createObjectURL(blob);
             this.audioCache.set(cacheKey, url);
             return url;
-        } catch (err) {
+        } catch (err: any) {
+            if (err?.name === 'AbortError') {
+                return null;
+            }
             console.error('[KittenTTS API] Network/Generation error:', err);
             return null;
         }
@@ -151,41 +181,20 @@ export class KittenCloudTtsEngine {
     }
 
     /**
-     * Combines sentences into optimized natural chunks to minimize API request overhead.
+     * Splits text into coherent sentences for low-latency streamed speech during live student Q&A.
      */
-    public splitIntoChunks(text: string): string[] {
+    public splitIntoSentences(text: string): string[] {
         if (!text) return [];
-        const rawSentences = text
+        return text
             .split(/(?<=[.!?])\s+|\n+/)
             .map(s => s.trim())
             .filter(s => s.length > 0);
-
-        if (rawSentences.length <= 1) return rawSentences;
-
-        const chunks: string[] = [];
-        let currentChunk = '';
-
-        for (const sentence of rawSentences) {
-            if (!currentChunk) {
-                currentChunk = sentence;
-            } else if ((currentChunk.length + sentence.length) < 220) {
-                currentChunk += ' ' + sentence;
-            } else {
-                chunks.push(currentChunk);
-                currentChunk = sentence;
-            }
-        }
-        if (currentChunk) {
-            chunks.push(currentChunk);
-        }
-
-        return chunks;
     }
 
     /**
-     * Synthesizes and plays speech with background pipelined pre-fetching.
+     * Streams speech for live interactions / questions with zero crackling and instant first-sentence playback.
      */
-    public speak(
+    public streamSpeech(
         text: string,
         options?: WebGpuVoiceOptions
     ): { stop: () => void } {
@@ -198,12 +207,16 @@ export class KittenCloudTtsEngine {
         }
 
         const sessionId = ++this.activeSessionId;
-        const chunks = this.splitIntoChunks(spokenText);
+        const sentences = this.splitIntoSentences(spokenText);
         let isStopped = false;
         let hasFiredStart = false;
 
+        const abortController = new AbortController();
+        this.activeAbortController = abortController;
+
         const stop = () => {
             isStopped = true;
+            abortController.abort();
             if (this.activeSessionId === sessionId) {
                 this.activeSessionId++;
             }
@@ -216,25 +229,24 @@ export class KittenCloudTtsEngine {
             }
         };
 
-        // Audio playback loop with pipelined next-chunk pre-fetching
-        const playChunk = async (index: number) => {
+        const playIndex = async (index: number) => {
             if (isStopped || this.activeSessionId !== sessionId) return;
 
-            if (index >= chunks.length) {
+            if (index >= sentences.length) {
                 options?.onEnd?.();
                 return;
             }
 
-            const chunk = chunks[index];
+            const sentence = sentences[index];
             const voice = options?.voice || 'Bella';
             const speed = options?.speed || 1.1;
 
-            // Pipeline pre-fetch: pre-request NEXT chunk while current chunk is loading/playing
-            if (index + 1 < chunks.length) {
-                void this.generateAudioBlobUrl(chunks[index + 1], voice, speed);
+            // Pipeline pre-fetch: trigger next sentence stream ahead of time
+            if (index + 1 < sentences.length) {
+                void this.generateAudioBlobUrl(sentences[index + 1], voice, speed, abortController.signal);
             }
 
-            const audioUrl = await this.generateAudioBlobUrl(chunk, voice, speed);
+            const audioUrl = await this.generateAudioBlobUrl(sentence, voice, speed, abortController.signal);
 
             if (isStopped || this.activeSessionId !== sessionId) return;
 
@@ -254,13 +266,13 @@ export class KittenCloudTtsEngine {
                 audio.onended = () => {
                     if (isStopped || this.activeSessionId !== sessionId) return;
                     this.currentAudioElement = null;
-                    void playChunk(index + 1);
+                    void playIndex(index + 1);
                 };
 
                 audio.onerror = () => {
                     if (isStopped || this.activeSessionId !== sessionId) return;
                     this.currentAudioElement = null;
-                    void playChunk(index + 1);
+                    void playIndex(index + 1);
                 };
 
                 try {
@@ -270,18 +282,111 @@ export class KittenCloudTtsEngine {
                         hasFiredStart = true;
                         options?.onStart?.();
                     }
-                    void playChunk(index + 1);
+                    void playIndex(index + 1);
                 }
             } else {
                 if (!hasFiredStart && index === 0) {
                     hasFiredStart = true;
-                    options?.onError?.(new Error('Audio generation failed'));
+                    options?.onError?.(new Error('Audio stream generation failed'));
                 }
-                void playChunk(index + 1);
+                void playIndex(index + 1);
             }
         };
 
-        void playChunk(0);
+        void playIndex(0);
+
+        return { stop };
+    }
+
+    /**
+     * Synthesizes and plays a single cohesive board audio block.
+     */
+    public speak(
+        text: string,
+        options?: WebGpuVoiceOptions
+    ): { stop: () => void } {
+        this.stop();
+
+        const spokenText = options?.cleanText !== false ? this.normalizeMathForSpeech(text) : text;
+        if (!spokenText) {
+            options?.onEnd?.();
+            return { stop: () => {} };
+        }
+
+        const sessionId = ++this.activeSessionId;
+        let isStopped = false;
+        let hasFiredStart = false;
+
+        const abortController = new AbortController();
+        this.activeAbortController = abortController;
+
+        const stop = () => {
+            isStopped = true;
+            abortController.abort();
+            if (this.activeSessionId === sessionId) {
+                this.activeSessionId++;
+            }
+            if (this.currentAudioElement) {
+                try {
+                    this.currentAudioElement.pause();
+                    this.currentAudioElement.currentTime = 0;
+                } catch {}
+                this.currentAudioElement = null;
+            }
+        };
+
+        const executeBoardAudio = async () => {
+            const voice = options?.voice || 'Bella';
+            const speed = options?.speed || 1.1;
+
+            const audioUrl = await this.generateAudioBlobUrl(spokenText, voice, speed, abortController.signal);
+
+            if (isStopped || this.activeSessionId !== sessionId) return;
+
+            if (audioUrl) {
+                const audio = new Audio(audioUrl);
+                audio.playbackRate = speed;
+                this.currentAudioElement = audio;
+
+                audio.onplay = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    if (!hasFiredStart) {
+                        hasFiredStart = true;
+                        options?.onStart?.();
+                    }
+                };
+
+                audio.onended = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    this.currentAudioElement = null;
+                    options?.onEnd?.();
+                };
+
+                audio.onerror = () => {
+                    if (isStopped || this.activeSessionId !== sessionId) return;
+                    this.currentAudioElement = null;
+                    options?.onError?.(new Error('Audio playback failed'));
+                };
+
+                try {
+                    await audio.play();
+                } catch (playErr) {
+                    if (!hasFiredStart) {
+                        hasFiredStart = true;
+                        options?.onStart?.();
+                    }
+                    options?.onEnd?.();
+                }
+            } else {
+                if (!hasFiredStart) {
+                    hasFiredStart = true;
+                    options?.onError?.(new Error('Audio generation failed'));
+                }
+                options?.onEnd?.();
+            }
+        };
+
+        void executeBoardAudio();
 
         return { stop };
     }

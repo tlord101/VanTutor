@@ -288,14 +288,25 @@ export function sanitizeAndValidateSvg(rawSvg: string | null | undefined): strin
         cleaned = cleaned.replace(/<svg/i, '<svg preserveAspectRatio="xMidYMid meet"');
     }
 
-    // 6. Inject standard defs & animation styles
+    // 6. Fix dark/invisible strokes for dark chalkboard theme
+    cleaned = cleaned.replace(/stroke\s*=\s*["'](?:#000000|#000|black|#0f172a|#1e293b|#111827|#181c20)["']/gi, 'stroke="#E2E8F0"');
+    cleaned = cleaned.replace(/stroke\s*=\s*["'](?:#333333|#333|#475569|#374151)["']/gi, 'stroke="#94A3B8"');
+    
+    // Ensure minimum visible stroke width for thin lines
+    cleaned = cleaned.replace(/stroke-width\s*=\s*["'](?:0|0\.\d+|1|1\.\d+)["']/gi, 'stroke-width="2.5"');
+    
+    // Add default stroke linecap & linejoin for clean chalk aesthetic
+    cleaned = cleaned.replace(/<path(?![^>]*stroke-linecap)/gi, '<path stroke-linecap="round" stroke-linejoin="round"');
+    cleaned = cleaned.replace(/<line(?![^>]*stroke-linecap)/gi, '<line stroke-linecap="round" stroke-linejoin="round"');
+
+    // 7. Inject standard defs & animation styles
     if (cleaned.includes('<defs>')) {
         cleaned = cleaned.replace(/<defs>/i, `<defs>${INJECTED_SVG_DEFS.replace('<defs>', '').replace('</defs>', '')}`);
     } else {
         cleaned = cleaned.replace(/<svg([^>]*)>/i, `<svg$1>${INJECTED_SVG_DEFS}`);
     }
 
-    // 7. Render KaTeX math in text elements
+    // 8. Render KaTeX math in text elements
     cleaned = renderKatexInSvg(cleaned);
 
     return cleaned;

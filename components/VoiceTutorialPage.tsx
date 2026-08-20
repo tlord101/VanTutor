@@ -1190,6 +1190,88 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         streamTimersRef.current.push(safetyTimer);
     }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
 
+    // ── Real-Time Streaming Speech Engine for Live Interaction & Q&A ──────────
+    const streamText = useCallback(async (
+        text: string,
+        onEnd?: () => void,
+        linesToReveal?: string[]
+    ): Promise<void> => {
+        if (!isActiveRef.current || !text) {
+            onEnd?.();
+            return;
+        }
+
+        const lines = (linesToReveal && linesToReveal.length > 0)
+            ? linesToReveal.slice(0, MAX_BOARD_LINES)
+            : pendingBoardLinesRef.current;
+        pendingBoardLinesRef.current = lines;
+
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        setIsPaused(false);
+        lastSpokenTextRef.current = text;
+
+        if (isMuted) {
+            setIsTtsLoading(false);
+            setIsSpeaking(false);
+            revealLinesProgressively(lines, text);
+            onEnd?.();
+            return;
+        }
+
+        setIsTtsLoading(true);
+        setIsSpeaking(false);
+        setVisibleBoardLines([]);
+        setActiveWritingIndex(-1);
+
+        const sessionId = ++playSessionIdRef.current;
+        const cleanedText = cleanSpokenTextForTTS(text);
+
+        if (!cleanedText) {
+            setIsTtsLoading(false);
+            revealLinesProgressively(lines, text);
+            onEnd?.();
+            return;
+        }
+
+        const player = kittenWebGpu.streamSpeech(cleanedText, {
+            cleanText: true,
+            voice: KittenVoice.Bella,
+            speed: 1.1,
+            onStart: () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(true);
+                isSpeakingRef.current = true;
+                setIsTtsLoading(false);
+                revealLinesProgressively(lines, cleanedText);
+            },
+            onEnd: () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                isSpeakingRef.current = false;
+                setIsPaused(false);
+                setIsTtsLoading(false);
+                currentAudioRef.current = null;
+                setVisibleBoardLines(pendingBoardLinesRef.current);
+                setIsStreaming(false);
+                setActiveWritingIndex(-1);
+                onEnd?.();
+            },
+            onError: () => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setIsSpeaking(false);
+                isSpeakingRef.current = false;
+                setIsPaused(false);
+                setIsTtsLoading(false);
+                currentAudioRef.current = null;
+                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                onEnd?.();
+            },
+        });
+
+        currentAudioRef.current = player as any;
+    }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
+
     function normalizeBlueprint(bp: any): LessonBlueprint {
         if (!bp || typeof bp !== 'object') {
             return {
@@ -1898,7 +1980,36 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
             }
 
             setIsLoadingUnit(false);
-            await speakText(parsed.spokenExplanation, undefined, parsed.boardLines.slice(0, MAX_BOARD_LINES));
+
+            // Pre-fetch next board's audio in background
+            const nextPIdx = phaseIdxRef.current + 1;
+            const currentPath = activePhasePathRef.current;
+            if (nextPIdx < currentPath.length) {
+                const nextPhase = currentPath[nextPIdx];
+                const nextFallbackSpoken = getSpokenText(concept || bp.concepts[0], nextPhase, 0);
+                void kittenWebGpu.prefetchAudio(nextFallbackSpoken);
+            }
+
+            // On speech completion: auto-flip to next board for narrative phases
+            const onBoardSpeechEnd = () => {
+                if (!isActiveRef.current) return;
+                const isNarrativePhase = (
+                    currentPhase === 'concept_map' || 
+                    currentPhase === 'intuition' || 
+                    currentPhase === 'concept_core' || 
+                    currentPhase === 'formalize' || 
+                    currentPhase === 'multi_represent'
+                );
+
+                if (isNarrativePhase) {
+                    setTimeout(() => {
+                        if (!isActiveRef.current) return;
+                        void handleAdvanceNextBoard();
+                    }, 1400);
+                }
+            };
+
+            await speakText(parsed.spokenExplanation, onBoardSpeechEnd, parsed.boardLines.slice(0, MAX_BOARD_LINES));
 
         } catch (err) {
             console.warn('[PresentUnit] presentation fallback:', err);
@@ -1911,6 +2022,80 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
             await speakText(getSpokenText(fallbackConcept, currentPhase, diagIdx), undefined, fallbackLines);
         }
     }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
+
+    // ── Advance to Next Board ────────────────────────────────────────────────
+    const handleAdvanceNextBoard = useCallback(async () => {
+        if (!blueprint || isGeneratingBlueprint) return;
+        stopAudioImmediate();
+        stopMicImmediate();
+        clearAllStreamTimers();
+
+        const currentPIdx = phaseIdxRef.current;
+        const currentPath = activePhasePathRef.current;
+        const nextPIdx = currentPIdx + 1;
+
+        if (nextPIdx < currentPath.length) {
+            const nextPhase = currentPath[nextPIdx];
+            setPhaseIdx(nextPIdx);
+            phaseIdxRef.current = nextPIdx;
+            setSubStep(nextPhase);
+            subStepRef.current = nextPhase;
+            setIsLoadingUnit(false);
+            await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
+            return;
+        }
+
+        // Advance to next concept
+        const nextCIdx = conceptIdxRef.current + 1;
+        if (nextCIdx < blueprint.concepts.length) {
+            conceptIdxRef.current = nextCIdx;
+            setConceptIdx(nextCIdx);
+            const freshPath: TutorPhase[] = ['diagnostic'];
+            setActivePhasePath(freshPath);
+            activePhasePathRef.current = freshPath;
+            setPhaseIdx(0);
+            phaseIdxRef.current = 0;
+            setSubStep('diagnostic');
+            subStepRef.current = 'diagnostic';
+            setActiveDiagnosticIdx(0);
+            activeDiagnosticIdxRef.current = 0;
+            setIsLoadingUnit(false);
+            await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
+            return;
+        }
+
+        // Synthesis / Completion
+        if (subStepRef.current !== 'synthesis' && blueprint.synthesisProblem) {
+            const synthPath: TutorPhase[] = ['synthesis'];
+            setActivePhasePath(synthPath);
+            activePhasePathRef.current = synthPath;
+            setPhaseIdx(0);
+            phaseIdxRef.current = 0;
+            setSubStep('synthesis');
+            subStepRef.current = 'synthesis';
+            setIsLoadingUnit(false);
+            await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
+            return;
+        }
+
+        setIsDone(true);
+        setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
+        void speakText(`Congratulations! ${blueprint.overallSummary} You have mastered this entire topic!`);
+    }, [blueprint, isGeneratingBlueprint, presentUnit, speakText]);
+
+    // ── Restart Current Board with Simpler Explanation ───────────────────────
+    const handleRestartSimplerBoard = useCallback(async () => {
+        if (!blueprint || isGeneratingBlueprint) return;
+        stopAudioImmediate();
+        stopMicImmediate();
+        clearAllStreamTimers();
+
+        repairStrategiesUsedRef.current.push('simpler_language');
+        setRepairStrategiesUsed([...repairStrategiesUsedRef.current]);
+        
+        setIsLoadingUnit(false);
+        await presentUnit(blueprint, conceptIdxRef.current, subStepRef.current, activeDiagnosticIdxRef.current);
+    }, [blueprint, isGeneratingBlueprint, presentUnit]);
 
     // ── Interactive Student Reply (Intelligence & Decision Engine) ────────────
     const handleStudentReply = useCallback(async (
@@ -1959,7 +2144,7 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
 
             const spokenHint = `Here is a clue: ${nextH.activeHintText} Take your time and give it a shot.`;
             dialogueHistoryRef.current.push({ role: 'tutor', text: spokenHint, boardSummary: hintLines.join(' | ') });
-            await speakText(spokenHint, undefined, hintLines);
+            await streamText(spokenHint, undefined, hintLines);
             return;
         }
 
@@ -2005,7 +2190,7 @@ OUTPUT VALID JSON ONLY:
                     if (parsed.positiveReplyLabel) setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText || 'Continue' });
                     if (parsed.negativeReplyLabel) setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText || 'Explain more' });
                     dialogueHistoryRef.current.push({ role: 'tutor', text: parsed.spokenExplanation, boardSummary: (parsed.boardLines || []).join(' | ') });
-                    await speakText(parsed.spokenExplanation, undefined, parsed.boardLines);
+                    await streamText(parsed.spokenExplanation, undefined, parsed.boardLines);
                     return;
                 } catch (e) {
                     console.warn('[HandleStudentReply] clarification error:', e);
@@ -2263,7 +2448,7 @@ OUTPUT VALID JSON ONLY:
                     : `Let's double-check our calculation. Take a moment and try answering again, or tap Walk Through Step below for a step-by-step walkthrough.`;
                 dialogueHistoryRef.current.push({ role: 'tutor', text: spokenFeedback, boardSummary: feedbackLines.join(' | ') });
                 setIsLoadingUnit(false);
-                await speakText(spokenFeedback, undefined, feedbackLines);
+                await streamText(spokenFeedback, undefined, feedbackLines);
                 return;
             }
 
@@ -2954,89 +3139,107 @@ OUTPUT VALID JSON ONLY:
                         </div>
                     )}
 
-                    {/* ── Bottom Input Bar (Resting comfortably above bottom nav) ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-2xl sm:rounded-3xl p-2 sm:p-2.5 shadow-xl backdrop-blur-md w-full mb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:mb-2">
-
+                    {/* ── Voice-First Floating Bottom Control Bar ── */}
+                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-md w-full mb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:mb-2 max-w-xl mx-auto">
+                        
                         {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
                         {attachedImage && (
-                            <div className="flex items-center gap-2 p-1.5 px-3 bg-[#22272E] border border-[#373E47] rounded-2xl w-fit animate-fade-in shadow-xs">
-                                <img src={attachedImage.base64} alt="Attached work" className="w-9 h-9 object-cover rounded-xl border border-white/20" />
-                                <span className="text-xs font-bold text-slate-200">Photo attached</span>
-                                <button
-                                    onClick={() => setAttachedImage(null)}
-                                    className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs text-white cursor-pointer"
-                                >
-                                    <i className="bi bi-x"></i>
-                                </button>
+                            <div className="flex items-center justify-between gap-2 p-2 px-3.5 bg-[#22272E] border border-[#373E47] rounded-2xl w-full animate-fade-in shadow-xs">
+                                <div className="flex items-center gap-2.5">
+                                    <img src={attachedImage.base64} alt="Attached work" className="w-10 h-10 object-cover rounded-xl border border-white/20" />
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-100">Photo Attached</p>
+                                        <p className="text-[10px] text-slate-400">Tap mic to speak question about your work</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <button
+                                        onClick={() => handleStudentReply('Please inspect my handwritten problem in this attached photo.', attachedImage)}
+                                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition cursor-pointer"
+                                    >
+                                        Analyze
+                                    </button>
+                                    <button
+                                        onClick={() => setAttachedImage(null)}
+                                        className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs text-white cursor-pointer"
+                                    >
+                                        <i className="bi bi-x-lg text-xs"></i>
+                                    </button>
+                                </div>
                             </div>
                         )}
 
-                        {/* ── Input Bar with Pause AI, Mic (LEFT), Text Input, Camera (RIGHT), & Send ── */}
-                        <div className="flex items-center gap-1.5 sm:gap-2 w-full pt-0.5">
-                            {/* 1. Pause AI Button */}
+                        {/* ── Centered Voice Navigation & Interaction Controls ── */}
+                        <div className="flex items-center justify-between w-full">
+                            {/* 1. Left: Restart / Simpler Explanation Button */}
                             <button
-                                onClick={togglePauseAI}
-                                disabled={isTtsLoading || !blueprint}
-                                className={`flex items-center justify-center w-10 h-10 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ${
-                                    isSpeaking ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-white/10 border-white/15 text-slate-200'
-                                }`}
+                                onClick={handleRestartSimplerBoard}
+                                disabled={isGeneratingBlueprint || isTtsLoading}
+                                title="Restart this board with simpler language"
+                                className="flex items-center gap-1.5 px-3.5 sm:px-4 h-12 rounded-2xl bg-[#22272E] hover:bg-[#2D333B] border border-[#373E47] text-slate-300 hover:text-white font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs"
                             >
-                                <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
+                                <i className="bi bi-arrow-counterclockwise text-base text-amber-400 font-bold"></i>
+                                <span className="hidden sm:inline">Simpler</span>
                             </button>
 
-                            {/* 2. Mic Button on the LEFT */}
-                            <button
-                                onClick={toggleMic}
-                                disabled={isGeneratingBlueprint || !blueprint}
-                                className={`flex items-center gap-1.5 px-3.5 sm:px-4 h-10 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ${
-                                    isMicListening ? 'bg-red-600 text-white animate-pulse' : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950'
-                                }`}
-                            >
-                                <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-sm`}></i>
-                                <span className="hidden sm:inline">{isMicListening ? 'Listening' : 'Mic'}</span>
-                            </button>
+                            {/* 2. Middle Controls: Pause/Play, Mic (Prominent Center), Camera */}
+                            <div className="flex items-center gap-2.5 sm:gap-3">
+                                {/* Play/Pause Button */}
+                                <button
+                                    onClick={togglePauseAI}
+                                    disabled={isTtsLoading || !blueprint}
+                                    title={isSpeaking ? "Pause speech" : "Resume speech"}
+                                    className={`flex items-center justify-center w-11 h-11 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                        isSpeaking ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-[#22272E] border-[#373E47] text-slate-300'
+                                    }`}
+                                >
+                                    <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
+                                </button>
 
-                            {/* 3. Text Input Container with Camera on the RIGHT and Send */}
-                            <div className="flex-1 relative flex items-center min-w-0">
-                                <input
-                                    type="text"
-                                    value={textInput}
-                                    onChange={(e) => setTextInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
-                                    disabled={isGeneratingBlueprint}
-                                    placeholder="Type your question or answer here..."
-                                    className="w-full h-10 pl-3.5 pr-20 bg-[#22272E] border border-[#373E47] focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-2xl text-xs sm:text-sm text-white placeholder-slate-400 outline-none shadow-2xs transition-all"
-                                />
+                                {/* Center Prominent Mic Button */}
+                                <button
+                                    onClick={toggleMic}
+                                    disabled={isGeneratingBlueprint || !blueprint}
+                                    title={isMicListening ? "Listening... Click to send" : "Tap to speak question or answer"}
+                                    className={`flex items-center justify-center w-14 h-14 rounded-2xl font-bold transition-all cursor-pointer shadow-lg active:scale-95 ${
+                                        isMicListening 
+                                            ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/40' 
+                                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-2 ring-amber-400/30'
+                                    }`}
+                                >
+                                    <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-2xl`}></i>
+                                </button>
 
-                                {/* Camera Icon Button on the RIGHT */}
+                                {/* Camera Button */}
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     type="button"
-                                    title="Snap or upload picture"
-                                    className="absolute right-9 w-7 h-7 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+                                    title="Snap or upload picture of your work"
+                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#22272E] hover:bg-[#2D333B] border border-[#373E47] text-slate-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
                                 >
-                                    <i className="bi bi-camera text-base"></i>
+                                    <i className="bi bi-camera text-lg"></i>
                                 </button>
-
-                                {/* Send Arrow Button on the RIGHT */}
-                                {(textInput.trim() || attachedImage) && (
-                                    <button
-                                        onClick={handleSendText}
-                                        className="absolute right-1.5 w-7 h-7 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center cursor-pointer active:scale-95 animate-fade-in"
-                                    >
-                                        <i className="bi bi-arrow-up-short text-lg font-bold"></i>
-                                    </button>
-                                )}
-
-                                {/* Hidden File Input for Camera / Photo picker */}
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleImageUpload}
-                                    accept="image/*"
-                                    className="hidden"
-                                />
                             </div>
+
+                            {/* 3. Right: Next Board / Advance Button */}
+                            <button
+                                onClick={handleAdvanceNextBoard}
+                                disabled={isGeneratingBlueprint || isTtsLoading}
+                                title="Advance to next board"
+                                className="flex items-center gap-1.5 px-3.5 sm:px-4 h-12 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-md"
+                            >
+                                <span className="hidden sm:inline">Next</span>
+                                <i className="bi bi-arrow-right text-base font-bold"></i>
+                            </button>
+
+                            {/* Hidden File Input for Camera / Photo picker */}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleImageUpload}
+                                accept="image/*"
+                                className="hidden"
+                            />
                         </div>
                     </div>
                 </main>
