@@ -97,7 +97,7 @@ export async function migrateLocalStorageToSqlite(): Promise<void> {
 /**
  * Synchronous JSON read helper from in-memory cache backed by SQLite.
  */
-export const readCachedJson = <T,>(key: string, fallback: T): T => {
+export function readCachedJson<T = any>(key: string, fallback: T = null as unknown as T): T {
   if (memoryCache.has(key)) {
     return memoryCache.get(key) as T;
   }
@@ -114,12 +114,12 @@ export const readCachedJson = <T,>(key: string, fallback: T): T => {
     }
   }
   return fallback;
-};
+}
 
 /**
  * Write cached value into in-memory cache and persist to SQLite asynchronously.
  */
-export const writeCachedJson = (key: string, value: unknown, userId: string = 'global'): void => {
+export function writeCachedJson(key: string, value: unknown, userId: string = 'global'): void {
   memoryCache.set(key, value);
 
   // Asynchronously persist to SQLite
@@ -141,12 +141,12 @@ export const writeCachedJson = (key: string, value: unknown, userId: string = 'g
       // Ignore quota errors if storage is full
     }
   }
-};
+}
 
 /**
  * Remove cached key from memory cache and SQLite.
  */
-export const clearCachedKey = (key: string): void => {
+export function clearCachedKey(key: string): void {
   memoryCache.delete(key);
 
   void runStatement(`DELETE FROM app_state WHERE key = ?`, [key]).catch(err => {
@@ -160,7 +160,14 @@ export const clearCachedKey = (key: string): void => {
       // Ignore errors
     }
   }
-};
+}
+
+// Global exposure to prevent TDZ bundling anomalies
+if (typeof window !== 'undefined') {
+  (window as any).readCachedJson = readCachedJson;
+  (window as any).writeCachedJson = writeCachedJson;
+  (window as any).clearCachedKey = clearCachedKey;
+}
 
 /**
  * Async read from SQLite directly.
