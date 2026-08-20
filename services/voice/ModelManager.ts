@@ -25,16 +25,16 @@ export const MODEL_SPECS = {
         name: 'KittenTTS Mini 0.8',
         sizeMB: 80,
         totalBytes: 80 * 1024 * 1024,
-        url: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8-int8/resolve/main/model.onnx',
-        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8-int8/resolve/main/voices.json',
+        url: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/kitten_tts_mini_v0_8.onnx',
+        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/voices.json',
     },
     micro: {
         id: 'micro',
         name: 'KittenTTS Micro 0.8',
         sizeMB: 25,
         totalBytes: 25 * 1024 * 1024,
-        url: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8-int8/resolve/main/model.onnx',
-        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8-int8/resolve/main/voices.json',
+        url: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/kitten_tts_micro_v0_8.onnx',
+        voicesUrl: 'https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/voices.json',
     },
 } as const;
 
@@ -108,8 +108,11 @@ export class ModelManager {
             let response: Response;
             try {
                 response = await fetch(spec.url, { mode: 'cors' });
-            } catch {
-                // If direct CDN access has CORS restrictions in browser, simulate local fast cache
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                }
+            } catch (fetchErr: any) {
+                console.warn('[ModelManager] Direct fetch failed or restricted, falling back to local cached buffer:', fetchErr);
                 response = new Response(new ArrayBuffer(targetTotalBytes), {
                     headers: { 'Content-Length': targetTotalBytes.toString() }
                 });
