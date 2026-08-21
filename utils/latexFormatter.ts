@@ -6,12 +6,27 @@
 
 /**
  * Transforms plain computer mathematical strings (e.g. x^2, m/s^2, 10^5, v_f, sqrt(x))
- * into KaTeX math syntax ($...$ or $$...$$) if not already properly formatted.
+ * and corrupted JSON escape artifacts into clean KaTeX math syntax ($...$ or $$...$$).
  */
 export function formatLatexMath(content: string | null | undefined): string {
     if (!content || typeof content !== 'string') return '';
 
     let text = content;
+
+    // 0. Repair JSON escape control character artifacts (e.g. \f in \frac becoming form-feed \u000c, \b in \beta becoming backspace \u0008)
+    text = text
+        .replace(/\u000crac/g, '\\frac')
+        .replace(/\u0008eta/g, '\\beta')
+        .replace(/\u0008egin/g, '\\begin')
+        .replace(/\u0008ar/g, '\\bar')
+        .replace(/\u0008ox/g, '\\box')
+        .replace(/\u0008ullet/g, '\\bullet')
+        .replace(/\u0008f/g, '\\bf')
+        .replace(/\u0008old/g, '\\bold')
+        .replace(/\u0008ot/g, '\\bot')
+        .replace(/(\s|^)\text(?=\{)/g, '$1\\text')
+        .replace(/(\s|^)\nabla(?=[^a-zA-Z]|$)/g, '$1\\nabla')
+        .replace(/(\s|^)\rho(?=[^a-zA-Z]|$)/g, '$1\\rho');
 
     // 1. If the whole string is a block equation $$...$$, ensure proper markdown block formatting
     const blockMatch = text.trim().match(/^\$\$([\s\S]*?)\$\$$/);
@@ -41,12 +56,17 @@ export function formatLatexMath(content: string | null | undefined): string {
     text = text.replace(/\bsqrt\(([^)]+)\)/gi, (_m, inner) => `$\\sqrt{${inner.trim()}}$`);
 
     // 5. Convert Greek letter names to LaTeX when in formula-like expressions
-    text = text.replace(/\b(theta|alpha|beta|lambda|omega|delta|mu|phi|gamma|pi)\b(?=[^a-zA-Z]|$)/gi, (match) => {
+    text = text.replace(/\b(theta|alpha|beta|lambda|omega|delta|mu|phi|gamma|pi|sigma|epsilon|zeta|eta|iota|kappa|nu|xi|rho|tau|upsilon|chi|psi)\b(?=[^a-zA-Z]|$)/gi, (match) => {
         const name = match.toLowerCase();
         return `$\\${name}$`;
     });
 
-    // 6. Convert commonly subscripted physics/math variables: v_i, v_f, v_0, a_x, F_net, F_N, F_g, f_k, t_0, x_0
+    // 6. Convert unescaped LaTeX commands outside math mode (e.g. \frac{a}{b}, \Delta x, \sum, \int, \cdot)
+    text = text.replace(/(\\(?:frac\{[^{}]+\}\{[^{}]+\}|Delta\s*[a-zA-Z]|sum|int|partial|infty|cdot|pm|times|le|ge|neq|approx|rightarrow))\b/g, (match) => {
+        return `$${match}$`;
+    });
+
+    // 7. Convert commonly subscripted physics/math variables: v_i, v_f, v_0, a_x, F_net, F_N, F_g, f_k, t_0, x_0
     text = text.replace(/\b([a-zA-Z])_([a-zA-Z0-9]+)\b/g, (_m, base, sub) => {
         if (sub.length === 1 || /^\d+$/.test(sub)) {
             return `$${base}_${sub}$`;
@@ -54,24 +74,24 @@ export function formatLatexMath(content: string | null | undefined): string {
         return `$${base}_{\\text{${sub}}}$`;
     });
 
-    // 7. Convert variables/numbers raised to power: x^2, t^2, v^2, r^3, (v_f)^2, etc.
+    // 8. Convert variables/numbers raised to power: x^2, t^2, v^2, r^3, (v_f)^2, etc.
     text = text.replace(/(\b[a-zA-Z0-9]+|\([^)]+\))\^([+-]?[a-zA-Z0-9]+|\{[^}]+\})/g, (_m, base, exp) => {
         const cleanExp = exp.startsWith('{') && exp.endsWith('}') ? exp.slice(1, -1) : exp;
         return `$${base}^{${cleanExp}}$`;
     });
 
-    // 8. Convert degree expressions: 30° or 30 deg or 45 degrees
+    // 9. Convert degree expressions: 30° or 30 deg or 45 degrees
     text = text.replace(/\b(\d+)\s*(?:°|deg|degrees)\b/gi, (_m, deg) => `$${deg}^\\circ$`);
 
-    // 9. Convert +/- symbol to \pm
+    // 10. Convert +/- symbol to \pm
     text = text.replace(/\s*\+\/-\s*/g, ' $\\pm$ ');
 
-    // 10. Restore protected math blocks
+    // 11. Restore protected math blocks
     text = text.replace(/___MATH_BLOCK_(\d+)___/g, (_m, idx) => {
         return mathBlocks[parseInt(idx, 10)] || '';
     });
 
-    // 11. Normalize block equations inside markdown
+    // 12. Normalize block equations inside markdown
     text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner) => {
         return `\n\n$$\n${inner.trim()}\n$$\n\n`;
     });

@@ -121,7 +121,7 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
 /**
  * Robust JSON parser capable of handling:
  * 1. Markdown code blocks (```json ... ```)
- * 2. Unescaped LaTeX backslashes (\sigma, \Delta, \frac, \nabla, \alpha, etc.)
+ * 2. Unescaped LaTeX backslashes (\sigma, \Delta, \frac, \nabla, \alpha, etc.) without control character corruption
  * 3. Literal newlines or tabs inside JSON strings
  * 4. Trailing commas
  * 5. Truncated JSON responses (auto-closes quotes and braces)
@@ -139,9 +139,21 @@ export function robustParseJson<T = any>(raw: string): T {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }
 
-    // Attempt 1: Direct JSON.parse
+    // Pre-escape LaTeX words so JSON.parse doesn't turn \frac into \x0c + rac or \beta into \x08 + eta
+    const preEscapeLatex = (str: string) => {
+        return str.replace(/(?<!\\)\\([a-zA-Z]+)/g, (match, word) => {
+            if (/^(frac|nabla|text|times|theta|tau|tan|rho|right|nu|neq|neg|normal|beta|begin|bar|bot|bf|bold|box|bullet|approx|gamma|delta|epsilon|zeta|eta|iota|kappa|lambda|mu|xi|pi|sigma|upsilon|phi|chi|psi|omega|sqrt|sum|int|partial|infty|cdot|pm|mp|le|ge|equiv|rightarrow|leftarrow|left|right|vec|hat|dot|ddot|tilde|mathbf|mathrm|mathit|displaystyle)/i.test(word)) {
+                return `\\\\${word}`;
+            }
+            return match;
+        });
+    };
+
+    const preprocessed = preEscapeLatex(cleaned);
+
+    // Attempt 1: Preprocessed JSON.parse
     try {
-        return JSON.parse(cleaned) as T;
+        return JSON.parse(preprocessed) as T;
     } catch (_) {}
 
     // Attempt 2: Advanced character-by-character sanitize with LaTeX escape handler
@@ -996,32 +1008,39 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         }
 
         setIsStreaming(true);
-        const wordCount = spokenText ? spokenText.split(/\s+/).length : 25;
-        const totalEstMs = Math.max(3000, wordCount * 360);
+        const words = spokenText ? spokenText.split(/\s+/).filter(Boolean) : [];
+        const wordCount = words.length > 0 ? words.length : 28;
+        
+        // Pacing at 480ms per word gives natural speech duration and prevents text from revealing ahead of voice
+        const totalEstMs = Math.max(3600, wordCount * 480);
         const lineCount = lines.length;
-        const lineIntervalMs = Math.max(1800, Math.min(4200, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+        const lineIntervalMs = Math.max(2800, Math.min(5600, Math.floor(totalEstMs / Math.max(lineCount, 1))));
 
-        // Reveal Line 0 immediately with chalk active indicator
-        setVisibleBoardLines([lines[0]]);
-        setActiveWritingIndex(0);
+        // Lead delay of 450ms so the voice begins speaking before Line 0 writes on the board
+        const initTimer = setTimeout(() => {
+            if (!isActiveRef.current) return;
+            setVisibleBoardLines([lines[0]]);
+            setActiveWritingIndex(0);
+        }, 450);
+        streamTimersRef.current.push(initTimer);
 
-        // Schedule subsequent lines bit-by-bit
+        // Schedule subsequent lines sequentially synchronized with spoken progress
         for (let i = 1; i < lineCount; i++) {
             const timer = setTimeout(() => {
                 if (!isActiveRef.current) return;
                 setVisibleBoardLines(lines.slice(0, i + 1));
                 setActiveWritingIndex(i);
-            }, i * lineIntervalMs);
+            }, 450 + i * lineIntervalMs);
             streamTimersRef.current.push(timer);
         }
 
-        // Settle all lines into clean chalk white when complete
+        // Settle all lines cleanly when narration concludes
         const finishTimer = setTimeout(() => {
             if (!isActiveRef.current) return;
             setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
             setIsStreaming(false);
             setActiveWritingIndex(-1);
-        }, lineCount * lineIntervalMs);
+        }, 450 + lineCount * lineIntervalMs);
         streamTimersRef.current.push(finishTimer);
     }, [clearAllStreamTimers]);
 
