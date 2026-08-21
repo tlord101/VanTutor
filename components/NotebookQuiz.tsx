@@ -229,7 +229,7 @@ RULES:
 
             {/* Saved Quiz Quick Start Banner */}
             {savedQuiz && savedQuiz.length > 0 && (
-              <div className="p-4 bg-[#F1F5F9] border border-[#0066FF]/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="p-4 mb-6 bg-[#F1F5F9] border border-[#0066FF]/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[#002D62] text-white flex items-center justify-center text-base shrink-0">
                     <i className="bi bi-bookmark-check-fill text-[#0066FF]"></i>
@@ -255,11 +255,13 @@ RULES:
               </div>
             )}
 
-            {/* Time Limit Setting */}
-            <div>
-              <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
-                <i className="bi bi-clock mr-1.5 text-[#0066FF]"></i> Global Quiz Timer
-              </label>
+            {/* Settings */}
+            <div className="space-y-6">
+              {/* Time Limit Setting */}
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
+                  <i className="bi bi-clock mr-1.5 text-[#0066FF]"></i> Global Quiz Timer
+                </label>
               <div className="grid grid-cols-4 gap-2">
                 {[5, 10, 15, 30].map((mins) => (
                   <button
