@@ -17,25 +17,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const apiKey =
-      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-      process.env.VITE_KITTENML_API_KEY ||
       process.env.KITTENML_API_KEY ||
+      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
       DEFAULT_KITTENML_API_KEY;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    };
 
     const response = await fetch('https://api.kittenml.com/v1/audio/speech', {
       method: 'POST',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         model: body.model || 'kitten-tts-mini-0.8',
         voice: body.voice || 'Bella',
         input: body.input || '',
-        response_format: body.response_format || 'mp3',
-        speed: body.speed || 1.1,
+        response_format: body.response_format || 'wav',
+        speed: body.speed || 1.0,
       }),
     });
 
