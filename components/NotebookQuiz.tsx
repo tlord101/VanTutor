@@ -98,7 +98,8 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
     setIsConfiguring(false);
 
     try {
-      const ai = createAvelutAI();
+      const ai = createAvelutAI(appSettings, userProfile);
+      if (!ai) throw new Error('AI is not configured. Please check App Controls.');
       const prompt = `You are an expert academic examiner. Based ONLY on the following textbook chapter excerpt, generate exactly ${questionCount} high-quality, professional multiple-choice questions.
 
 CHAPTER TITLE: ${chapter.title}
@@ -122,7 +123,7 @@ RULES:
 ]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

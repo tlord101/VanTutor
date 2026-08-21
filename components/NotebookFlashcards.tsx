@@ -59,7 +59,8 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
     setIsGenerating(true);
 
     try {
-      const ai = createAvelutAI();
+      const ai = createAvelutAI(appSettings, userProfile);
+      if (!ai) throw new Error('AI is not configured. Please check App Controls.');
       const prompt = `You are a master educator creating high-retention flashcards.
 Based on the following textbook chapter excerpt, generate exactly 10 high-value flashcards covering key definitions, formulas, concepts, and principles.
 
@@ -82,7 +83,7 @@ RULES:
 ]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
