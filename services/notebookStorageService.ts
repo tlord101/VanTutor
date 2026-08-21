@@ -58,10 +58,10 @@ function getIndexedDB(): Promise<IDBDatabase> {
   });
 }
 
-async function setPdfBinary(key: string, value: ArrayBuffer | Uint8Array | Blob): Promise<void> {
+async function setPdfBinary(key: string, value: ArrayBuffer | Uint8Array | Blob | File): Promise<void> {
   try {
     const db = await getIndexedDB();
-    const blob = value instanceof Blob ? value : new Blob([value], { type: 'application/pdf' });
+    const blob = value instanceof Blob ? value : new Blob([value as BlobPart], { type: 'application/pdf' });
     return new Promise((resolve) => {
       try {
         const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
@@ -105,7 +105,7 @@ export async function saveNotebook(
     totalPages: number;
     chapters: Array<{ id: string; title: string; startPage: number; endPage: number; content: string; wordCount: number }>;
     pages: Array<{ pageNumber: number; text: string; wordCount: number }>;
-    pdfBinary?: ArrayBuffer;
+    pdfBinary?: ArrayBuffer | Uint8Array | Blob | File;
   }
 ): Promise<Notebook> {
   const notebookId = `nb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

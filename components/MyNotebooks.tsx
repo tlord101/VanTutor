@@ -78,7 +78,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
       if (extraction.isScannedImageOnly) {
         addToast(
           'Warning: This PDF contains scanned images with minimal extractable text. Some features may have limited content.',
-          'warning'
+          'info'
         );
       }
 
