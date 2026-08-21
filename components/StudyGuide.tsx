@@ -833,9 +833,9 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     };
 
     return (
-        <div className="flex-1 flex flex-col w-full bg-slate-50/50 dark:bg-[#030712] overflow-hidden rounded-2xl">
-            {/* Top Tabs: Courses vs My Notebooks */}
-            <div className="flex-shrink-0 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-950 px-4">
+        <div className="flex-1 flex flex-col w-full h-full min-h-0 bg-slate-50/50 dark:bg-[#030712] overflow-hidden rounded-2xl">
+            {/* Top Tabs: Courses vs My Notebooks — Sticky & Rigid */}
+            <div className="flex-shrink-0 sticky top-0 z-30 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-950 px-4 shadow-2xs">
                 <div className="flex items-center gap-8">
                     <button
                         onClick={() => setActiveTab('courses')}
@@ -871,7 +871,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
             {/* Dual-Pane Tab Container */}
             <div
-                className="flex-1 w-full overflow-hidden relative"
+                className="flex-1 min-h-0 w-full overflow-hidden relative"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}

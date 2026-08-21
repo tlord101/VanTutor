@@ -52,10 +52,12 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -165,8 +167,11 @@ ${messageText}`;
         </div>
       </div>
 
-      {/* Scrollable Messages Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5">
+      {/* Scrollable Messages Area — ONLY this container scrolls */}
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 scroll-smooth"
+      >
         <div className="max-w-4xl mx-auto w-full bg-white border border-[#E3E9F1] rounded-3xl p-4 sm:p-6 space-y-4 shadow-xs">
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
@@ -197,8 +202,6 @@ ${messageText}`;
               <span className="text-xs text-[#64748B] font-medium">Tutor is formulating response...</span>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
