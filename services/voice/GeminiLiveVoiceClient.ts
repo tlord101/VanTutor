@@ -337,11 +337,19 @@ VOICE & INTERACTION GUIDELINES:
     let sumSquares = 0;
     for (let i = 0; i < inputChannel.length; i++) {
       sumSquares += inputChannel[i] * inputChannel[i];
-      this.inputBufferAccumulator.push(inputChannel[i]);
     }
     const rms = Math.sqrt(sumSquares / inputChannel.length);
     const normalizedLevel = Math.min(1, rms * 5.5);
     this.options.onInputAudioLevel?.(normalizedLevel);
+
+    // If the model is speaking out loud, ignore low-level acoustic speaker bleed to avoid self-interruptions
+    if (this.isModelSpeaking && rms < 0.035) {
+      return;
+    }
+
+    for (let i = 0; i < inputChannel.length; i++) {
+      this.inputBufferAccumulator.push(inputChannel[i]);
+    }
 
     // Only send when we have accumulated a full 2048-sample audio chunk (~128ms frame)
     while (this.inputBufferAccumulator.length >= this.BUFFER_SAMPLE_SIZE) {
@@ -409,6 +417,11 @@ VOICE & INTERACTION GUIDELINES:
       const source = ctx.createMediaStreamSource(stream);
       this.micSourceNode = source;
 
+      // Silent gain node to pull audio through the Web Audio graph without playing mic audio out of device speakers
+      const muteGain = ctx.createGain();
+      muteGain.gain.value = 0;
+      muteGain.connect(ctx.destination);
+
       // Try modern AudioWorkletNode first
       let workletLoaded = false;
       if (ctx.audioWorklet) {
@@ -444,7 +457,7 @@ VOICE & INTERACTION GUIDELINES:
           };
 
           source.connect(workletNode);
-          workletNode.connect(ctx.destination);
+          workletNode.connect(muteGain);
           workletLoaded = true;
         } catch (workletErr) {
           console.warn('[GeminiLive] AudioWorklet initialization fallback:', workletErr);
@@ -462,7 +475,7 @@ VOICE & INTERACTION GUIDELINES:
         };
 
         source.connect(processor);
-        processor.connect(ctx.destination);
+        processor.connect(muteGain);
       }
     } catch (err) {
       console.error('[GeminiLive] Mic capture failed:', err);
@@ -522,7 +535,7 @@ VOICE & INTERACTION GUIDELINES:
       source.connect(this.outputAudioCtx.destination);
 
       const currentTime = this.outputAudioCtx.currentTime;
-      if (this.nextPlayTime < currentTime) {
+      if (this.nextPlayTime < currentTime || this.nextPlayTime > currentTime + 0.35) {
         this.nextPlayTime = currentTime;
       }
 
