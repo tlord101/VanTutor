@@ -669,6 +669,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   // Custom Input Bar States: 1 (Default), 2 (Typing)
   const [inputState, setInputState] = useState<number>(1);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState<boolean>(false);
+  const [isContextAware, setIsContextAware] = useState<boolean>(false);
   const [viewingImageIds, setViewingImageIds] = useState<Set<string>>(new Set());
   const [generatingMessageIds, setGeneratingMessageIds] = useState<Set<string>>(new Set());
   const lastTapRef = useRef<Record<string, number>>({});
@@ -793,7 +794,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       const client = new GeminiLiveVoiceClient({
         apiKey,
-        model: 'models/gemini-3.1-flash-live-preview',
+        model: 'models/gemini-2.0-flash-exp',
         voiceName: 'Aoede',
         userMetadata: {
           displayName: studentName,
@@ -1538,9 +1539,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         const cleanPrompt = prompt.trim();
         const isGreetingOrCasual = /^(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|how are you|who are you|what('s| is) your name)[\s!.,?]*$/i.test(cleanPrompt);
 
-        // On-demand local SQLite context search (zero AI embedding cost)
+        // On-demand local SQLite context search (ONLY when student context mode is active)
         let retrievedContext = "";
-        if (!isGreetingOrCasual && cleanPrompt.length > 3) {
+        if (isContextAware && !isGreetingOrCasual && cleanPrompt.length > 3) {
           try {
             const { runQuery } = await import('../lib/sqlite/sqliteService');
             const searchWords = cleanPrompt
@@ -1592,7 +1593,37 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         ].join('\n') : '';
 
         const studentName = userProfile?.display_name?.split(' ')[0] || userProfile?.first_name || 'there';
-        const studentInfo = `Student Name: ${studentName}${userProfile?.department_name ? `, Department: ${userProfile.department_name}` : ''}${userProfile?.level ? `, Level: ${userProfile.level}` : ''}`;
+        const studentInfo = isContextAware 
+          ? `Student Name: ${studentName}${userProfile?.department_name ? `, Department: ${userProfile.department_name}` : ''}${userProfile?.level ? `, Level: ${userProfile.level}` : ''}`
+          : '';
+
+        const systemInstructions = isContextAware ? [
+          `You are AVELUT AI, an intelligent, versatile, and supportive academic tutor and problem-solver assisting ${studentName}.`,
+          studentInfo ? `STUDENT CONTEXT: ${studentInfo}` : '',
+          'CORE GUIDELINES:',
+          '1. ADAPTIVE & VERSATILE: Help with general problem-solving, academic questions, technical concepts, calculations, writing, or analysis.',
+          '2. CLEAR & STRUCTURED: Give clear, direct answers with intuitive step-by-step explanations and real-world examples.',
+          '3. LATEX FORMATTING: Format mathematical equations and variables cleanly using LaTeX ($...$ inline or $$...$$ block).',
+          '4. STUDENT STUDY CONTEXT: If relevant notebook or course excerpts are attached below, reference them accurately to ground your explanations.',
+          '5. SUGGESTIONS: At the very end of your response, output 3 to 4 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
+          tutorialInstructions,
+          courseContext ? `STUDENT'S ACTIVE COURSE CONTEXT:\n${courseContext}` : '',
+          retrievedContext,
+          storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
+          '',
+          `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
+        ].filter(Boolean).join('\n') : [
+          'You are AVELUT AI, a powerful, versatile, and clear general problem-solving AI assistant.',
+          'CORE GUIDELINES:',
+          '1. DIRECT & HELPFUL: Provide direct, accurate, and comprehensive solutions to the user\'s prompts, questions, and tasks.',
+          '2. VERSATILE CAPABILITY: Excel across all subjects and domains—including math, science, programming, history, literature, writing, reasoning, and practical tasks.',
+          '3. LATEX FORMATTING: Use LaTeX ($...$ or $$...$$) for mathematical expressions whenever relevant.',
+          '4. SUGGESTIONS: At the very end of your response, output 3 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
+          tutorialInstructions,
+          storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
+          '',
+          `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
+        ].filter(Boolean).join('\n');
 
         const responseStream = await ai.models.generateContentStream({
           model: geminiModel || 'gemini-3.1-flash-lite',
@@ -1601,22 +1632,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
               role: 'user',
               parts: [
                 {
-                  text: [
-                    `You are AVELUT AI, a friendly, supportive, and natural personal academic tutor chatting with ${studentName}.`,
-                    `STUDENT CONTEXT: ${studentInfo}`,
-                    'CORE CONVERSATIONAL GUIDELINES:',
-                    '1. NATURAL & CASUAL GREETINGS: If the user says hi, hello, how are you, or general chat, reply naturally, warmly, and concisely (e.g. "Hi ' + studentName + '! How are you doing today? What are we studying?"). Never dump unprompted academic lectures on a simple greeting.',
-                    '2. CLEAR ACADEMIC EXPLANATIONS: When the user asks a question about their subjects, courses, or problem-solving, provide a concise, bite-sized explanation (2-4 clear sentences first). Offer to break it down step-by-step.',
-                    '3. LATEX FORMATTING: Format all math, equations, variables, and formulas in standard LaTeX ($...$ for inline or $$...$$ for block equations).',
-                    '4. STUDENT STUDY CONTEXT: If relevant excerpts from their courses or uploaded materials are provided below, use them accurately to ground your explanations.',
-                    '5. SUGGESTIONS: At the absolute end of every response, provide 3 to 4 expected follow-up responses formatted exactly on a new line as: [Suggestions: Continue | Next step | Explain with example | I don\'t understand]',
-                    tutorialInstructions,
-                    courseContext ? `STUDENT'S ACTIVE COURSE CONTEXT:\n${courseContext}` : '',
-                    retrievedContext,
-                    storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
-                    '',
-                    `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
-                  ].filter(Boolean).join('\n'),
+                  text: systemInstructions,
                 },
                 ...attachmentParts,
               ],
@@ -2308,6 +2324,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 </div>
               )}
 
+              {/* Active Student Context Badge Pill */}
+              {isContextAware && !isLiveVoiceMode && (
+                <div className="mb-2 w-full flex items-center justify-start animate-fade-in">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-[#0066FF]/10 dark:bg-[#0066FF]/20 border border-[#0066FF]/30 px-3 py-1 text-xs font-bold text-[#0066FF] shadow-2xs">
+                    <span>🎓 Student Context Active</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsContextAware(false)}
+                      className="p-0.5 hover:bg-[#0066FF]/20 rounded-full cursor-pointer ml-0.5"
+                      title="Turn off student context"
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Fluid Spring Morphing Container (Liquid / Water-Droplet Separation) */}
               <motion.div 
                 layout
@@ -2334,9 +2367,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       <PlusIcon />
                     </button>
 
-                    {/* Plus Attachment Popup Menu (Camera, Photos, Files) */}
+                    {/* Plus Attachment Popup Menu (Camera, Photos, Files, Student Context) */}
                     {showAttachmentMenu && (
-                      <div className="absolute bottom-14 left-0 w-56 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50 p-1.5">
+                      <div className="absolute bottom-14 left-0 w-60 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50 p-1.5">
                         {/* 1. Camera */}
                         <button
                           type="button"
@@ -2374,6 +2407,28 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         >
                           <FolderOutlineIcon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
                           <span>Files</span>
+                        </button>
+
+                        {/* 4. Student Context Aware Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsContextAware(prev => !prev);
+                            setShowAttachmentMenu(false);
+                          }}
+                          className="w-full text-left px-3.5 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors flex items-center justify-between border-t border-slate-100 dark:border-white/10 mt-1 pt-2 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-base">🎓</span>
+                            <span>Student Context</span>
+                          </div>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                            isContextAware 
+                              ? 'bg-[#0066FF] text-white' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                          }`}>
+                            {isContextAware ? 'ON' : 'OFF'}
+                          </span>
                         </button>
                       </div>
                     )}

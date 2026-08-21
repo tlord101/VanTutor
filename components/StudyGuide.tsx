@@ -869,169 +869,174 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 </div>
             </div>
 
-            {/* Dual-Pane Tab Container */}
+            {/* Dual-Pane Tab Container with Smooth Horizontal Slide Transition */}
             <div
                 className="flex-1 min-h-0 w-full overflow-hidden relative"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
-                {activeTab === 'courses' ? (
-                    /* Pane 1: Academic Courses */
-                    <div className="w-full h-full flex flex-col overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+16px)]">
-                        {/* Top Roadmap Header */}
-                        <div className="flex-shrink-0 px-6 sm:px-10 py-6 sm:py-8 bg-white dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
-                            <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                                    Academic Study Guide
-                                </h2>
-                                <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-md mt-1 font-medium">
-                                    Select any topic to start a step-by-step interactive lesson with voice and blackboard diagrams.
-                                </p>
+                {/* Pane 1: Academic Courses */}
+                <div className={`absolute inset-0 w-full h-full flex flex-col overflow-hidden transition-all duration-300 ease-out will-change-transform ${
+                    activeTab === 'courses' ? 'translate-x-0 opacity-100 z-10' : '-translate-x-full opacity-0 pointer-events-none z-0'
+                }`}>
+                    {/* Top Roadmap Header */}
+                    <div className="flex-shrink-0 px-6 sm:px-10 py-6 sm:py-8 bg-white dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+                        <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
+                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                Academic Study Guide
+                            </h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-md mt-1 font-medium">
+                                Select any topic to start a step-by-step interactive lesson with voice and blackboard diagrams.
+                            </p>
 
-                                {/* Search and Filter */}
-                                <div className="mt-6 w-full flex flex-col sm:flex-row gap-3">
-                                    <div className="flex-1 relative group">
-                                        <input
-                                            type="text"
-                                            placeholder="Search courses or topics..."
-                                            value={filter.searchTerm}
-                                            onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-sm transition-all"
-                                        />
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-amber-500 transition-colors">
-                                            <i className="bi bi-search text-sm"></i>
-                                        </div>
+                            {/* Search and Filter */}
+                            <div className="mt-6 w-full flex flex-col sm:flex-row gap-3">
+                                <div className="flex-1 relative group">
+                                    <input
+                                        type="text"
+                                        placeholder="Search courses or topics..."
+                                        value={filter.searchTerm}
+                                        onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-sm transition-all"
+                                    />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-amber-500 transition-colors">
+                                        <i className="bi bi-search text-sm"></i>
                                     </div>
-                                    <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl flex border border-slate-200/80 dark:border-slate-800 shrink-0">
-                                        <button
-                                            onClick={() => setFilter(f => ({ ...f, semester: 'first' }))}
-                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                                filter.semester === 'first'
-                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                            }`}
-                                        >
-                                            1st Sem
-                                        </button>
-                                        <button
-                                            onClick={() => setFilter(f => ({ ...f, semester: 'second' }))}
-                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                                filter.semester === 'second'
-                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                            }`}
-                                        >
-                                            2nd Sem
-                                        </button>
-                                        <button
-                                            onClick={() => setFilter(f => ({ ...f, semester: 'all' }))}
-                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                                filter.semester === 'all'
-                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                            }`}
-                                        >
-                                            All
-                                        </button>
-                                    </div>
+                                </div>
+                                <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl flex border border-slate-200/80 dark:border-slate-800 shrink-0">
+                                    <button
+                                        onClick={() => setFilter(f => ({ ...f, semester: 'first' }))}
+                                        className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                            filter.semester === 'first'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                        }`}
+                                    >
+                                        1st Sem
+                                    </button>
+                                    <button
+                                        onClick={() => setFilter(f => ({ ...f, semester: 'second' }))}
+                                        className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                            filter.semester === 'second'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                        }`}
+                                    >
+                                        2nd Sem
+                                    </button>
+                                    <button
+                                        onClick={() => setFilter(f => ({ ...f, semester: 'all' }))}
+                                        className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                            filter.semester === 'all'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                        }`}
+                                    >
+                                        All
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Courses List */}
-                        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8">
-                            {isLoading ? (
-                                <StudyGuideSkeleton />
-                            ) : filteredCourses.length > 0 ? (
-                                <div className="max-w-4xl mx-auto space-y-3">
-                                    {filteredCourses.map(course => (
-                                        <CourseHeader
-                                            key={course.course_id}
-                                            course={course}
-                                            onClick={() => setTopicPickerCourse(course)}
-                                            userProgress={userProgress}
-                                            onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
-                                            isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
-                                            uploadProgress={uploadProgress}
-                                        />
-                                    ))}
+                    {/* Courses List */}
+                    <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8 pb-[calc(76px+env(safe-area-inset-bottom)+16px)]">
+                        {renderActiveExternalVoiceBanner()}
+                        {renderPinnedTopics()}
+
+                        {isLoading ? (
+                            <StudyGuideSkeleton />
+                        ) : filteredCourses.length > 0 ? (
+                            <div className="max-w-4xl mx-auto space-y-3">
+                                {filteredCourses.map(course => (
+                                    <CourseHeader
+                                        key={course.course_id}
+                                        course={course}
+                                        onClick={() => setTopicPickerCourse(course)}
+                                        userProgress={userProgress}
+                                        onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
+                                        isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
+                                        uploadProgress={uploadProgress}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-12 text-center max-w-lg mx-auto">
+                                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center mb-4 text-slate-400 shadow-inner">
+                                    <i className="bi bi-search text-2xl"></i>
                                 </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center p-12 text-center max-w-lg mx-auto">
-                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center mb-4 text-slate-400 shadow-inner">
-                                        <i className="bi bi-search text-2xl"></i>
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No courses found</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-                                        {filter.searchTerm ? 'Try adjusting your search query.' : 'Upload your course registration PDF or add your course codes.'}
-                                    </p>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No courses found</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                                    {filter.searchTerm ? 'Try adjusting your search query.' : 'Upload your course registration PDF or add your course codes.'}
+                                </p>
 
-                                    {!filter.searchTerm && (
-                                        <div className="w-full bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Add Courses</h4>
-                                                {isManualMode && (
-                                                    <button
-                                                        onClick={() => setIsManualMode(false)}
-                                                        className="text-xs text-amber-500 font-bold"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {isManualMode ? (
-                                                <div className="flex flex-col gap-3">
-                                                    <div className="relative flex items-center">
-                                                        <input
-                                                            type="text"
-                                                            value={manualCourseCode}
-                                                            onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
-                                                            placeholder="e.g. MTH101, PHY201"
-                                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                                            disabled={isSavingManual}
-                                                        />
-                                                        <button
-                                                            onClick={handleSaveManualCourse}
-                                                            disabled={isSavingManual || !manualCourseCode.trim()}
-                                                            className="absolute right-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors shadow-xs"
-                                                        >
-                                                            {isSavingManual ? 'Saving...' : 'Save'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col gap-2.5">
-                                                    <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-md border border-slate-700 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
-                                                        <i className="bi bi-cloud-arrow-up text-sm"></i>
-                                                        <span>{isExtractingCourses ? 'Extracting courses...' : 'Upload Course Form PDF'}</span>
-                                                        <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
-                                                    </label>
-                                                    <button
-                                                        onClick={() => setIsManualMode(true)}
-                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold transition-all"
-                                                    >
-                                                        Manually Enter Course Code
-                                                    </button>
-                                                </div>
+                                {!filter.searchTerm && (
+                                    <div className="w-full bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">Add Courses</h4>
+                                            {isManualMode && (
+                                                <button
+                                                    onClick={() => setIsManualMode(false)}
+                                                    className="text-xs text-amber-500 font-bold"
+                                                >
+                                                    Cancel
+                                                </button>
                                             )}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+
+                                        {isManualMode ? (
+                                            <div className="flex flex-col gap-3">
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type="text"
+                                                        value={manualCourseCode}
+                                                        onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
+                                                        placeholder="e.g. MTH101, PHY201"
+                                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                        disabled={isSavingManual}
+                                                    />
+                                                    <button
+                                                        onClick={handleSaveManualCourse}
+                                                        disabled={isSavingManual || !manualCourseCode.trim()}
+                                                        className="absolute right-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors shadow-xs"
+                                                    >
+                                                        {isSavingManual ? 'Saving...' : 'Save'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-2.5">
+                                                <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-md border border-slate-700 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
+                                                    <i className="bi bi-cloud-arrow-up text-sm"></i>
+                                                    <span>{isExtractingCourses ? 'Extracting courses...' : 'Upload Course Form PDF'}</span>
+                                                    <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
+                                                </label>
+                                                <button
+                                                    onClick={() => setIsManualMode(true)}
+                                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold transition-all"
+                                                >
+                                                    Manually Enter Course Code
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-                ) : (
-                    /* Pane 2: My Personal Notebooks */
-                    <div className="w-full h-full flex flex-col overflow-hidden">
-                        <MyNotebooks
-                            userProfile={userProfile}
-                            onNavigate={onNavigate}
-                            setCustomHeaderConfig={setCustomHeaderConfig}
-                        />
-                    </div>
-                )}
+                </div>
+
+                {/* Pane 2: My Personal Notebooks */}
+                <div className={`absolute inset-0 w-full h-full flex flex-col overflow-hidden transition-all duration-300 ease-out will-change-transform ${
+                    activeTab === 'notebooks' ? 'translate-x-0 opacity-100 z-10' : 'translate-x-full opacity-0 pointer-events-none z-0'
+                }`}>
+                    <MyNotebooks
+                        userProfile={userProfile}
+                        onNavigate={onNavigate}
+                        setCustomHeaderConfig={setCustomHeaderConfig}
+                    />
+                </div>
             </div>
 
             <LimitExceededModal

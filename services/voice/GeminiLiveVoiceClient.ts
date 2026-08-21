@@ -145,7 +145,7 @@ export class GeminiLiveVoiceClient {
     const courses = meta.enrolledCourses?.length ? meta.enrolledCourses.join(', ') : 'Academic Curriculum';
     const context = meta.courseContext ? `Current study context: ${meta.courseContext}` : '';
 
-    let modelName = this.options.model || 'models/gemini-3.1-flash-live-preview';
+    let modelName = this.options.model || 'models/gemini-2.0-flash-exp';
     if (!modelName.startsWith('models/')) {
       modelName = `models/${modelName}`;
     }
@@ -535,7 +535,7 @@ VOICE & INTERACTION GUIDELINES:
       source.connect(this.outputAudioCtx.destination);
 
       const currentTime = this.outputAudioCtx.currentTime;
-      if (this.nextPlayTime < currentTime || this.nextPlayTime > currentTime + 0.35) {
+      if (this.nextPlayTime < currentTime) {
         this.nextPlayTime = currentTime;
       }
 

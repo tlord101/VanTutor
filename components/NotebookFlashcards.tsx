@@ -46,7 +46,6 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   const [isGenerating, setIsGenerating] = useState(true);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
-  const [ratings, setRatings] = useState<Record<number, 'hard' | 'good' | 'easy'>>({});
 
   const generateCards = async (forceRegenerate = false) => {
     // 1. Check local SQLite cache first if not explicitly regenerating
@@ -133,15 +132,6 @@ RULES:
   useEffect(() => {
     void generateCards(false);
   }, [notebook.id, chapter.id]);
-
-  const handleRate = (rating: 'hard' | 'good' | 'easy') => {
-    setRatings((prev) => ({ ...prev, [currentIndex]: rating }));
-    setIsFlipped(false);
-    setShowHint(false);
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
 
   if (isGenerating) {
     return (
@@ -255,65 +245,52 @@ RULES:
                   e.stopPropagation();
                   setShowHint(!showHint);
                 }}
-                className="text-xs font-bold text-[#64748B] hover:text-[#0066FF] flex items-center gap-1 transition-colors"
+                className="text-xs font-bold text-[#64748B] hover:text-[#0066FF] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <i className="bi bi-lightbulb"></i>
                 <span>{showHint ? 'Hide Hint' : 'Show Hint'}</span>
               </button>
             ) : <div />}
 
-            <span className="text-[11px] text-[#64748B]">
-              {ratings[currentIndex] ? `Rated: ${ratings[currentIndex].toUpperCase()}` : 'Unrated'}
+            <span className="text-[11px] font-semibold text-[#64748B]">
+              {isFlipped ? 'Tap card to flip back' : 'Tap card to reveal answer'}
             </span>
           </div>
         </div>
       )}
 
-      {/* Bottom Rating / Navigation Bar */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 shadow-2xs">
+      {/* Prominent Large Bottom Navigation Bar */}
+      <div className="bg-white border border-[#E3E9F1] rounded-3xl p-3 sm:p-4 flex items-center justify-between gap-3 shrink-0 shadow-xs">
         <button
+          type="button"
           onClick={() => {
             setIsFlipped(false);
             setShowHint(false);
             setCurrentIndex((prev) => Math.max(0, prev - 1));
           }}
           disabled={currentIndex === 0}
-          className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+          className="flex-1 py-3.5 sm:py-4 px-4 rounded-2xl bg-[#F6F6F3] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs sm:text-sm active:scale-98 shadow-2xs"
         >
-          <i className="bi bi-arrow-left text-sm font-bold"></i>
+          <i className="bi bi-arrow-left text-base font-black"></i>
+          <span>Previous</span>
         </button>
 
-        <div className="flex items-center gap-2 flex-1 justify-center max-w-xs">
-          <button
-            onClick={() => handleRate('hard')}
-            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 text-rose-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-          >
-            Hard
-          </button>
-          <button
-            onClick={() => handleRate('good')}
-            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-amber-50 border border-[#E3E9F1] hover:border-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-          >
-            Good
-          </button>
-          <button
-            onClick={() => handleRate('easy')}
-            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-emerald-50 border border-[#E3E9F1] hover:border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-          >
-            Easy
-          </button>
+        <div className="px-3 py-1.5 bg-[#F1F5F9] rounded-xl text-xs font-black text-[#0F172A] shrink-0 border border-[#E3E9F1]">
+          {currentIndex + 1} / {cards.length}
         </div>
 
         <button
+          type="button"
           onClick={() => {
             setIsFlipped(false);
             setShowHint(false);
             setCurrentIndex((prev) => Math.min(cards.length - 1, prev + 1));
           }}
           disabled={currentIndex === cards.length - 1}
-          className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+          className="flex-1 py-3.5 sm:py-4 px-4 rounded-2xl bg-[#0066FF] hover:bg-[#0052cc] text-white disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs sm:text-sm active:scale-98 shadow-sm"
         >
-          <i className="bi bi-arrow-right text-sm font-bold"></i>
+          <span>Next</span>
+          <i className="bi bi-arrow-right text-base font-black"></i>
         </button>
       </div>
 

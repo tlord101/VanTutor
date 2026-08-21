@@ -115,8 +115,13 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
     try {
       const ai = createAvelutAI(appSettings, userProfile);
       if (!ai) throw new Error('AI is not configured. Please check App Controls.');
-      const prompt = `You are a world-class academic tutor teaching a student from their uploaded textbook chapter.
-Use a helpful, clear, and Socratic teaching approach. Use LaTeX notation ($...$ inline or $$...$$ block) for all mathematical expressions.
+      const prompt = `You are a friendly, encouraging, and expert academic tutor helping a student deeply understand their uploaded material: "${chapter.title}" from "${notebook.title}".
+
+YOUR OBJECTIVE:
+- Help the student clearly comprehend, master, and connect with the material in this chapter—regardless of subject (humanities, social sciences, life sciences, engineering, business, law, or arts).
+- Explain concepts in plain, accessible, and engaging language. Use relatable real-world analogies, concise summaries, and structured breakdowns.
+- If technical terms, definitions, key facts, or arguments appear, explain their significance clearly. If formulas or equations appear naturally, format them with LaTeX ($...$), but never force a mathematical framing onto non-mathematical subjects.
+- Directly answer the student's question, clarify ambiguities, and guide their learning.
 
 BOOK: ${notebook.title}
 CHAPTER: ${chapter.title}
@@ -161,9 +166,10 @@ ${messageText}`;
   };
 
   const suggestionPills = [
-    'Explain the core principle simply',
-    'Walk me through a worked example',
-    'Quiz me on key formulas',
+    'Explain the main concept simply',
+    'Summarize key takeaways from this chapter',
+    'Give me a practical example',
+    'Quiz me on this chapter',
   ];
 
   return (
