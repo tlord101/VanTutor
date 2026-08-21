@@ -170,6 +170,34 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_queue_created ON sync_queue(created_at ASC);
+
+CREATE TABLE IF NOT EXISTS notebooks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  total_pages INTEGER NOT NULL,
+  chapter_count INTEGER NOT NULL,
+  chapters_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  is_deleted INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_notebooks_user ON notebooks(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS notebook_chunks (
+  id TEXT PRIMARY KEY,
+  notebook_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  page_number INTEGER NOT NULL,
+  chapter_title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  word_count INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notebook_chunks_nb ON notebook_chunks(notebook_id, page_number ASC);
 `;
 
 /**

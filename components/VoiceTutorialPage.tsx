@@ -55,21 +55,21 @@ export const INTERACTIVE_PHASES: Set<TutorPhase> = new Set([
 ]);
 
 export const PHASE_LABEL: Record<TutorPhase, string> = {
-    diagnostic:           '🔍 Diagnostic',
-    concept_map:          '🗺️ Concept Map',
-    intuition:            '🌱 Intuition',
-    concept_core:         '📌 Core Concept',
-    predict:              '🤔 Predict',
-    formalize:            '📐 Formalize',
-    multi_represent:      '🔄 Representations',
-    guided_practice:      '✏️ Guided Practice',
-    independent_practice: '🎯 Independent Practice',
-    misconception:        '⚠️ Misconception Check',
-    transfer:             '🔀 Transfer',
-    retrieval:            '🧠 Retrieval',
-    mastery_decision:     '🎓 Mastery Check',
-    repair:               '🔧 Repair',
-    synthesis:            '🧩 Synthesis',
+    diagnostic:           'Diagnostic',
+    concept_map:          'Concept Map',
+    intuition:            'Intuition',
+    concept_core:         'Core Concept',
+    predict:              'Predict',
+    formalize:            'Formalize',
+    multi_represent:      'Representations',
+    guided_practice:      'Guided Practice',
+    independent_practice: 'Independent Practice',
+    misconception:        'Misconception Check',
+    transfer:             'Transfer',
+    retrieval:            'Retrieval',
+    mastery_decision:     'Mastery Check',
+    repair:               'Repair',
+    synthesis:            'Synthesis',
 };
 
 /** @deprecated — kept for backward-compat; phases are now runtime-generated */
@@ -2934,7 +2934,7 @@ OUTPUT VALID JSON ONLY:
             {blueprint && !isGeneratingBlueprint && (
                 <div className="h-1 bg-white/10 shrink-0">
                     <div
-                        className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-500 transition-all duration-500"
+                        className="h-full bg-blue-500 transition-all duration-500"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
@@ -2960,7 +2960,7 @@ OUTPUT VALID JSON ONLY:
                     </div>
 
                     <div className="w-full max-w-xs bg-slate-800/80 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
-                        <div className="bg-gradient-to-r from-blue-400 via-sky-400 to-indigo-400 h-full rounded-full w-full animate-pulse transition-all" />
+                        <div className="bg-blue-400 h-full rounded-full w-full animate-pulse transition-all" />
                     </div>
                 </div>
             )}
@@ -2968,7 +2968,7 @@ OUTPUT VALID JSON ONLY:
             {/* ── Completion screen ─────────────────────────────────────── */}
             {isDone && !isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in my-auto">
-                    <div className="text-5xl">🎓</div>
+                    <div className="w-16 h-16 rounded-full bg-blue-500/15 flex items-center justify-center"><i className="bi bi-mortarboard-fill text-3xl text-blue-500"></i></div>
                     <div>
                         <h3 className="text-2xl font-bold text-white">Topic Mastered!</h3>
                         <p className="text-xs font-semibold text-amber-400 mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
@@ -3039,7 +3039,7 @@ OUTPUT VALID JSON ONLY:
                             {visibleBoardLines.length === 0 && !isDone && (
                                 <div className="flex-1 flex flex-col items-start justify-start pt-6 sm:pt-8 px-2 animate-fade-in">
                                     <div className="flex items-center gap-3 font-mono text-sm sm:text-base tracking-wide">
-                                        <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_12px_rgba(59,130,246,0.9)] animate-pulse" />
+                                        <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-blue-500 rounded-xs animate-blink" />
                                         <span className="text-xs text-sky-300/80 font-mono italic">
                                             {isTtsLoading ? 'Tuning audio synthesizer...' : isLoadingUnit ? 'Writing lesson...' : ''}
                                         </span>
@@ -3103,7 +3103,7 @@ OUTPUT VALID JSON ONLY:
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                                 {isWritingActive && (
-                                                                    <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
+                                                                    <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
                                                                 )}
                                                             </div>
                                                         </div>
@@ -3121,7 +3121,7 @@ OUTPUT VALID JSON ONLY:
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
+                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
                                                             )}
                                                         </div>
                                                     ) : (
@@ -3132,7 +3132,7 @@ OUTPUT VALID JSON ONLY:
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(line)}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-gradient-to-b from-sky-300 via-blue-400 to-indigo-400 rounded-xs shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse align-middle" />
+                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
                                                             )}
                                                         </div>
                                                     )}
@@ -3195,10 +3195,9 @@ OUTPUT VALID JSON ONLY:
                                 onClick={handleRestartSimplerBoard}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
                                 title="Restart this board with simpler language"
-                                className="flex items-center gap-1.5 px-3.5 sm:px-4 h-12 rounded-2xl bg-[#22272E] hover:bg-[#2D333B] border border-[#373E47] text-slate-300 hover:text-white font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs"
+                                className="flex items-center justify-center w-12 h-12 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer"
                             >
-                                <i className="bi bi-arrow-counterclockwise text-base text-amber-400 font-bold"></i>
-                                <span className="hidden sm:inline">Simpler</span>
+                                <i className="bi bi-arrow-counterclockwise text-base"></i>
                             </button>
 
                             {/* 2. Middle Controls: Pause/Play, Mic (Prominent Center), Camera */}
@@ -3245,10 +3244,9 @@ OUTPUT VALID JSON ONLY:
                                 onClick={handleAdvanceNextBoard}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
                                 title="Advance to next board"
-                                className="flex items-center gap-1.5 px-3.5 sm:px-4 h-12 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-md"
+                                className="flex items-center justify-center w-12 h-12 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer"
                             >
-                                <span className="hidden sm:inline">Next</span>
-                                <i className="bi bi-arrow-right text-base font-bold"></i>
+                                <i className="bi bi-arrow-right text-base"></i>
                             </button>
 
                             {/* Hidden File Input for Camera / Photo picker */}

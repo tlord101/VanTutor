@@ -86,6 +86,13 @@
   .animate-fade-in-up {
     animation: fade-in-up 0.4s ease-out forwards;
   }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .animate-blink {
+    animation: blink 1s step-start infinite;
+  }
   .chat-bg-pattern {
     background-color: #f9fafb; /* bg-gray-50 */
     background-image:

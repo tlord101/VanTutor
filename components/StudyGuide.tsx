@@ -13,6 +13,7 @@ import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
 import { avelutVoice, VoiceEngineStatus } from '../services/voice/AvelutVoiceEngine';
+import MyNotebooks from './MyNotebooks';
 
 // --- UTILITIES ---
 const normalizeLevelValue = (value?: string): string => {
@@ -247,6 +248,35 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<VoiceEngineStatus>(() => avelutVoice.getStatus());
+    const [activeTab, setActiveTab] = useState<'courses' | 'notebooks'>('courses');
+
+    const touchStartX = useRef<number | null>(null);
+    const touchEndX = useRef<number | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        touchEndX.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchEnd = () => {
+        if (touchStartX.current === null || touchEndX.current === null) return;
+        const distance = touchStartX.current - touchEndX.current;
+        const isLeftSwipe = distance > 45;
+        const isRightSwipe = distance < -45;
+
+        if (isLeftSwipe && activeTab === 'courses') {
+            setActiveTab('notebooks');
+        }
+        if (isRightSwipe && activeTab === 'notebooks') {
+            setActiveTab('courses');
+        }
+
+        touchStartX.current = null;
+        touchEndX.current = null;
+    };
 
     // Subscribe to Avelut Voice Engine status
     useEffect(() => {
@@ -804,147 +834,209 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
     return (
         <div className="flex-1 flex flex-col w-full bg-slate-50/50 dark:bg-[#030712] overflow-hidden rounded-2xl">
-            {/* Top Roadmap Header */}
-            <div className="flex-shrink-0 px-6 sm:px-10 py-6 sm:py-8 bg-white dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
-                <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                        Academic Study Guide
-                    </h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-md mt-1 font-medium">
-                        Select any topic to start a step-by-step interactive lesson with voice and blackboard diagrams.
-                    </p>
+            {/* Top Tabs: Courses vs My Notebooks */}
+            <div className="flex-shrink-0 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-950 px-4">
+                <div className="flex items-center gap-8">
+                    <button
+                        onClick={() => setActiveTab('courses')}
+                        className={`py-3.5 px-3 text-xs font-black uppercase tracking-wider relative transition-colors cursor-pointer flex items-center gap-2 ${
+                            activeTab === 'courses'
+                                ? 'text-[#0066FF]'
+                                : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
+                        }`}
+                    >
+                        <i className="bi bi-mortarboard text-sm"></i>
+                        <span>Courses</span>
+                        {activeTab === 'courses' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0066FF] rounded-full" />
+                        )}
+                    </button>
 
-                    {/* Search and Filter */}
-                    <div className="mt-6 w-full flex flex-col sm:flex-row gap-3">
-                        <div className="flex-1 relative group">
-                            <input
-                                type="text"
-                                placeholder="Search courses or topics..."
-                                value={filter.searchTerm}
-                                onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-sm transition-all"
-                            />
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-amber-500 transition-colors">
-                                <i className="bi bi-search text-sm"></i>
-                            </div>
-                        </div>
-                        <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl flex border border-slate-200/80 dark:border-slate-800 shrink-0">
-                            <button
-                                onClick={() => setFilter(f => ({ ...f, semester: 'first' }))}
-                                className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                    filter.semester === 'first'
-                                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                }`}
-                            >
-                                1st Sem
-                            </button>
-                            <button
-                                onClick={() => setFilter(f => ({ ...f, semester: 'second' }))}
-                                className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                    filter.semester === 'second'
-                                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                }`}
-                            >
-                                2nd Sem
-                            </button>
-                            <button
-                                onClick={() => setFilter(f => ({ ...f, semester: 'all' }))}
-                                className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
-                                    filter.semester === 'all'
-                                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                }`}
-                            >
-                                All
-                            </button>
-                        </div>
-                    </div>
+                    <button
+                        onClick={() => setActiveTab('notebooks')}
+                        className={`py-3.5 px-3 text-xs font-black uppercase tracking-wider relative transition-colors cursor-pointer flex items-center gap-2 ${
+                            activeTab === 'notebooks'
+                                ? 'text-[#0066FF]'
+                                : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
+                        }`}
+                    >
+                        <i className="bi bi-journal-bookmark text-sm"></i>
+                        <span>My Notebooks</span>
+                        {activeTab === 'notebooks' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0066FF] rounded-full" />
+                        )}
+                    </button>
                 </div>
             </div>
 
-            {/* Courses List */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8">
-                {isLoading ? (
-                    <StudyGuideSkeleton />
-                ) : filteredCourses.length > 0 ? (
-                    <div className="max-w-4xl mx-auto space-y-3">
-                        {filteredCourses.map(course => (
-                            <CourseHeader
-                                key={course.course_id}
-                                course={course}
-                                onClick={() => setTopicPickerCourse(course)}
-                                userProgress={userProgress}
-                                onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
-                                isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
-                                uploadProgress={uploadProgress}
-                            />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center p-12 text-center max-w-lg mx-auto">
-                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center mb-4 text-slate-400 shadow-inner">
-                            <i className="bi bi-search text-2xl"></i>
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No courses found</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-                            {filter.searchTerm ? 'Try adjusting your search query.' : 'Upload your course registration PDF or add your course codes.'}
-                        </p>
+            {/* Sliding Dual-Pane Tab Container */}
+            <div
+                className="flex-1 w-full overflow-hidden relative"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
+                <div
+                    className="flex w-[200%] h-full transition-transform duration-300 ease-out"
+                    style={{
+                        transform: activeTab === 'courses' ? 'translateX(0%)' : 'translateX(-50%)',
+                    }}
+                >
+                    {/* Pane 1: Academic Courses */}
+                    <div className="w-1/2 h-full flex flex-col overflow-y-auto">
+                        {/* Top Roadmap Header */}
+                        <div className="flex-shrink-0 px-6 sm:px-10 py-6 sm:py-8 bg-white dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+                            <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
+                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                    Academic Study Guide
+                                </h2>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-md mt-1 font-medium">
+                                    Select any topic to start a step-by-step interactive lesson with voice and blackboard diagrams.
+                                </p>
 
-                        {!filter.searchTerm && (
-                            <div className="w-full bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Add Courses</h4>
-                                    {isManualMode && (
-                                        <button
-                                            onClick={() => setIsManualMode(false)}
-                                            className="text-xs text-amber-500 font-bold"
-                                        >
-                                            Cancel
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isManualMode ? (
-                                    <div className="flex flex-col gap-3">
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="text"
-                                                value={manualCourseCode}
-                                                onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
-                                                placeholder="e.g. MTH101, PHY201"
-                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                                disabled={isSavingManual}
-                                            />
-                                            <button
-                                                onClick={handleSaveManualCourse}
-                                                disabled={isSavingManual || !manualCourseCode.trim()}
-                                                className="absolute right-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors shadow-xs"
-                                            >
-                                                {isSavingManual ? 'Saving...' : 'Save'}
-                                            </button>
+                                {/* Search and Filter */}
+                                <div className="mt-6 w-full flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1 relative group">
+                                        <input
+                                            type="text"
+                                            placeholder="Search courses or topics..."
+                                            value={filter.searchTerm}
+                                            onChange={(e) => setFilter(f => ({ ...f, searchTerm: e.target.value }))}
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-sm transition-all"
+                                        />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-amber-500 transition-colors">
+                                            <i className="bi bi-search text-sm"></i>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="flex flex-col gap-2.5">
-                                        <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-md border border-slate-700 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
-                                            <i className="bi bi-cloud-arrow-up text-sm"></i>
-                                            <span>{isExtractingCourses ? 'Extracting courses...' : 'Upload Course Form PDF'}</span>
-                                            <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
-                                        </label>
+                                    <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl flex border border-slate-200/80 dark:border-slate-800 shrink-0">
                                         <button
-                                            onClick={() => setIsManualMode(true)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold transition-all"
+                                            onClick={() => setFilter(f => ({ ...f, semester: 'first' }))}
+                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                                filter.semester === 'first'
+                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                            }`}
                                         >
-                                            Manually Enter Course Code
+                                            1st Sem
+                                        </button>
+                                        <button
+                                            onClick={() => setFilter(f => ({ ...f, semester: 'second' }))}
+                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                                filter.semester === 'second'
+                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                            }`}
+                                        >
+                                            2nd Sem
+                                        </button>
+                                        <button
+                                            onClick={() => setFilter(f => ({ ...f, semester: 'all' }))}
+                                            className={`px-4 sm:px-5 py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all ${
+                                                filter.semester === 'all'
+                                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                            }`}
+                                        >
+                                            All
                                         </button>
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Courses List */}
+                        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8">
+                            {isLoading ? (
+                                <StudyGuideSkeleton />
+                            ) : filteredCourses.length > 0 ? (
+                                <div className="max-w-4xl mx-auto space-y-3">
+                                    {filteredCourses.map(course => (
+                                        <CourseHeader
+                                            key={course.course_id}
+                                            course={course}
+                                            onClick={() => setTopicPickerCourse(course)}
+                                            userProgress={userProgress}
+                                            onUpload={(files) => uploadTextbook(course, getCourseMergeKey(course) || course.course_name, files, false, userProfile.department_id)}
+                                            isUploading={isUploadingCourseKey === (getCourseMergeKey(course) || course.course_name)}
+                                            uploadProgress={uploadProgress}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center p-12 text-center max-w-lg mx-auto">
+                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center mb-4 text-slate-400 shadow-inner">
+                                        <i className="bi bi-search text-2xl"></i>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No courses found</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                                        {filter.searchTerm ? 'Try adjusting your search query.' : 'Upload your course registration PDF or add your course codes.'}
+                                    </p>
+
+                                    {!filter.searchTerm && (
+                                        <div className="w-full bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Add Courses</h4>
+                                                {isManualMode && (
+                                                    <button
+                                                        onClick={() => setIsManualMode(false)}
+                                                        className="text-xs text-amber-500 font-bold"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {isManualMode ? (
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="relative flex items-center">
+                                                        <input
+                                                            type="text"
+                                                            value={manualCourseCode}
+                                                            onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
+                                                            placeholder="e.g. MTH101, PHY201"
+                                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                            disabled={isSavingManual}
+                                                        />
+                                                        <button
+                                                            onClick={handleSaveManualCourse}
+                                                            disabled={isSavingManual || !manualCourseCode.trim()}
+                                                            className="absolute right-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors shadow-xs"
+                                                        >
+                                                            {isSavingManual ? 'Saving...' : 'Save'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-2.5">
+                                                    <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-md border border-slate-700 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
+                                                        <i className="bi bi-cloud-arrow-up text-sm"></i>
+                                                        <span>{isExtractingCourses ? 'Extracting courses...' : 'Upload Course Form PDF'}</span>
+                                                        <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
+                                                    </label>
+                                                    <button
+                                                        onClick={() => setIsManualMode(true)}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold transition-all"
+                                                    >
+                                                        Manually Enter Course Code
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                )}
+
+                    {/* Pane 2: My Personal Notebooks */}
+                    <div className="w-1/2 h-full flex flex-col overflow-y-auto">
+                        <MyNotebooks
+                            userProfile={userProfile}
+                            onNavigate={onNavigate}
+                            setCustomHeaderConfig={setCustomHeaderConfig}
+                        />
+                    </div>
+                </div>
             </div>
 
             <LimitExceededModal
