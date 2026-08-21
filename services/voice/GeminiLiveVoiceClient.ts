@@ -504,7 +504,8 @@ VOICE & INTERACTION GUIDELINES:
       this.options.onOutputAudioLevel?.(normalizedLevel);
 
       const audioBuffer = this.outputAudioCtx.createBuffer(1, numSamples, 24000);
-      audioBuffer.copyToChannel(float32, 0);
+      const channelData = audioBuffer.getChannelData(0);
+      channelData.set(float32);
 
       const source = this.outputAudioCtx.createBufferSource();
       source.buffer = audioBuffer;
