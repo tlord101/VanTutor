@@ -218,6 +218,7 @@ export function generateMasteryNarration(
 
 export interface ReadinessResult {
     ready: boolean;
+    readyToAdvance: boolean;
     weakDimensions: {
         name: string;
         dimension: keyof DimensionalMastery;

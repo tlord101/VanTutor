@@ -751,6 +751,9 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
     const [micDisplay, setMicDisplay] = useState('');
+    const [previewingVoice, setPreviewingVoice] = useState<KittenVoice | null>(null);
+    const [selectedVoice, setSelectedVoice] = useState<KittenVoice>(KittenVoice.Bella);
+    const previewPlayerRef = useRef<any>(null);
 
     // ── Refs ─────────────────────────────────────────────────────────────
     const fileInputRef              = useRef<HTMLInputElement | null>(null);
@@ -2150,19 +2153,23 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
         // ── 1. Progressive Hint Check ──────────────────────────────────────────
         if (isHintRequest(userText) && activeLearningQuestionRef.current) {
             const currentHState = hintStateRef.current;
-            const nextH = getNextHint(activeLearningQuestionRef.current, currentHState);
+            const delivery = getNextHint(activeLearningQuestionRef.current, currentHState);
+            const nextH: HintState = {
+                ...currentHState,
+                hintsRevealed: Math.min(currentHState.maxHints, currentHState.hintsRevealed + 1)
+            };
             setHintState(nextH);
             hintStateRef.current = nextH;
 
             const hintLines = [
-                `💡 **Hint ${nextH.currentTier} of ${nextH.maxTier}**`,
-                nextH.activeHintText || 'Review the given values and equations.'
+                `💡 **Hint ${delivery.hintTier} of ${currentHState.maxHints}**`,
+                delivery.hintText || 'Review the given values and equations.'
             ];
             pendingBoardLinesRef.current = hintLines;
             setPositiveAction({ label: "Try Answering Now →", text: "I'll try calculating now" });
-            setNegativeAction({ label: nextH.currentTier < nextH.maxTier ? "Need Next Hint 💡" : "Explain Step ↺", text: "Need more guidance" });
+            setNegativeAction({ label: delivery.hintsRemaining > 0 ? "Need Next Hint 💡" : "Explain Step ↺", text: "Need more guidance" });
 
-            const spokenHint = `Here is a clue: ${nextH.activeHintText} Take your time and give it a shot.`;
+            const spokenHint = `Here is a clue: ${delivery.hintText} Take your time and give it a shot.`;
             dialogueHistoryRef.current.push({ role: 'tutor', text: spokenHint, boardSummary: hintLines.join(' | ') });
             await streamText(spokenHint, undefined, hintLines);
             return;
@@ -2328,7 +2335,7 @@ OUTPUT VALID JSON ONLY:
                         success: false,
                         errorType: 'definition_confusion',
                         misconceptionDetail: 'Student requested step-by-step walkthrough',
-                        hintsUsed: hintStateRef.current.hintsUsed,
+                        hintsUsed: hintStateRef.current.hintsRevealed,
                         difficulty: activeLearningQuestionRef.current?.difficulty,
                     },
                     conceptMasteryRef.current
@@ -2364,7 +2371,7 @@ OUTPUT VALID JSON ONLY:
                 const newDiffState = recordQuestionPerformance(
                     difficultyStateRef.current,
                     isCorrect,
-                    hintStateRef.current.hintsUsed > 0,
+                    hintStateRef.current.hintsRevealed > 0,
                     activeLearningQuestionRef.current.difficulty
                 );
                 setDifficultyState(newDiffState);
@@ -2375,7 +2382,7 @@ OUTPUT VALID JSON ONLY:
                     conceptMasteryRef.current,
                     currentPhase,
                     isCorrect,
-                    hintStateRef.current.hintsUsed,
+                    hintStateRef.current.hintsRevealed,
                     activeLearningQuestionRef.current.difficulty,
                     misconceptionType,
                     feedback
@@ -2446,7 +2453,7 @@ OUTPUT VALID JSON ONLY:
                         success: false,
                         errorType: misconceptionType,
                         misconceptionDetail: feedback,
-                        hintsUsed: hintStateRef.current.hintsUsed,
+                        hintsUsed: hintStateRef.current.hintsRevealed,
                         difficulty: activeLearningQuestionRef.current?.difficulty,
                     },
                     conceptMasteryRef.current

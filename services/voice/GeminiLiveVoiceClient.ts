@@ -20,7 +20,7 @@ export interface GeminiLiveUserMetadata {
 export interface GeminiLiveClientOptions {
   apiKey: string;
   model?: string;
-  voiceName?: 'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir';
+  voiceName?: 'Zephyr' | 'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir';
   userMetadata?: GeminiLiveUserMetadata;
   onOpen?: () => void;
   onClose?: (event: CloseEvent) => void;
@@ -148,7 +148,7 @@ export class GeminiLiveVoiceClient {
       modelName = `models/${modelName}`;
     }
 
-    const voiceName = this.options.voiceName || 'Aoede';
+    const voiceName = this.options.voiceName || 'Zephyr';
 
     const systemPrompt = `You are AVELUT AI, an intelligent, empathetic, voice-first personal academic tutor and study partner.
 You are having an interactive, real-time spoken voice conversation with ${studentName}.
@@ -169,12 +169,20 @@ VOICE & INTERACTION GUIDELINES:
         model: modelName,
         generationConfig: {
           responseModalities: ['AUDIO'],
+          mediaResolution: 'MEDIA_RESOLUTION_MEDIUM',
+          thinkingConfig: {
+            thinkingLevel: 'MINIMAL',
+          },
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
                 voiceName: voiceName,
               },
             },
+          },
+          contextWindowCompression: {
+            triggerTokens: 104857,
+            slidingWindow: { targetTokens: 52428 },
           },
         },
         systemInstruction: {
