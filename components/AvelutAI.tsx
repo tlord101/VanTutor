@@ -1059,38 +1059,55 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     return () => window.clearTimeout(timer);
   }, [preparePendingPrompt]);
 
+  const handleNewChat = () => {
+    setActiveHistoryId(null);
+    setMessages([]);
+    setStreamingBotText(null);
+    setIsSidebarOpen(false);
+    clearAttachment();
+  };
+
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
         leftActions: (
-          <div className="flex items-center">
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white p-2.5 sm:p-3 text-slate-600 transition hover:bg-slate-50 mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Go back">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="rounded-lg border border-slate-200 dark:border-white/10 bg-white p-1 text-slate-600 md:hidden mr-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
-              aria-label="Open assistant history"
-              title="Open assistant history"
+              className="w-10 h-10 rounded-full bg-white dark:bg-[#1E1E1E] shadow-xs border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
+              aria-label="Open menu"
+              title="Open menu"
             >
-              <MenuIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round">
+                <line x1="4" y1="9" x2="20" y2="9" />
+                <line x1="4" y1="15" x2="14" y2="15" />
+              </svg>
             </button>
-            <div className="flex flex-col justify-center ml-1">
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600 hidden sm:block">AVELUT AI</p>
-              <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px] sm:max-w-[200px]">{conversationSummary}</h1>
+            <div className="flex flex-col justify-center">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">AVELUT AI</h1>
             </div>
           </div>
         ),
-        rightActions: <></>,
-        className: 'bg-transparent'
+        rightActions: (
+          <button
+            type="button"
+            onClick={handleNewChat}
+            className="w-10 h-10 rounded-full bg-white dark:bg-[#1E1E1E] shadow-xs border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
+            aria-label="New chat"
+            title="New chat"
+          >
+            <PlusIcon />
+          </button>
+        ),
+        className: 'bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-slate-200/60 dark:border-white/5'
       });
     }
     
     return () => {
-        if (setCustomHeaderConfig) {
-            setCustomHeaderConfig(null);
-        }
+      if (setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
     };
   }, [setCustomHeaderConfig, conversationSummary, onNavigate]);
 
@@ -1908,34 +1925,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             </div>
           ) : (
             <>
-              {/* Top Regular Header Bar (Two-line Menu on Left) */}
-              <div className="w-full flex items-center justify-between px-4 py-2.5 bg-white/70 dark:bg-black/70 backdrop-blur-md border-b border-slate-200/60 dark:border-white/5 z-20">
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="w-10 h-10 rounded-full bg-white dark:bg-[#1E1E1E] shadow-xs border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
-                aria-label="Open menu"
-              >
-                <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round">
-                  <line x1="4" y1="9" x2="20" y2="9" />
-                  <line x1="4" y1="15" x2="14" y2="15" />
-                </svg>
-              </button>
-
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">AVELUT AI</h2>
-
-              <button
-                type="button"
-                onClick={startNewChat}
-                className="w-10 h-10 rounded-full bg-white dark:bg-[#1E1E1E] shadow-xs border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
-                aria-label="New chat"
-                title="New chat"
-              >
-                <PlusIcon />
-              </button>
-            </div>
-
-            {/* Messages List Container */}
+              {/* Messages List Container */}
             <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
               {messages.length === 0 ? (
                 <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
