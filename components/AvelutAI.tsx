@@ -1640,11 +1640,24 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           ],
         });
 
+        // Initialize empty assistant bubble in UI for live streaming
+        setMessages([
+          ...nextMessages,
+          {
+            id: assistantMsgId,
+            sender: 'assistant',
+            text: '',
+            timestamp: Date.now(),
+          },
+        ]);
+
         try {
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
             responseText += chunkText;
-            setStreamingBotText(responseText);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === assistantMsgId ? { ...m, text: responseText } : m))
+            );
           }
         } catch (streamError) {
           console.error('Error during response streaming:', streamError);
@@ -1676,15 +1689,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       const finalResponseText = aiResult.data || 'I could not generate a response right now. Please try again.';
       
       // Update messages with the completed assistant response
-      setMessages([
-        ...nextMessages,
-        {
-          id: assistantMsgId,
-          sender: 'assistant',
-          text: finalResponseText,
-          timestamp: Date.now(),
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantMsgId ? { ...m, text: finalResponseText } : m))
+      );
 
       // Deduct credits
       deductAICredits(userProfile.uid, featureCost, 'AI Assistant Chat', appSettings).catch(console.error);

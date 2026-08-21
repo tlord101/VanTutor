@@ -136,7 +136,16 @@ ${nextMessagesWithUser.map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}:
 STUDENT'S NEW QUESTION:
 ${messageText}`;
 
-      const response = await ai.models.generateContent({
+      const assistantMsgId = `msg_ai_${Date.now()}`;
+      // Initialize empty assistant bubble for live streaming
+      setMessages([...nextMessagesWithUser, {
+        id: assistantMsgId,
+        sender: 'assistant',
+        text: '',
+        timestamp: Date.now(),
+      }]);
+
+      const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
@@ -144,16 +153,25 @@ ${messageText}`;
         },
       });
 
-      const replyText = getResponseText(response);
-      const assistantMsg: ChatMessage = {
-        id: `msg_ai_${Date.now()}`,
-        sender: 'assistant',
-        text: replyText || 'I could not generate an explanation for that. Please rephrase your question.',
-        timestamp: Date.now(),
-      };
+      let streamedText = '';
+      for await (const chunk of responseStream) {
+        const chunkText = getResponseText(chunk);
+        streamedText += chunkText;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantMsgId ? { ...m, text: streamedText } : m))
+        );
+      }
 
-      const finalMessages = [...nextMessagesWithUser, assistantMsg];
-      setMessages(finalMessages);
+      const finalMessages = [
+        ...nextMessagesWithUser,
+        {
+          id: assistantMsgId,
+          sender: 'assistant' as const,
+          text: streamedText || 'I could not generate an explanation for that. Please rephrase your question.',
+          timestamp: Date.now(),
+        },
+      ];
+
       // Persist full thread to SQLite
       await saveChapterGeneration(notebook.id, chapter.id, userProfile?.uid || 'local', 'chat', finalMessages);
       void deductAICredits(userProfile?.uid, cost, 'Notebook Chat Tutor');
