@@ -45,6 +45,8 @@ export class GeminiLiveVoiceClient {
   private micSourceNode: MediaStreamAudioSourceNode | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private legacyProcessorNode: ScriptProcessorNode | null = null;
+  private inputBufferAccumulator: number[] = [];
+  private readonly BUFFER_SAMPLE_SIZE = 2048; // ~128ms at 16kHz
 
   // Audio Playback (24kHz Output)
   private outputAudioCtx: AudioContext | null = null;
@@ -323,7 +325,7 @@ VOICE & INTERACTION GUIDELINES:
 
   /**
    * Processes a Float32Array channel chunk from microphone, converts to 16kHz PCM 16-bit,
-   * computes audio levels for UI animation, and streams to WebSocket.
+   * computes audio levels for UI animation, and streams to WebSocket in stable buffered frames.
    */
   private processAudioInputChunk(inputChannel: Float32Array): void {
     if (this.isMuted || !this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -335,40 +337,48 @@ VOICE & INTERACTION GUIDELINES:
     let sumSquares = 0;
     for (let i = 0; i < inputChannel.length; i++) {
       sumSquares += inputChannel[i] * inputChannel[i];
+      this.inputBufferAccumulator.push(inputChannel[i]);
     }
     const rms = Math.sqrt(sumSquares / inputChannel.length);
-    const normalizedLevel = Math.min(1, rms * 5.0);
+    const normalizedLevel = Math.min(1, rms * 5.5);
     this.options.onInputAudioLevel?.(normalizedLevel);
 
-    // Resample from hardware sample rate (e.g. 48kHz or 44.1kHz) to exact 16kHz 16-bit Linear PCM
-    const actualSampleRate = this.inputAudioCtx?.sampleRate || 16000;
-    const pcm16 = this.downsampleTo16k(inputChannel, actualSampleRate);
+    // Only send when we have accumulated a full 2048-sample audio chunk (~128ms frame)
+    while (this.inputBufferAccumulator.length >= this.BUFFER_SAMPLE_SIZE) {
+      const rawChunk = new Float32Array(this.inputBufferAccumulator.splice(0, this.BUFFER_SAMPLE_SIZE));
+      
+      // Resample from hardware sample rate (e.g. 48kHz or 44.1kHz) to exact 16kHz 16-bit Linear PCM
+      const actualSampleRate = this.inputAudioCtx?.sampleRate || 16000;
+      const pcm16 = this.downsampleTo16k(rawChunk, actualSampleRate);
 
-    // Convert PCM buffer to base64
-    const uint8 = new Uint8Array(pcm16.buffer);
-    let binary = '';
-    const len = uint8.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(uint8[i]);
-    }
-    const base64Data = btoa(binary);
+      // Convert PCM buffer to base64
+      const uint8 = new Uint8Array(pcm16.buffer);
+      let binary = '';
+      const len = uint8.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const base64Data = btoa(binary);
 
-    // Send realtime audio chunk to Gemini Live API
-    const realtimeMsg = {
-      realtimeInput: {
-        mediaChunks: [
-          {
-            mimeType: 'audio/pcm;rate=16000',
-            data: base64Data,
-          },
-        ],
-      },
-    };
+      // Send realtime audio chunk to Gemini Live API
+      const realtimeMsg = {
+        realtimeInput: {
+          mediaChunks: [
+            {
+              mimeType: 'audio/pcm;rate=16000',
+              data: base64Data,
+            },
+          ],
+        },
+      };
 
-    try {
-      this.ws.send(JSON.stringify(realtimeMsg));
-    } catch (err) {
-      console.warn('[GeminiLive] Error sending audio chunk:', err);
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(realtimeMsg));
+        }
+      } catch (err) {
+        console.warn('[GeminiLive] Error sending audio chunk:', err);
+      }
     }
   }
 
@@ -636,6 +646,7 @@ VOICE & INTERACTION GUIDELINES:
       } catch {}
       this.inputAudioCtx = null;
     }
+    this.inputBufferAccumulator = [];
   }
 
   /**

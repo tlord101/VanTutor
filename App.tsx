@@ -605,7 +605,16 @@ const App: React.FC = () => {
         window.dispatchEvent(new CustomEvent('visual_solver_trigger_scan', { detail: { image: imageToScan } }));
     }, [pendingSharedImage, setActiveItem]);
 
+    const dismissedClipboardSigsRef = useRef<Set<string>>(new Set());
+    const currentClipboardSigRef = useRef<string | null>(null);
+
     const handleSharedImageCancel = useCallback(() => {
+        if (currentClipboardSigRef.current) {
+            dismissedClipboardSigsRef.current.add(currentClipboardSigRef.current);
+            try {
+                sessionStorage.setItem(`dismissed_clipboard_${currentClipboardSigRef.current}`, 'true');
+            } catch {}
+        }
         setShowSharedImagePrompt(false);
         setPendingSharedImage(null);
         setSharedImagePreview(null);
@@ -664,6 +673,11 @@ const App: React.FC = () => {
                     const imageType = item.types.find((t: string) => t.startsWith('image/'));
                     if (imageType) {
                         const blob = await item.getType(imageType);
+                        const sig = `${blob.size}_${blob.type}`;
+                        if (dismissedClipboardSigsRef.current.has(sig) || sessionStorage.getItem(`dismissed_clipboard_${sig}`)) {
+                            return;
+                        }
+                        currentClipboardSigRef.current = sig;
                         const blobUrl = URL.createObjectURL(blob);
                         setPendingSharedImage(blobUrl);
                         setSharedImagePreview(blobUrl);
