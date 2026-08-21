@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { Type } from '@google/genai';
