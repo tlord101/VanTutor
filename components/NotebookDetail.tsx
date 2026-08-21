@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { UserProfile, Topic, Course } from '../types';
 import type { Notebook, NotebookChapter } from '../services/notebookStorageService';
 import { getChapterContent } from '../services/notebookStorageService';
@@ -209,29 +210,33 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
         ))}
       </div>
 
-      {/* Action Modal (6 Study Options) */}
-      {showActionModal && selectedChapter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Action Modal (6 Study Options) — Rendered via createPortal to escape transformed parent bounds */}
+      {showActionModal && selectedChapter && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-xs cursor-pointer animate-fade-in"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs cursor-pointer animate-fade-in"
             onClick={() => setShowActionModal(false)}
           />
-          <div className="relative w-full max-w-lg bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-2xl z-10 animate-fade-in space-y-5">
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-lg bg-white border border-[#E3E9F1] rounded-3xl p-5 sm:p-7 shadow-2xl z-10 animate-fade-in space-y-5 max-h-[90vh] overflow-y-auto text-[#0F172A]">
             {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-[#E3E9F1] pb-4">
+            <div className="flex items-start justify-between border-b border-[#E3E9F1] pb-3.5">
               <div className="min-w-0 pr-2">
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
                   Choose Study Mode
                 </span>
-                <h3 className="text-lg font-black text-[#0F172A] truncate">
+                <h3 className="text-base sm:text-lg font-black text-[#0F172A] truncate mt-0.5">
                   {selectedChapter.title}
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowActionModal(false)}
                 className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
               >
-                <i className="bi bi-x-lg text-xs"></i>
+                <i className="bi bi-x-lg text-xs font-bold"></i>
               </button>
             </div>
 
@@ -242,14 +247,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('chat')}
                 disabled={isLoadingContent}
-                className="flex items-start gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
                   <i className="bi bi-chat-dots text-base"></i>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF]">Chat Tutorial</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Interactive Socratic tutor</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Chat Tutorial</h4>
+                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Socratic 1-on-1 tutor</p>
                 </div>
               </button>
 
@@ -258,14 +263,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('flashcards')}
                 disabled={isLoadingContent}
-                className="flex items-start gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
                   <i className="bi bi-card-text text-base"></i>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF]">Flashcards</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Definitions & key concepts</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Flashcards</h4>
+                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Interactive 3D cards</p>
                 </div>
               </button>
 
@@ -274,14 +279,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('quiz')}
                 disabled={isLoadingContent}
-                className="flex items-start gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
                   <i className="bi bi-check2-square text-base"></i>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF]">Quiz Test</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Timed test with solutions</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Quiz Test</h4>
+                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Timed test & timer</p>
                 </div>
               </button>
 
@@ -290,27 +295,27 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('voice')}
                 disabled={isLoadingContent}
-                className="flex items-start gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
                   <i className="bi bi-mic text-base"></i>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF]">Voice Tutorial</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Blackboard & voice lesson</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Voice Tutorial</h4>
+                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Blackboard voice lesson</p>
                 </div>
               </button>
 
               {/* 5. Infographics (Coming Soon) */}
-              <div className="flex items-start gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-75 relative">
+              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-80 relative">
                 <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] shrink-0">
                   <i className="bi bi-graph-up text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-[#0F172A]">Infographics</h4>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full">
-                      Coming Soon
+                    <h4 className="text-xs font-bold text-[#0F172A] truncate">Infographics</h4>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full shrink-0">
+                      Soon
                     </span>
                   </div>
                   <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Visual concept summary</p>
@@ -318,23 +323,24 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
               </div>
 
               {/* 6. Podcast (Coming Soon) */}
-              <div className="flex items-start gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-75 relative">
+              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-80 relative">
                 <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] shrink-0">
                   <i className="bi bi-headphones text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-[#0F172A]">Podcast</h4>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full">
-                      Coming Soon
+                    <h4 className="text-xs font-bold text-[#0F172A] truncate">Podcast</h4>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full shrink-0">
+                      Soon
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Audio discussion overview</p>
+                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Audio overview episode</p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
