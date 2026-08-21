@@ -1534,18 +1534,37 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         // Optimize payload: preserve system instructions but only send last 5 messages for context
         const contextMessages = nextMessages.slice(-5);
 
-        // 💡 RAG: Retrieve relevant textbook and department course context from Pinecone (utilizes SQLite semantic cache)
+        // 💡 Check if prompt is a greeting / casual chat vs academic question
+        const cleanPrompt = prompt.trim();
+        const isGreetingOrCasual = /^(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|how are you|who are you|what('s| is) your name)[\s!.,?]*$/i.test(cleanPrompt);
+
+        // On-demand local SQLite context search (zero AI embedding cost)
         let retrievedContext = "";
-        try {
-          const { searchPinecone } = await import('../utils/pinecone');
-          const searchResult = await searchPinecone(prompt, userProfile.department_id || undefined, 4, appSettings);
-          
-          if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
-            retrievedContext = "\n\nRELEVANT DEPARTMENT & COURSE KNOWLEDGE (PINECONE RETRIEVAL):\n" +
-              searchResult.results.map((r: any) => `[From ${r.course_name || 'Department Curriculum'}]: ${r.text}`).join('\n\n');
+        if (!isGreetingOrCasual && cleanPrompt.length > 3) {
+          try {
+            const { runQuery } = await import('../lib/sqlite/sqliteService');
+            const searchWords = cleanPrompt
+              .toLowerCase()
+              .replace(/[^\w\s]/g, '')
+              .split(/\s+/)
+              .filter(w => w.length > 3)
+              .slice(0, 4);
+
+            if (searchWords.length > 0) {
+              const likeClauses = searchWords.map(() => `content LIKE ?`).join(' OR ');
+              const params = searchWords.map(w => `%${w}%`);
+              const rows = await runQuery<{ chapter_title: string; content: string }>(
+                `SELECT chapter_title, content FROM notebook_chunks WHERE ${likeClauses} LIMIT 3;`,
+                params
+              );
+              if (rows && rows.length > 0) {
+                retrievedContext = "\n\nRELEVANT MATERIAL FROM STUDENT'S NOTEBOOKS (SQLITE):\n" +
+                  rows.map((r: any) => `[From Chapter: ${r.chapter_title}]: ${r.content.slice(0, 600)}`).join('\n\n');
+              }
+            }
+          } catch (sqliteErr) {
+            console.warn("SQLite context search note:", sqliteErr);
           }
-        } catch (searchErr) {
-          console.warn("Pinecone RAG retrieval note:", searchErr);
         }
 
         // Check if there is a cached response for exact prompt when no files attached
@@ -1572,6 +1591,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           '4. Always maintain a warm, patient, and encouraging demeanor.',
         ].join('\n') : '';
 
+        const studentName = userProfile?.display_name?.split(' ')[0] || userProfile?.first_name || 'there';
+        const studentInfo = `Student Name: ${studentName}${userProfile?.department_name ? `, Department: ${userProfile.department_name}` : ''}${userProfile?.level ? `, Level: ${userProfile.level}` : ''}`;
+
         const responseStream = await ai.models.generateContentStream({
           model: geminiModel || 'gemini-3.1-flash-lite',
           contents: [
@@ -1580,21 +1602,20 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
               parts: [
                 {
                   text: [
-                    'You are AVELUT AI, an advanced, highly engaging, empathetic personal academic tutor.',
-                    'CRITICAL LAYERED TUTORING & ENGAGEMENT PROTOCOL:',
-                    '1. FIRST ANSWER IS BITE-SIZED & PUNCHY: Keep your direct answer concise (2-4 clear sentences max). Do NOT overwhelm the student with long walls of text.',
-                    '2. CLEAR LATEX & KATEX FORMATTING: Whenever formulas, equations, or math symbols appear, format them cleanly using inline $...$ (e.g. $x^2 + y^2 = r^2$) and display $$...$$ (e.g. $$\\int f(x)dx$$).',
-                    '3. GROUNDED IN DEPARTMENT CURRICULUM: Use the provided COURSE CONTEXT and PINECONE RETRIEVAL to ground all explanations in the student\'s department syllabus.',
-                    '4. STEP-BY-STEP TUTORING OFFER: At the end of the initial concise answer, warmly ask the student if they would like a bite-sized step-by-step breakdown or interactive tutorial.',
-                    '5. MULTI-IMAGE ANALYSIS: If the student attached multiple images (up to 5), synthesize information across all images to give a coherent explanation.',
-                    '6. If the concept would benefit from a visual diagram or graph, add: [VisualHint: Double tap this message to view a visual explanation].',
-                    '7. INTERACTIVE SUGGESTION PILLS: At the absolute end of every response, provide 3 to 4 expected follow-up responses formatted exactly on a new line as: [Suggestions: Continue | Next step | Explain with example | I don\'t understand]',
+                    `You are AVELUT AI, a friendly, supportive, and natural personal academic tutor chatting with ${studentName}.`,
+                    `STUDENT CONTEXT: ${studentInfo}`,
+                    'CORE CONVERSATIONAL GUIDELINES:',
+                    '1. NATURAL & CASUAL GREETINGS: If the user says hi, hello, how are you, or general chat, reply naturally, warmly, and concisely (e.g. "Hi ' + studentName + '! How are you doing today? What are we studying?"). Never dump unprompted academic lectures on a simple greeting.',
+                    '2. CLEAR ACADEMIC EXPLANATIONS: When the user asks a question about their subjects, courses, or problem-solving, provide a concise, bite-sized explanation (2-4 clear sentences first). Offer to break it down step-by-step.',
+                    '3. LATEX FORMATTING: Format all math, equations, variables, and formulas in standard LaTeX ($...$ for inline or $$...$$ for block equations).',
+                    '4. STUDENT STUDY CONTEXT: If relevant excerpts from their courses or uploaded materials are provided below, use them accurately to ground your explanations.',
+                    '5. SUGGESTIONS: At the absolute end of every response, provide 3 to 4 expected follow-up responses formatted exactly on a new line as: [Suggestions: Continue | Next step | Explain with example | I don\'t understand]',
                     tutorialInstructions,
-                    courseContext ? `COURSE CONTEXT:\n${courseContext}` : '',
+                    courseContext ? `STUDENT'S ACTIVE COURSE CONTEXT:\n${courseContext}` : '',
                     retrievedContext,
                     storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
                     '',
-                    `Conversation so far:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
+                    `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
                   ].filter(Boolean).join('\n'),
                 },
                 ...attachmentParts,
