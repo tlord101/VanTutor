@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Database, Folder, Plus, Trash2, BookOpen, Sparkles } from 'lucide-react';
 import type { Course, Topic } from '../../../types';
 import { useToast } from '../../../hooks/useToast';
 
