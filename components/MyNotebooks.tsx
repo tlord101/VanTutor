@@ -67,9 +67,11 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
 
     try {
       const arrayBuffer = await file.arrayBuffer();
+      // Slice a copy for PDF.js so the original buffer isn't detached by WebWorker transfer
+      const bufferForPdf = arrayBuffer.slice(0);
 
       // Extract text client-side (no AI cost)
-      const extraction = await extractTextFromPdf(arrayBuffer, file.name, (p) => {
+      const extraction = await extractTextFromPdf(bufferForPdf, file.name, (p) => {
         setExtractProgress(p);
       });
 
@@ -80,7 +82,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
         );
       }
 
-      // Save locally in SQLite & IndexedDB
+      // Save locally in SQLite & IndexedDB (stores Blob)
       const saved = await saveNotebook(userProfile.uid, {
         title: extraction.title,
         fileName: file.name,
@@ -88,7 +90,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
         totalPages: extraction.totalPages,
         chapters: extraction.chapters,
         pages: extraction.pages,
-        pdfBinary: arrayBuffer,
+        pdfBinary: file,
       });
 
       setNotebooks((prev) => [saved, ...prev]);

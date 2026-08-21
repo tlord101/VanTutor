@@ -58,14 +58,23 @@ function getIndexedDB(): Promise<IDBDatabase> {
   });
 }
 
-async function setPdfBinary(key: string, value: ArrayBuffer): Promise<void> {
+async function setPdfBinary(key: string, value: ArrayBuffer | Uint8Array | Blob): Promise<void> {
   try {
     const db = await getIndexedDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
-      tx.objectStore(IDB_STORE_NAME).put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+    const blob = value instanceof Blob ? value : new Blob([value], { type: 'application/pdf' });
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+        tx.objectStore(IDB_STORE_NAME).put(blob, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => {
+          console.warn('[NotebookStorage] IDB transaction put error:', e);
+          resolve();
+        };
+      } catch (e) {
+        console.warn('[NotebookStorage] IDB put sync error:', e);
+        resolve();
+      }
     });
   } catch (err) {
     console.warn('[NotebookStorage] IDB set error:', err);
