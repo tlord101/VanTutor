@@ -1883,38 +1883,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           {isLiveVoiceMode ? (
             /* Live Voice Immersive Mode (Exact Replica of ChatGPT Voice Moon UI) */
-            <div className="relative flex-1 flex flex-col justify-between w-full h-full p-4 sm:p-6 overflow-hidden animate-fade-in">
-              {/* Top Floating Header Controls */}
-              <div className="w-full flex items-center justify-between z-20 pt-1">
-                {/* Top Left Menu Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="w-11 h-11 rounded-full bg-white dark:bg-[#1E1E1E] shadow-sm border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
-                  aria-label="Open menu"
-                >
-                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round">
-                    <line x1="4" y1="9" x2="20" y2="9" />
-                    <line x1="4" y1="15" x2="14" y2="15" />
-                  </svg>
-                </button>
-
-                {/* Top Right Equalizer Settings Button */}
-                <button
-                  type="button"
-                  onClick={() => addToast("Multimodal 2-Way Gemini Live Audio streaming active", "info")}
-                  className="w-11 h-11 rounded-full bg-white dark:bg-[#1E1E1E] shadow-sm border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition active:scale-95 cursor-pointer"
-                  aria-label="Voice settings"
-                >
-                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round">
-                    <line x1="4" y1="6" x2="20" y2="6" />
-                    <circle cx="15" cy="6" r="2.5" fill="currentColor" />
-                    <line x1="4" y1="18" x2="20" y2="18" />
-                    <circle cx="9" cy="18" r="2.5" fill="currentColor" />
-                  </svg>
-                </button>
-              </div>
-
+            <div className="relative flex-1 flex flex-col justify-center items-center w-full h-full p-4 sm:p-6 overflow-hidden animate-fade-in">
               {/* Center Heartbeat Animated Celestial Moon Orb */}
               <AnimatedMoonOrb
                 isListening={isListening || !isVoiceMuted}
