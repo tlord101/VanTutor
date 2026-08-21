@@ -303,7 +303,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [limitModalData, setLimitModalData] = useState({ balance: 0, cost: 0 });
-    const { attemptApiCall } = useApiLimiter({ userProfile, addToast, setShowLimitModal, setLimitModalData });
+    const { attemptApiCall } = useApiLimiter();
 
     const [isExtractingCourses, setIsExtractingCourses] = useState(false);
     const [manualCourseCode, setManualCourseCode] = useState('');
@@ -318,30 +318,22 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     }, [userProfile]);
 
     const savePinnedTopics = (next: Array<any>) => {
-        if (userProfile?.uid) {
-            writeCachedJson(`pinned_topics_${userProfile.uid}`, next, userProfile.uid);
-        }
+        if (!userProfile) return;
         setPinnedTopics(next);
+        writeCachedJson(`pinned_topics_${userProfile.uid}`, next);
     };
 
-    const togglePinTopic = (course: Course, topic: Topic) => {
-        const key = `${course.course_id}::${topic.topic_id}`;
-        const exists = pinnedTopics.find(p => p.key === key);
-        if (exists) {
-            savePinnedTopics(pinnedTopics.filter(p => p.key !== key));
-            return;
+    const togglePinTopic = (topic: any, course: Course) => {
+        const topicId = topic.topic_id || topic.id || topic.title;
+        const isPinned = pinnedTopics.some(p => p.topic.topic_id === topicId || p.topic.id === topicId);
+        let next: any[];
+        if (isPinned) {
+            next = pinnedTopics.filter(p => (p.topic.topic_id || p.topic.id || p.topic.title) !== topicId);
+            addToast('Topic unpinned', 'info');
+        } else {
+            next = [{ topic, course, pinnedAt: Date.now() }, ...pinnedTopics];
+            addToast('Topic pinned to top!', 'success');
         }
-        const next = [
-            {
-                key,
-                course_id: course.course_id,
-                course_name: course.course_name,
-                topic_id: topic.topic_id,
-                topic_name: topic.topic_name,
-                topic_context: topic.topic_context,
-            },
-            ...pinnedTopics,
-        ];
         savePinnedTopics(next.slice(0, 20));
     };
 
@@ -354,6 +346,14 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             return addToast('Please complete your profile (School, College, Department, Level) first.', 'error');
         }
 
+        const cost = getFeatureCost('study_guide_extraction', appSettings) || 0;
+        const creditCheck = checkAICredits(userProfile, cost, appSettings);
+        if (!creditCheck.allowed) {
+            setLimitModalData({ balance: creditCheck.balance, cost: creditCheck.cost });
+            setShowLimitModal(true);
+            return;
+        }
+
         setIsSavingManual(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
@@ -362,7 +362,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
 
-            const aiResponse = await attemptApiCall(() => ai.models.generateContent({
+            const callRes = await attemptApiCall(() => ai.models.generateContent({
                 model: geminiModel,
                 contents: prompt,
                 config: {
@@ -377,10 +377,10 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         required: ['course_name', 'course_code', 'description']
                     }
                 }
-            }), getFeatureCost('study_guide_extraction', appSettings) || 0);
+            }));
 
-            if (!aiResponse) throw new Error("Failed to generate course info");
-            const text = getResponseText(aiResponse);
+            if (!callRes.success || !callRes.data) throw new Error(callRes.message || "Failed to generate course info");
+            const text = getResponseText(callRes.data);
             if (!text) throw new Error("Failed to get response");
             const data = JSON.parse(text) as Partial<{ course_name: unknown; course_code: unknown; description: unknown }>;
 
@@ -428,6 +428,14 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             return addToast('Please complete your profile (School, College, Department, Level) first.', 'error');
         }
 
+        const cost = getFeatureCost('study_guide_extraction', appSettings) || 0;
+        const creditCheck = checkAICredits(userProfile, cost, appSettings);
+        if (!creditCheck.allowed) {
+            setLimitModalData({ balance: creditCheck.balance, cost: creditCheck.cost });
+            setShowLimitModal(true);
+            return;
+        }
+
         setIsExtractingCourses(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
@@ -435,7 +443,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 
-            const aiResponse = await attemptApiCall(() => ai.models.generateContent({
+            const callRes = await attemptApiCall(() => ai.models.generateContent({
                 model: geminiModel,
                 contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: 'application/pdf', data: base64Chunk } }] }],
                 config: {
@@ -455,10 +463,10 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         required: ['courses']
                     }
                 },
-            }), getFeatureCost('study_guide_extraction', appSettings));
+            }));
 
-            if (!aiResponse) throw new Error("Failed to get response from AI");
-            const text = getResponseText(aiResponse);
+            if (!callRes.success || !callRes.data) throw new Error(callRes.message || "Failed to get response from AI");
+            const text = getResponseText(callRes.data);
             if (!text) throw new Error("Failed to get response from AI");
             const data = JSON.parse(text);
 
