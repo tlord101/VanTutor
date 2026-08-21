@@ -35,7 +35,7 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   userProfile,
   onBack,
 }) => {
-  const { appSettings } = useAppSettings();
+  const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -136,34 +136,34 @@ ${messageText}`;
   ];
 
   return (
-    <div className="flex-1 w-full max-w-4xl mx-auto p-3 sm:p-6 flex flex-col h-full overflow-hidden animate-fade-in">
+    <div className="flex-1 w-full max-w-4xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-4 flex items-center justify-between shrink-0 mb-3">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shrink-0 mb-2.5 shadow-2xs">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer"
+            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
           >
-            <i className="bi bi-arrow-left text-sm"></i>
+            <i className="bi bi-arrow-left text-sm font-bold"></i>
           </button>
-          <div>
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
               {notebook.title}
             </span>
-            <h2 className="text-sm font-black text-[#0F172A] truncate max-w-[200px] sm:max-w-md">
+            <h2 className="text-sm font-black text-[#0F172A] truncate">
               {chapter.title}
             </h2>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] rounded-full border border-[#E3E9F1] text-[11px] font-bold text-[#0066FF]">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] rounded-full border border-[#E3E9F1] text-[11px] font-bold text-[#0066FF] shrink-0">
           <i className="bi bi-chat-dots"></i>
-          <span>Chapter Tutor</span>
+          <span className="hidden sm:inline">Chapter Tutor</span>
         </div>
       </div>
 
       {/* Messages List Area */}
-      <div className="flex-1 bg-white border border-[#E3E9F1] rounded-3xl p-4 sm:p-6 overflow-y-auto space-y-4 mb-3 shadow-xs">
+      <div className="flex-1 min-h-0 bg-white border border-[#E3E9F1] rounded-3xl p-4 sm:p-6 overflow-y-auto space-y-4 mb-2.5 shadow-xs">
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
 
@@ -212,7 +212,7 @@ ${messageText}`;
       </div>
 
       {/* Input Form */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-2 flex items-center gap-2 shrink-0">
+      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-1.5 sm:p-2 flex items-center gap-2 shrink-0 shadow-2xs">
         <input
           type="text"
           value={inputText}
@@ -224,12 +224,12 @@ ${messageText}`;
             }
           }}
           placeholder="Ask a question about this chapter..."
-          className="flex-1 px-4 py-2.5 bg-transparent text-sm text-[#0F172A] placeholder:text-[#64748B] focus:outline-none"
+          className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-transparent text-sm text-[#0F172A] placeholder:text-[#64748B] focus:outline-none"
         />
         <button
           onClick={() => handleSendMessage()}
           disabled={!inputText.trim() || isLoading}
-          className="w-11 h-11 rounded-xl bg-[#0066FF] hover:bg-[#0052cc] disabled:opacity-40 text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0066FF] hover:bg-[#0052cc] disabled:opacity-40 text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
         >
           <i className="bi bi-send-fill text-sm"></i>
         </button>

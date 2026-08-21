@@ -26,7 +26,7 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
   onNavigate,
   setCustomHeaderConfig,
 }) => {
-  const { appSettings } = useAppSettings();
+  const { settings: appSettings } = useAppSettings();
 
   const [selectedChapter, setSelectedChapter] = useState<NotebookChapter | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);

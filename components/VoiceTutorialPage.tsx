@@ -3159,7 +3159,7 @@ OUTPUT VALID JSON ONLY:
                     )}
 
                     {/* ── Voice-First Floating Bottom Control Bar ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-md w-full mb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:mb-2 max-w-xl mx-auto">
+                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-2xl backdrop-blur-md w-full mb-1 sm:mb-2 max-w-xl mx-auto">
                         
                         {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
                         {attachedImage && (

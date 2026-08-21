@@ -35,14 +35,14 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   userProfile,
   onBack,
 }) => {
-  const { appSettings } = useAppSettings();
+  const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
   const [cards, setCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(true);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
   const [ratings, setRatings] = useState<Record<number, 'hard' | 'good' | 'easy'>>({});
@@ -122,7 +122,7 @@ RULES:
 
   if (isGenerating) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto my-auto">
         <div className="w-14 h-14 rounded-full border-3 border-[#E3E9F1] border-t-[#0066FF] animate-spin mb-4" />
         <h3 className="text-lg font-black text-[#0F172A] tracking-tight">
           Generating Flashcards...
@@ -134,30 +134,48 @@ RULES:
     );
   }
 
+  if (cards.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto my-auto space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] text-2xl shadow-xs">
+          <i className="bi bi-card-text"></i>
+        </div>
+        <h3 className="text-base font-black text-[#0F172A]">No Flashcards Yet</h3>
+        <p className="text-xs text-[#64748B]">Could not extract or generate flashcards for this chapter.</p>
+        <button
+          onClick={() => void generateCards()}
+          className="px-5 py-2.5 bg-[#0066FF] hover:bg-[#0052cc] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+        >
+          Try Generating Again
+        </button>
+      </div>
+    );
+  }
+
   const currentCard = cards[currentIndex];
 
   return (
-    <div className="flex-1 w-full max-w-2xl mx-auto p-4 sm:p-6 flex flex-col justify-between animate-fade-in">
+    <div className="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between animate-fade-in">
       {/* Header */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-4 flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shrink-0 mb-3 shadow-2xs">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer"
+            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
           >
-            <i className="bi bi-arrow-left text-sm"></i>
+            <i className="bi bi-arrow-left text-sm font-bold"></i>
           </button>
-          <div>
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
               {notebook.title}
             </span>
-            <h2 className="text-sm font-black text-[#0F172A] truncate max-w-[200px] sm:max-w-xs">
+            <h2 className="text-sm font-black text-[#0F172A] truncate">
               {chapter.title}
             </h2>
           </div>
         </div>
 
-        <span className="text-xs font-bold text-[#64748B]">
+        <span className="text-xs font-bold text-[#64748B] shrink-0">
           Card <span className="text-[#0F172A] font-black">{currentIndex + 1}</span> of {cards.length}
         </span>
       </div>
@@ -166,7 +184,7 @@ RULES:
       {currentCard && (
         <div
           onClick={() => setIsFlipped(!isFlipped)}
-          className="flex-1 min-h-[300px] sm:min-h-[360px] bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 flex flex-col justify-between cursor-pointer transition-all hover:border-[#0066FF]/40 mb-4 select-none"
+          className="flex-1 min-h-[300px] sm:min-h-[360px] bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 flex flex-col justify-between cursor-pointer transition-all hover:border-[#0066FF]/40 mb-3 select-none shadow-xs"
         >
           {/* Card Label */}
           <div className="flex items-center justify-between">
@@ -219,7 +237,7 @@ RULES:
       )}
 
       {/* Bottom Rating / Navigation Bar */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-4 flex items-center justify-between gap-2">
+      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 shadow-2xs">
         <button
           onClick={() => {
             setIsFlipped(false);
@@ -227,27 +245,27 @@ RULES:
             setCurrentIndex((prev) => Math.max(0, prev - 1));
           }}
           disabled={currentIndex === 0}
-          className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+          className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
         >
-          <i className="bi bi-arrow-left text-sm"></i>
+          <i className="bi bi-arrow-left text-sm font-bold"></i>
         </button>
 
         <div className="flex items-center gap-2 flex-1 justify-center max-w-xs">
           <button
             onClick={() => handleRate('hard')}
-            className="flex-1 py-2.5 bg-[#F6F6F3] hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 text-rose-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 text-rose-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
           >
             Hard
           </button>
           <button
             onClick={() => handleRate('good')}
-            className="flex-1 py-2.5 bg-[#F6F6F3] hover:bg-amber-50 border border-[#E3E9F1] hover:border-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-amber-50 border border-[#E3E9F1] hover:border-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
           >
             Good
           </button>
           <button
             onClick={() => handleRate('easy')}
-            className="flex-1 py-2.5 bg-[#F6F6F3] hover:bg-emerald-50 border border-[#E3E9F1] hover:border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            className="flex-1 py-2 sm:py-2.5 bg-[#F6F6F3] hover:bg-emerald-50 border border-[#E3E9F1] hover:border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
           >
             Easy
           </button>
@@ -260,9 +278,9 @@ RULES:
             setCurrentIndex((prev) => Math.min(cards.length - 1, prev + 1));
           }}
           disabled={currentIndex === cards.length - 1}
-          className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+          className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
         >
-          <i className="bi bi-arrow-right text-sm"></i>
+          <i className="bi bi-arrow-right text-sm font-bold"></i>
         </button>
       </div>
 

@@ -36,7 +36,7 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
   userProfile,
   onBack,
 }) => {
-  const { appSettings } = useAppSettings();
+  const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
   // Configuration State
