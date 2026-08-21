@@ -188,12 +188,57 @@ VOICE & INTERACTION GUIDELINES:
     };
 
     this.ws.send(JSON.stringify(setupMessage));
+
+    // Fallback trigger after setup in case setupComplete event is implicit
+    setTimeout(() => {
+      if (this.isConnected && !this.isModelSpeaking) {
+        this.triggerInitialGreeting();
+      }
+    }, 600);
+  }
+
+  /**
+   * Triggers the AI to speak first out loud immediately upon starting conversation.
+   */
+  private triggerInitialGreeting(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const meta = this.options.userMetadata || {};
+    const studentName = meta.displayName || 'Student';
+
+    const greetingTriggerMsg = {
+      clientContent: {
+        turns: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `[Instruction]: Please start the conversation immediately by speaking out loud. Warmly greet ${studentName} in a friendly, conversational tone (1-2 sentences), introduce yourself as Avelut AI tutor, and ask what academic subject or question we should explore today.`
+              }
+            ]
+          }
+        ],
+        turnComplete: true
+      }
+    };
+
+    try {
+      this.ws.send(JSON.stringify(greetingTriggerMsg));
+    } catch (err) {
+      console.warn('[GeminiLive] Error triggering initial greeting:', err);
+    }
   }
 
   /**
    * Handles incoming server messages (PCM 24kHz audio, live text, interruptions).
    */
   private handleServerMessage(data: any): void {
+    // 0. Setup Complete acknowledgment -> trigger AI to talk first
+    if (data.setupComplete) {
+      this.triggerInitialGreeting();
+      return;
+    }
+
     // 1. Live Interruption signal from Gemini
     if (data.serverContent?.interrupted) {
       this.handleInterruption();

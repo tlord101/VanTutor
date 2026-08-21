@@ -1749,54 +1749,81 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             </button>
           </div>
 
-          {/* Top Half: Quick Action Navigation Items (Exact styling from uploaded image) */}
-          <div className="px-3 py-2 space-y-1">
+          {/* Top Half: Quick Action Navigation Items with Clean Colored Badges & Bootstrap Icons */}
+          <div className="px-3 py-2 space-y-1.5">
+            {/* 1. Study Guide */}
             <button
               type="button"
               onClick={() => {
                 onNavigate?.('study_guide');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[15px] font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <LibraryDrawerIcon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
-              <span>Study Guide</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100/80 dark:border-blue-800/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-105 transition-transform">
+                <i className="bi bi-journal-bookmark-fill text-sm"></i>
+              </div>
+              <span className="truncate">Study Guide</span>
             </button>
 
+            {/* 2. Assessments (Spark / Stars Icon) */}
             <button
               type="button"
               onClick={() => {
                 onNavigate?.('exam');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[15px] font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <ProjectsDrawerIcon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
-              <span>Assessments</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-100/80 dark:border-amber-800/40 flex items-center justify-center text-amber-500 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
+                <i className="bi bi-stars text-sm"></i>
+              </div>
+              <span className="truncate">Assessments</span>
             </button>
 
+            {/* 3. Visual Solver */}
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate?.('visual_solver');
+                setIsSidebarOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-950/60 border border-violet-100/80 dark:border-violet-800/40 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0 group-hover:scale-105 transition-transform">
+                <i className="bi bi-camera-fill text-sm"></i>
+              </div>
+              <span className="truncate">Visual Solver</span>
+            </button>
+
+            {/* 4. Messenger */}
             <button
               type="button"
               onClick={() => {
                 onNavigate?.('messenger');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[15px] font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <MessengerDrawerIcon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
-              <span>Messenger</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100/80 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                <i className="bi bi-chat-dots-fill text-sm"></i>
+              </div>
+              <span className="truncate">Messenger</span>
             </button>
 
+            {/* 5. Leaderboard */}
             <button
               type="button"
               onClick={() => {
                 onNavigate?.('leaderboard');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[15px] font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <PluginsDrawerIcon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
-              <span>Leaderboard</span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-100/80 dark:border-rose-800/40 flex items-center justify-center text-rose-500 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
+                <i className="bi bi-trophy-fill text-sm"></i>
+              </div>
+              <span className="truncate">Leaderboard</span>
             </button>
           </div>
 
