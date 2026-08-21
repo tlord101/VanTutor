@@ -660,6 +660,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
   const [liveAudioLevel, setLiveAudioLevel] = useState<number>(0);
   const [isLiveSpeaking, setIsLiveSpeaking] = useState<boolean>(false);
+  const isSendingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
   const liveClientRef = useRef<GeminiLiveVoiceClient | null>(null);
 
@@ -1298,9 +1299,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     overrideFiles?: File[],
     additionalContext?: { id?: string; source?: string; isDetailedTutorial?: boolean; customPrompt?: string; tutorialText?: string }
   ) => {
+    if (isSendingRef.current) return;
     const prompt = (messageText || inputValue).trim();
     const filesToSend = overrideFiles !== undefined ? overrideFiles : (messageText ? [] : [...attachments]);
-    if ((!prompt && filesToSend.length === 0) || isSending) return;
+    if (!prompt && filesToSend.length === 0) return;
 
     // Check message limits
     const featureCost = getFeatureCost('chat_interaction', appSettings);
@@ -1313,6 +1315,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setShowLimitModal(true);
       return;
     }
+
+    isSendingRef.current = true;
+    setIsSending(true);
 
     const primaryAttachment = filesToSend[0] || null;
     const userText = prompt || getHistoryFallbackTitle(prompt, primaryAttachment);
@@ -1496,14 +1501,6 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       await push(messagesRef, storedUserMessage);
 
       const assistantMsgId = createMessageId();
-      const initialAssistantMessage: AssistantMessage = {
-        id: assistantMsgId,
-        sender: 'assistant',
-        text: '',
-        timestamp: Date.now(),
-      };
-      setMessages([...nextMessages, initialAssistantMessage]);
-
       let responseText = '';
       const aiResult = await attemptApiCall(async () => {
         setStreamingBotText('');
@@ -1600,20 +1597,31 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       if (!aiResult.success) {
         console.error('Avelut assistant error:', aiResult.message);
         setStatusText('Unable to respond right now.');
-        setMessages(prev => [
-            ...prev,
-            {
-              id: createMessageId(),
-              sender: 'assistant',
-              text: 'Sorry, I ran into a problem generating that reply. Please try again.',
-              timestamp: Date.now(),
-            },
-          ]);
+        setMessages([
+          ...nextMessages,
+          {
+            id: createMessageId(),
+            sender: 'assistant',
+            text: 'Sorry, I ran into a problem generating that reply. Please try again.',
+            timestamp: Date.now(),
+          },
+        ]);
         return;
       }
 
       const finalResponseText = aiResult.data || 'I could not generate a response right now. Please try again.';
       
+      // Update messages with the completed assistant response
+      setMessages([
+        ...nextMessages,
+        {
+          id: assistantMsgId,
+          sender: 'assistant',
+          text: finalResponseText,
+          timestamp: Date.now(),
+        },
+      ]);
+
       // Deduct credits
       deductAICredits(userProfile.uid, featureCost, 'AI Assistant Chat', appSettings).catch(console.error);
 
@@ -1661,10 +1669,12 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           id: createMessageId(),
           sender: 'assistant',
           text: 'Sorry, I ran into a problem generating that reply. Please try again.',
+          timestamp: Date.now(),
         },
       ]);
       setStatusText('Unable to respond right now.');
     } finally {
+      isSendingRef.current = false;
       setIsSending(false);
       setStreamingBotText(null);
       setUploadProgress(null);

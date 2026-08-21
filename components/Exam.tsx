@@ -21,6 +21,13 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { XIcon } from './icons/XIcon';
 import { ListIcon } from './icons/ListIcon';
+
+const SearchIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
 declare var __app_id: string;
 
 const TIME_PER_QUESTION_SECONDS = 30;
@@ -1267,7 +1274,7 @@ export const Exam: React.FC<ExamProps> = ({ userProfile, userProgress, onOpenSid
               {activeTab === 'past_qa' && (
                   <div className="space-y-8">
                       <div className="max-w-2xl mx-auto relative">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input 
                               type="text" 
                               placeholder="Search for a course..." 
