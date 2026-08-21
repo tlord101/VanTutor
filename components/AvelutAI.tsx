@@ -172,6 +172,31 @@ const shouldHighlightForVisual = (text: string) => {
   return /(diagram|graph|illustration|process|cycle|structure|formula|equation|timeline|map|flow|drawing|visual|example)/i.test(normalized);
 };
 
+const deduplicateAssistantMessages = (rawList: AssistantMessage[]): AssistantMessage[] => {
+  const seenIds = new Set<string>();
+  const cleaned: AssistantMessage[] = [];
+
+  for (const msg of rawList) {
+    if (!msg || (!msg.text && (!msg.attachments || msg.attachments.length === 0))) continue;
+    if (seenIds.has(msg.id)) continue;
+
+    // Check if another message with same sender and same text exists
+    const isDuplicate = cleaned.some(
+      prev =>
+        prev.sender === msg.sender &&
+        prev.text.trim() === msg.text.trim() &&
+        (Math.abs((prev.timestamp || 0) - (msg.timestamp || 0)) < 25000 || !prev.timestamp || !msg.timestamp)
+    );
+
+    if (!isDuplicate) {
+      seenIds.add(msg.id);
+      cleaned.push(msg);
+    }
+  }
+
+  return cleaned;
+};
+
 const InlineMarkdownText = React.memo<{ text: string; className?: string }>(({ text, className = '' }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm, remarkMath]}
@@ -664,6 +689,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const recognitionRef = useRef<any>(null);
   const liveClientRef = useRef<GeminiLiveVoiceClient | null>(null);
 
+  const displayMessages = useMemo(() => deduplicateAssistantMessages(messages), [messages]);
+
   const activeSuggestions = useMemo(() => {
     if (streamingBotText !== null) {
       const { suggestions } = parseMessageSuggestions(streamingBotText);
@@ -969,14 +996,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     // 0ms instant local SQLite fetch
     getLocalMessages(activeHistoryId).then(localMsgs => {
       if (isMounted && localMsgs.length > 0) {
-        setMessages(localMsgs.map(m => ({
+        setMessages(deduplicateAssistantMessages(localMsgs.map(m => ({
           id: m.id,
           sender: mapSender(m.sender),
           text: m.text,
           timestamp: m.timestamp,
           attachments: m.attachments_json ? JSON.parse(m.attachments_json) : undefined,
           image_url: m.image_url || undefined,
-        })));
+        }))));
       }
     }).catch(() => {});
 
@@ -1010,7 +1037,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       nextMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       if (isMounted) {
-        setMessages(nextMessages);
+        setMessages(deduplicateAssistantMessages(nextMessages));
       }
     });
 
@@ -1963,11 +1990,11 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 </div>
               ) : (
                 <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-                  {messages.map((message, idx) => {
+                  {displayMessages.map((message, idx) => {
                     // If this is the last bot message and it's redundant with streaming, hide it temporarily
                     if (streamingBotText !== null &&
                         message.sender === 'assistant' &&
-                        idx === messages.length - 1 &&
+                        idx === displayMessages.length - 1 &&
                         message.text.length >= (streamingBotText?.length || 0)) {
                       return null;
                     }
@@ -1979,7 +2006,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     if (message.sender === 'user') {
                       return (
                         <div key={message.id} className="flex justify-end my-3">
-                          <div className="max-w-[85%] sm:max-w-[76%] rounded-3xl bg-emerald-600 text-white px-4 py-3 shadow-xs">
+                          <div className="min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-emerald-600 text-white px-4 py-3 shadow-xs">
                             {message.attachments && message.attachments.length > 0 && (
                               <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                                 {message.attachments.map(attachmentItem => (
