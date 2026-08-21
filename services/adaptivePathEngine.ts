@@ -89,37 +89,25 @@ export const REPAIR_STRATEGY_INSTRUCTIONS: Record<RepairStrategy, string> = {
  *   - always            → retrieval + mastery_decision
  */
 export function generatePhasePath(
-    dimensionResults: DiagnosticDimensionResult[],
+    _dimensionResults?: DiagnosticDimensionResult[],
     _studentMastery?: DimensionalMastery,
 ): TutorPhase[] {
     const path: TutorPhase[] = [];
 
-    const dimScores = new Map<string, number>();
-    for (const r of dimensionResults) {
-        dimScores.set(r.dimension, r.score);
-    }
+    // ── 1. Intuition & Real-World Analogy ──
+    path.push('intuition');
 
-    // ── 1. Comprehensive Grounding & Intuition ──
-    path.push('concept_map');
-    path.push('intuition', 'concept_core');
+    // ── 2. Core Principle & Definition ──
+    path.push('concept_core');
 
-    // ── 2. Active Prediction Challenge ──
-    path.push('predict');
+    // ── 3. Guided Real-World / Worked Example ──
+    path.push('guided_practice');
 
-    // ── 3. Mathematical Formalization & Representations ──
-    path.push('formalize', 'multi_represent');
+    // ── 4. Interactive Practice & Check-in ──
+    path.push('independent_practice');
 
-    // ── 4. Socratic Worked Example & Independent Practice ──
-    path.push('guided_practice', 'independent_practice');
-
-    // ── 5. Misconception Defense ──
-    path.push('misconception');
-
-    // ── 6. Novel Transfer Application ──
-    path.push('transfer');
-
-    // ── 7. Memory Retrieval & Concept Mastery Synthesis ──
-    path.push('retrieval', 'mastery_decision');
+    // ── 5. Golden Rule & Mastery Anchor ──
+    path.push('mastery_decision');
 
     return path;
 }

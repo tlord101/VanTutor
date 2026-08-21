@@ -1475,8 +1475,8 @@ The student uploaded an image of a problem/diagram.
 2. Build the lesson concepts, diagnostics, guided example, and independent practice DIRECTLY around the scanned problem.
 ` : '';
 
-        const prompt = `You are AVELUT Master STEM Curriculum Architect & Adaptive Learning Engine.
-Design an intelligent, highly comprehensive adaptive lesson blueprint for:
+        const prompt = `You are AVELUT Master Educational Architect & Adaptive Learning Engine.
+Design an intelligent, highly engaging, and clear adaptive lesson blueprint for:
 Course: "${courseName}"
 Topic: "${topicName}"
 Level: ${level}
@@ -1484,15 +1484,18 @@ ${imageInstructions}
 ${memoryContext}
 
 PEDAGOGICAL REQUIREMENTS:
-1. Deep Multi-Concept Coverage: Break down this topic thoroughly into 3 to 4 sequential, progressive concepts (Concept 1: Physical Intuition & Foundations, Concept 2: Mathematical Formalization & Governing Laws, Concept 3: Applied Socratic Problem Solving & Boundary Cases, Concept 4: Advanced Scenarios & Edge Cases). DO NOT return just 1 superficial concept.
-2. Simplest Words Possible: Explain intuitively in everyday English before formal math.
-3. Concrete Real-World Analogies: Always ground abstract laws in familiar physical objects.
-4. Diagnostic Questions (2-3 per concept): Design concise diagnostic questions that test prerequisite knowledge, conceptual understanding, and formula application. Include multiple_choice or numeric format with options and 4 progressive hints.
-5. Prediction Challenges: Include a prediction scenario for each concept where the student predicts what happens before seeing the math.
-6. Socratic Worked Example & Independent Practice: Each concept must have a worked example (3 clear steps) AND a separate independent practice problem with 4 progressive hints.
-7. Misconception Traps: Explicitly craft common misunderstandings for the student to defend against.
-8. Topic Synthesis Problem: Create 1 integrated problem combining all concepts in this topic.
-9. Valid LaTeX Math: Format all math in LaTeX ($...$ or $$...$$).
+1. Universal Concept-Driven Teaching: Teach this topic clearly regardless of domain (sciences, humanities, business, law, engineering, literature, medicine, or social sciences). Explain core ideas intuitively with simple, everyday language first before technical formalization.
+2. 3 Sequential Core Concepts: Structure this topic into exactly 3 progressive concepts:
+   - Concept 1: Intuition & Fundamental Meaning
+   - Concept 2: Core Mechanism & Practical Application
+   - Concept 3: Critical Analysis & Real-World Integration
+3. Real-World Analogies & Practical Examples: Anchor each concept in familiar everyday scenarios and relatable case studies.
+4. Concise Board Narration (Strict ≤ 5,000 Chars Budget):
+   - Every spoken explanation must be strictly 140 to 200 characters (max 35 words).
+   - Board lines must be punchy visual summaries (1-3 short lines).
+5. Guided Example & Interactive Practice: Each concept includes 1 guided worked example and 1 interactive check problem with 3 progressive hints.
+6. Topic Synthesis Problem: 1 integrated real-world problem connecting all 3 concepts.
+7. Formulas / LaTeX: Use LaTeX ($...$) only if equations or formulas naturally occur in the subject.
 
 OUTPUT VALID JSON ONLY:
 {
@@ -1501,70 +1504,54 @@ OUTPUT VALID JSON ONLY:
   "concepts": [
     {
       "conceptName": "Short Concept Name",
-      "diagnosticQuestions": [
-        {
-          "id": "diag_0_0",
-          "question": "Clear diagnostic question with LaTeX math",
-          "type": "multiple_choice",
-          "options": ["Option A", "Option B", "Option C", "Option D"],
-          "correctAnswer": "Option A",
-          "dimension": "prerequisiteKnowledge",
-          "difficulty": 2,
-          "prerequisiteConcept": "Foundations",
-          "hints": ["Hint 1: Conceptual clue", "Hint 2: Relevant law", "Hint 3: Governing formula", "Hint 4: Step calculation"]
-        }
-      ],
       "relatableQuestion": "Everyday intuitive question",
-      "realWorldScenario": "Concrete everyday scenario",
-      "keyDefinition": "Clear physical definition with LaTeX math",
-      "physicalMeaning": "Physical intuition of why it behaves this way",
-      "progressionTable": "| State | Value | Meaning |\\n| :---: | :---: | :--- |\\n| Initial | 0 | Rest |",
-      "formula": "$$LaTeX equation$$",
-      "variables": [{"symbol": "a", "meaning": "Acceleration", "unit": "\\text{m/s}^2"}],
+      "realWorldScenario": "Concrete everyday scenario or case study",
+      "keyDefinition": "Clear, plain-English definition",
+      "physicalMeaning": "Intuitive explanation of why it works this way",
+      "progressionTable": "| State / Phase | Example | Key Meaning |\\n| :---: | :---: | :--- |\\n| Phase 1 | Initial state | Baseline |",
+      "formula": "$$Governing Principle or Formula$$",
+      "variables": [{"symbol": "X", "meaning": "Key Factor", "unit": "Unit/Context"}],
       "keyDistinction": "Crucial distinction from commonly confused counterpart",
-      "goldenRule": "Memorable Golden Rule",
-      "predictionScenario": "Concrete physical setup",
-      "predictionQuestion": "What happens when you increase the input?",
-      "predictionAnswer": "Direct proportional change according to formula",
+      "goldenRule": "Memorable Golden Rule or core takeaway",
       "example": {
-        "problem": "Clear problem statement with givens",
-        "givens": [{"symbol": "v_i", "value": "0", "unit": "\\text{m/s}"}],
-        "find": "Target unknown",
-        "step1": {"stepNumber": 1, "title": "Formula Selection", "explanation": "Choose equation", "mathExpression": "v_f = v_i + at"},
-        "step2": {"stepNumber": 2, "title": "Substitution", "explanation": "Calculate values", "mathExpression": "v_f = 0 + (2)(5) = 10"},
-        "step3": {"stepNumber": 3, "title": "Result & Units", "explanation": "Physical verification", "mathExpression": "v_f = 10\\text{ m/s}"},
-        "answer": "10\\text{ m/s}",
-        "physicalTakeaway": "Every second added speed.",
-        "hints": ["Identify knowns", "Select formula", "Substitute numbers", "Check SI units"]
+        "problem": "Clear problem statement or practical case study",
+        "givens": [{"symbol": "Input", "value": "Given Value", "unit": "Unit"}],
+        "find": "Target objective or unknown",
+        "step1": {"stepNumber": 1, "title": "Identify Core Rule", "explanation": "Determine the governing principle", "mathExpression": "Principle setup"},
+        "step2": {"stepNumber": 2, "title": "Apply Logic / Math", "explanation": "Substitute values or trace mechanism", "mathExpression": "Application"},
+        "step3": {"stepNumber": 3, "title": "Conclusion & Verification", "explanation": "Verify practical meaning", "mathExpression": "Final result"},
+        "answer": "Clear outcome or numerical answer",
+        "physicalTakeaway": "Practical real-world takeaway",
+        "hints": ["Identify key factors", "Apply governing rule", "Verify final meaning"]
       },
-      "guidedSocraticQuestions": ["Which equation relates our knowns?", "What is the numerical substitution?", "What are the final units?"],
+      "guidedSocraticQuestions": ["Which principle applies here?", "How does this factor influence the outcome?", "What is the final conclusion?"],
       "independentProblem": {
-        "problem": "Independent problem for student to solve alone",
-        "givens": [{"symbol": "m", "value": "10", "unit": "\\text{kg}"}],
-        "find": "Target quantity",
-        "step1": {"stepNumber": 1, "title": "Law", "explanation": "State law", "mathExpression": "F = ma"},
-        "step2": {"stepNumber": 2, "title": "Math", "explanation": "Compute", "mathExpression": "a = 5"},
-        "step3": {"stepNumber": 3, "title": "Check", "explanation": "Verify", "mathExpression": "5\\text{ m/s}^2"},
-        "answer": "5\\text{ m/s}^2",
-        "physicalTakeaway": "Consistent with Newton's second law",
-        "hints": ["Identify given values", "Use governing equation", "Isolate unknown", "Calculate result"]
+        "problem": "Engaging problem or scenario for the student to solve",
+        "givens": [{"symbol": "Data", "value": "Given input", "unit": "Unit"}],
+        "find": "Target outcome",
+        "step1": {"stepNumber": 1, "title": "Rule", "explanation": "State principle", "mathExpression": "Logic"},
+        "step2": {"stepNumber": 2, "title": "Solution", "explanation": "Execute steps", "mathExpression": "Result"},
+        "step3": {"stepNumber": 3, "title": "Check", "explanation": "Verify sense", "mathExpression": "Verification"},
+        "answer": "Expected answer",
+        "physicalTakeaway": "Key takeaway",
+        "hints": ["Review known inputs", "Apply core principle", "Check consistency"]
       },
-      "misconceptionStatement": "Common student misconception statement",
-      "misconceptionExplanation": "Detailed scientific reason why it is false",
-      "transferProblem": "Application of principle to novel context",
-      "transferAnswer": "Explanation of how principle applies in new context",
-      "retrievalPrompts": ["Explain formula and physical meaning from memory"],
-      "commonPitfalls": ["Sign errors", "Unit mismatch"],
-      "summaryPoints": ["Point 1", "Point 2"]
+      "misconceptionStatement": "Common student misunderstanding statement",
+      "misconceptionExplanation": "Detailed explanation of why it is incorrect",
+      "transferProblem": "Application of principle to a novel, fresh context",
+      "transferAnswer": "Explanation of how the rule applies in this new context",
+      "retrievalPrompts": ["Explain the golden rule and core mechanism from memory"],
+      "commonPitfalls": ["Common mistake 1", "Common mistake 2"],
+      "summaryPoints": ["Key Point 1", "Key Point 2"]
     }
   ],
   "synthesisProblem": {
-    "problem": "Integrated multi-concept university problem",
-    "integratedConcepts": ["Concept 1", "Concept 2"],
-    "givens": [{"symbol": "F", "value": "50", "unit": "\\text{N}"}],
-    "expectedAnswer": "Complete numerical result",
+    "problem": "Integrated multi-concept university/practical problem",
+    "integratedConcepts": ["Concept 1", "Concept 2", "Concept 3"],
+    "givens": [{"symbol": "Context", "value": "Inputs", "unit": "Units"}],
+    "expectedAnswer": "Complete solution",
     "explanation": "Step-by-step cross-concept solution",
-    "hints": ["Deconstruct sub-systems", "Apply first law", "Link intermediate state", "Verify total balance"]
+    "hints": ["Identify interconnected parts", "Apply core principles", "Synthesize final outcome"]
   },
   "overallSummary": "Comprehensive summary of topic mastery."
 }`;
@@ -1618,8 +1605,8 @@ OUTPUT VALID JSON ONLY:
             const rawBp = await generateBlueprint(sessionData, studentMem);
             if (!rawBp || !isActiveRef.current) return;
             bp = normalizeBlueprint(rawBp);
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, bp, {
-                phasePath: ['diagnostic'],
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, bp, {
+                phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
                 mastery: defaultMastery(),
                 difficultyLevel: 2,
             });
@@ -1630,15 +1617,15 @@ OUTPUT VALID JSON ONLY:
         setBlueprint(bp);
 
         let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
-        let startPhase: TutorPhase = (sqliteRecord?.subStep as TutorPhase) || 'diagnostic';
-        let savedPath: TutorPhase[] = (sqliteRecord?.phasePath as TutorPhase[]) || ['diagnostic'];
+        let startPhase: TutorPhase = (sqliteRecord?.subStep as TutorPhase) || 'intuition';
+        let savedPath: TutorPhase[] = (sqliteRecord?.phasePath as TutorPhase[]) || ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
         let savedMastery: DimensionalMastery = sqliteRecord?.mastery || defaultMastery();
         let savedDifficulty: DifficultyState = createInitialDifficultyState((sqliteRecord?.difficultyLevel || 2) as QuestionDifficulty);
 
         if (sqliteRecord?.isCompleted || startConceptIdx >= bp.concepts.length) {
             startConceptIdx = 0;
-            startPhase = 'diagnostic';
-            savedPath = ['diagnostic'];
+            startPhase = 'intuition';
+            savedPath = ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
             savedMastery = defaultMastery();
             savedDifficulty = createInitialDifficultyState(2);
         }
@@ -2771,8 +2758,8 @@ OUTPUT VALID JSON ONLY:
         if (!bp) {
             bp = await generateBlueprint(newSessionData, studentMem);
             if (!bp || !isActiveRef.current) return;
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, bp, {
-                phasePath: ['diagnostic'],
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, bp, {
+                phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
                 mastery: defaultMastery(),
                 difficultyLevel: 2,
             });
@@ -2780,12 +2767,12 @@ OUTPUT VALID JSON ONLY:
 
         if (!isActiveRef.current) return;
         setBlueprint(bp);
-        const defaultActs = getDefaultActions('diagnostic');
+        const defaultActs = getDefaultActions('intuition');
         positiveActionRef.current = defaultActs.positive;
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
-        await presentUnit(bp, 0, 'diagnostic', 0, studentMem, true);
+        await presentUnit(bp, 0, 'intuition', 0, studentMem, true);
     }, [nextTopic, sessionData, handleGoBack, userProfile, generateBlueprint, presentUnit]);
 
     const handleReStudyTopic = useCallback(async () => {
@@ -2797,20 +2784,20 @@ OUTPUT VALID JSON ONLY:
         clearAllStreamTimers();
         stopMicImmediate();
 
-        await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'diagnostic', false, blueprint, {
-            phasePath: ['diagnostic'],
+        await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, blueprint, {
+            phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
             mastery: defaultMastery(),
             difficultyLevel: 2,
         });
 
         setIsDone(false);
         setConceptIdx(0);
-        setSubStep('diagnostic');
-        setActivePhasePath(['diagnostic']);
+        setSubStep('intuition');
+        setActivePhasePath(['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision']);
         setPhaseIdx(0);
         conceptIdxRef.current = 0;
-        subStepRef.current = 'diagnostic';
-        activePhasePathRef.current = ['diagnostic'];
+        subStepRef.current = 'intuition';
+        activePhasePathRef.current = ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
         phaseIdxRef.current = 0;
         dialogueHistoryRef.current = [];
         setVisibleBoardLines([]);
@@ -2820,7 +2807,7 @@ OUTPUT VALID JSON ONLY:
 
         if (blueprint) {
             const studentMem = await getStudentCognitiveProfile(uid);
-            await presentUnit(blueprint, 0, 'diagnostic', 0, studentMem, true);
+            await presentUnit(blueprint, 0, 'intuition', 0, studentMem, true);
         }
     }, [blueprint, userProfile, sessionData, presentUnit, clearAllStreamTimers]);
 
