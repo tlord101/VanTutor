@@ -168,13 +168,41 @@ const sliceCanvasIntoBlobs = async (canvas: HTMLCanvasElement): Promise<Blob[]> 
     return blobs;
 };
 
+import { formatLatexMath } from '../utils/latexFormatter';
+
 /**
- * Pre-processes markdown text to ensure proper horizontal flow,
- * distinct equation lines with block LaTeX ($$...$$), and clean step cards.
+ * Pre-processes markdown text to ensure vertical flow on mobile screens,
+ * converts squished horizontal tables into clean vertical block cards,
+ * and ensures distinct equation lines with block LaTeX ($$...$$).
  */
 const formatMathMarkdown = (text: string): string => {
     if (!text) return '';
     let formatted = text;
+
+    // Convert horizontal markdown tables into vertical mobile-friendly block cards
+    const tableRegex = /(?:^|\n)(\|[^\n]+\|\r?\n\|[-:\s|]+\|\r?\n(?:\|[^\n]+\|\r?\n?)+)/g;
+    formatted = formatted.replace(tableRegex, (match) => {
+        const lines = match.trim().split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length < 3) return match;
+        
+        const parseRow = (row: string) => row.split('|').map(c => c.trim()).filter((_c, i, arr) => i > 0 && i < arr.length);
+        const headers = parseRow(lines[0]);
+        const dataRows = lines.slice(2).map(parseRow);
+
+        let output = '\n\n';
+        dataRows.forEach((row) => {
+            const title = row[0] || 'Key Point';
+            output += `\n> **${title}**\n`;
+            for (let i = 1; i < row.length; i++) {
+                if (row[i]) {
+                    const headerLabel = headers[i] ? `*${headers[i]}:* ` : '';
+                    output += `> - ${headerLabel}${row[i]}\n`;
+                }
+            }
+            output += '\n';
+        });
+        return output + '\n\n';
+    });
 
     // Normalize block equations $$...$$ so they are always preceded and followed by empty lines
     formatted = formatted.replace(/([^\n])\s*\$\$([\s\S]*?)\$\$\s*([^\n])/g, '$1\n\n$$$$2$$\n\n$3');
@@ -187,7 +215,7 @@ const formatMathMarkdown = (text: string): string => {
     // Ensure double newlines around horizontal rules
     formatted = formatted.replace(/\n\s*---\s*\n/g, '\n\n---\n\n');
 
-    return formatted;
+    return formatLatexMath(formatted);
 };
 
 // --- TUTORIAL DISPLAY COMPONENT ---
@@ -571,11 +599,11 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 h4: ({node, ...props}: any) => <h4 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200 mt-4 mb-2" {...props} />,
                                 p: ({node, ...props}: any) => <p className="mb-4 text-[15px] sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed tracking-normal font-normal" {...props} />,
                                 a: ({node, ...props}: any) => <a className="text-sky-600 dark:text-sky-400 font-semibold hover:underline decoration-sky-300 decoration-2 transition-all" target="_blank" rel="noreferrer" {...props} />,
-                                strong: ({node, ...props}: any) => <strong className="font-semibold text-slate-900 dark:text-white bg-amber-100/80 dark:bg-amber-950/60 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded border border-amber-200/50 dark:border-amber-800/40" {...props} />,
+                                strong: ({node, ...props}: any) => <strong className="font-bold text-slate-900 dark:text-white" {...props} />,
                                 em: ({node, ...props}: any) => <em className="italic text-indigo-600 dark:text-indigo-400 font-medium" {...props} />,
-                                ul: ({node, ...props}: any) => <ul className="space-y-2.5 my-4 pl-1" {...props} />,
+                                ul: ({node, ...props}: any) => <ul className="space-y-3 my-4 pl-1" {...props} />,
                                 li: ({node, ...props}: any) => (
-                                    <li className="flex items-start gap-2.5 text-[15px] sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed before:content-['•'] before:text-sky-500 before:font-bold before:text-xl before:leading-none before:mt-1 before:flex-shrink-0" {...props} />
+                                    <li className="flex items-start gap-2 text-[15px] sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed before:content-['•'] before:text-sky-500 before:font-bold before:text-xl before:leading-none before:mt-0.5 before:flex-shrink-0" {...props} />
                                 ),
                                 ol: ({node, ...props}: any) => <ol className="space-y-4 my-5" {...props} />,
                                 code: ({node, inline, className, children, ...props}: any) => {
@@ -589,20 +617,20 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                     );
                                 },
                                 blockquote: ({node, ...props}: any) => (
-                                    <div className="my-5 rounded-2xl border-l-4 border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 p-4 sm:p-5 shadow-sm border border-emerald-100 dark:border-emerald-900/40">
-                                        <blockquote className="text-[15px] sm:text-base font-medium text-emerald-950 dark:text-emerald-200 leading-relaxed" {...props} />
+                                    <div className="my-4 rounded-2xl border-l-4 border-sky-500 bg-sky-50/60 dark:bg-sky-950/30 p-4 sm:p-5 shadow-sm border border-sky-100 dark:border-sky-900/40">
+                                        <blockquote className="text-[15px] sm:text-base font-medium text-slate-800 dark:text-slate-200 leading-relaxed space-y-1.5" {...props} />
                                     </div>
                                 ),
                                 table: ({node, ...props}: any) => (
-                                    <div className="overflow-x-auto my-6 shadow-sm rounded-2xl border border-slate-200 dark:border-slate-700">
-                                        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700" {...props} />
+                                    <div className="overflow-x-auto my-5 shadow-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                                        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-left" {...props} />
                                     </div>
                                 ),
                                 thead: ({node, ...props}: any) => <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold" {...props} />,
                                 tbody: ({node, ...props}: any) => <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800" {...props} />,
                                 tr: ({node, ...props}: any) => <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors" {...props} />,
-                                th: ({node, ...props}: any) => <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300" {...props} />,
-                                td: ({node, ...props}: any) => <td className="px-5 py-3.5 text-sm text-slate-700 dark:text-slate-200" {...props} />,
+                                th: ({node, ...props}: any) => <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300" {...props} />,
+                                td: ({node, ...props}: any) => <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200 align-top leading-relaxed whitespace-normal break-words" {...props} />,
                                 hr: ({node, ...props}: any) => <hr className="my-8 border-t border-slate-200 dark:border-slate-800" {...props} />,
                             }}
                         >
@@ -1032,7 +1060,8 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
                 const base64Data = payloadDataUrl.split(',')[1];
                 if (!base64Data) throw new Error("Could not extract image data.");
 
-                const basePrompt = `Analyze the problem in the image and provide only the direct final answer with key formula if relevant, using clear LaTeX formatting. Be direct and concise.`;
+                const basePrompt = `Analyze the problem or question in the image and provide the direct final answer with key formula/rationale.
+FORMATTING REQUIREMENT: Present everything vertically line-by-line. Never use horizontal tables. Put every equation on its own separate line ($$...$$). Be clear, direct, and concise.`;
                 const customInstruction = customPrompt ? ` ${customPrompt}` : '';
                 const promptText = `${basePrompt}${customInstruction}`;
         
@@ -1096,8 +1125,15 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
                 const base64Data = payloadDataUrl.split(',')[1];
                 if (!base64Data) throw new Error("Could not extract image data.");
 
-                const basePrompt = `Answer the question or solve the problem shown in the image.
-Provide a clear, readable step-by-step solution with distinct equations on separate lines using LaTeX ($$...$$). Give the answer directly and concisely.`;
+                const basePrompt = `Answer the question or solve the problem shown in the image with step-by-step clarity.
+
+CRITICAL FORMATTING & LAYOUT RULES:
+1. NEVER use horizontal tables (| col1 | col2 |). Present all breakdowns, explanations, and key findings VERTICALLY from top to bottom using bold item titles and bullet points.
+2. For mathematics and equations:
+   - Walk through the solution step-by-step line by line downwards.
+   - Place EVERY formula and equation on its own separate line using block LaTeX: $$ equation $$
+   - Never cram multiple equations or steps horizontally onto a single line.
+3. Use clear section headers (### Step 1: ...), concise explanations, and generous line spacing for effortless mobile readability.`;
                 const customInstruction = customPrompt ? ` ${customPrompt}` : '';
                 const promptText = `${basePrompt}${customInstruction}`;
         
