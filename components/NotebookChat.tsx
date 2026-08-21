@@ -92,10 +92,10 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
     const messageText = (textToSend || inputText).trim();
     if (!messageText || isLoading) return;
 
-    const cost = getFeatureCost('ai_chat', appSettings);
+    const cost = getFeatureCost('chat_interaction', appSettings);
     setLimitCost(cost);
-    const hasCredits = await checkAICredits(userProfile?.uid, cost);
-    if (!hasCredits) {
+    const creditCheck = checkAICredits(userProfile, cost, appSettings);
+    if (!creditCheck.allowed) {
       setShowLimitModal(true);
       return;
     }
@@ -294,7 +294,7 @@ ${messageText}`;
         userProfile={userProfile}
         appSettings={appSettings}
         cost={limitCost}
-        balance={userProfile?.credits_balance || 0}
+        balance={userProfile?.ai_credits_balance ?? 0}
         addToast={addToast}
       />
     </div>

@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import type { Notebook } from '../services/notebookStorageService';
 import { getNotebooks, saveNotebook, deleteNotebook } from '../services/notebookStorageService';
 import { extractTextFromPdf } from '../services/pdfExtractorService';
+import { readCachedJson } from '../utils/cache';
 import { NotebookDetail } from './NotebookDetail';
 import { useToast } from '../hooks/useToast';
 

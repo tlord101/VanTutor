@@ -115,10 +115,10 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
 
   // Generate Questions via AI
   const handleStartQuiz = async () => {
-    const cost = getFeatureCost('exam_generate', appSettings);
+    const cost = getFeatureCost('ai_quiz_generation', appSettings);
     setLimitCost(cost);
-    const hasCredits = await checkAICredits(userProfile?.uid, cost);
-    if (!hasCredits) {
+    const creditCheck = checkAICredits(userProfile, cost, appSettings);
+    if (!creditCheck.allowed) {
       setShowLimitModal(true);
       return;
     }
@@ -343,7 +343,7 @@ RULES:
           userProfile={userProfile}
           appSettings={appSettings}
           cost={limitCost}
-          balance={userProfile?.credits_balance || 0}
+          balance={userProfile?.ai_credits_balance ?? 0}
           addToast={addToast}
         />
       </div>
