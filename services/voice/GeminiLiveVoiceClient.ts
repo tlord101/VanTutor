@@ -169,20 +169,12 @@ VOICE & INTERACTION GUIDELINES:
         model: modelName,
         generationConfig: {
           responseModalities: ['AUDIO'],
-          mediaResolution: 'MEDIA_RESOLUTION_MEDIUM',
-          thinkingConfig: {
-            thinkingLevel: 'MINIMAL',
-          },
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
                 voiceName: voiceName,
               },
             },
-          },
-          contextWindowCompression: {
-            triggerTokens: 104857,
-            slidingWindow: { targetTokens: 52428 },
           },
         },
         systemInstruction: {
@@ -192,8 +184,6 @@ VOICE & INTERACTION GUIDELINES:
             },
           ],
         },
-        inputAudioTranscription: {},
-        outputAudioTranscription: {},
       },
     };
 
@@ -248,6 +238,45 @@ VOICE & INTERACTION GUIDELINES:
   }
 
   /**
+   * Smoothly downsamples Float32Array audio from device hardware sample rate (e.g. 48kHz / 44.1kHz)
+   * to 16kHz 16-bit PCM for the Gemini Live API.
+   */
+  private downsampleTo16k(inputBuffer: Float32Array, inputSampleRate: number): Int16Array {
+    if (!inputBuffer || inputBuffer.length === 0) return new Int16Array(0);
+
+    if (inputSampleRate === 16000) {
+      const pcm16 = new Int16Array(inputBuffer.length);
+      for (let i = 0; i < inputBuffer.length; i++) {
+        const s = Math.max(-1, Math.min(1, inputBuffer[i]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      return pcm16;
+    }
+
+    const sampleRateRatio = inputSampleRate / 16000;
+    const newLength = Math.round(inputBuffer.length / sampleRateRatio);
+    const result = new Int16Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+      let accum = 0;
+      let count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < inputBuffer.length; i++) {
+        accum += inputBuffer[i];
+        count++;
+      }
+      const avg = count > 0 ? accum / count : 0;
+      const s = Math.max(-1, Math.min(1, avg));
+      result[offsetResult] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
+  }
+
+  /**
    * Processes a Float32Array channel chunk from microphone, converts to 16kHz PCM 16-bit,
    * computes audio levels for UI animation, and streams to WebSocket.
    */
@@ -266,12 +295,9 @@ VOICE & INTERACTION GUIDELINES:
     const normalizedLevel = Math.min(1, rms * 5.0);
     this.options.onInputAudioLevel?.(normalizedLevel);
 
-    // Convert Float32Array (-1.0 to 1.0) to 16-bit Linear PCM Little-Endian
-    const pcm16 = new Int16Array(inputChannel.length);
-    for (let i = 0; i < inputChannel.length; i++) {
-      const s = Math.max(-1, Math.min(1, inputChannel[i]));
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
+    // Resample from hardware sample rate (e.g. 48kHz or 44.1kHz) to exact 16kHz 16-bit Linear PCM
+    const actualSampleRate = this.inputAudioCtx?.sampleRate || 16000;
+    const pcm16 = this.downsampleTo16k(inputChannel, actualSampleRate);
 
     // Convert PCM buffer to base64
     const uint8 = new Uint8Array(pcm16.buffer);
