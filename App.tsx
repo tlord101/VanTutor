@@ -1816,7 +1816,7 @@ const App: React.FC = () => {
                 <div 
                     id="main-scroll-container"
                     className={
-                        activeItem === 'chat' || activeItem === 'messenger' || activeItem === 'voice_tutorial'
+                        activeItem === 'chat' || activeItem === 'messenger' || activeItem === 'voice_tutorial' || activeItem === 'study_guide'
                         ? "flex-1 min-h-0 overflow-hidden flex flex-col"
                         : "flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav isolate"
                     }

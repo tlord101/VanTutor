@@ -156,7 +156,7 @@ RULES:
   const currentCard = cards[currentIndex];
 
   return (
-    <div className="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between animate-fade-in">
+    <div className="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
       {/* Header */}
       <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shrink-0 mb-3 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">

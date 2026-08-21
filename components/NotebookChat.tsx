@@ -137,9 +137,9 @@ ${messageText}`;
   ];
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#F6F6F3] animate-fade-in">
+    <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden bg-[#F6F6F3] animate-fade-in">
       {/* Fixed Header */}
-      <div className="shrink-0 px-3 sm:px-5 pt-3 sm:pt-5 pb-2">
+      <div className="shrink-0 px-3 sm:px-5 pt-3 sm:pt-4 pb-2">
         <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-2xs max-w-4xl mx-auto w-full">
           <div className="flex items-center gap-3 min-w-0">
             <button

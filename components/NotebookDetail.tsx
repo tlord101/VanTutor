@@ -130,7 +130,7 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
 
   // 5. Main Chapter Listing View
   return (
-    <div className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 overflow-y-auto space-y-4 animate-fade-in">
+    <div className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] overflow-y-auto space-y-4 animate-fade-in">
       {/* Top Banner Header */}
       <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs">
         <div className="flex items-center gap-3.5 mb-4">

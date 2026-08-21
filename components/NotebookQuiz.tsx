@@ -172,7 +172,7 @@ RULES:
   // 1. Configuration Screen
   if (isConfiguring) {
     return (
-      <div className="flex-1 w-full max-w-2xl mx-auto p-4 sm:p-6 flex flex-col justify-center animate-fade-in">
+      <div className="flex-1 w-full max-w-2xl mx-auto p-4 sm:p-6 flex flex-col justify-center pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
         <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs">
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-[#E3E9F1] pb-5 mb-6">
@@ -311,7 +311,7 @@ RULES:
     const percent = Math.round((finalScore / totalQuestions) * 100);
 
     return (
-      <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 overflow-y-auto space-y-6 animate-fade-in">
+      <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 overflow-y-auto space-y-6 pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
         {/* Score Summary Banner */}
         <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 text-center">
           <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Quiz Completed</span>
@@ -432,7 +432,7 @@ RULES:
 
   // 4. Live Quiz View
   return (
-    <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 flex flex-col justify-between animate-fade-in">
+    <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 flex flex-col justify-between overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
       {/* Top Bar with Timer and Progress */}
       <div className="bg-white border border-[#E3E9F1] rounded-2xl p-4 flex items-center justify-between mb-4">
         {/* Global Timer Top-Left */}

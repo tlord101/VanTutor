@@ -869,21 +869,16 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 </div>
             </div>
 
-            {/* Sliding Dual-Pane Tab Container */}
+            {/* Dual-Pane Tab Container */}
             <div
                 className="flex-1 w-full overflow-hidden relative"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
-                <div
-                    className="flex w-[200%] h-full transition-transform duration-300 ease-out"
-                    style={{
-                        transform: activeTab === 'courses' ? 'translateX(0%)' : 'translateX(-50%)',
-                    }}
-                >
-                    {/* Pane 1: Academic Courses */}
-                    <div className="w-1/2 h-full flex flex-col overflow-y-auto">
+                {activeTab === 'courses' ? (
+                    /* Pane 1: Academic Courses */
+                    <div className="w-full h-full flex flex-col overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+16px)]">
                         {/* Top Roadmap Header */}
                         <div className="flex-shrink-0 px-6 sm:px-10 py-6 sm:py-8 bg-white dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
                             <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
@@ -1027,16 +1022,16 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             )}
                         </div>
                     </div>
-
-                    {/* Pane 2: My Personal Notebooks */}
-                    <div className="w-1/2 h-full flex flex-col overflow-y-auto">
+                ) : (
+                    /* Pane 2: My Personal Notebooks */
+                    <div className="w-full h-full flex flex-col overflow-hidden">
                         <MyNotebooks
                             userProfile={userProfile}
                             onNavigate={onNavigate}
                             setCustomHeaderConfig={setCustomHeaderConfig}
                         />
                     </div>
-                </div>
+                )}
             </div>
 
             <LimitExceededModal

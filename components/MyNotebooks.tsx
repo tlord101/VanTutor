@@ -140,7 +140,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   );
 
   return (
-    <div className="flex-1 flex flex-col w-full overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="flex-1 flex flex-col w-full overflow-y-auto px-4 sm:px-8 py-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] max-w-4xl mx-auto animate-fade-in">
       {/* Upload Action Card */}
       <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 mb-6 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
