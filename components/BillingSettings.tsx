@@ -14,7 +14,7 @@ interface BillingSettingsProps {
 }
 
 export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProfile, appSettings }) => {
-  const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
+  const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(true);

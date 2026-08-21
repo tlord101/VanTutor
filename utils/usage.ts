@@ -170,16 +170,16 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
 // Helper to get dynamic costs from app settings with fallbacks
 export const getFeatureCost = (
   feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson',
-  appSettings: AppSettings
+  appSettings?: AppSettings | null
 ): number => {
-  return appSettings.usage_settings?.feature_costs?.[feature] ?? DEFAULT_USAGE_SETTINGS.feature_costs[feature];
+  return appSettings?.usage_settings?.feature_costs?.[feature] ?? DEFAULT_USAGE_SETTINGS.feature_costs[feature] ?? 1;
 };
 
 export const getFeatureModel = (
   feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'title_generation',
-  appSettings: AppSettings
+  appSettings?: AppSettings | null
 ): string => {
-  return appSettings.usage_settings?.feature_models?.[feature] || appSettings.primary_gemini_model || DEFAULT_APP_SETTINGS.primary_gemini_model;
+  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.primary_gemini_model || DEFAULT_APP_SETTINGS.primary_gemini_model || 'gemini-3.1-flash-lite';
 };
 
 // Legacy object for backward compatibility, mapped to dynamic getter
@@ -191,7 +191,7 @@ export const AI_COSTS = {
 
 // Check if user is exempt from limits
 const isExempt = (userProfile: UserProfile): boolean => {
-  return !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
+  return !!(userProfile?.is_admin || userProfile?.use_personal_token || userProfile?.subscription_status === 'personal_token');
 };
 
 /**
@@ -200,18 +200,18 @@ const isExempt = (userProfile: UserProfile): boolean => {
 export const checkAICredits = (
   userProfile: UserProfile,
   cost: number,
-  appSettings: AppSettings
+  appSettings?: AppSettings | null
 ) => {
   if (isExempt(userProfile)) {
     return { allowed: true, balance: Infinity, cost: 0 };
   }
 
-  const planKey = (userProfile.subscription_status === 'pro' ? 'premium' : (userProfile.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
-  const usageSettings = appSettings.usage_settings || DEFAULT_USAGE_SETTINGS;
+  const planKey = (userProfile?.subscription_status === 'pro' ? 'premium' : (userProfile?.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
+  const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
   const monthlyLimit = tiers[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers.free.credit_allocation;
   
-  const balance = userProfile.ai_credits_balance ?? monthlyLimit;
+  const balance = userProfile?.ai_credits_balance ?? monthlyLimit;
   const allowed = balance >= cost;
 
   return { allowed, balance, cost };
