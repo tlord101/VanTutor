@@ -354,3 +354,105 @@ export async function searchNotebookChunks(
 
   return [];
 }
+
+/**
+ * Cache key helper for chapter-level generations
+ */
+export const getChapterGenCacheKey = (notebookId: string, chapterId: string, type: string) =>
+  `avelut_nb_gen_${notebookId}_${chapterId}_${type}`;
+
+/**
+ * Retrieve saved chapter generation (flashcards, quiz, or chat history) from SQLite & fast cache.
+ */
+export async function getChapterGeneration<T = any>(
+  notebookId: string,
+  chapterId: string,
+  type: 'flashcards' | 'quiz' | 'chat'
+): Promise<T | null> {
+  const cacheKey = getChapterGenCacheKey(notebookId, chapterId, type);
+  
+  // 1. Check synchronous fast cache first (0ms)
+  const cached = readCachedJson<T | null>(cacheKey, null);
+  if (cached) return cached;
+
+  // 2. Query SQLite
+  try {
+    const rows = await runQuery<{ payload_json: string }>(
+      `SELECT payload_json FROM notebook_generations WHERE notebook_id = ? AND chapter_id = ? AND type = ? LIMIT 1;`,
+      [notebookId, chapterId, type]
+    );
+
+    if (rows.length > 0 && rows[0].payload_json) {
+      const parsed = JSON.parse(rows[0].payload_json) as T;
+      writeCachedJson(cacheKey, parsed);
+      return parsed;
+    }
+  } catch (err) {
+    console.warn(`[NotebookStorage] Error getting chapter generation (${type}):`, err);
+  }
+
+  return null;
+}
+
+/**
+ * Persist generated chapter learning material (flashcards, quiz questions, chat thread) to SQLite & cache.
+ */
+export async function saveChapterGeneration<T = any>(
+  notebookId: string,
+  chapterId: string,
+  userId: string,
+  type: 'flashcards' | 'quiz' | 'chat',
+  data: T
+): Promise<void> {
+  const cacheKey = getChapterGenCacheKey(notebookId, chapterId, type);
+  writeCachedJson(cacheKey, data, userId);
+
+  const genId = `${notebookId}_${chapterId}_${type}`;
+  const now = Date.now();
+  const payloadJson = JSON.stringify(data);
+
+  try {
+    await runStatement(
+      `INSERT OR REPLACE INTO notebook_generations (id, notebook_id, chapter_id, user_id, type, payload_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [genId, notebookId, chapterId, userId, type, payloadJson, now, now]
+    );
+  } catch (err) {
+    console.warn(`[NotebookStorage] Error saving chapter generation (${type}) to SQLite:`, err);
+  }
+}
+
+/**
+ * Delete a specific chapter generation or all generations for a chapter/notebook.
+ */
+export async function deleteChapterGeneration(
+  notebookId: string,
+  chapterId: string,
+  type?: 'flashcards' | 'quiz' | 'chat'
+): Promise<void> {
+  if (type) {
+    const cacheKey = getChapterGenCacheKey(notebookId, chapterId, type);
+    writeCachedJson(cacheKey, null);
+    try {
+      await runStatement(
+        `DELETE FROM notebook_generations WHERE notebook_id = ? AND chapter_id = ? AND type = ?;`,
+        [notebookId, chapterId, type]
+      );
+    } catch (err) {
+      console.warn(`[NotebookStorage] Error deleting generation:`, err);
+    }
+  } else {
+    ['flashcards', 'quiz', 'chat'].forEach((t) => {
+      writeCachedJson(getChapterGenCacheKey(notebookId, chapterId, t), null);
+    });
+    try {
+      await runStatement(
+        `DELETE FROM notebook_generations WHERE notebook_id = ? AND chapter_id = ?;`,
+        [notebookId, chapterId]
+      );
+    } catch (err) {
+      console.warn(`[NotebookStorage] Error deleting chapter generations:`, err);
+    }
+  }
+}
+

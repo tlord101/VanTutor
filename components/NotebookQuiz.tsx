@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
+import { getChapterGeneration, saveChapterGeneration } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -47,6 +48,7 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
 
   // Quiz Execution State
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [savedQuiz, setSavedQuiz] = useState<QuizQuestion[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isGenerating, setIsGenerating] = useState(false);
@@ -57,6 +59,33 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
   const [limitCost, setLimitCost] = useState(1);
 
   const timerRef = useRef<any>(null);
+
+  // Check SQLite for previously generated quiz questions on mount
+  useEffect(() => {
+    let isMounted = true;
+    getChapterGeneration<QuizQuestion[]>(notebook.id, chapter.id, 'quiz')
+      .then((saved) => {
+        if (isMounted && saved && Array.isArray(saved) && saved.length > 0) {
+          setSavedQuiz(saved);
+        }
+      })
+      .catch((err) => console.warn('[Quiz] Cache read error:', err));
+    return () => {
+      isMounted = false;
+    };
+  }, [notebook.id, chapter.id]);
+
+  // Start with saved quiz questions (instant, 0 credits)
+  const handleStartSavedQuiz = () => {
+    if (!savedQuiz || savedQuiz.length === 0) return;
+    setQuestions(savedQuiz);
+    setSelectedAnswers({});
+    setCurrentIndex(0);
+    setIsSubmitted(false);
+    setTimeLeftSeconds(selectedMinutes * 60);
+    setIsTimerRunning(true);
+    setIsConfiguring(false);
+  };
 
   // Timer Tick
   useEffect(() => {
@@ -136,8 +165,14 @@ RULES:
 
       if (Array.isArray(parsed) && parsed.length > 0) {
         setQuestions(parsed);
+        setSavedQuiz(parsed);
+        setSelectedAnswers({});
+        setCurrentIndex(0);
+        setIsSubmitted(false);
         setTimeLeftSeconds(selectedMinutes * 60);
         setIsTimerRunning(true);
+        // Persist questions in SQLite for replay without cost
+        await saveChapterGeneration(notebook.id, chapter.id, userProfile?.uid || 'local', 'quiz', parsed);
         void deductAICredits(userProfile?.uid, cost, 'Notebook Quiz Generation');
       } else {
         throw new Error('Invalid question format received');
@@ -192,8 +227,35 @@ RULES:
             </div>
           </div>
 
-          {/* Time Limit Setting */}
-          <div className="space-y-6">
+            {/* Saved Quiz Quick Start Banner */}
+            {savedQuiz && savedQuiz.length > 0 && (
+              <div className="p-4 bg-[#F1F5F9] border border-[#0066FF]/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#002D62] text-white flex items-center justify-center text-base shrink-0">
+                    <i className="bi bi-bookmark-check-fill text-[#0066FF]"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-[#0F172A] truncate">
+                      Saved Chapter Quiz Available
+                    </h4>
+                    <p className="text-[11px] text-[#64748B]">
+                      {savedQuiz.length} questions saved locally on your device (0 credits)
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleStartSavedQuiz}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-[#0066FF] hover:bg-[#0052cc] text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <i className="bi bi-play-fill text-sm"></i>
+                  <span>Start Saved Quiz</span>
+                </button>
+              </div>
+            )}
+
+            {/* Time Limit Setting */}
             <div>
               <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
                 <i className="bi bi-clock mr-1.5 text-[#0066FF]"></i> Global Quiz Timer

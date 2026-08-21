@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
+import { getChapterGeneration, saveChapterGeneration } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -47,12 +48,27 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   const [limitCost, setLimitCost] = useState(1);
   const [ratings, setRatings] = useState<Record<number, 'hard' | 'good' | 'easy'>>({});
 
-  const generateCards = async () => {
+  const generateCards = async (forceRegenerate = false) => {
+    // 1. Check local SQLite cache first if not explicitly regenerating
+    if (!forceRegenerate) {
+      try {
+        const saved = await getChapterGeneration<FlashcardItem[]>(notebook.id, chapter.id, 'flashcards');
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+          setCards(saved);
+          setIsGenerating(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('[Flashcards] Cache check error:', err);
+      }
+    }
+
     const cost = getFeatureCost('flashcards_generate', appSettings);
     setLimitCost(cost);
     const hasCredits = await checkAICredits(userProfile?.uid, cost);
     if (!hasCredits) {
       setShowLimitModal(true);
+      setIsGenerating(false);
       return;
     }
 
@@ -96,7 +112,13 @@ RULES:
 
       if (Array.isArray(parsed) && parsed.length > 0) {
         setCards(parsed);
+        setCurrentIndex(0);
+        setIsFlipped(false);
+        setShowHint(false);
+        // Persist to local SQLite for 0ms instant loads on subsequent visits
+        await saveChapterGeneration(notebook.id, chapter.id, userProfile?.uid || 'local', 'flashcards', parsed);
         void deductAICredits(userProfile?.uid, cost, 'Notebook Flashcard Generation');
+        addToast(forceRegenerate ? 'New flashcards generated!' : 'Flashcards ready!', 'success');
       } else {
         throw new Error('Invalid flashcards format received');
       }
@@ -109,8 +131,8 @@ RULES:
   };
 
   useEffect(() => {
-    void generateCards();
-  }, []);
+    void generateCards(false);
+  }, [notebook.id, chapter.id]);
 
   const handleRate = (rating: 'hard' | 'good' | 'easy') => {
     setRatings((prev) => ({ ...prev, [currentIndex]: rating }));
@@ -176,9 +198,19 @@ RULES:
           </div>
         </div>
 
-        <span className="text-xs font-bold text-[#64748B] shrink-0">
-          Card <span className="text-[#0F172A] font-black">{currentIndex + 1}</span> of {cards.length}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => void generateCards(true)}
+            className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] hover:text-[#0066FF] transition-all cursor-pointer"
+            title="Regenerate Flashcards"
+          >
+            <i className="bi bi-arrow-clockwise text-xs"></i>
+          </button>
+          <span className="text-xs font-bold text-[#64748B]">
+            Card <span className="text-[#0F172A] font-black">{currentIndex + 1}</span> of {cards.length}
+          </span>
+        </div>
       </div>
 
       {/* 3D Flashcard Flip Surface */}

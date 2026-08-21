@@ -22,16 +22,26 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>(() => {
+    if (!userProfile?.uid) return [];
+    return readCachedJson<Notebook[]>(`avelut_notebooks_${userProfile.uid}`, []);
+  });
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (!userProfile?.uid) return false;
+    const cached = readCachedJson<Notebook[]>(`avelut_notebooks_${userProfile.uid}`, []);
+    return !cached || cached.length === 0;
+  });
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadUserNotebooks = useCallback(async () => {
     if (!userProfile?.uid) return;
-    setIsLoading(true);
+    const cached = readCachedJson<Notebook[]>(`avelut_notebooks_${userProfile.uid}`, []);
+    if (!cached || cached.length === 0) {
+      setIsLoading(true);
+    }
     try {
       const list = await getNotebooks(userProfile.uid);
       setNotebooks(list);

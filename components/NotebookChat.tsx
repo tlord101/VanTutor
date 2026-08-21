@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
+import { getChapterGeneration, saveChapterGeneration, deleteChapterGeneration } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -38,21 +39,35 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 'init_1',
-      sender: 'assistant',
-      text: `Hello ${userProfile?.display_name || 'there'}! I'm your dedicated Socratic tutor for **${chapter.title}** from *${notebook.title}*.\n\nAsk me anything about this chapter, or request an explanation of a formula, concept, or worked example!`,
-      timestamp: Date.now(),
-    },
-  ]);
+  const defaultInitialMessage: ChatMessage = {
+    id: 'init_1',
+    sender: 'assistant',
+    text: `Hello ${userProfile?.display_name || 'there'}! I'm your dedicated Socratic tutor for **${chapter.title}** from *${notebook.title}*.\n\nAsk me anything about this chapter, or request an explanation of a formula, concept, or worked example!`,
+    timestamp: Date.now(),
+  };
 
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [defaultInitialMessage]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Restore saved chapter conversation thread from SQLite on mount
+  useEffect(() => {
+    let isMounted = true;
+    getChapterGeneration<ChatMessage[]>(notebook.id, chapter.id, 'chat')
+      .then((saved) => {
+        if (isMounted && saved && Array.isArray(saved) && saved.length > 0) {
+          setMessages(saved);
+        }
+      })
+      .catch((err) => console.warn('[NotebookChat] Error restoring chat history:', err));
+    return () => {
+      isMounted = false;
+    };
+  }, [notebook.id, chapter.id]);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -63,6 +78,15 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  const handleClearHistory = async () => {
+    if (window.confirm('Clear conversation history for this chapter?')) {
+      const reset = [defaultInitialMessage];
+      setMessages(reset);
+      await deleteChapterGeneration(notebook.id, chapter.id, 'chat');
+      addToast('Conversation history cleared.', 'info');
+    }
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const messageText = (textToSend || inputText).trim();
@@ -83,7 +107,8 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const nextMessagesWithUser = [...messages, userMsg];
+    setMessages(nextMessagesWithUser);
     setInputText('');
     setIsLoading(true);
 
@@ -101,7 +126,7 @@ TEXTBOOK EXCERPT:
 ${chapterContent.slice(0, 8000)}
 
 CONVERSATION HISTORY:
-${messages.map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n')}
+${nextMessagesWithUser.map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n')}
 
 STUDENT'S NEW QUESTION:
 ${messageText}`;
@@ -122,7 +147,10 @@ ${messageText}`;
         timestamp: Date.now(),
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      const finalMessages = [...nextMessagesWithUser, assistantMsg];
+      setMessages(finalMessages);
+      // Persist full thread to SQLite
+      await saveChapterGeneration(notebook.id, chapter.id, userProfile?.uid || 'local', 'chat', finalMessages);
       void deductAICredits(userProfile?.uid, cost, 'Notebook Chat Tutor');
     } catch (err) {
       console.error('Notebook chat error:', err);
@@ -160,9 +188,21 @@ ${messageText}`;
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] rounded-full border border-[#E3E9F1] text-[11px] font-bold text-[#0066FF] shrink-0">
-            <i className="bi bi-chat-dots"></i>
-            <span className="hidden sm:inline">Chapter Tutor</span>
+          <div className="flex items-center gap-2 shrink-0">
+            {messages.length > 1 && (
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 flex items-center justify-center text-[#64748B] hover:text-rose-600 transition-all cursor-pointer"
+                title="Clear Conversation History"
+              >
+                <i className="bi bi-trash text-xs"></i>
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] rounded-full border border-[#E3E9F1] text-[11px] font-bold text-[#0066FF]">
+              <i className="bi bi-chat-dots"></i>
+              <span className="hidden sm:inline">Chapter Tutor</span>
+            </div>
           </div>
         </div>
       </div>

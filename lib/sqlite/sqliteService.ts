@@ -198,6 +198,20 @@ CREATE TABLE IF NOT EXISTS notebook_chunks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notebook_chunks_nb ON notebook_chunks(notebook_id, page_number ASC);
+
+CREATE TABLE IF NOT EXISTS notebook_generations (
+  id TEXT PRIMARY KEY,
+  notebook_id TEXT NOT NULL,
+  chapter_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_nb_gen ON notebook_generations(notebook_id, chapter_id, type);
+CREATE INDEX IF NOT EXISTS idx_nb_gen_user ON notebook_generations(user_id, updated_at DESC);
 `;
 
 /**
