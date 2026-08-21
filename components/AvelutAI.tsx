@@ -663,6 +663,22 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   const recognitionRef = useRef<any>(null);
   const liveClientRef = useRef<GeminiLiveVoiceClient | null>(null);
 
+  const activeSuggestions = useMemo(() => {
+    if (streamingBotText !== null) {
+      const { suggestions } = parseMessageSuggestions(streamingBotText);
+      if (suggestions && suggestions.length > 0) return suggestions.slice(0, 3);
+    }
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender === 'assistant' && messages[i].text) {
+        const { suggestions } = parseMessageSuggestions(messages[i].text);
+        if (suggestions && suggestions.length > 0) {
+          return suggestions.slice(0, 3);
+        }
+      }
+    }
+    return [];
+  }, [streamingBotText, messages]);
+
   const toggleListening = () => {
     if (isListening) {
       if (recognitionRef.current) {
@@ -1923,24 +1939,50 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     const { cleanText: cleanVisualText, visualHintText } = parseVisualHint(cleanText);
                     const shouldShowVisualCue = message.sender === 'assistant' && (Boolean(visualHintText) || shouldHighlightForVisual(cleanVisualText));
 
+                    if (message.sender === 'user') {
+                      return (
+                        <div key={message.id} className="flex justify-end my-3">
+                          <div className="max-w-[85%] sm:max-w-[76%] rounded-3xl bg-emerald-600 text-white px-4 py-3 shadow-xs">
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                {message.attachments.map(attachmentItem => (
+                                  <a
+                                    key={attachmentItem.id}
+                                    href={attachmentItem.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="overflow-hidden rounded-2xl border border-white/20 bg-white dark:bg-black/10 text-slate-900 dark:text-white"
+                                  >
+                                    {attachmentItem.isImage ? (
+                                      <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
+                                    ) : (
+                                      <div className="flex items-center gap-3 px-4 py-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-black/15 text-[10px] font-black uppercase">
+                                          DOC
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
+                                          <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                            <p className="whitespace-pre-wrap leading-relaxed text-sm sm:text-[15px]">{cleanText}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Avelut Assistant reply: takes full width, seamless with chat background (no bubble border, no card shadow)
                     return (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
                       <div
-                        className={`px-4 py-3 shadow-sm ${
-                          message.sender === 'user'
-                            ? 'max-w-[76%] rounded-3xl bg-emerald-600 text-white'
-                            : `w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 ${generatingMessageIds.has(message.id) || viewingImageIds.has(message.id) ? 'ring-1 ring-amber-200' : ''}`
-                        }`}
-                        onDoubleClick={() => {
-                          if (message.sender === 'assistant') {
-                            void handleMessageDoubleTap(message);
-                          }
-                        }}
+                        key={message.id}
+                        className="w-full my-3 px-1 sm:px-2 flex flex-col items-start"
+                        onDoubleClick={() => void handleMessageDoubleTap(message)}
                         onTouchEnd={(event) => {
-                          if (message.sender !== 'assistant') return;
                           const now = Date.now();
                           const lastTap = lastTapRef.current[message.id] || 0;
                           if (now - lastTap < 300) {
@@ -1952,137 +1994,121 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           }
                         }}
                       >
-                        {message.attachments && message.attachments.length > 0 && (
-                          <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                            {message.attachments.map(attachmentItem => (
-                              <a
-                                key={attachmentItem.id}
-                                href={attachmentItem.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`overflow-hidden rounded-2xl border ${message.sender === 'user' ? 'border-white/20 bg-white dark:bg-black/10 text-slate-900 dark:text-white' : 'border-slate-200 dark:border-white/10 bg-slate-100 text-slate-600'}`}
-                              >
-                                {attachmentItem.isImage ? (
-                                  <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
-                                ) : (
-                                  <div className="flex items-center gap-3 px-4 py-3">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${message.sender === 'user' ? 'bg-white dark:bg-black/15' : 'bg-slate-50 dark:bg-black'} text-[10px] font-black uppercase`}>
-                                      DOC
+                        <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                              {message.attachments.map(attachmentItem => (
+                                <a
+                                  key={attachmentItem.id}
+                                  href={attachmentItem.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 text-slate-600"
+                                >
+                                  {attachmentItem.isImage ? (
+                                    <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
+                                  ) : (
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 dark:bg-black text-[10px] font-black uppercase">
+                                        DOC
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
+                                        <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
+                                      </div>
                                     </div>
-                                    <div className="min-w-0">
-                                      <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
-                                      <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
-                                    </div>
-                                  </div>
-                                )}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                        {message.sender === 'assistant' ? (
-                          <>
-                            {shouldShowVisualCue && (
-                              <div className="mb-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
-                                Double-tap for a visual
-                              </div>
-                            )}
-                            {generatingMessageIds.has(message.id) || (viewingImageIds.has(message.id) && message.image_url) ? (
-                              <div className="min-h-[180px] rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                                {generatingMessageIds.has(message.id) ? (
-                                  <div className="flex h-full min-h-[160px] items-center justify-center rounded-xl bg-slate-100 text-sm font-medium text-slate-500">
-                                    Creating the visual...
-                                  </div>
-                                ) : (
-                                  message.image_url && (
-                                    <img src={message.image_url} alt="Assistant visual explanation" className="h-full w-full rounded-xl object-contain" />
-                                  )
-                                )}
-                              </div>
-                            ) : (
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                                components={{
-                                  p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                                  ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                                  ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                                  li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                                  strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
-                                  pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
-                                }}
-                              >
-                                {formatLatexMath(cleanVisualText)}
-                              </ReactMarkdown>
-                            )}
-                            {suggestions.length > 0 && (
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                {suggestions.map((suggestion, index) => (
-                                  <button
-                                    key={`${suggestion}-${index}`}
-                                    type="button"
-                                    onClick={() => void handleSend(suggestion)}
-                                    className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                  >
-                                    <InlineMarkdownText text={suggestion} />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <div className="mt-4 flex justify-end border-t border-slate-200 dark:border-white/10 pt-2">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                                      await navigator.clipboard.writeText(message.text);
-                                      addToast('Copied to clipboard', 'success');
-                                    } else {
-                                      addToast('Copied to clipboard', 'success');
-                                    }
-                                  } catch (err) {
+                                  )}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+
+                          {shouldShowVisualCue && (
+                            <div className="mb-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+                              Double-tap for a visual
+                            </div>
+                          )}
+
+                          {generatingMessageIds.has(message.id) || (viewingImageIds.has(message.id) && message.image_url) ? (
+                            <div className="min-h-[180px] rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                              {generatingMessageIds.has(message.id) ? (
+                                <div className="flex h-full min-h-[160px] items-center justify-center rounded-xl bg-slate-100 text-sm font-medium text-slate-500">
+                                  Creating the visual...
+                                </div>
+                              ) : (
+                                message.image_url && (
+                                  <img src={message.image_url} alt="Assistant visual explanation" className="h-full w-full rounded-xl object-contain" />
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-bold text-slate-950 dark:text-white" {...props} />,
+                                pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-slate-900 dark:bg-[#050711] p-4 text-sm text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                              }}
+                            >
+                              {formatLatexMath(cleanVisualText)}
+                            </ReactMarkdown>
+                          )}
+
+                          {/* Mini action buttons for copying and flagging at the end of response */}
+                          <div className="mt-3.5 flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(cleanVisualText || message.text);
+                                    addToast('Copied to clipboard', 'success');
+                                  } else {
                                     addToast('Copied to clipboard', 'success');
                                   }
-                                }}
-                                className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-emerald-400 active:scale-95"
-                                aria-label="Copy message"
-                                title="Copy message"
-                              >
-                                <CopyIcon className="h-3.5 w-3.5" />
-                                Copy
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    const reportsRef = dbRef(db, 'reported_content');
-                                    await push(reportsRef, {
-                                      userId: userProfile.uid,
-                                      messageText: message.text,
-                                      messageId: message.id,
-                                      timestamp: serverTimestamp(),
-                                      type: 'ai_chat_response'
-                                    });
-                                    addToast('Response reported to moderators', 'success');
-                                  } catch (err) {
-                                    console.error('Failed to report:', err);
-                                    addToast('Failed to report response', 'error');
-                                  }
-                                }}
-                                className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 transition hover:bg-slate-100 hover:text-red-400 active:scale-95 ml-2"
-                                aria-label="Report message"
-                                title="Report inappropriate content"
-                              >
-                                <FlagIcon className="h-3.5 w-3.5" />
-                                Report
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <p className="whitespace-pre-wrap leading-relaxed">{cleanText}</p>
-                        )}
+                                } catch {
+                                  addToast('Copied to clipboard', 'success');
+                                }
+                              }}
+                              className="flex items-center gap-1 rounded-lg p-1.5 text-xs text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200 transition active:scale-95 cursor-pointer"
+                              aria-label="Copy message"
+                              title="Copy message"
+                            >
+                              <CopyIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const reportsRef = dbRef(db, 'reported_content');
+                                  await push(reportsRef, {
+                                    userId: userProfile.uid,
+                                    messageText: message.text,
+                                    messageId: message.id,
+                                    timestamp: serverTimestamp(),
+                                    type: 'ai_chat_response'
+                                  });
+                                  addToast('Response flagged for review', 'success');
+                                } catch (err) {
+                                  console.error('Failed to report:', err);
+                                  addToast('Failed to report response', 'error');
+                                }
+                              }}
+                              className="flex items-center gap-1 rounded-lg p-1.5 text-xs text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 hover:text-rose-500 transition active:scale-95 cursor-pointer"
+                              aria-label="Flag message"
+                              title="Flag inappropriate content"
+                            >
+                              <FlagIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ); })}
+                    );
+                  })}
 
                   {isSending && streamingBotText === null && (
                     <div className="flex justify-start mt-2 mb-2">
@@ -2098,10 +2124,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   )}
 
                   {streamingBotText !== null && (
-                    <div className="flex justify-start">
-                      <div className="w-[90%] max-w-[90%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 px-4 py-3 shadow-sm">
+                    <div className="w-full my-3 px-1 sm:px-2 flex flex-col items-start animate-fade-in">
+                      <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
                         {(() => {
-                          const { cleanText: cleanStreamingText, suggestions: streamingSuggestions } = parseMessageSuggestions(streamingBotText);
+                          const { cleanText: cleanStreamingText } = parseMessageSuggestions(streamingBotText);
                           const { cleanText: cleanVisualStreamingText, visualHintText: streamingVisualHintText } = parseVisualHint(cleanStreamingText);
                           const shouldShowStreamingVisualCue = Boolean(streamingVisualHintText) || shouldHighlightForVisual(cleanVisualStreamingText);
                           return (
@@ -2115,30 +2141,16 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                 remarkPlugins={[remarkGfm, remarkMath]}
                                 rehypePlugins={[rehypeKatex]}
                                 components={{
-                                  p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                                  ul: ({ node, ...props }: any) => <ul className="mb-3 list-disc space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                                  ol: ({ node, ...props }: any) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-slate-800 dark:text-slate-200" {...props} />,
-                                  li: ({ node, ...props }: any) => <li className="leading-relaxed text-slate-800 dark:text-slate-200" {...props} />,
-                                  strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-400" {...props} />,
-                                  pre: ({ node, ...props }: any) => <pre className="mb-3 overflow-x-auto rounded-2xl bg-[#050711] p-4 text-sm text-slate-900 dark:text-white border border-slate-200 dark:border-white/10" {...props} />,
+                                  p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
+                                  ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                  ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                  li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+                                  strong: ({ node, ...props }: any) => <strong className="font-bold text-slate-950 dark:text-white" {...props} />,
+                                  pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-slate-900 dark:bg-[#050711] p-4 text-sm text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
                                 }}
                               >
                                 {formatLatexMath(cleanVisualStreamingText)}
                               </ReactMarkdown>
-                              {streamingSuggestions.length > 0 && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  {streamingSuggestions.map((suggestion, index) => (
-                                    <button
-                                      key={`${suggestion}-${index}`}
-                                      type="button"
-                                      onClick={() => void handleSend(suggestion)}
-                                      className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                    >
-                                      <InlineMarkdownText text={suggestion} />
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
                             </>
                           );
                         })()}
@@ -2156,6 +2168,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           {/* Integrated AVELUT Input Layout Panel - Fluid Water-Splitting Live Voice Transition */}
           <footer className="fixed bottom-0 left-0 right-0 z-[100] md:relative w-full shrink-0 bg-transparent pb-3 px-3 sm:px-4 md:pb-5 md:px-6 flex justify-center mb-[env(safe-area-inset-bottom,0px)]">
             <div className="w-full max-w-3xl transition-all duration-300">
+
+              {/* Three Suggestion Pills on Top of Message Input Bar */}
+              {activeSuggestions.length > 0 && !isLiveVoiceMode && (
+                <div className="mb-2.5 w-full flex items-center gap-2 overflow-x-auto py-1 px-1 no-scrollbar animate-fade-in">
+                  {activeSuggestions.slice(0, 3).map((suggestion, idx) => (
+                    <button
+                      key={`sug-bar-${idx}`}
+                      type="button"
+                      onClick={() => void handleSend(suggestion)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-[#1E242B] border border-slate-200/90 dark:border-slate-700/80 px-3.5 py-1.5 shadow-2xs text-xs font-medium text-slate-800 dark:text-slate-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition active:scale-95 shrink-0 cursor-pointer"
+                    >
+                      <span className="text-emerald-500 text-xs">✨</span>
+                      <InlineMarkdownText text={suggestion} />
+                    </button>
+                  ))}
+                </div>
+              )}
               
               {/* Multi-Image / File Attachment Previews (Pill shaped with thumbnail & remove icon) */}
               {attachments.length > 0 && (
