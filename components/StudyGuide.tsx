@@ -942,9 +942,6 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
 
                     {/* Courses List */}
                     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8 pb-[calc(76px+env(safe-area-inset-bottom)+16px)]">
-                        {renderActiveExternalVoiceBanner()}
-                        {renderPinnedTopics()}
-
                         {isLoading ? (
                             <StudyGuideSkeleton />
                         ) : filteredCourses.length > 0 ? (
