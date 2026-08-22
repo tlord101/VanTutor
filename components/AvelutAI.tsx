@@ -1837,21 +1837,6 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
               <span className="truncate">Study Guide</span>
             </button>
 
-            {/* 2. Assessments (Spark / Stars Icon) */}
-            <button
-              type="button"
-              onClick={() => {
-                onNavigate?.('exam');
-                setIsSidebarOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
-            >
-              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-100/80 dark:border-amber-800/40 flex items-center justify-center text-amber-500 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                <i className="bi bi-stars text-sm"></i>
-              </div>
-              <span className="truncate">Assessments</span>
-            </button>
-
             {/* 3. Visual Solver */}
             <button
               type="button"

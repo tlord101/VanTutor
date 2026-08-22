@@ -361,7 +361,6 @@ const ALLOWED_ROUTE_ITEMS = new Set([
     'visual_solver',
     'chat',
     'messenger',
-    'exam',
     'history',
     'feedback',
     'settings',
@@ -957,8 +956,6 @@ const App: React.FC = () => {
                      setActiveItem('notifications');
                 } else if (actionId === 'leaderboard') {
                      setActiveItem('leaderboard');
-                } else if (actionId === 'exam') {
-                     setActiveItem('exam');
                 } else if (chatId) {
                      // Notification tap without specific action — open to chat
                      setActiveItem('messenger');

@@ -33,7 +33,6 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     const notificationRoutes = [
         { value: 'dashboard', label: 'Dashboard' },
         { value: 'study_guide', label: 'Study Guide' },
-        { value: 'exam', label: 'Assessments' },
         { value: 'messenger', label: 'Messenger' },
         { value: 'study_partners', label: 'Study Partners' },
         { value: 'leaderboard', label: 'Leaderboard' },

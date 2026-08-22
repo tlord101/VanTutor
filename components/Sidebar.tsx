@@ -25,7 +25,6 @@ const getGradientClasses = (id: string) => {
     switch (id) {
         case 'dashboard': return 'from-blue-500 to-indigo-500';
         case 'messenger': return 'from-emerald-400 to-teal-500';
-        case 'exam': return 'from-blue-500 to-indigo-600';
         case 'visual_solver': return 'from-purple-500 to-pink-500';
         case 'study_guide': return 'from-sky-400 to-blue-500';
         case 'upload_center': return 'from-green-400 to-emerald-500';

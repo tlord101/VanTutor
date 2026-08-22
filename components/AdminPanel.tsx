@@ -12,7 +12,6 @@ import { MenuIcon } from './icons/MenuIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { StackIcon } from './icons/StackIcon';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
-import { ExamIcon } from './icons/ExamIcon';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { getWindowPathname } from '../utils/pathname';

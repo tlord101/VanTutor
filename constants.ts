@@ -4,7 +4,6 @@ import React from 'react';
 import type { NavItem } from './types';
 import { DashboardIcon } from './components/icons/DashboardIcon';
 import { StudyGuideIcon } from './components/icons/StudyGuideIcon';
-import { ExamIcon } from './components/icons/ExamIcon';
 import { CameraIcon } from './components/icons/CameraIcon';
 import { ChatIcon } from './components/icons/ChatIcon';
 import { HelpIcon } from './components/icons/HelpIcon';
@@ -80,7 +79,6 @@ export const navigationItems: NavItem[] = [
   { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
   { id: 'chat', label: 'Chat', icon: React.createElement(ChatIcon) },
   { id: 'messenger', label: 'Messages', icon: React.createElement(MessengerIcon) },
-  { id: 'exam', label: 'Assessments', icon: React.createElement(ExamIcon) },
   { id: 'history', label: 'History', icon: React.createElement(HistoryIcon) },
   { id: 'feedback', label: 'Feedback', icon: React.createElement(FeedbackIcon) },
 ];

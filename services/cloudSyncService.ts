@@ -180,18 +180,6 @@ class CloudSyncEngine {
             break;
           }
 
-          case 'exam': {
-            const userId = payload.user_id || this.currentUserId;
-            if (!userId) break;
-            const examRef = dbRef(db, `exam_history/${userId}/${item.entity_id}`);
-            if (item.action === 'delete') {
-              await remove(examRef);
-            } else {
-              await set(examRef, payload);
-            }
-            break;
-          }
-
           case 'flashcard': {
             const userId = payload.user_id || this.currentUserId;
             if (!userId) break;

@@ -1,8 +1,7 @@
 import React from 'react';
-import type { UserProfile, UserProgress, ExamHistoryItem, DashboardData } from '../types';
-import { ExamIcon } from './icons/ExamIcon';
+import type { UserProfile, DashboardData } from '../types';
+import { StudyGuideIcon } from './icons/StudyGuideIcon';
 import { LeaderboardIcon } from './icons/LeaderboardIcon';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Icons for Stat Cards
 const LevelIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -21,7 +20,7 @@ const StreakIcon: React.FC<{ className?: string }> = ({ className }) => (
 interface DashboardProps {
     userProfile: UserProfile;
     dashboardData: DashboardData | null;
-    onNavigateToExams?: () => void;
+    onNavigateToStudyGuide?: () => void;
     onNavigateToLeaderboard?: () => void;
 }
 
@@ -50,24 +49,7 @@ const StatCard: React.FC<{ title: string; value: string | number; description: s
     );
 };
 
-const RecentActivityItem: React.FC<{ exam: ExamHistoryItem }> = ({ exam }) => (
-    <div className="group flex items-center gap-4 py-4 px-4 rounded-2xl hover:bg-gray-50 dark:hover:bg-[#0b1120] transition-all border border-transparent hover:border-gray-100 dark:hover:border-transparent">
-        <div className="w-10 h-10 rounded-xl bg-lime-50 flex items-center justify-center text-lime-600 font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
-            {Math.round((exam.score / exam.total_questions) * 100)}%
-        </div>
-        <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-900 dark:text-white truncate uppercase tracking-tight">Exam Completed</p>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                {new Date(exam.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-            </p>
-        </div>
-        <div className="text-right shrink-0">
-            <span className="text-xs font-black text-gray-600 uppercase tracking-tighter bg-gray-100 px-2 py-1 rounded-lg">{exam.score} / {exam.total_questions}</span>
-        </div>
-    </div>
-);
-
-export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData, onNavigateToExams, onNavigateToLeaderboard }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData, onNavigateToStudyGuide, onNavigateToLeaderboard }) => {
   
   const completedTopicsCount = dashboardData?.completedTopicsCount ?? 0;
   const totalTopics = dashboardData?.totalTopics || 0;
@@ -153,23 +135,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
             {/* Quick Actions Row */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <button 
-                    onClick={onNavigateToExams}
-                    className="group relative overflow-hidden rounded-3xl bg-white dark:bg-black border border-gray-200 p-8 text-left transition-all duration-200 hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-[#0b1120]"
+                    onClick={onNavigateToStudyGuide}
+                    className="group relative overflow-hidden rounded-3xl bg-white dark:bg-black border border-gray-200 p-8 text-left transition-all duration-200 hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-[#0b1120] cursor-pointer"
                 >
                     <div className="flex flex-col gap-4">
                         <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4 w-fit">
-                            <ExamIcon className="w-8 h-8 text-blue-600" />
+                            <StudyGuideIcon className="w-8 h-8 text-blue-600" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black tracking-tight mb-2">Assessments</h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Generate custom exams and study materials instantly.</p>
+                            <h2 className="text-2xl font-black tracking-tight mb-2">Study Guide & Notebooks</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Interactive voice lessons, textbooks, flashcards, and notebooks.</p>
                         </div>
                     </div>
                 </button>
 
                 <button 
                     onClick={onNavigateToLeaderboard}
-                    className="group relative overflow-hidden rounded-3xl bg-white dark:bg-black border border-gray-200 p-8 text-left transition-all duration-200 hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-[#0b1120]"
+                    className="group relative overflow-hidden rounded-3xl bg-white dark:bg-black border border-gray-200 p-8 text-left transition-all duration-200 hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-[#0b1120] cursor-pointer"
                 >
                     <div className="flex flex-col gap-4">
                         <div className="rounded-2xl bg-sky-50 border border-sky-100 p-4 w-fit">
@@ -177,80 +159,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, dashboardData
                         </div>
                         <div>
                             <h2 className="text-2xl font-black tracking-tight mb-2">Leaderboard</h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">See how you rank globally and locally.</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">See how you rank globally and across your department.</p>
                         </div>
                     </div>
                 </button>
             </div>
 
-            {/* Live Statistics Graph */}
+            {/* Academic Progress Summary */}
             <div className="rounded-3xl border border-gray-200 dark:border-transparent bg-white dark:bg-[#0b1120] p-6 md:p-8">
-                <div className="mb-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400 mb-1">Live Statistics</h3>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Exam Performance</h2>
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400 mb-1">Academic Curriculum</h3>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Overall Learning Progress</h2>
+                    </div>
+                    <span className="text-2xl font-black text-blue-600">{progressPercent}%</span>
                 </div>
-                
-                <div className="h-[300px] w-full">
-                    {dashboardData?.examHistory && dashboardData.examHistory.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={dashboardData.examHistory.slice().sort((a, b) => a.timestamp - b.timestamp)}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                <XAxis 
-                                    dataKey="timestamp" 
-                                    tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
-                                    dy={10}
-                                />
-                                <YAxis 
-                                    domain={[0, 100]} 
-                                    tickFormatter={(val) => `${val}%`}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
-                                    dx={-10}
-                                />
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-                                    labelFormatter={(label) => new Date(label as number).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                    formatter={(value: number, name: string, props: any) => [`${Math.round((value / props.payload.total_questions) * 100)}% (${value}/${props.payload.total_questions})`, 'Score']}
-                                />
-                                <Line 
-                                    type="monotone" 
-                                    dataKey={(data) => Math.round((data.score / data.total_questions) * 100)} 
-                                    stroke="#3B82F6" 
-                                    strokeWidth={3}
-                                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                                    activeDot={{ r: 6, strokeWidth: 0 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-transparent bg-gray-50 dark:bg-[#0b1120] p-10 text-center">
-                            <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Not enough data to graph</p>
-                        </div>
-                    )}
-                </div>
-            </div>
 
-            <div className="rounded-3xl border border-gray-200 dark:border-transparent bg-white dark:bg-[#0b1120] p-8">
-                <h3 className="mb-6 text-[10px] font-black uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">Recent Performance</h3>
-                {dashboardData && dashboardData.examHistory.length > 0 ? (
-                    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-2">
-                        {dashboardData.examHistory
-                            .slice()
-                            .sort((a, b) => b.timestamp - a.timestamp)
-                            .map(exam => <RecentActivityItem key={exam.id} exam={exam} />)}
+                <div className="w-full bg-gray-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden mb-6 border border-gray-200/50">
+                    <div 
+                        className="h-full bg-blue-600 rounded-full transition-all duration-500" 
+                        style={{ width: `${Math.max(4, Math.min(100, progressPercent))}%` }} 
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-bold uppercase text-gray-400">Completed Topics</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{completedTopicsCount} / {totalTopics || '—'}</p>
                     </div>
-                ) : (
-                    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-transparent bg-gray-50 dark:bg-[#0b1120] p-10 text-center">
-                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white dark:bg-black text-gray-200 shadow-sm">
-                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        </div>
-                        <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">No activity yet</p>
+                    <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-bold uppercase text-gray-400">Courses Studied</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{completedCoursesCount}</p>
                     </div>
-                )}
+                    <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-bold uppercase text-gray-400">Total Study Time</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{formatDuration(totalStudySeconds)}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-bold uppercase text-gray-400">Avg Topic Time</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{formatDuration(averageTopicStudySeconds)}</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

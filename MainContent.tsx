@@ -19,7 +19,6 @@ import {
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
 const StudyGuide = lazy(() => import('./components/StudyGuide').then(module => ({ default: module.StudyGuide })));
 const VisualSolver = lazy(() => import('./components/VisualSolver').then(module => ({ default: module.VisualSolver })));
-const Exam = lazy(() => import('./components/Exam').then(module => ({ default: module.Exam })));
 const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
 const Settings = lazy(() => import('./components/Settings').then(module => ({ default: module.SettingsScreen })));
 
@@ -112,7 +111,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                                 </div>
                         );
                     case 'dashboard':
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'study_guide':
                         return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
                     case 'voice_tutorial':
@@ -132,8 +131,6 @@ export const MainContent: React.FC<MainContentProps> = ({
                                     triggerScanRef={triggerScanRef}
                                 />
                         );
-                    case 'exam':
-                        return <Exam userProfile={userProfile} userProgress={userProgress} />;
                     case 'history':
                         return <History userProfile={userProfile} />;
                     case 'user_profile':
@@ -162,7 +159,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                             ? (
                                         <AdminPanel userProfile={userProfile} />
                                 )
-                            : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                            : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                     case 'notifications':
                         return (
                                 <Notifications 
@@ -183,7 +180,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                                     <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />
                             );
                         }
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToExams={() => onNavigate?.('exam')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
                 }
             })()}
         </Suspense>

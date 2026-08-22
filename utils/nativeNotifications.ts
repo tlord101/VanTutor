@@ -18,7 +18,6 @@ const resolveNotificationScreen = (data: Record<string, any>): string | null => 
   const allowedScreens = new Set([
     'dashboard',
     'study_guide',
-    'exam',
     'messenger',
     'leaderboard',
     'visual_solver',

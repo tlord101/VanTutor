@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Notification } from '../types';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
-import { ExamIcon } from './icons/ExamIcon';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
 import { clearDeliveredNotifications } from '../utils/nativeNotifications';
 import { db, auth } from '../firebase';
@@ -44,7 +43,6 @@ const isKnownRouteTarget = (route: string): boolean => {
     return new Set([
         'dashboard',
         'study_guide',
-        'exam',
         'messenger',
         'study_partners',
         'leaderboard',
@@ -63,8 +61,6 @@ const NotificationTypeIcon: React.FC<{ type: Notification['type'], className?: s
         case 'study_update':
         case 'study_reminder':
             return <StudyGuideIcon className={className} />;
-        case 'exam_reminder':
-            return <ExamIcon className={className} />;
         case 'messenger':
         case 'study_partner_request':
         case 'personal':
