@@ -2080,30 +2080,47 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                         <div key={message.id} className="flex justify-end my-3">
                           <div className="min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-[#002D62] text-white px-4 py-3 shadow-xs rounded-tr-none">
                             {message.attachments && message.attachments.length > 0 && (
-                              <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                                {message.attachments.map(attachmentItem => (
+                              <div className="mb-3">
+                                {message.attachments.length === 1 && message.attachments[0].isImage ? (
                                   <a
-                                    key={attachmentItem.id}
-                                    href={attachmentItem.url}
+                                    href={message.attachments[0].url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="overflow-hidden rounded-2xl border border-white/20 bg-white dark:bg-black/10 text-slate-900 dark:text-white"
+                                    className="inline-block overflow-hidden rounded-3xl border border-transparent bg-transparent transition-transform hover:scale-[1.01]"
                                   >
-                                    {attachmentItem.isImage ? (
-                                      <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
-                                    ) : (
-                                      <div className="flex items-center gap-3 px-4 py-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-black/15 text-[10px] font-black uppercase">
-                                          DOC
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
-                                          <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
-                                        </div>
-                                      </div>
-                                    )}
+                                    <img
+                                      src={message.attachments[0].url}
+                                      alt={message.attachments[0].name}
+                                      className="max-h-64 sm:max-h-80 w-auto rounded-3xl object-cover border border-transparent shadow-xs"
+                                    />
                                   </a>
-                                ))}
+                                ) : (
+                                  <div className={`grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                    {message.attachments.map(attachmentItem => (
+                                      <a
+                                        key={attachmentItem.id}
+                                        href={attachmentItem.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="overflow-hidden rounded-2xl border border-transparent bg-transparent text-slate-900 dark:text-white"
+                                      >
+                                        {attachmentItem.isImage ? (
+                                          <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover rounded-2xl border border-transparent" />
+                                        ) : (
+                                          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 dark:bg-black/20 border border-white/10">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 dark:bg-black/30 text-[10px] font-black uppercase text-white">
+                                              DOC
+                                            </div>
+                                            <div className="min-w-0">
+                                              <p className="truncate text-sm font-semibold text-white">{attachmentItem.name}</p>
+                                              <p className="text-[10px] uppercase tracking-[0.2em] opacity-70 text-blue-200">Open attachment</p>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                             <div className={`relative ${isLongUserMsg && !isExpanded ? 'max-h-[125px] overflow-hidden' : ''}`}>
@@ -2150,30 +2167,47 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       >
                         <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
                           {message.attachments && message.attachments.length > 0 && (
-                            <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                              {message.attachments.map(attachmentItem => (
+                            <div className="mb-3">
+                              {message.attachments.length === 1 && message.attachments[0].isImage ? (
                                 <a
-                                  key={attachmentItem.id}
-                                  href={attachmentItem.url}
+                                  href={message.attachments[0].url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 text-slate-600"
+                                  className="inline-block overflow-hidden rounded-3xl border border-transparent bg-transparent transition-transform hover:scale-[1.01]"
                                 >
-                                  {attachmentItem.isImage ? (
-                                    <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover" />
-                                  ) : (
-                                    <div className="flex items-center gap-3 px-4 py-3">
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 dark:bg-black text-[10px] font-black uppercase">
-                                        DOC
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
-                                        <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
-                                      </div>
-                                    </div>
-                                  )}
+                                  <img
+                                    src={message.attachments[0].url}
+                                    alt={message.attachments[0].name}
+                                    className="max-h-64 sm:max-h-80 w-auto rounded-3xl object-cover border border-transparent shadow-xs"
+                                  />
                                 </a>
-                              ))}
+                              ) : (
+                                <div className={`grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                  {message.attachments.map(attachmentItem => (
+                                    <a
+                                      key={attachmentItem.id}
+                                      href={attachmentItem.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="overflow-hidden rounded-2xl border border-transparent bg-transparent text-slate-600 dark:text-slate-300"
+                                    >
+                                      {attachmentItem.isImage ? (
+                                        <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover rounded-2xl border border-transparent" />
+                                      ) : (
+                                        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-black text-[10px] font-black uppercase">
+                                            DOC
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="truncate text-sm font-semibold">{attachmentItem.name}</p>
+                                            <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Open attachment</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
 
