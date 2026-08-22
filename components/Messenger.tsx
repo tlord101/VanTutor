@@ -507,7 +507,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startYRef = useRef<number>(0);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      });
+    } else if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  }, []);
 
   // Listen to typing status for active chat
   useEffect(() => {
@@ -1005,8 +1017,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       return;
     }
 
-    setMessages(readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), []));
+    const cached = readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), []);
+    setMessages(cached);
     setOptimisticMessages([]);
+    if (cached.length > 0) {
+      setTimeout(() => scrollToBottom('instant' as ScrollBehavior), 30);
+    }
     const messagesRef = dbRef(db, `messages/${activeChat.chatId}`);
     const messagesQuery = query(messagesRef, limitToLast(50));
     onValue(messagesQuery, (snap) => {
@@ -1015,7 +1031,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         if (prev.length > 0) {
           const lastPrev = prev[prev.length - 1];
           const lastNew = cloudMsgs[cloudMsgs.length - 1];
-          if (lastNew && lastNew.id !== lastPrev.id && lastNew.senderId !== firebaseUser.uid && lastNew.timestamp > lastPrev.timestamp) {
+          if (lastNew && lastNew.id !== lastPrev.id && lastNew.senderId !== firebaseUser?.uid && lastNew.timestamp > lastPrev.timestamp) {
             playReceiveSound();
           }
         }
@@ -1024,7 +1040,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
       setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
 
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setTimeout(() => scrollToBottom(cached.length === 0 ? ('instant' as ScrollBehavior) : 'smooth'), 40);
       if (firebaseUser) {
         set(dbRef(db, `user_chats/${firebaseUser.uid}/${activeChat.chatId}/unreadCount`), 0);
 
@@ -1048,7 +1064,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       }
     });
     return () => off(messagesRef);
-  }, [activeChat, firebaseUser, userProfile.uid]);
+  }, [activeChat, firebaseUser, userProfile.uid, scrollToBottom]);
 
   useEffect(() => {
     if (!firebaseUser || !activeChat) return;
@@ -1821,9 +1837,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+              <div className="min-h-full flex flex-col justify-end">
               {combinedMessageStream.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center px-4">
+                <div className="my-auto flex flex-col items-center justify-center px-4 py-8">
                   <div className="w-20 h-20 bg-[#009EE2]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-[#009EE2] dark:text-[#F8F9FA]">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -2059,7 +2076,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 </div>
               )}
 
-              <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}

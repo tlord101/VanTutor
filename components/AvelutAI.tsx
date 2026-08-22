@@ -203,15 +203,15 @@ const InlineMarkdownText = React.memo<{ text: string; className?: string }>(({ t
     rehypePlugins={[rehypeKatex]}
     components={{
       p: ({ node, ...props }: any) => <span className={`whitespace-normal ${className}`} {...props} />,
-      strong: ({ node, ...props }: any) => <strong className="font-semibold text-emerald-600 dark:text-emerald-400" {...props} />,
+      strong: ({ node, ...props }: any) => <strong className="font-semibold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
       em: ({ node, ...props }: any) => <em className="italic" {...props} />,
       code: ({ node, inline, ...props }: any) =>
         inline ? (
-          <code className="rounded bg-emerald-100 dark:bg-emerald-950/50 px-1 py-0.5 text-[0.8em] font-mono text-emerald-800 dark:text-emerald-300" {...props} />
+          <code className="rounded bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.8em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
         ) : (
-          <code className="block overflow-x-auto rounded-2xl bg-slate-950 p-3 text-sm text-white" {...props} />
+          <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] p-3 text-sm text-white border border-slate-700/60" {...props} />
         ),
-      a: ({ node, ...props }: any) => <a className="underline decoration-emerald-400 underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />,
+      a: ({ node, ...props }: any) => <a className="text-[#0066FF] underline decoration-[#0066FF]/60 underline-offset-2 hover:text-[#002D62]" target="_blank" rel="noopener noreferrer" {...props} />,
     }}
   >
     {formatLatexMath(text)}
@@ -1048,6 +1048,33 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     };
   }, [activeHistoryId]);
 
+  const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (sectionRef.current) {
+      sectionRef.current.scrollTo({
+        top: sectionRef.current.scrollHeight,
+        behavior,
+      });
+    }
+  }, []);
+
+  // WhatsApp-style instant bottom anchor when opening or switching conversation
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom('instant' as ScrollBehavior);
+      const timer = setTimeout(() => {
+        scrollToBottom('instant' as ScrollBehavior);
+      }, 40);
+      return () => clearTimeout(timer);
+    }
+  }, [activeHistoryId, scrollToBottom]);
+
+  // Smooth scroll when new messages stream or complete
+  useEffect(() => {
+    if (messages.length > 0 || streamingBotText !== null) {
+      scrollToBottom('smooth');
+    }
+  }, [messages.length, streamingBotText, isSending, scrollToBottom]);
+
   const conversationSummary = useMemo(() => {
     if (activeHistoryId) {
       const active = history.find((item: HistoryItem) => item.id === activeHistoryId);
@@ -1598,14 +1625,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           : '';
 
         const systemInstructions = isContextAware ? [
-          `You are AVELUT AI, an intelligent, versatile, and supportive academic tutor and problem-solver assisting ${studentName}.`,
+          `You are AVELUT AI, an intelligent, concise, and natural academic tutor and problem-solver assisting ${studentName}.`,
           studentInfo ? `STUDENT CONTEXT: ${studentInfo}` : '',
-          'CORE GUIDELINES:',
-          '1. ADAPTIVE & VERSATILE: Help with general problem-solving, academic questions, technical concepts, calculations, writing, or analysis.',
-          '2. CLEAR & STRUCTURED: Give clear, direct answers with intuitive step-by-step explanations and real-world examples.',
-          '3. LATEX FORMATTING: Format mathematical equations and variables cleanly using LaTeX ($...$ inline or $$...$$ block).',
-          '4. STUDENT STUDY CONTEXT: If relevant notebook or course excerpts are attached below, reference them accurately to ground your explanations.',
-          '5. SUGGESTIONS: At the very end of your response, output 3 to 4 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
+          'CRITICAL BEHAVIOR GUIDELINES:',
+          '1. CONCISE & PRECISE: Answer questions directly and precisely without unnecessary filler, repetitive preamble, or unsolicited info dumps.',
+          '2. NATURAL ON GREETINGS: If the user sends a greeting (e.g. "hi", "hello", "good morning"), reply warmly, naturally, and simply (e.g., "Hello ' + studentName + '! How can I help you today?"). Do NOT dump paragraphs of context, lists of capabilities, or unsolicited academic overviews on simple casual greetings.',
+          '3. EXPAND ONLY WHEN REQUESTED: Provide detailed step-by-step breakdowns, comprehensive derivations, or worked examples ONLY when the student explicitly asks for an explanation, tutorial, problem breakdown, or study assistance.',
+          '4. LATEX & COLOR FORMATTING: Format mathematical equations and variables cleanly using LaTeX ($...$ inline or $$...$$ block). Use clean structured markdown.',
+          '5. SUGGESTIONS: At the very end of your response, output 3 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
           tutorialInstructions,
           courseContext ? `STUDENT'S ACTIVE COURSE CONTEXT:\n${courseContext}` : '',
           retrievedContext,
@@ -1613,12 +1640,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           '',
           `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
         ].filter(Boolean).join('\n') : [
-          'You are AVELUT AI, a powerful, versatile, and clear general problem-solving AI assistant.',
-          'CORE GUIDELINES:',
-          '1. DIRECT & HELPFUL: Provide direct, accurate, and comprehensive solutions to the user\'s prompts, questions, and tasks.',
-          '2. VERSATILE CAPABILITY: Excel across all subjects and domains—including math, science, programming, history, literature, writing, reasoning, and practical tasks.',
-          '3. LATEX FORMATTING: Use LaTeX ($...$ or $$...$$) for mathematical expressions whenever relevant.',
-          '4. SUGGESTIONS: At the very end of your response, output 3 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
+          'You are AVELUT AI, a powerful, versatile, concise, and natural general AI assistant.',
+          'CRITICAL BEHAVIOR GUIDELINES:',
+          '1. CONCISE & PRECISE: Provide direct, accurate, and concise answers to the user\'s prompts and questions without filler or unsolicited paragraphs.',
+          '2. NATURAL ON GREETINGS: If the user sends a casual greeting (like "hi", "hello"), reply warmly, naturally, and simply (e.g., "Hello! How can I help you today?").',
+          '3. EXPAND ONLY WHEN REQUESTED: Provide extensive multi-step explanations or comprehensive derivations ONLY when the user explicitly asks for help or deep analysis.',
+          '4. LATEX FORMATTING: Use LaTeX ($...$ or $$...$$) for mathematical expressions whenever relevant.',
+          '5. SUGGESTIONS: At the very end of your response, output 3 helpful follow-up suggestions on a new line formatted as: [Suggestions: Option 1 | Option 2 | Option 3]',
           tutorialInstructions,
           storedAttachments?.length ? `ATTACHMENTS: ${storedAttachments.map(i => i.name).join(', ')}` : '',
           '',
@@ -2007,18 +2035,18 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
               {messages.length === 0 ? (
                 <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-600 text-white shadow-lg">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#0066FF] text-white shadow-lg">
                     <ChatIcon className="h-10 w-10" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Ask AVELUT anything</h2>
                     <p className="mt-2 max-w-xl text-slate-500 dark:text-gray-400">
-                      Get step-by-step answers with clean LaTeX for equations, formulas, and proofs.
+                      Get direct, step-by-step answers with clean LaTeX for equations, formulas, and proofs.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+                <div className="mx-auto flex w-full max-w-6xl min-h-full flex-col justify-end gap-4">
                   {displayMessages.map((message, idx) => {
                     // If this is the last bot message and it's redundant with streaming, hide it temporarily
                     if (streamingBotText !== null &&
@@ -2035,7 +2063,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     if (message.sender === 'user') {
                       return (
                         <div key={message.id} className="flex justify-end my-3">
-                          <div className="min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-emerald-600 text-white px-4 py-3 shadow-xs">
+                          <div className="min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-[#002D62] text-white px-4 py-3 shadow-xs rounded-tr-none">
                             {message.attachments && message.attachments.length > 0 && (
                               <div className={`mb-3 grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                                 {message.attachments.map(attachmentItem => (
@@ -2140,11 +2168,22 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                               rehypePlugins={[rehypeKatex]}
                               components={{
                                 p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
-                                ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
-                                ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
                                 li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                                strong: ({ node, ...props }: any) => <strong className="font-bold text-slate-950 dark:text-white" {...props} />,
-                                pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-slate-900 dark:bg-[#050711] p-4 text-sm text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
+                                code: ({ node, inline, ...props }: any) =>
+                                  inline ? (
+                                    <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
+                                  ) : (
+                                    <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
+                                  ),
+                                pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
+                                a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                                table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
+                                th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
+                                td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
                               }}
                             >
                               {formatLatexMath(cleanVisualText)}
@@ -2207,7 +2246,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     <div className="flex justify-start mt-2 mb-2">
                       {uploadProgress ? (
                         <div className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-sm sm:max-w-[75%] rounded-tl-sm flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="w-2 h-2 rounded-full bg-[#0066FF] shrink-0" />
                           <span>{uploadProgress}</span>
                         </div>
                       ) : (
@@ -2235,11 +2274,22 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                 rehypePlugins={[rehypeKatex]}
                                 components={{
                                   p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
-                                  ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
-                                  ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100" {...props} />,
+                                  ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
+                                  ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
                                   li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                                  strong: ({ node, ...props }: any) => <strong className="font-bold text-slate-950 dark:text-white" {...props} />,
-                                  pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-slate-900 dark:bg-[#050711] p-4 text-sm text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                  strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
+                                  code: ({ node, inline, ...props }: any) =>
+                                    inline ? (
+                                      <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
+                                    ) : (
+                                      <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
+                                    ),
+                                  pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                  blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
+                                  a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                                  table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
+                                  th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
+                                  td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
                                 }}
                               >
                                 {formatLatexMath(cleanVisualStreamingText)}
@@ -2270,9 +2320,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                       key={`sug-bar-${idx}`}
                       type="button"
                       onClick={() => void handleSend(suggestion)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-[#1E242B] border border-slate-200/90 dark:border-slate-700/80 px-3.5 py-1.5 shadow-2xs text-xs font-medium text-slate-800 dark:text-slate-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition active:scale-95 shrink-0 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-[#1E242B] border border-slate-200/90 dark:border-slate-700/80 px-3.5 py-1.5 shadow-2xs text-xs font-medium text-slate-800 dark:text-slate-200 hover:border-[#0066FF] hover:text-[#0066FF] dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition active:scale-95 shrink-0 cursor-pointer"
                     >
-                      <span className="text-emerald-500 text-xs">✨</span>
+                      <span className="text-[#0066FF] text-xs">✨</span>
                       <InlineMarkdownText text={suggestion} />
                     </button>
                   ))}
