@@ -56,15 +56,41 @@ class GrokVoiceEngine {
     return this.audioCtx;
   }
 
+  private activeRequestCount = 0;
+  private maxConcurrentRequests = 2;
+  private requestQueue: Array<() => void> = [];
+
+  private async acquireSlot(): Promise<void> {
+    if (this.activeRequestCount < this.maxConcurrentRequests) {
+      this.activeRequestCount++;
+      return;
+    }
+    return new Promise<void>((resolve) => {
+      this.requestQueue.push(() => {
+        this.activeRequestCount++;
+        resolve();
+      });
+    });
+  }
+
+  private releaseSlot(): void {
+    this.activeRequestCount--;
+    if (this.requestQueue.length > 0) {
+      const next = this.requestQueue.shift();
+      if (next) next();
+    }
+  }
+
   /**
-   * Fetch audio + timestamps from Avelut /api/speech proxy with Multi-Tier Caching:
+   * Fetch audio + timestamps from Avelut /api/speech proxy with Multi-Tier Caching & Retry:
    * 1. In-Memory Map Cache (0ms)
    * 2. Persistent Local Cache (0ms, 0 Grok API characters, $0.00)
    * 3. Vercel 7-Day Edge CDN Cache
+   * 4. Automatic throttled queue & retry with exponential backoff
    */
   public async fetchGrokSpeech(
     text: string,
-    options: { voice?: string; language?: string; withTimestamps?: boolean; cacheKey?: string } = {}
+    options: { voice?: string; language?: string; withTimestamps?: boolean; cacheKey?: string; retryCount?: number } = {}
   ): Promise<GrokTtsResponsePayload | null> {
     if (!text || !text.trim()) return null;
 
@@ -84,31 +110,22 @@ class GrokVoiceEngine {
       }
     }
 
+    await this.acquireSlot();
+    const maxRetries = options.retryCount ?? 2;
+
     try {
-      const endpoint = typeof window !== 'undefined' && window.location.origin.includes('localhost')
-        ? '/api/speech'
-        : 'https://www.avelut.xyz/api/speech';
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const endpoint = typeof window !== 'undefined' && window.location.origin.includes('localhost')
+            ? '/api/speech'
+            : 'https://www.avelut.xyz/api/speech';
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text.trim(),
-          voice_id: options.voice || 'altair',
-          language: options.language || 'en',
-          with_timestamps: options.withTimestamps !== false,
-        }),
-      });
-
-      if (!res.ok) {
-        // Fallback to local /api/speech relative path if absolute domain fails
-        if (!endpoint.startsWith('/api')) {
-          const fallbackRes = await fetch('/api/speech', {
+          const res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             body: JSON.stringify({
               text: text.trim(),
               voice_id: options.voice || 'altair',
@@ -116,27 +133,52 @@ class GrokVoiceEngine {
               with_timestamps: options.withTimestamps !== false,
             }),
           });
-          if (fallbackRes.ok) {
-            const data: GrokTtsResponsePayload = await fallbackRes.json();
-            if (cacheKey && data.audio) {
-              this.memoryCache.set(cacheKey, data);
-              writeCachedJson(cacheKey, data);
-            }
-            return data;
-          }
-        }
-        throw new Error(`Grok TTS Proxy responded with HTTP ${res.status}`);
-      }
 
-      const payload: GrokTtsResponsePayload = await res.json();
-      if (cacheKey && payload.audio) {
-        this.memoryCache.set(cacheKey, payload);
-        writeCachedJson(cacheKey, payload);
+          if (!res.ok) {
+            // Fallback to local /api/speech relative path if absolute domain fails
+            if (!endpoint.startsWith('/api')) {
+              const fallbackRes = await fetch('/api/speech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: text.trim(),
+                  voice_id: options.voice || 'altair',
+                  language: options.language || 'en',
+                  with_timestamps: options.withTimestamps !== false,
+                }),
+              });
+              if (fallbackRes.ok) {
+                const data: GrokTtsResponsePayload = await fallbackRes.json();
+                if (cacheKey && data.audio) {
+                  this.memoryCache.set(cacheKey, data);
+                  writeCachedJson(cacheKey, data);
+                }
+                return data;
+              }
+            }
+            throw new Error(`Grok TTS Proxy responded with HTTP ${res.status}`);
+          }
+
+          const payload: GrokTtsResponsePayload = await res.json();
+          if (cacheKey && payload.audio) {
+            this.memoryCache.set(cacheKey, payload);
+            writeCachedJson(cacheKey, payload);
+          }
+          return payload;
+        } catch (attemptErr) {
+          if (attempt === maxRetries) {
+            throw attemptErr;
+          }
+          // Backoff before retry
+          await new Promise((r) => setTimeout(r, 600 * Math.pow(2, attempt)));
+        }
       }
-      return payload;
-    } catch (err: any) {
-      console.warn('Grok TTS fetch error:', err);
       return null;
+    } catch (err: any) {
+      console.warn('[GrokVoiceEngine] TTS fetch error after retries:', err);
+      return null;
+    } finally {
+      this.releaseSlot();
     }
   }
 

@@ -280,6 +280,45 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         touchEndX.current = null;
     };
 
+    // Configure Main App Header with Study Guide / My Notebooks Tab Switcher
+    useEffect(() => {
+        if (!selectedCourse && !isVoiceTutorialActive && !activeExternalSession && setCustomHeaderConfig) {
+            setCustomHeaderConfig({
+                title: (
+                    <div className="inline-flex items-center p-1 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl border border-[#E3E9F1] dark:border-slate-700 shadow-2xs">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('courses')}
+                            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                                activeTab === 'courses'
+                                    ? 'bg-white dark:bg-slate-900 text-[#0066FF] shadow-xs'
+                                    : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
+                            }`}
+                        >
+                            <i className="bi bi-mortarboard text-sm"></i>
+                            <span>Study Guide</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('notebooks')}
+                            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                                activeTab === 'notebooks'
+                                    ? 'bg-white dark:bg-slate-900 text-[#0066FF] shadow-xs'
+                                    : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
+                            }`}
+                        >
+                            <i className="bi bi-journal-bookmark text-sm"></i>
+                            <span>My Notebooks</span>
+                        </button>
+                    </div>
+                ),
+                hideTitle: false,
+                hideDefaultRightActions: false,
+                hideBottomNav: false,
+            });
+        }
+    }, [selectedCourse, isVoiceTutorialActive, activeExternalSession, activeTab, setCustomHeaderConfig]);
+
     // Subscribe to Avelut Voice Engine status
     useEffect(() => {
         const unsubscribe = avelutVoice.subscribe(setVoiceStatus);
@@ -873,42 +912,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     };
 
     return (
-        <div className="flex-1 flex flex-col w-full h-full min-h-0 bg-slate-50/50 dark:bg-[#030712] overflow-hidden rounded-2xl">
-            {/* Top Tabs: Courses vs My Notebooks — Sticky & Rigid */}
-            <div className="flex-shrink-0 sticky top-0 z-30 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-950 px-4 shadow-2xs">
-                <div className="flex items-center gap-8">
-                    <button
-                        onClick={() => setActiveTab('courses')}
-                        className={`py-3.5 px-3 text-xs font-black uppercase tracking-wider relative transition-colors cursor-pointer flex items-center gap-2 ${
-                            activeTab === 'courses'
-                                ? 'text-[#0066FF]'
-                                : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
-                        }`}
-                    >
-                        <i className="bi bi-mortarboard text-sm"></i>
-                        <span>Courses</span>
-                        {activeTab === 'courses' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0066FF] rounded-full" />
-                        )}
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('notebooks')}
-                        className={`py-3.5 px-3 text-xs font-black uppercase tracking-wider relative transition-colors cursor-pointer flex items-center gap-2 ${
-                            activeTab === 'notebooks'
-                                ? 'text-[#0066FF]'
-                                : 'text-[#64748B] hover:text-[#0F172A] dark:hover:text-white'
-                        }`}
-                    >
-                        <i className="bi bi-journal-bookmark text-sm"></i>
-                        <span>My Notebooks</span>
-                        {activeTab === 'notebooks' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0066FF] rounded-full" />
-                        )}
-                    </button>
-                </div>
-            </div>
-
+        <div className="flex-1 flex flex-col w-full h-full min-h-0 bg-slate-50/50 dark:bg-[#030712] overflow-hidden">
             {/* Dual-Pane Tab Container with Smooth Horizontal Slide Transition */}
             <div
                 className="flex-1 min-h-0 w-full overflow-hidden relative"

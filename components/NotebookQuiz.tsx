@@ -28,6 +28,7 @@ interface NotebookQuizProps {
   chapterContent: string;
   userProfile: UserProfile;
   onBack: () => void;
+  setCustomHeaderConfig?: (config: any) => void;
 }
 
 export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
@@ -36,6 +37,7 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
   chapterContent,
   userProfile,
   onBack,
+  setCustomHeaderConfig,
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
@@ -59,6 +61,42 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
   const [limitCost, setLimitCost] = useState(1);
 
   const timerRef = useRef<any>(null);
+
+  // ── Configure Main App Header for Notebook Quiz ──
+  useEffect(() => {
+    if (setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        hideBottomNav: true,
+        leftActions: (
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              aria-label="Back to chapters"
+              title="Back"
+            >
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+            </button>
+            <div className="min-w-0 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+                {notebook.title}
+              </span>
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+                {chapter.title} — Quiz
+              </h2>
+            </div>
+          </div>
+        ),
+        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+      });
+    }
+
+    return () => {
+      if (setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
+    };
+  }, [setCustomHeaderConfig, onBack, notebook.title, chapter.title]);
 
   // Check SQLite for previously generated quiz questions on mount
   useEffect(() => {
@@ -209,23 +247,6 @@ RULES:
     return (
       <div className="flex-1 w-full max-w-2xl mx-auto p-4 sm:p-6 flex flex-col justify-center pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
         <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs">
-          {/* Header */}
-          <div className="flex items-center gap-3 border-b border-[#E3E9F1] pb-5 mb-6">
-            <button
-              onClick={onBack}
-              className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer"
-            >
-              <i className="bi bi-arrow-left text-sm"></i>
-            </button>
-            <div>
-              <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-                {notebook.title}
-              </span>
-              <h2 className="text-xl font-black text-[#0F172A] tracking-tight">
-                {chapter.title} — Quiz Setup
-              </h2>
-            </div>
-          </div>
 
             {/* Saved Quiz Quick Start Banner */}
             {savedQuiz && savedQuiz.length > 0 && (

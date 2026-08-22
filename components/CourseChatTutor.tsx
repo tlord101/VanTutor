@@ -13,6 +13,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import { XIcon } from './icons/XIcon';
+import type { Course, Topic, UserProfile } from '../types';
 
 const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -100,17 +101,56 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  // Hide bottom nav while inside course chat tutor
+  // Configure Main App Header for Course Chat Tutor
   useEffect(() => {
     if (setCustomHeaderConfig) {
-      setCustomHeaderConfig({ hideBottomNav: true });
+      setCustomHeaderConfig({
+        hideBottomNav: true,
+        hideTitle: true,
+        hideDefaultRightActions: true,
+        leftActions: (
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+            {/* Back Arrow Button — Off-white styling */}
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+              aria-label="Back to study guide"
+              title="Back"
+            >
+              <i className="bi bi-arrow-left text-sm font-bold text-[#0066FF]"></i>
+              <span className="hidden sm:inline">Back</span>
+            </button>
+
+            {/* Live Tutorial Button — Off-white styling */}
+            <button
+              onClick={onOpenVoiceTutorial}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+              title="Launch Live Voice & Whiteboard Tutorial"
+            >
+              <i className="bi bi-broadcast text-xs font-bold text-[#0066FF] animate-pulse"></i>
+              <span className="whitespace-nowrap">Live Tutorial</span>
+            </button>
+
+            {/* Topic & Course Info */}
+            <div className="min-w-0 flex flex-col justify-center ml-1">
+              <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block truncate">
+                {course.course_code || course.course_name}
+              </span>
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white truncate max-w-[120px] sm:max-w-[240px] md:max-w-[340px]">
+                {topic.topic_name}
+              </h2>
+            </div>
+          </div>
+        ),
+        className: 'bg-[#F6F6F3]/95 dark:bg-[#0B0F17]/95 border-b border-[#E3E9F1] dark:border-slate-800 backdrop-blur-md',
+      });
     }
     return () => {
       if (setCustomHeaderConfig) {
         setCustomHeaderConfig(null);
       }
     };
-  }, [setCustomHeaderConfig]);
+  }, [setCustomHeaderConfig, onBack, onOpenVoiceTutorial, course, topic]);
 
   const toggleUserMessageExpand = (id: string) => {
     setExpandedUserMessageIds((prev) => {
@@ -203,8 +243,8 @@ STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do 
     }
   };
 
-  const handleClearChat = () => {
-    if (window.confirm('Clear conversation history for this topic?')) {
+  const handleClearChat = async () => {
+    if (window.confirm(`Clear conversation for ${topic.topic_name}?`)) {
       setMessages([]);
       clearCachedKey(cacheKey);
       addToast('Conversation cleared.', 'info');
@@ -212,11 +252,18 @@ STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do 
     }
   };
 
-  const handleSend = async (customText?: string) => {
-    const textToSend = (customText || inputValue).trim();
-    if ((!textToSend && attachments.length === 0) || isSending) return;
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+  };
 
-    const cost = getFeatureCost('chat_interaction', appSettings) || 1;
+  const handleSendMessage = async (customText?: string) => {
+    const textToSend = (customText || inputValue).trim();
+    if (!textToSend && attachments.length === 0) return;
+    if (isSending) return;
+
+    const cost = getFeatureCost('chat_interaction', appSettings);
     setLimitCost(cost);
     const creditCheck = checkAICredits(userProfile, cost, appSettings);
     if (!creditCheck.allowed) {
@@ -224,70 +271,86 @@ STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do 
       return;
     }
 
-    const processedAttachments = await Promise.all(
-      attachments.map(async (file, idx) => {
-        const isImage = file.type.startsWith('image/');
-        const url = URL.createObjectURL(file);
-        return {
-          id: `att_${Date.now()}_${idx}`,
-          name: file.name,
-          url,
-          isImage,
-        };
-      })
-    );
+    const ai = createAvelutAI(appSettings, userProfile);
+    if (!ai) {
+      addToast('AI service is not configured.', 'error');
+      return;
+    }
 
-    const userMsg: CourseChatTutorMessage = {
+    // Process attachments
+    const attachedData: Array<{ id: string; name: string; url: string; isImage: boolean }> = [];
+    const inlineParts: any[] = [];
+
+    for (const file of attachments) {
+      const isImg = file.type.startsWith('image/');
+      const dataUrl = await fileToDataUrl(file);
+      attachedData.push({
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: file.name,
+        url: dataUrl,
+        isImage: isImg,
+      });
+
+      if (isImg) {
+        const base64Data = dataUrl.split(',')[1];
+        inlineParts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: file.type || 'image/jpeg',
+          },
+        });
+      }
+    }
+
+    const userMessage: CourseChatTutorMessage = {
       id: `msg_user_${Date.now()}`,
       sender: 'user',
       text: textToSend,
       timestamp: Date.now(),
-      attachments: processedAttachments.length > 0 ? processedAttachments : undefined,
+      attachments: attachedData.length > 0 ? attachedData : undefined,
     };
 
-    const nextMessages = [...messages, userMsg];
+    const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInputValue('');
     setAttachments([]);
     setShowAttachmentMenu(false);
     setIsSending(true);
+    setStreamingBotText('');
 
     if (inputElementRef.current) {
       inputElementRef.current.style.height = 'auto';
     }
 
-    try {
-      const ai = createAvelutAI(appSettings, userProfile);
-      if (!ai) throw new Error('AI service unavailable');
+    // Build chat prompt
+    const conversationHistory = nextMessages
+      .map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`)
+      .join('\n\n');
 
-      const systemPrompt = `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).
-CURRENT TOPIC: "${topic.topic_name}"
-TOPIC CONTEXT & OVERVIEW: "${topic.topic_context || topic.start_point || ''}"
+    const promptText = `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).
+TOPIC: "${topic.topic_name}"
+TOPIC OVERVIEW: "${topic.topic_context || topic.start_point || 'Core principles of ' + topic.topic_name}"
 
-TEACHING METHODOLOGY (BIT-BY-BIT MASTERCLASS):
-1. Teach concept-by-concept in bite-sized, crystal-clear steps (1-2 short paragraphs max).
-2. If student answers a question correctly, praise them and smoothly introduce the next concept/formula.
-3. If student is confused, explain from a simpler angle with a quick concrete example.
-4. Format all math and equations with KaTeX LaTeX ($...$ inline or $$...$$ block).
-5. Highlight important keywords naturally.
-6. End each response with a 1-sentence check-for-understanding question or prompt.
-
-STRICT TOKEN LIMIT: Keep your response ultra-concise (< 160 words, < 350 tokens). Never dump huge walls of text.
+CRITICAL SOCRATIC TEACHING RULES:
+1. STEP-BY-STEP PROGRESSION: Teach one small, bite-sized step at a time. Never dump entire textbook chapters.
+2. CHECK FOR UNDERSTANDING: Conclude your explanation with a quick question, thought experiment, or check-for-understanding to keep the student actively thinking.
+3. RELATABLE REAL-WORLD EXAMPLES: When giving examples, use familiar everyday Nigerian scenarios (e.g. POS charges, market trade, Danfo speeds, NEPA light vs. generator fuel, boiling kettle/jollof rice, recharge cards).
+4. MATH & FORMULAS: Render all equations, formulas, and math variables cleanly using LaTeX ($...$ inline or $$...$$ block).
+5. TABLES & HEADINGS: Use clear markdown headings (##, ###), bold text for emphasis, and structured markdown tables when comparing concepts.
+6. CONCISE: Keep explanations punchy, friendly, and digestible (< 180 words per reply unless student requests a full worked problem).
 
 CONVERSATION HISTORY:
-${nextMessages.slice(-6).map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n')}
+${conversationHistory}
 
-STUDENT MESSAGE:
-${textToSend || '[Student sent an attachment]'}`;
+STUDENT'S LATEST MESSAGE:
+${textToSend || '(Student attached image)'}`;
 
-      setStreamingBotText('');
+    try {
+      const parts = [...inlineParts, { text: promptText }];
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3.1-flash-lite',
-        contents: systemPrompt,
-        config: {
-          temperature: 0.3,
-          maxOutputTokens: 400,
-        },
+        contents: [{ role: 'user', parts }],
+        config: { temperature: 0.35, maxOutputTokens: 600 },
       });
 
       let streamedText = '';
@@ -297,45 +360,50 @@ ${textToSend || '[Student sent an attachment]'}`;
         setStreamingBotText(streamedText);
       }
 
-      const assistantMsg: CourseChatTutorMessage = {
+      const aiMsg: CourseChatTutorMessage = {
         id: `msg_ai_${Date.now()}`,
         sender: 'assistant',
-        text: streamedText || 'Let us continue our lesson. What would you like to explore next?',
+        text: streamedText,
         timestamp: Date.now(),
       };
 
-      const finalMessages = [...nextMessages, assistantMsg];
+      const finalMessages = [...nextMessages, aiMsg];
       setMessages(finalMessages);
       writeCachedJson(cacheKey, finalMessages, userProfile?.uid);
-      void deductAICredits(userProfile?.uid, cost, 'Course Tutor Chat');
-    } catch (err) {
-      console.error('[CourseChatTutor] error:', err);
-      addToast('Failed to get tutor reply. Check your connection.', 'error');
+      await deductAICredits(userProfile, cost, 'chat_interaction', appSettings);
+    } catch (err: any) {
+      console.error('[CourseChatTutor] Send error:', err);
+      addToast(err?.message || 'Failed to get response. Please try again.', 'error');
     } finally {
       setIsSending(false);
       setStreamingBotText(null);
     }
   };
 
+  const handleSend = handleSendMessage;
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
-      setAttachments((prev) => [...prev, ...newFiles].slice(0, 4));
+    if (e.target.files) {
+      const filesArr = Array.from(e.target.files);
+      setAttachments((prev) => [...prev, ...filesArr]);
       setShowAttachmentMenu(false);
     }
   };
 
-  const removeAttachment = (idx: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    e.target.style.height = 'auto';
-    e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
-  };
-
-  // Helper to render live streaming text with glowing dark blue active sentence
+  // Helper to render streaming text with active trailing sentence glowing in deep blue
   const renderStreamingContent = (text: string) => {
     const lastPunctuationIdx = Math.max(
       text.lastIndexOf('\n'),
@@ -344,9 +412,34 @@ ${textToSend || '[Student sent an attachment]'}`;
       text.lastIndexOf('! ')
     );
 
-    const hasCompletedPart = lastPunctuationIdx !== -1 && lastPunctuationIdx < text.length - 1;
-    const completedPart = hasCompletedPart ? text.slice(0, lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2)) : '';
-    const activePart = hasCompletedPart ? text.slice(lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2)) : text;
+    if (lastPunctuationIdx !== -1 && lastPunctuationIdx < text.length - 1) {
+      const completedPart = text.slice(0, lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2));
+      const activePart = text.slice(lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2));
+
+      return (
+        <div className="space-y-1">
+          {completedPart && (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={markdownComponents(false)}
+            >
+              {formatLatexMath(completedPart)}
+            </ReactMarkdown>
+          )}
+          {activePart && (
+            <div className="inline-block text-[#002D62] dark:text-[#60A5FA] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+              <span>{activePart}</span>
+              <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const hasCompletedPart = text.length > 0;
+    const completedPart = text;
+    const activePart = '';
 
     return (
       <div className="space-y-1">
@@ -359,20 +452,26 @@ ${textToSend || '[Student sent an attachment]'}`;
             {formatLatexMath(completedPart)}
           </ReactMarkdown>
         )}
-        {activePart && (
-          <div className="inline-block text-[#002D62] dark:text-[#60A5FA] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
-            <span>{activePart}</span>
-            <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
-          </div>
-        )}
       </div>
     );
   };
 
   const markdownComponents = (isUser: boolean) => ({
+    h1: ({ node, ...props }: any) => (
+      <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight" {...props} />
+    ),
+    h2: ({ node, ...props }: any) => (
+      <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] dark:text-white mt-3.5 mb-1.5 tracking-tight border-b border-[#E3E9F1] dark:border-slate-800 pb-1" {...props} />
+    ),
+    h3: ({ node, ...props }: any) => (
+      <h3 className="text-base sm:text-lg font-bold text-[#002D62] dark:text-[#60A5FA] mt-3 mb-1" {...props} />
+    ),
+    h4: ({ node, ...props }: any) => (
+      <h4 className="text-sm sm:text-base font-bold text-[#0F172A] dark:text-white mt-2.5 mb-1" {...props} />
+    ),
     p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
     strong: ({ node, ...props }: any) => (
-      <strong className={isUser ? 'font-bold text-blue-200' : 'font-bold text-[#002D62] dark:text-[#60A5FA]'} {...props} />
+      <strong className={isUser ? 'font-bold text-white' : 'font-bold text-[#0F172A] dark:text-white'} {...props} />
     ),
     code: ({ node, inline, ...props }: any) =>
       inline ? (
@@ -381,72 +480,34 @@ ${textToSend || '[Student sent an attachment]'}`;
         <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] text-slate-100 p-4 text-xs font-mono my-2.5 border border-slate-700/60" {...props} />
       ),
     blockquote: ({ node, ...props }: any) => (
-      <blockquote className={`border-l-4 p-3 rounded-r-xl my-2 text-xs leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 dark:bg-blue-950/40 text-slate-800 dark:text-slate-200'}`} {...props} />
+      <blockquote className={`border-l-4 p-3 rounded-r-xl my-2.5 text-xs sm:text-sm leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 dark:bg-blue-950/40 text-slate-800 dark:text-slate-200'}`} {...props} />
     ),
     ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF]" {...props} />,
     ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium" {...props} />,
     li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
     a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] underline hover:text-[#002D62]'}`} target="_blank" rel="noopener noreferrer" {...props} />,
-    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-[#E3E9F1] dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-    th: ({ node, ...props }: any) => <th className="bg-[#F1F5F9] dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-[#E3E9F1] dark:border-slate-700" {...props} />,
-    td: ({ node, ...props }: any) => <td className="p-2.5 border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0F172A] dark:text-slate-200" {...props} />,
+    table: ({ node, ...props }: any) => (
+      <div className="w-full my-3.5 overflow-x-auto [scrollbar-width:thin] rounded-2xl border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
+        <table className="min-w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+      </div>
+    ),
+    thead: ({ node, ...props }: any) => (
+      <thead className="bg-[#F1F5F9] dark:bg-slate-800/90 text-[#002D62] dark:text-[#60A5FA] border-b border-[#E3E9F1] dark:border-slate-700 font-bold" {...props} />
+    ),
+    th: ({ node, ...props }: any) => (
+      <th className="p-3 font-bold border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-700 whitespace-nowrap" {...props} />
+    ),
+    td: ({ node, ...props }: any) => (
+      <td className="p-3 border-t border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0F172A] dark:text-slate-200" {...props} />
+    ),
   });
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-[#F6F6F3] dark:bg-[#0B0F17] overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[#F6F6F3] dark:bg-[#0B0F17] overflow-hidden select-none relative">
       {/* Hidden File Inputs */}
       <input type="file" ref={fileInputRef} onChange={handleFileSelection} multiple className="hidden" />
       <input type="file" ref={cameraInputRef} onChange={handleFileSelection} accept="image/*" capture="environment" className="hidden" />
       <input type="file" ref={photoInputRef} onChange={handleFileSelection} accept="image/*" multiple className="hidden" />
-
-      {/* ── Fixed Header ── */}
-      <header className="shrink-0 px-3 sm:px-6 pt-3 sm:pt-4 pb-2 bg-[#F6F6F3]/90 dark:bg-[#0B0F17]/90 backdrop-blur-md z-20">
-        <div className="bg-white dark:bg-[#151B26] border border-[#E3E9F1] dark:border-slate-800 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between shadow-2xs max-w-4xl mx-auto w-full">
-          
-          {/* Left: Back Button & Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <button
-              onClick={onBack}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#F6F6F3] dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white transition-all cursor-pointer shrink-0"
-              aria-label="Back to courses"
-            >
-              <i className="bi bi-arrow-left text-sm font-bold"></i>
-            </button>
-            <div className="min-w-0">
-              <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block truncate">
-                {course.course_code || course.course_name}
-              </span>
-              <h2 className="text-sm sm:text-base font-black text-[#0F172A] dark:text-white truncate">
-                {topic.topic_name}
-              </h2>
-            </div>
-          </div>
-
-          {/* Right: Realtime Voice Tutorial Button + Clear */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onOpenVoiceTutorial}
-              className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0066FF] hover:bg-[#0052cc] active:scale-95 text-white text-xs font-bold transition-all shadow-[0_2px_10px_rgba(0,102,255,0.3)] cursor-pointer flex items-center gap-2 shrink-0"
-              title="Launch Realtime Voice & Whiteboard Tutorial"
-            >
-              <i className="bi bi-broadcast text-xs animate-pulse"></i>
-              <span className="hidden xs:inline">Realtime Tutorial</span>
-              <span className="xs:hidden">Voice</span>
-            </button>
-
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearChat}
-                className="w-8 h-8 rounded-full bg-[#F6F6F3] dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-[#E3E9F1] dark:border-slate-700 hover:border-rose-200 flex items-center justify-center text-[#64748B] hover:text-rose-600 transition-all cursor-pointer"
-                title="Clear Conversation"
-              >
-                <i className="bi bi-trash text-xs"></i>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
 
       {/* ── Scrollable Messages Area (WhatsApp-Style Bottom-Up Layout) ── */}
       <div

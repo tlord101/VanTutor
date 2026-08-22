@@ -186,6 +186,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [lessonPlan, setLessonPlan] = useState<SinglePassTopicLesson | null>(null);
     const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
     const [lessonGenStep, setLessonGenStep] = useState('');
+    const [isBackgroundCompilingPhase2, setIsBackgroundCompilingPhase2] = useState(false);
     const [boardIndex, setBoardIndex] = useState(0);
     const [isDone, setIsDone] = useState(false);
 
@@ -194,9 +195,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isStreaming, setIsStreaming] = useState(false);
     const [activeWritingIndex, setActiveWritingIndex] = useState<number>(-1);
     const [activeDiagramSvg, setActiveDiagramSvg] = useState<string | null>(null);
-    const [activeTableMarkdown, setActiveTableMarkdown] = useState<string | null>(null);
     const [diagramKey, setDiagramKey] = useState(0);
-    const [isDiagramZoomed, setIsDiagramZoomed] = useState(false);
 
     // ── Audio & Voice State (Altair) ────────────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -204,6 +203,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isMuted, setIsMuted] = useState(false);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [activeSpokenWord, setActiveSpokenWord] = useState<string>('');
+    const [audioErrorBoardIdx, setAudioErrorBoardIdx] = useState<number | null>(null);
+    const [isRetryingAudio, setIsRetryingAudio] = useState(false);
 
     // ── Live Interruptible Q&A State ────────────────────────────────────
     const [isMicListening, setIsMicListening] = useState(false);
@@ -244,7 +245,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
     useEffect(() => {
         scrollToBottom();
-    }, [visibleBoardLines, isStreaming, activeSpokenWord, activeDiagramSvg, activeTableMarkdown, scrollToBottom]);
+    }, [visibleBoardLines, isStreaming, activeSpokenWord, activeDiagramSvg, scrollToBottom]);
 
     const clearAllStreamTimers = useCallback(() => {
         streamTimersRef.current.forEach(t => clearTimeout(t));
@@ -319,10 +320,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const words = spokenText ? spokenText.split(/\s+/).filter(Boolean) : [];
         const wordCount = Math.max(words.length, 20);
 
-        // Pacing at 520ms per word gives natural speech duration and prevents text racing ahead of voice
-        const totalEstMs = Math.max(3500, wordCount * 520);
+        // Pacing at 520ms per word with a guaranteed 30 seconds minimum per board
+        const totalEstMs = Math.max(30000, wordCount * 520);
         const lineCount = lines.length;
-        const lineIntervalMs = Math.max(2400, Math.min(6000, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+        const lineIntervalMs = Math.max(4500, Math.min(9000, Math.floor(totalEstMs / Math.max(lineCount, 1))));
 
         // Lead delay of 280ms before Line 0 writes
         const initTimer = setTimeout(() => {
@@ -359,7 +360,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         text: string,
         lines: string[],
         cacheKey: string,
-        onEnd?: () => void
+        onEnd?: () => void,
+        onErrorCb?: (err: Error) => void
     ): Promise<void> => {
         if (!isActiveRef.current || !text) {
             onEnd?.();
@@ -369,6 +371,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         stopAudioImmediate();
         clearAllStreamTimers();
         setIsPaused(false);
+        setAudioErrorBoardIdx(null);
 
         if (isMuted) {
             setIsTtsLoading(false);
@@ -377,11 +380,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
             if (pendingVisualsRef.current.svg) {
                 setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                setActiveTableMarkdown(null);
-                setDiagramKey(k => k + 1);
-            } else if (pendingVisualsRef.current.table) {
-                setActiveDiagramSvg(null);
-                setActiveTableMarkdown(pendingVisualsRef.current.table);
                 setDiagramKey(k => k + 1);
             }
             onEnd?.();
@@ -393,7 +391,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         setVisibleBoardLines([]);
         setActiveWritingIndex(-1);
         setActiveDiagramSvg(null);
-        setActiveTableMarkdown(null);
 
         const sessionId = ++playSessionIdRef.current;
         const cleanedText = cleanSpokenTextForTTS(text);
@@ -414,16 +411,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsSpeaking(true);
                 isSpeakingRef.current = true;
                 setIsTtsLoading(false);
+                setAudioErrorBoardIdx(null);
 
                 revealLinesProgressively(lines, cleanedText);
 
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                    setActiveTableMarkdown(null);
-                    setDiagramKey(k => k + 1);
-                } else if (pendingVisualsRef.current.table) {
-                    setActiveDiagramSvg(null);
-                    setActiveTableMarkdown(pendingVisualsRef.current.table);
                     setDiagramKey(k => k + 1);
                 }
             },
@@ -446,38 +439,40 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
                 onEnd?.();
             },
-            onError: () => {
+            onError: (err) => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                console.warn('[VoiceTutorial] Audio generation failed on current board:', err);
                 setIsSpeaking(false);
                 isSpeakingRef.current = false;
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
+                
+                // Show text lines so user can still see content
                 revealLinesProgressively(lines, cleanedText);
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                } else if (pendingVisualsRef.current.table) {
-                    setActiveTableMarkdown(pendingVisualsRef.current.table);
                 }
-                onEnd?.();
+                
+                // Trigger audio error callback to halt auto-progression and enable retry
+                if (onErrorCb) {
+                    onErrorCb(err);
+                }
             },
         });
 
         currentAudioRef.current = player as any;
     }, [isMuted, clearAllStreamTimers, revealLinesProgressively, stopAudioImmediate]);
 
-    // ── Single-Pass Complete Topic Lesson Generator (1 Gemini Call!) ──────
-    const generateCompleteTopicLesson = useCallback(async (
+    // ── 2-Phase Phased Topic Lesson Generator (5 mins Part 1 + 5 mins Part 2) ──
+    const generateLessonPhase = useCallback(async (
+        phase: 1 | 2,
         session: VoiceTutorialSessionData,
-        studentMem?: StudentCognitiveProfile | null
+        existingPhase1?: SinglePassTopicLesson | null
     ): Promise<SinglePassTopicLesson | null> => {
-        setIsGeneratingLesson(true);
-        setLessonGenStep('Pre-compiling Full Topic Lesson...');
-
         const aiClient = createAvelutAI(appSettings, userProfile || null);
         if (!aiClient) {
-            setIsGeneratingLesson(false);
-            addToast('AI service unavailable. Check your internet connection or API settings.', 'error');
+            addToast('AI service unavailable. Check connection or settings.', 'error');
             return null;
         }
 
@@ -491,44 +486,33 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             session.course?.course_id?.startsWith('nb_')
         );
 
-        const prompt = `You are AVELUT Master Academic Voice & Visual Tutor.
-Generate a DEEP, EXPLICIT, CRYSTAL-CLEAR VIDEO-STYLE PRE-COMPILED LESSON for "${topicName}" in a single structured JSON response.
+        const phase1Prompt = `You are AVELUT Master Academic Voice & Visual Tutor.
+Generate PART 1 (First ~5 Minutes: Boards 1 to 5) of a DEEP, EXPLICIT, CRYSTAL-CLEAR VIDEO-STYLE LESSON for "${topicName}".
 
 ${courseContext}${customPromptCtx}
 ${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
 
-TEACHING METHODOLOGY & EXPLICIT 10-TO-15 BOARD STRUCTURE:
-Break down the topic into an explicit, highly accessible sequence of 10 to 15 bite-sized boards.
-EVERY SINGLE BOARD MUST COVER ONLY ONE FOCUSED STEP OR CONCEPT (as simple and clear as possible).
-ALL WORKED EXAMPLES MUST SPAN AT LEAST 3 DEDICATED CONSECUTIVE BOARDS:
-  - Example Board A: Problem Setup, Real-World Context & Given Quantities
-  - Example Board B: Step-by-Step Mathematical/Mechanistic Substitution
-  - Example Board C: Final Evaluation, Calculation Result & Intuitive Verification
+CRITICAL BOARD TIMING & EXPLANATION RULES (30+ SECONDS PER BOARD):
+1. SPOKEN EXPLANATION DEPTH:
+   - In spokenExplanation, ALWAYS provide a comprehensive, deep verbal walkthrough of at least 75 to 110 spoken words (taking ~30 to 45 seconds to speak). Never rush or give 1-sentence summaries.
+2. DOMAIN ADAPTATION:
+   - If QUANTITATIVE (Maths, Physics, Accounting, Chemistry calculations): Include a concrete problem setup with given values, reading the question clearly out loud.
+   - If QUALITATIVE (Biology, Law, History, Government, Literature, English grammar, Economics concepts): Skip artificial math steps and use clear real-world scenario analysis, doctrines, mechanisms, and case study breakdowns.
+3. QUESTION / EXAMPLE READ-ALOUD:
+   - In spokenExplanation, ALWAYS read any problem, question, or example scenario out loud word-for-word first before explaining the steps!
+4. RELATABLE NIGERIAN REAL-WORLD CONTEXT:
+   - All analogies, intuition, and examples MUST use familiar Nigerian daily life scenarios (e.g. POS agent transactions & transfer charges, market bargaining in Balogun/Bodija/Ariaria, Danfo/Keke speed and traffic, NEPA power vs. generator fuel, cooking jollof rice / boiling kettle, buying recharge cards and data plans). Avoid alien or abstract western examples.
+5. CLEAN BOARD LINES (1-3 lines max):
+   - Keep board lines clean, elegant, and readable with LaTeX equations ($...$ inline or $$...$$ block) and [DIAGRAM] tags. DO NOT use tables, markdown tables, or step badge prefixes.
 
-MANDATORY 10-15 BOARD SEQUENCE TEMPLATE:
-- Board 1: "Real-World Intuition & Analogy" — Relatable scenario, physical meaning / everyday intuition, [DIAGRAM] or [TABLE].
-- Board 2: "Foundational Definition & Core Meaning" — Clear definition without jargon, core terminology, [TABLE].
-- Board 3: "Governing Law / Fundamental Principle" — The core equation/law/mechanism ($...$), conditions of validity, [DIAGRAM].
-- Board 4: "Variable Anatomy & Dimensional Analysis" — Breakdown of each variable, symbols, units, and physical significance, [TABLE].
-- Board 5: "Worked Example — Setup & Given Quantities" — Concrete problem scenario, listing what is given and what is required, [DIAGRAM].
-- Board 6: "Worked Example — Step 1: Formulation & Substitution" — Choosing the governing equation, substituting values step-by-step.
-- Board 7: "Worked Example — Step 2: Calculation & Interpretation" — Arithmetic/algebraic solution, final answer with units, intuitive sanity check.
-- Board 8: "Deep-Dive Mechanism / Conceptual Proof" — Why this works under the hood, visual mechanism, [DIAGRAM].
-- Board 9: "Comparative Classification / Taxonomy" — Key distinctions, subtypes, or structural relationships, [TABLE].
-- Board 10: "Classic Student Trap & Misconception" — Common error students make in exams, why it is false, and how to avoid it.
-- Board 11: "Subtle Nuance & Edge Case" — Boundary conditions, when the rule changes, critical exception.
-- Board 12: "Real-World Engineering / Scientific Application" — How professionals/industry apply this concept today, [DIAGRAM].
-- Board 13: "Golden Rule & Master Memory Anchor" — Memorable 1-line rule, invariant principle to remember forever.
+PART 1 SEQUENCE (BOARDS 1 TO 5):
+- Board 1: "Real-World Intuition & Everyday Nigerian Analogy" — Everyday relatable scenario, physical intuition, [DIAGRAM].
+- Board 2: "Foundational Definition & Core Meaning" — Plain English definition without jargon, core terminology.
+- Board 3: "Governing Law / Fundamental Principle" — Core equation/doctrine/rule ($...$), conditions, [DIAGRAM].
+- Board 4: "Variable Anatomy & Component Breakdown" — Symbols, units, meaning of each part.
+- Board 5: "Worked Example / Case Study: Problem Setup" — Real-world question read aloud, listing given items and context, [DIAGRAM].
 
-${isNotebookSource ? `NOTEBOOK TUTOR PERSONA (MANDATORY):
-In your spoken explanations, personalize the teaching by naturally referring directly to the student's notebook and textbook material (e.g., "Looking at this chapter of your notes...", "From this part of your note...", "As outlined in this chapter...", "In your notes right here...").` : ''}
-
-CRITICAL RULES:
-1. UNIVERSAL DOMAIN ADAPTATION: If the topic is qualitative (e.g. Constitutional Law, Biology, History, Philosophy, Literature), teach mechanisms, doctrines, and case comparisons with explicit steps and 3-board case studies.
-2. SHORT BOARD LINES (1-3 lines max): Keep board text ultra-clean, legible, and uncluttered.
-3. EXPRESSIVE GROK SPEECH TAGS: In spokenExplanation, naturally incorporate [pause], <emphasis>key terms</emphasis>, <slow>core rules</slow>, [chuckle], or [sigh].
-4. ALWAYS PROVIDE A VISUAL (MANDATORY): Include a complete realistic SVG string (diagramSvg) OR a structured markdown table (tableMarkdown) for every board.
-5. Place [DIAGRAM] or [TABLE] tag inside boardLines array where the visual best fits.
+${isNotebookSource ? `NOTEBOOK TUTOR PERSONA: Refer naturally to the student's notebook or textbook chapter.` : ''}
 
 OUTPUT VALID JSON ONLY:
 {
@@ -538,12 +522,56 @@ OUTPUT VALID JSON ONLY:
     {
       "boardId": "board_1",
       "conceptIdx": 0,
-      "conceptName": "Concept Name",
-      "phaseTitle": "Phase Title",
+      "conceptName": "Everyday Intuition",
+      "phaseTitle": "Real-World Intuition & Analogy",
       "boardLines": ["Line 1 with LaTeX ($...$)", "[DIAGRAM]", "Line 2"],
-      "spokenExplanation": "Conversational narration with [pause] and <emphasis>tags</emphasis>",
+      "spokenExplanation": "Comprehensive 75-110 word conversational narration with [pause] and <emphasis>tags</emphasis>",
       "diagramSvg": "Complete SVG string (viewBox=\\"0 0 800 480\\") or null",
-      "tableMarkdown": "Markdown table or null",
+      "diagramCaption": "Caption string or null"
+    }
+  ],
+  "overallSummary": "Part 1 foundations covered."
+}`;
+
+        const phase2Prompt = `You are AVELUT Master Academic Voice & Visual Tutor.
+Generate PART 2 (Next ~5 Minutes: Boards 6 to 10+) to complete the lesson for "${topicName}".
+Previous Part 1 covered: ${existingPhase1?.boards?.map(b => b.phaseTitle).join(', ') || 'Foundations & Setup'}.
+
+${courseContext}${customPromptCtx}
+${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
+
+CRITICAL BOARD TIMING & EXPLANATION RULES (30+ SECONDS PER BOARD):
+1. SPOKEN EXPLANATION DEPTH:
+   - In spokenExplanation, ALWAYS provide a comprehensive, deep verbal walkthrough of at least 75 to 110 spoken words (taking ~30 to 45 seconds to speak). Never rush or give 1-sentence summaries.
+2. DOMAIN ADAPTATION:
+   - If QUANTITATIVE: Step-by-step formulation, substitution, arithmetic calculation, and intuitive sanity check.
+   - If QUALITATIVE: Mechanism breakdown, doctrine application, comparative classification, and outcome analysis.
+3. QUESTION / EXAMPLE READ-ALOUD:
+   - In spokenExplanation, explicitly narrate and read all questions and step-by-step logic aloud.
+4. FAMILIAR NIGERIAN EXAMPLES:
+   - Continue using relatable everyday Nigerian scenarios.
+5. CLEAN BOARD LINES (1-3 lines max): Clean, uncluttered layout with LaTeX ($...$) and [DIAGRAM]. DO NOT use tables or step badge prefixes.
+
+PART 2 SEQUENCE (BOARDS 6 TO 10+):
+- Board 6: "Worked Example / Case Study: Step-by-Step Resolution" — Detailed step-by-step working or doctrine application.
+- Board 7: "Worked Example / Case Study: Final Result & Reality Check" — Final answer with units or takeaway analysis, [DIAGRAM].
+- Board 8: "Deep-Dive Mechanism / Behind-the-Scenes" — How and why it works under the hood, [DIAGRAM].
+- Board 9: "Classic Exam Trap & Student Misconception" — Common error made in exams, why it is false, and how to avoid it.
+- Board 10: "Golden Rule & Master Memory Anchor" — Memorable 1-line rule to remember forever, [DIAGRAM].
+
+OUTPUT VALID JSON ONLY:
+{
+  "topicName": "${topicName}",
+  "overview": "Comprehensive mastery continuation",
+  "boards": [
+    {
+      "boardId": "board_6",
+      "conceptIdx": 5,
+      "conceptName": "Step-by-Step Resolution",
+      "phaseTitle": "Worked Example: Resolution",
+      "boardLines": ["Line 1", "[DIAGRAM]", "Line 2"],
+      "spokenExplanation": "Comprehensive 75-110 word conversational narration with [pause] and <emphasis>tags</emphasis>",
+      "diagramSvg": "Complete SVG string (viewBox=\\"0 0 800 480\\") or null",
       "diagramCaption": "Caption string or null"
     }
   ],
@@ -563,7 +591,7 @@ OUTPUT VALID JSON ONLY:
                     console.warn('[LessonGen] Failed to format image for AI:', imgErr);
                 }
             }
-            parts.push({ text: prompt });
+            parts.push({ text: phase === 1 ? phase1Prompt : phase2Prompt });
 
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
@@ -573,12 +601,9 @@ OUTPUT VALID JSON ONLY:
             const raw = getResponseText(result);
             if (!raw) throw new Error('Empty lesson response');
             const lesson: SinglePassTopicLesson = robustParseJson<SinglePassTopicLesson>(raw);
-            setIsGeneratingLesson(false);
             return lesson;
         } catch (err) {
-            console.error('[LessonGen] failed:', err);
-            addToast('Failed to pre-compile lesson. Please try again.', 'error');
-            setIsGeneratingLesson(false);
+            console.error(`[LessonGen Phase ${phase}] failed:`, err);
             return null;
         }
     }, [appSettings, userProfile, addToast]);
@@ -591,6 +616,11 @@ OUTPUT VALID JSON ONLY:
         if (!isActiveRef.current || !lesson || !lesson.boards || lesson.boards.length === 0) return;
 
         if (targetIndex >= lesson.boards.length) {
+            // If Phase 2 is still compiling in background, show waiting state
+            if (isBackgroundCompilingPhase2) {
+                addToast('Loading Part 2 of lesson...', 'info');
+                return;
+            }
             setIsDone(true);
             const uid = userProfile?.uid || 'anon';
             const cid = sessionData?.course?.course_id || 'general';
@@ -605,6 +635,7 @@ OUTPUT VALID JSON ONLY:
         const board = lesson.boards[targetIndex];
         setBoardIndex(targetIndex);
         boardIndexRef.current = targetIndex;
+        setAudioErrorBoardIdx(null);
 
         const uid = userProfile?.uid || 'anon';
         const cid = sessionData?.course?.course_id || 'general';
@@ -630,7 +661,7 @@ OUTPUT VALID JSON ONLY:
             grokVoiceEngine.prefetchSpeech(cleanSpokenTextForTTS(nextBoard.spokenExplanation), nextCacheKey);
         }
 
-        // On board audio completion: Auto-clean board and advance smoothly (YouTube Video Style)
+        // On board audio completion: Auto-advance smoothly
         const onBoardAudioEnd = () => {
             if (!isActiveRef.current) return;
             setTimeout(() => {
@@ -641,12 +672,48 @@ OUTPUT VALID JSON ONLY:
             }, 1200);
         };
 
+        // On board audio error: Halt auto-advance, keep board stored, allow user to retry
+        const onBoardAudioError = () => {
+            if (!isActiveRef.current) return;
+            setAudioErrorBoardIdx(targetIndex);
+            addToast('Audio playback encountered an issue. Tap "Retry Audio" to reload.', 'info');
+        };
+
         const currentCacheKey = `avelut_grok_${cid}_${tid}_${targetIndex}`;
-        await speakBoardAudio(board.spokenExplanation, board.boardLines, currentCacheKey, onBoardAudioEnd);
+        await speakBoardAudio(board.spokenExplanation, board.boardLines, currentCacheKey, onBoardAudioEnd, onBoardAudioError);
 
-    }, [speakBoardAudio, sessionData, userProfile]);
+    }, [speakBoardAudio, sessionData, userProfile, isBackgroundCompilingPhase2, addToast]);
 
-    // ── Session Bootstrap & SQLite Restore ──────────────────────────────
+    // ── Retry Audio on Error Handler ────────────────────────────────────
+    const handleRetryAudio = useCallback(async () => {
+        if (!lessonPlan || audioErrorBoardIdx === null) return;
+        setIsRetryingAudio(true);
+        const currentIdx = audioErrorBoardIdx;
+        const currentBoard = lessonPlan.boards[currentIdx];
+        if (!currentBoard) {
+            setIsRetryingAudio(false);
+            return;
+        }
+
+        const cid = sessionData?.course?.course_id || 'general';
+        const tid = sessionData?.topic?.topic_id || 'core';
+        const cacheKey = `avelut_grok_${cid}_${tid}_${currentIdx}`;
+
+        // Clear cached failed attempt if any
+        try {
+            await grokTts.fetchGrokSpeech(cleanSpokenTextForTTS(currentBoard.spokenExplanation), {
+                voice: 'altair',
+                cacheKey,
+                retryCount: 2,
+            });
+        } catch (_) {}
+
+        setIsRetryingAudio(false);
+        setAudioErrorBoardIdx(null);
+        void presentBoard(lessonPlan, currentIdx);
+    }, [lessonPlan, audioErrorBoardIdx, sessionData, presentBoard]);
+
+    // ── Session Bootstrap & 2-Phase Phased Compilation ─────────────────
     const bootstrapSession = useCallback(async () => {
         if (!sessionData) return;
 
@@ -655,18 +722,73 @@ OUTPUT VALID JSON ONLY:
         const tid = sessionData.topic?.topic_id || 'core';
         const lessonCacheKey = `avelut_topic_lesson_${cid}_${tid}`;
 
-        const studentMem = await getStudentCognitiveProfile(uid);
         const cachedLesson = readCachedJson<SinglePassTopicLesson | null>(lessonCacheKey, null);
         const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
         
         let lesson: SinglePassTopicLesson | null = cachedLesson || (sqliteRecord?.blueprint ? (sqliteRecord.blueprint as SinglePassTopicLesson) : null);
 
         if (!lesson || !lesson.boards || lesson.boards.length === 0) {
-            const rawLesson = await generateCompleteTopicLesson(sessionData, studentMem);
-            if (!rawLesson || !isActiveRef.current) return;
-            lesson = rawLesson;
-            writeCachedJson(lessonCacheKey, lesson);
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'start', false, lesson);
+            setIsGeneratingLesson(true);
+            setLessonGenStep('Pre-compiling Part 1 (First 5 Minutes)...');
+
+            // 1. Generate Phase 1 (First ~5 minutes)
+            const phase1Lesson = await generateLessonPhase(1, sessionData);
+            if (!phase1Lesson || !isActiveRef.current) {
+                setIsGeneratingLesson(false);
+                addToast('Failed to compile Part 1 of tutorial. Please try again.', 'error');
+                return;
+            }
+
+            lesson = phase1Lesson;
+            setIsGeneratingLesson(false);
+            setIsDone(false);
+            setLessonPlan(phase1Lesson);
+            writeCachedJson(lessonCacheKey, phase1Lesson);
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'phase1_ready', false, phase1Lesson);
+
+            // Start playing Phase 1 immediately
+            void presentBoard(phase1Lesson, 0);
+
+            // 2. Background compile Phase 2 (Next ~5 minutes)
+            setIsBackgroundCompilingPhase2(true);
+            void (async () => {
+                try {
+                    const phase2Lesson = await generateLessonPhase(2, sessionData, phase1Lesson);
+                    if (!isActiveRef.current || !phase2Lesson || !phase2Lesson.boards || phase2Lesson.boards.length === 0) {
+                        setIsBackgroundCompilingPhase2(false);
+                        return;
+                    }
+
+                    // Renumber conceptIdx for Phase 2 boards
+                    const mergedBoards = [
+                        ...phase1Lesson.boards,
+                        ...phase2Lesson.boards.map((b, idx) => ({
+                            ...b,
+                            conceptIdx: phase1Lesson.boards.length + idx,
+                            boardId: `board_${phase1Lesson.boards.length + idx + 1}`,
+                        })),
+                    ];
+
+                    const completeLesson: SinglePassTopicLesson = {
+                        ...phase1Lesson,
+                        boards: mergedBoards,
+                        overallSummary: phase2Lesson.overallSummary || phase1Lesson.overallSummary,
+                    };
+
+                    if (isActiveRef.current) {
+                        setLessonPlan(completeLesson);
+                        writeCachedJson(lessonCacheKey, completeLesson);
+                        await saveLocalVoiceTutorialProgress(uid, cid, tid, boardIndexRef.current, 'full_lesson_ready', false, completeLesson);
+                    }
+                } catch (bgErr) {
+                    console.warn('[VoiceTutorial] Background Phase 2 compilation error:', bgErr);
+                } finally {
+                    if (isActiveRef.current) {
+                        setIsBackgroundCompilingPhase2(false);
+                    }
+                }
+            })();
+            return;
         }
 
         if (!isActiveRef.current || !lesson) return;
@@ -679,7 +801,7 @@ OUTPUT VALID JSON ONLY:
         }
 
         await presentBoard(lesson, startBoardIndex);
-    }, [sessionData, userProfile, generateCompleteTopicLesson, presentBoard]);
+    }, [sessionData, userProfile, generateLessonPhase, presentBoard, addToast]);
 
     // ── Start on mount & Hide bottom nav on mobile ──────────────────────
     useEffect(() => {
@@ -936,15 +1058,16 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
             const topicName = lessonPlan?.topicName || sessionData?.topic?.topic_name || 'Interactive Tutorial';
 
             setCustomHeaderConfig({
-                leftAction: (
+                leftActions: (
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
                         <button
                             onClick={handleGoBack}
                             disabled={isNavigatingBack}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] bg-white hover:bg-slate-50 text-[#0F172A] text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+                            className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+                            title="Back to Study Guide"
+                            aria-label="Back to Study Guide"
                         >
-                            <i className="bi bi-arrow-left text-sm font-bold text-[#0066FF]"></i>
-                            <span className="whitespace-nowrap">Study Guide</span>
+                            <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
                         </button>
                         <div className="min-w-0 flex flex-col justify-center">
                             <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[120px] sm:max-w-[280px] md:max-w-[400px]">
@@ -980,6 +1103,7 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                         </button>
                     </div>
                 ),
+                hideBottomNav: true,
                 className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md'
             });
         }
@@ -995,32 +1119,22 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div
-                className="w-full my-2 flex items-center justify-center bg-[#F8FAFC] p-3 sm:p-4 rounded-2xl border border-[#E3E9F1] shadow-xs animate-fade-in transition-all cursor-pointer hover:border-blue-300"
-                onClick={() => setIsDiagramZoomed(true)}
-            >
+            <div className="w-full my-3 flex flex-col items-center bg-[#F8FAFC] p-3 sm:p-5 rounded-2xl border border-[#E3E9F1] shadow-xs animate-fade-in transition-all">
                 <div
                     key={`svg-${diagramKey}`}
-                    className="w-full max-h-[220px] sm:max-h-[260px] flex items-center justify-center py-0.5 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[220px] sm:[&>svg]:max-h-[260px]"
+                    className="w-full max-h-[250px] sm:max-h-[300px] flex items-center justify-center py-1 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[250px] sm:[&>svg]:max-h-[300px]"
                     dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                 />
-            </div>
-        );
-    };
-
-    const renderInlineTable = () => {
-        if (!activeTableMarkdown) return null;
-        return (
-            <div className="w-full my-2.5 overflow-x-auto p-3.5 bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] text-xs sm:text-sm font-mono text-[#0F172A] shadow-xs animate-fade-in">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                    {formatLatexMath(activeTableMarkdown)}
-                </ReactMarkdown>
+                {pendingVisualsRef.current.caption && (
+                    <span className="text-xs font-semibold text-[#64748B] mt-2.5 text-center tracking-wide italic">
+                        {pendingVisualsRef.current.caption}
+                    </span>
+                )}
             </div>
         );
     };
 
     const hasExplicitDiagramTag = visibleBoardLines.some(l => /\[(diagram|visual|image)\]/i.test(l));
-    const hasExplicitTableTag = visibleBoardLines.some(l => /\[table\]/i.test(l));
 
     const totalBoards = lessonPlan?.boards?.length || 1;
     const progressPercent = Math.min(100, Math.round(((boardIndex + 1) / totalBoards) * 100));
@@ -1030,13 +1144,26 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
     return (
         <div className="flex-1 w-full h-full flex flex-col bg-[#F6F6F3] text-[#0F172A] overflow-hidden select-none relative">
 
-            {/* ── Progress Bar ────────────────────────────────────────── */}
+            {/* ── Progress Bar & Background Phase 2 Indicator ─────────── */}
             {lessonPlan && !isGeneratingLesson && (
-                <div className="h-1.5 bg-[#E3E9F1] shrink-0">
-                    <div
-                        className="h-full bg-[#0066FF] rounded-r-full transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                    />
+                <div className="w-full shrink-0 flex flex-col">
+                    <div className="h-1.5 bg-[#E3E9F1] w-full">
+                        <div
+                            className="h-full bg-[#0066FF] rounded-r-full transition-all duration-500"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
+                    {isBackgroundCompilingPhase2 && (
+                        <div className="w-full bg-blue-50/90 border-b border-blue-100 px-3 py-1 flex items-center justify-between text-[11px] text-[#0066FF] font-semibold">
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping" />
+                                <span>Part 1 active — seamlessly compiling Part 2 (+5 mins) in background...</span>
+                            </span>
+                            <span className="font-mono text-[10px] bg-white border border-blue-200 px-2 py-0.5 rounded-full">
+                                Auto-extending
+                            </span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -1049,13 +1176,13 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
 
                     <div className="space-y-2 max-w-md">
                         <span className="text-xs font-mono font-bold tracking-widest uppercase text-[#0066FF]">
-                            Avelut Single-Pass Engine
+                            Avelut 2-Stage Voice Engine
                         </span>
                         <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                            {lessonGenStep || 'Pre-compiling Full Topic Lesson...'}
+                            {lessonGenStep || 'Pre-compiling Part 1 (First 5 Minutes)...'}
                         </h2>
                         <p className="text-xs sm:text-sm text-[#64748B]">
-                            Preparing all lesson boards, diagrams, worked applications, and Grok Altair voice synthesis upfront.
+                            Preparing first 5 minutes of boards, diagrams, worked examples, and voice synthesis so you can start right away.
                         </p>
                     </div>
 
@@ -1105,7 +1232,30 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                         ref={boardScrollRef}
                         className="relative flex-1 min-h-0 flex flex-col justify-start bg-white border-2 border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#CBD5E1] [&::-webkit-scrollbar-thumb]:rounded-full text-[#0F172A]"
                     >
-                        {/* ── Live Q&A Realtime Audio Waveform Overlay (No text on board) ── */}
+                        {/* ── Audio Generation Error / Retry Banner ── */}
+                        {audioErrorBoardIdx === boardIndex && (
+                            <div className="sticky top-0 z-30 mb-3.5 p-3.5 sm:p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-[#0F172A] shadow-md animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                        <i className="bi bi-exclamation-triangle-fill text-base"></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs sm:text-sm font-bold text-[#0F172A]">Voice audio generation paused</p>
+                                        <p className="text-[11px] text-[#64748B]">Board content is saved. Tap Retry to reload audio narration.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleRetryAudio}
+                                    disabled={isRetryingAudio}
+                                    className="px-4 py-2 bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
+                                >
+                                    <i className={`bi ${isRetryingAudio ? 'bi-arrow-repeat animate-spin' : 'bi-arrow-counterclockwise'} text-sm`}></i>
+                                    <span>{isRetryingAudio ? 'Retrying...' : 'Retry Audio'}</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* ── Live Q&A Realtime Audio Waveform Overlay ── */}
                         {isAnsweringQuestion && (
                             <div className="sticky top-0 z-30 mb-4 p-4 sm:p-5 rounded-2xl bg-[#002D62] text-white border-2 border-[#0066FF] shadow-xl animate-fade-in">
                                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -1174,7 +1324,6 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                     {visibleBoardLines.map((line, idx) => {
                                         const trimmed = line.trim();
                                         const isExplicitDiagram = /\[(diagram|visual|image)\]/i.test(trimmed);
-                                        const isExplicitTable = /\[table\]/i.test(trimmed);
 
                                         if (isExplicitDiagram) {
                                             return (
@@ -1184,54 +1333,25 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                             );
                                         }
 
-                                        if (isExplicitTable) {
-                                            return (
-                                                <div key={`inline-table-${idx}`}>
-                                                    {renderInlineTable()}
-                                                </div>
-                                            );
-                                        }
-
                                         const isVarLine       = trimmed.includes('→') || trimmed.includes('leads to');
                                         const isBlockFormula  = trimmed.startsWith('$$');
-                                        const stepMatch       = trimmed.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
                                         const isWritingActive = (idx === activeWritingIndex || (idx === visibleBoardLines.length - 1 && isStreaming)) && isStreaming;
 
                                         const shouldAutoInsertDiagram = !hasExplicitDiagramTag && activeDiagramSvg && (
                                             idx === 0 || (visibleBoardLines.length === 1 && idx === 0)
                                         );
 
-                                        const shouldAutoInsertTable = !hasExplicitTableTag && activeTableMarkdown && (
-                                            isBlockFormula || idx === 1
-                                        );
-
                                         return (
                                             <React.Fragment key={`${idx}-${line.slice(0, 15)}`}>
                                                 <div className="flex items-start gap-2.5 animate-fade-in w-full">
-                                                    {stepMatch ? (
-                                                        <div className="w-full flex flex-col gap-1 my-0.5">
-                                                            <span className="font-bold text-xs text-[#0066FF] tracking-wide font-mono bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md w-fit">
-                                                                {stepMatch[1]}
-                                                            </span>
-                                                            <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed overflow-x-auto pl-1 font-medium">
-                                                                <ReactMarkdown
-                                                                    remarkPlugins={[remarkGfm, remarkMath]}
-                                                                    rehypePlugins={[rehypeKatex]}
-                                                                    components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                                >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
-                                                                {isWritingActive && (
-                                                                    <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1.5 bg-[#0066FF] rounded-xs animate-blink align-middle" />
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ) : isBlockFormula ? (
+                                                    {isBlockFormula ? (
                                                         <div className="w-full text-center text-[#0F172A] py-2.5 overflow-x-auto bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] px-4 my-1 shadow-xs">
                                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                                                                 {formatLatexMath(line)}
                                                             </ReactMarkdown>
                                                         </div>
                                                     ) : isVarLine ? (
-                                                        <div className="font-mono text-xs sm:text-sm text-[#002D62] leading-snug pl-2 w-full">
+                                                        <div className="font-mono text-sm sm:text-base text-[#002D62] leading-snug pl-2 w-full font-medium">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
@@ -1242,7 +1362,7 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed tracking-tight w-full font-medium">
+                                                        <div className="text-base sm:text-xl text-[#0F172A] leading-relaxed tracking-tight w-full font-medium">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
@@ -1256,7 +1376,6 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                                 </div>
 
                                                 {shouldAutoInsertDiagram && renderInlineDiagram()}
-                                                {shouldAutoInsertTable && renderInlineTable()}
                                             </React.Fragment>
                                         );
                                     })}
@@ -1272,8 +1391,8 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                         </div>
                     )}
 
-                    {/* ── Floating White Bottom Control Bar ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-white/95 border border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-xl backdrop-blur-md w-full mb-1 sm:mb-2 max-w-xl mx-auto">
+                    {/* ── Floating White Bottom Control Bar (Enlarged Buttons) ── */}
+                    <div className="shrink-0 flex flex-col gap-2 bg-white/95 border border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl backdrop-blur-md w-full mb-1 sm:mb-2 max-w-xl mx-auto">
                         
                         {attachedImage && (
                             <div className="flex items-center justify-between gap-2 p-2 px-3.5 bg-[#F8FAFC] border border-[#E3E9F1] rounded-2xl w-full animate-fade-in shadow-xs">
@@ -1287,13 +1406,13 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={() => handleStudentInterruptionQuestion('Please inspect my handwritten problem in this attached photo.', attachedImage)}
-                                        className="px-3 py-1.5 bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                                        className="px-3.5 py-2 bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
                                     >
                                         Ask
                                     </button>
                                     <button
                                         onClick={() => setAttachedImage(null)}
-                                        className="w-7 h-7 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center text-xs text-[#0F172A] cursor-pointer"
+                                        className="w-8 h-8 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center text-xs text-[#0F172A] cursor-pointer"
                                     >
                                         <i className="bi bi-x-lg text-xs"></i>
                                     </button>
@@ -1301,60 +1420,60 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                             </div>
                         )}
 
-                        {/* ── Centered Video-Style Controls ── */}
+                        {/* ── Centered Video-Style Controls with Enlarged Buttons ── */}
                         <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3">
                                 <button
                                     onClick={handlePreviousBoard}
                                     disabled={isGeneratingLesson || boardIndex === 0}
                                     title="Previous board"
-                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] disabled:opacity-40 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                    className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] disabled:opacity-40 transition-all active:scale-95 cursor-pointer shadow-2xs"
                                 >
-                                    <i className="bi bi-chevron-left text-base"></i>
+                                    <i className="bi bi-chevron-left text-lg sm:text-xl"></i>
                                 </button>
                                 <button
                                     onClick={handleRestartBoard}
                                     disabled={isGeneratingLesson || isTtsLoading}
                                     title="Replay current board"
-                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                    className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
                                 >
-                                    <i className="bi bi-arrow-counterclockwise text-base"></i>
+                                    <i className="bi bi-arrow-counterclockwise text-lg sm:text-xl"></i>
                                 </button>
                             </div>
 
-                            <div className="flex items-center gap-2.5 sm:gap-3">
+                            <div className="flex items-center gap-3 sm:gap-4">
                                 <button
                                     onClick={togglePauseAI}
                                     disabled={isTtsLoading || !lessonPlan}
                                     title={isSpeaking ? "Pause speech" : "Resume speech"}
-                                    className={`flex items-center justify-center w-11 h-11 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                    className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
                                         isSpeaking ? 'bg-blue-50 border-blue-200 text-[#0066FF]' : 'bg-[#F1F5F9] border-[#E3E9F1] text-[#64748B]'
                                     }`}
                                 >
-                                    <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
+                                    <i className={`bi ${isSpeaking ? 'bi-pause-fill text-xl sm:text-2xl' : 'bi-play-fill text-2xl sm:text-3xl'}`}></i>
                                 </button>
 
-                                {/* Center Mic Button (Interrupts and asks Question) */}
+                                {/* Center Mic Button (Enlarged) */}
                                 <button
                                     onClick={toggleMic}
                                     disabled={isGeneratingLesson || !lessonPlan}
                                     title={isMicListening ? "Listening... Click to send" : "Tap mic to pause video and ask a question"}
-                                    className={`flex items-center justify-center w-14 h-14 rounded-2xl font-bold transition-all cursor-pointer shadow-lg active:scale-95 ${
+                                    className={`flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl font-bold transition-all cursor-pointer shadow-xl active:scale-95 ${
                                         isMicListening 
                                             ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30' 
                                             : 'bg-[#0066FF] hover:bg-blue-700 text-white shadow-blue-500/20 ring-2 ring-blue-400/30'
                                     }`}
                                 >
-                                    <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-2xl`}></i>
+                                    <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-2xl sm:text-3xl`}></i>
                                 </button>
 
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     type="button"
                                     title="Snap or upload picture of your work"
-                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all cursor-pointer shadow-2xs active:scale-95"
+                                    className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all cursor-pointer shadow-2xs active:scale-95"
                                 >
-                                    <i className="bi bi-camera text-lg"></i>
+                                    <i className="bi bi-camera text-xl sm:text-2xl"></i>
                                 </button>
                             </div>
 
@@ -1362,9 +1481,9 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                                 onClick={handleAdvanceNextBoard}
                                 disabled={isGeneratingLesson || isTtsLoading}
                                 title="Next board"
-                                className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
                             >
-                                <i className="bi bi-chevron-right text-base"></i>
+                                <i className="bi bi-chevron-right text-lg sm:text-xl"></i>
                             </button>
 
                             <input
@@ -1377,36 +1496,6 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                         </div>
                     </div>
                 </main>
-            )}
-
-            {/* ── Diagram Zoom Modal ──────────────────────────────────── */}
-            {isDiagramZoomed && activeDiagramSvg && (
-                <div
-                    onClick={() => setIsDiagramZoomed(false)}
-                    className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 cursor-pointer animate-fade-in"
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white border-2 border-[#E3E9F1] rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-[#0F172A] max-h-[92vh] overflow-y-auto"
-                    >
-                        <div className="flex items-center justify-between border-b border-[#E3E9F1] pb-3">
-                            <div className="flex items-center gap-2">
-                                <i className="bi bi-diagram-3-fill text-[#0066FF] text-lg"></i>
-                                <h3 className="font-bold text-base text-[#0F172A]">Detailed Academic Visual</h3>
-                            </div>
-                            <button
-                                onClick={() => setIsDiagramZoomed(false)}
-                                className="w-8 h-8 rounded-full bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] flex items-center justify-center cursor-pointer transition-colors"
-                            >
-                                <i className="bi bi-x-lg text-xs"></i>
-                            </button>
-                        </div>
-                        <div
-                            className="w-full flex items-center justify-center p-4 sm:p-6 bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] overflow-auto [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[65vh]"
-                            dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
-                        />
-                    </div>
-                </div>
             )}
 
             {/* ── Scanned Problem Image Modal ──────────────────────────── */}

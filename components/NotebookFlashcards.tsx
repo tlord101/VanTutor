@@ -27,6 +27,7 @@ interface NotebookFlashcardsProps {
   chapterContent: string;
   userProfile: UserProfile;
   onBack: () => void;
+  setCustomHeaderConfig?: (config: any) => void;
 }
 
 export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
@@ -35,6 +36,7 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   chapterContent,
   userProfile,
   onBack,
+  setCustomHeaderConfig,
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
@@ -46,6 +48,53 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   const [isGenerating, setIsGenerating] = useState(true);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
+
+  // ── Configure Main App Header for Flashcards ──
+  useEffect(() => {
+    if (setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        hideBottomNav: true,
+        leftActions: (
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              aria-label="Back to chapters"
+              title="Back"
+            >
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+            </button>
+            <div className="min-w-0 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+                {notebook.title}
+              </span>
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+                {chapter.title} — Flashcards
+              </h2>
+            </div>
+          </div>
+        ),
+        rightActions: (
+          <button
+            type="button"
+            onClick={() => void generateCards(true)}
+            className="w-9 h-9 rounded-xl bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#64748B] hover:text-[#0066FF] transition-all cursor-pointer shadow-2xs"
+            title="Regenerate Flashcards"
+            aria-label="Regenerate Flashcards"
+          >
+            <i className="bi bi-arrow-clockwise text-sm"></i>
+          </button>
+        ),
+        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+      });
+    }
+
+    return () => {
+      if (setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
+    };
+  }, [setCustomHeaderConfig, onBack, notebook.title, chapter.title]);
 
   const generateCards = async (forceRegenerate = false) => {
     // 1. Check local SQLite cache first if not explicitly regenerating
@@ -169,38 +218,14 @@ RULES:
 
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
-      {/* Header */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shrink-0 mb-3 shadow-2xs">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
-          >
-            <i className="bi bi-arrow-left text-sm font-bold"></i>
-          </button>
-          <div className="min-w-0">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
-              {notebook.title}
-            </span>
-            <h2 className="text-sm font-black text-[#0F172A] truncate">
-              {chapter.title}
-            </h2>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => void generateCards(true)}
-            className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] hover:text-[#0066FF] transition-all cursor-pointer"
-            title="Regenerate Flashcards"
-          >
-            <i className="bi bi-arrow-clockwise text-xs"></i>
-          </button>
-          <span className="text-xs font-bold text-[#64748B]">
-            Card <span className="text-[#0F172A] font-black">{currentIndex + 1}</span> of {cards.length}
-          </span>
-        </div>
+      {/* Flashcard Progress Badge */}
+      <div className="flex items-center justify-between px-1 mb-2">
+        <span className="text-xs font-bold text-[#64748B]">
+          Card <span className="text-[#0066FF] font-black">{currentIndex + 1}</span> of {cards.length}
+        </span>
+        <span className="text-[11px] text-[#64748B] font-medium">
+          Tap card to reveal answer
+        </span>
       </div>
 
       {/* 3D Flashcard Flip Surface */}

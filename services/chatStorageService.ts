@@ -248,7 +248,7 @@ export async function getLocalAppState<T>(key: string, fallback: T): Promise<T> 
  * Enqueue a mutation into the sync queue.
  */
 export async function enqueueSyncAction(
-  entityType: 'conversation' | 'message' | 'app_state' | 'history' | 'flashcard' | 'notebook',
+  entityType: 'conversation' | 'message' | 'app_state' | 'history' | 'flashcard' | 'exam' | 'notebook',
   entityId: string,
   action: 'create' | 'update' | 'delete',
   payload: any

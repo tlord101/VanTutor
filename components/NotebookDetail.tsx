@@ -53,6 +53,42 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
     setActiveMode(mode);
   };
 
+  // ── Main App Header for Notebook Chapter List ──
+  useEffect(() => {
+    if (activeMode === 'none' && setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        hideBottomNav: false,
+        leftActions: (
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              aria-label="Back to notebooks"
+              title="Back"
+            >
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+            </button>
+            <div className="min-w-0 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+                Notebook Material
+              </span>
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+                {notebook.title}
+              </h2>
+            </div>
+          </div>
+        ),
+        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+      });
+    }
+
+    return () => {
+      if (activeMode === 'none' && setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
+    };
+  }, [activeMode, setCustomHeaderConfig, onBack, notebook.title]);
+
   // 1. Render Active Mode: Quiz
   if (activeMode === 'quiz' && selectedChapter) {
     return (
@@ -62,6 +98,7 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
         chapterContent={chapterFullContent}
         userProfile={userProfile}
         onBack={() => setActiveMode('none')}
+        setCustomHeaderConfig={setCustomHeaderConfig}
       />
     );
   }
@@ -75,6 +112,7 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
         chapterContent={chapterFullContent}
         userProfile={userProfile}
         onBack={() => setActiveMode('none')}
+        setCustomHeaderConfig={setCustomHeaderConfig}
       />
     );
   }
@@ -88,6 +126,7 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
         chapterContent={chapterFullContent}
         userProfile={userProfile}
         onBack={() => setActiveMode('none')}
+        setCustomHeaderConfig={setCustomHeaderConfig}
       />
     );
   }
@@ -132,27 +171,19 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
   // 5. Main Chapter Listing View
   return (
     <div className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] overflow-y-auto space-y-4 animate-fade-in">
-      {/* Top Banner Header */}
-      <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs">
-        <div className="flex items-center gap-3.5 mb-4">
-          <button
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
-          >
-            <i className="bi bi-arrow-left text-sm"></i>
-          </button>
-          <div>
-            <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-              Extracted Textbook Material
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-tight">
-              {notebook.title}
-            </h2>
-          </div>
+      {/* Top Info Banner Header */}
+      <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-xs">
+        <div>
+          <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+            Extracted Textbook Material
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-tight mt-0.5">
+            {notebook.title}
+          </h2>
         </div>
 
         {/* Metadata Pills */}
-        <div className="flex items-center gap-2.5 flex-wrap text-xs text-[#64748B] pt-2 border-t border-[#E3E9F1]">
+        <div className="flex items-center gap-2.5 flex-wrap text-xs text-[#64748B] pt-3 mt-3 border-t border-[#E3E9F1]">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] rounded-full border border-[#E3E9F1]">
             <i className="bi bi-file-earmark-text text-[#0066FF]"></i>
             {notebook.total_pages} {notebook.total_pages === 1 ? 'Page' : 'Pages'}

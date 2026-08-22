@@ -27,6 +27,7 @@ interface NotebookChatProps {
   chapterContent: string;
   userProfile: UserProfile;
   onBack: () => void;
+  setCustomHeaderConfig?: (config: any) => void;
 }
 
 export const NotebookChat: React.FC<NotebookChatProps> = ({
@@ -35,6 +36,7 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   chapterContent,
   userProfile,
   onBack,
+  setCustomHeaderConfig,
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
@@ -75,7 +77,6 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
       .then((saved) => {
         if (isMounted && saved && Array.isArray(saved) && saved.length > 0) {
           setMessages(saved);
-          // WhatsApp style instant scroll to bottom on mount
           setTimeout(() => scrollToBottom('instant' as ScrollBehavior), 30);
         }
       })
@@ -92,13 +93,60 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
     }
   }, [messages, isLoading, scrollToBottom]);
 
-  const handleClearHistory = async () => {
+  const handleClearHistory = useCallback(async () => {
     if (window.confirm('Clear conversation history for this chapter?')) {
       setMessages([]);
       await deleteChapterGeneration(notebook.id, chapter.id, 'chat');
       addToast('Conversation history cleared.', 'info');
     }
-  };
+  }, [notebook.id, chapter.id, addToast]);
+
+  // ── Configure Main App Header for Notebook Chat ──
+  useEffect(() => {
+    if (setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        hideBottomNav: true,
+        leftActions: (
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              aria-label="Back to chapters"
+              title="Back"
+            >
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+            </button>
+            <div className="min-w-0 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+                {notebook.title}
+              </span>
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+                {chapter.title}
+              </h2>
+            </div>
+          </div>
+        ),
+        rightActions: messages.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            className="w-9 h-9 rounded-xl bg-white hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 flex items-center justify-center text-[#64748B] hover:text-rose-600 transition-all cursor-pointer shadow-2xs"
+            title="Clear Conversation History"
+            aria-label="Clear Conversation History"
+          >
+            <i className="bi bi-trash text-sm"></i>
+          </button>
+        ) : null,
+        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+      });
+    }
+
+    return () => {
+      if (setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
+    };
+  }, [setCustomHeaderConfig, onBack, notebook.title, chapter.title, messages.length, handleClearHistory]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const messageText = (textToSend || inputText).trim();
@@ -133,7 +181,7 @@ CRITICAL TUTORING RULES:
 - BE DIRECT & CONCISE: Answer the student's question accurately without unnecessary fluff, filler, or repeating their question back to them.
 - If the student sends a casual greeting (like "hi" or "hello"), reply warmly, simply, and naturally (e.g. "Hello! What can I help you with in this chapter?").
 - EXPLAIN CLEARLY: Break down complex concepts simply. Use relatable examples and intuitive steps only when explaining or solving a problem.
-- COLOR & MATH FORMATTING: Format all math, formulas, and variables with LaTeX ($...$ inline or $$...$$ block). Use clean markdown formatting.
+- COLOR & MATH FORMATTING: Format all math, formulas, and variables with LaTeX ($...$ inline or $$...$$ block). Use clean markdown formatting without tables or step badge prefixes.
 
 BOOK: ${notebook.title}
 CHAPTER: ${chapter.title}
@@ -205,7 +253,7 @@ ${messageText}`;
     'Quiz me on this chapter',
   ];
 
-  // Helper to render streaming text with active trailing sentence glowing in deep blue
+  // Helper to render streaming text
   const renderStreamingContent = (text: string) => {
     const lastPunctuationIdx = Math.max(
       text.lastIndexOf('\n'),
@@ -228,7 +276,7 @@ ${messageText}`;
             {formatLatexMath(completedPart)}
           </ReactMarkdown>
           {activePart && (
-            <div className="inline-block text-[#002D62] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+            <div className="inline-block text-[#002D62] font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
               <span>{activePart}</span>
               <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
             </div>
@@ -238,7 +286,7 @@ ${messageText}`;
     }
 
     return (
-      <div className="inline-block text-[#002D62] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+      <div className="inline-block text-[#002D62] font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
         <span>{text}</span>
         <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
       </div>
@@ -246,70 +294,39 @@ ${messageText}`;
   };
 
   const markdownComponents = (isUser: boolean) => ({
-    p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+    h1: ({ node, ...props }: any) => (
+      <h1 className="text-2xl sm:text-3xl font-black text-[#0F172A] mt-5 mb-3 tracking-tight" {...props} />
+    ),
+    h2: ({ node, ...props }: any) => (
+      <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] mt-4 mb-2 tracking-tight border-b border-[#E3E9F1] pb-1.5" {...props} />
+    ),
+    h3: ({ node, ...props }: any) => (
+      <h3 className="text-lg sm:text-xl font-bold text-[#002D62] mt-3.5 mb-1.5" {...props} />
+    ),
+    h4: ({ node, ...props }: any) => (
+      <h4 className="text-base sm:text-lg font-bold text-[#0F172A] mt-3 mb-1" {...props} />
+    ),
+    p: ({ node, ...props }: any) => <p className="mb-4 last:mb-0 text-[17px] sm:text-[18px] leading-relaxed text-[#0F172A]" {...props} />,
     strong: ({ node, ...props }: any) => (
-      <strong className={isUser ? 'font-bold text-blue-200' : 'font-bold text-[#002D62]'} {...props} />
+      <strong className={isUser ? 'font-bold text-white' : 'font-bold text-[#0F172A]'} {...props} />
     ),
     code: ({ node, inline, ...props }: any) =>
       inline ? (
-        <code className={`px-1.5 py-0.5 rounded font-mono text-xs ${isUser ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0066FF] border border-blue-100'}`} {...props} />
+        <code className={`px-1.5 py-0.5 rounded font-mono text-sm ${isUser ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0066FF] border border-blue-100'}`} {...props} />
       ) : (
-        <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] text-slate-100 p-4 text-xs font-mono my-2.5 border border-slate-700/60" {...props} />
+        <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] text-slate-100 p-4 text-sm font-mono my-3 border border-slate-700/60" {...props} />
       ),
     blockquote: ({ node, ...props }: any) => (
-      <blockquote className={`border-l-4 p-3 rounded-r-xl my-2 text-xs leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 text-slate-800'}`} {...props} />
+      <blockquote className={`border-l-4 p-3.5 rounded-r-xl my-3 text-base sm:text-[17px] leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 text-slate-800'}`} {...props} />
     ),
-    ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF]" {...props} />,
-    ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium" {...props} />,
+    ul: ({ node, ...props }: any) => <ul className="mb-4 last:mb-0 list-disc pl-5 space-y-2 text-[17px] sm:text-[18px] marker:text-[#0066FF]" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="mb-4 last:mb-0 list-decimal pl-5 space-y-2 text-[17px] sm:text-[18px] marker:text-[#0066FF] font-medium" {...props} />,
     li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
     a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] underline hover:text-[#002D62]'}`} target="_blank" rel="noopener noreferrer" {...props} />,
-    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-[#E3E9F1] rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-    th: ({ node, ...props }: any) => <th className="bg-[#F1F5F9] text-[#002D62] font-bold p-2.5 text-left border border-[#E3E9F1]" {...props} />,
-    td: ({ node, ...props }: any) => <td className="p-2.5 border border-[#E3E9F1] bg-white text-[#0F172A]" {...props} />,
   });
 
   return (
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden bg-[#F6F6F3] animate-fade-in">
-      {/* Fixed Header */}
-      <div className="shrink-0 px-3 sm:px-5 pt-3 sm:pt-4 pb-2">
-        <div className="bg-white border border-[#E3E9F1] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-2xs max-w-4xl mx-auto w-full">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={onBack}
-              className="w-10 h-10 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
-              aria-label="Go back"
-            >
-              <i className="bi bi-arrow-left text-sm font-bold"></i>
-            </button>
-            <div className="min-w-0">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
-                {notebook.title}
-              </span>
-              <h2 className="text-sm font-black text-[#0F172A] truncate">
-                {chapter.title}
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearHistory}
-                className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-rose-50 border border-[#E3E9F1] hover:border-rose-200 flex items-center justify-center text-[#64748B] hover:text-rose-600 transition-all cursor-pointer"
-                title="Clear Conversation History"
-              >
-                <i className="bi bi-trash text-xs"></i>
-              </button>
-            )}
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] rounded-full border border-[#E3E9F1] text-[11px] font-bold text-[#0066FF]">
-              <i className="bi bi-chat-dots"></i>
-              <span className="hidden sm:inline">Chapter Tutor</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Scrollable Messages Area — WhatsApp-style bottom upwards loading */}
       <div 
         ref={messagesContainerRef}
@@ -321,8 +338,8 @@ ${messageText}`;
               <div className="w-14 h-14 rounded-2xl bg-[#0066FF]/10 text-[#0066FF] flex items-center justify-center text-2xl mb-3.5 shadow-2xs">
                 <i className="bi bi-chat-heart-fill"></i>
               </div>
-              <h3 className="text-base font-bold text-[#0F172A]">Socratic Tutor for {chapter.title}</h3>
-              <p className="text-xs text-[#64748B] max-w-md mt-1 mb-4 leading-relaxed">
+              <h3 className="text-lg font-bold text-[#0F172A]">Socratic Tutor for {chapter.title}</h3>
+              <p className="text-sm text-[#64748B] max-w-md mt-1 mb-4 leading-relaxed">
                 Ask any question, clarify a tricky concept, or get step-by-step worked examples directly from your material.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
@@ -330,16 +347,16 @@ ${messageText}`;
                   <button
                     key={i}
                     onClick={() => handleSendMessage(pill)}
-                    className="px-3.5 py-1.5 rounded-full bg-[#F6F6F3] hover:bg-blue-50 border border-[#E3E9F1] hover:border-[#0066FF]/40 text-[#0F172A] hover:text-[#0066FF] text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-full bg-[#F6F6F3] hover:bg-blue-50 border border-[#E3E9F1] hover:border-[#0066FF]/40 text-[#0F172A] hover:text-[#0066FF] text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
                   >
-                    <span className="text-[#0066FF] text-xs">✦</span>
+                    <span className="text-[#0066FF]">✦</span>
                     <span>{pill}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="bg-white border border-[#E3E9F1] rounded-3xl p-4 sm:p-6 space-y-4 shadow-xs">
+            <div className="w-full space-y-4">
               {messages.map((msg) => {
                 const isUser = msg.sender === 'user';
                 const isCurrentlyStreaming = msg.id === streamingMsgId && isLoading;
@@ -352,10 +369,10 @@ ${messageText}`;
                     className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full animate-fade-in`}
                   >
                     <div
-                      className={`p-4 sm:p-5 rounded-2xl leading-relaxed text-sm relative ${
+                      className={`leading-relaxed text-[17px] sm:text-[18px] relative ${
                         isUser
-                          ? 'min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#002D62] text-white shadow-xs rounded-tr-none'
-                          : 'w-full bg-[#F6F6F3] text-[#0F172A] border border-[#E3E9F1] rounded-tl-none shadow-2xs'
+                          ? 'p-4 sm:p-5 min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#002D62] text-white shadow-xs rounded-2xl rounded-tr-none text-base'
+                          : 'w-full bg-transparent text-[#0F172A] border-0 shadow-none px-1 py-2 text-[17px] sm:text-[18px]'
                       }`}
                     >
                       {isUser ? (

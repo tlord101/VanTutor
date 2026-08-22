@@ -2165,7 +2165,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           }
                         }}
                       >
-                        <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
+                        <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[17px] sm:text-[18px] leading-relaxed tracking-normal">
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mb-3">
                               {message.attachments.length === 1 && message.attachments[0].isImage ? (
@@ -2234,23 +2234,46 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                               remarkPlugins={[remarkGfm, remarkMath]}
                               rehypePlugins={[rehypeKatex]}
                               components={{
-                                p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
-                                ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
-                                ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
+                                h1: ({ node, ...props }: any) => (
+                                  <h1 className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white mt-5 mb-3 tracking-tight" {...props} />
+                                ),
+                                h2: ({ node, ...props }: any) => (
+                                  <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight border-b border-[#E3E9F1] dark:border-slate-800 pb-1.5" {...props} />
+                                ),
+                                h3: ({ node, ...props }: any) => (
+                                  <h3 className="text-lg sm:text-xl font-bold text-[#002D62] dark:text-[#60A5FA] mt-3.5 mb-1.5" {...props} />
+                                ),
+                                h4: ({ node, ...props }: any) => (
+                                  <h4 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-white mt-3 mb-1" {...props} />
+                                ),
+                                p: ({ node, ...props }: any) => <p className="mb-4 last:mb-0 text-[17px] sm:text-[18px] leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
+                                ul: ({ node, ...props }: any) => <ul className="mb-4 list-disc space-y-2 pl-5 text-[17px] sm:text-[18px] text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
+                                ol: ({ node, ...props }: any) => <ol className="mb-4 list-decimal space-y-2 pl-5 text-[17px] sm:text-[18px] text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
                                 li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                                strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
+                                strong: ({ node, ...props }: any) => <strong className="font-bold text-[#0F172A] dark:text-white" {...props} />,
                                 code: ({ node, inline, ...props }: any) =>
                                   inline ? (
-                                    <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
+                                    <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.9em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
                                   ) : (
-                                    <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
+                                    <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-sm font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
                                   ),
-                                pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
-                                blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
+                                pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-sm font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3.5 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-base sm:text-[17px]" {...props} />,
                                 a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-                                th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
-                                td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
+                                table: ({ node, ...props }: any) => (
+                                  <div className="w-full my-3.5 overflow-x-auto [scrollbar-width:thin] rounded-2xl border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
+                                    <table className="min-w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                                  </div>
+                                ),
+                                thead: ({ node, ...props }: any) => (
+                                  <thead className="bg-[#F1F5F9] dark:bg-slate-800/90 text-[#002D62] dark:text-[#60A5FA] border-b border-[#E3E9F1] dark:border-slate-700 font-bold" {...props} />
+                                ),
+                                th: ({ node, ...props }: any) => (
+                                  <th className="p-3 font-bold border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-700 whitespace-nowrap" {...props} />
+                                ),
+                                td: ({ node, ...props }: any) => (
+                                  <td className="p-3 border-t border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />
+                                ),
                               }}
                             >
                               {formatLatexMath(cleanVisualText)}
@@ -2354,11 +2377,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   remarkPlugins={[remarkGfm, remarkMath]}
                                   rehypePlugins={[rehypeKatex]}
                                   components={{
+                                    h1: ({ node, ...props }: any) => (
+                                      <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight" {...props} />
+                                    ),
+                                    h2: ({ node, ...props }: any) => (
+                                      <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] dark:text-white mt-3.5 mb-1.5 tracking-tight border-b border-[#E3E9F1] dark:border-slate-800 pb-1" {...props} />
+                                    ),
+                                    h3: ({ node, ...props }: any) => (
+                                      <h3 className="text-base sm:text-lg font-bold text-[#002D62] dark:text-[#60A5FA] mt-3 mb-1" {...props} />
+                                    ),
+                                    h4: ({ node, ...props }: any) => (
+                                      <h4 className="text-sm sm:text-base font-bold text-[#0F172A] dark:text-white mt-2.5 mb-1" {...props} />
+                                    ),
                                     p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
                                     ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
                                     ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
                                     li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                                    strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
+                                    strong: ({ node, ...props }: any) => <strong className="font-bold text-[#0F172A] dark:text-white" {...props} />,
                                     code: ({ node, inline, ...props }: any) =>
                                       inline ? (
                                         <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
@@ -2368,9 +2403,20 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                     pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
                                     blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
                                     a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-                                    th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
-                                    td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
+                                    table: ({ node, ...props }: any) => (
+                                      <div className="w-full my-3.5 overflow-x-auto [scrollbar-width:thin] rounded-2xl border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
+                                        <table className="min-w-full border-collapse text-xs sm:text-sm text-left" {...props} />
+                                      </div>
+                                    ),
+                                    thead: ({ node, ...props }: any) => (
+                                      <thead className="bg-[#F1F5F9] dark:bg-slate-800/90 text-[#002D62] dark:text-[#60A5FA] border-b border-[#E3E9F1] dark:border-slate-700 font-bold" {...props} />
+                                    ),
+                                    th: ({ node, ...props }: any) => (
+                                      <th className="p-3 font-bold border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-700 whitespace-nowrap" {...props} />
+                                    ),
+                                    td: ({ node, ...props }: any) => (
+                                      <td className="p-3 border-t border-r last:border-r-0 border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />
+                                    ),
                                   }}
                                 >
                                   {formatLatexMath(completedPart)}
