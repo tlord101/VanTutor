@@ -12,6 +12,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
+import CourseChatTutor from './CourseChatTutor';
 import { avelutVoice, VoiceEngineStatus } from '../services/voice/AvelutVoiceEngine';
 import MyNotebooks from './MyNotebooks';
 
@@ -242,6 +243,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [topicPickerCourse, setTopicPickerCourse] = useState<Course | null>(null);
     const [topicToOpen, setTopicToOpen] = useState<Topic | null>(null);
+    const [isVoiceTutorialActive, setIsVoiceTutorialActive] = useState(false);
     const [activeExternalSession, setActiveExternalSession] = useState<VoiceTutorialSessionData | null>(() => (
         readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null)
     ));
@@ -589,14 +591,14 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             .some(value => value!.toLowerCase().includes(searchTerm));
     });
 
-    // ── ACTIVE TUTORIAL VIEW (VOICE & BLACKBOARD LEARNING) ──
-    if (activeExternalSession || selectedCourse) {
+    // ── 1. ACTIVE REALTIME VOICE & BLACKBOARD TUTORIAL VIEW ──
+    if (activeExternalSession || isVoiceTutorialActive) {
         const activeSessionData: VoiceTutorialSessionData = activeExternalSession || {
             course: selectedCourse!,
-            topic: topicToOpen || (Array.isArray(selectedCourse!.topics) && selectedCourse!.topics.length > 0 ? selectedCourse!.topics[0] : {
+            topic: topicToOpen || (Array.isArray(selectedCourse?.topics) && selectedCourse!.topics.length > 0 ? selectedCourse!.topics[0] : {
                 topic_id: 'core_principles',
                 topic_name: 'Core Principles & Overview',
-                topic_context: `Overview and principles of ${selectedCourse!.course_name}`,
+                topic_context: `Overview and principles of ${selectedCourse?.course_name || 'Course'}`,
             }),
             syllabusContext: '',
         };
@@ -607,15 +609,45 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                 appSettings={appSettings}
                 initialSessionData={activeSessionData}
                 onBack={() => {
+                    if (isVoiceTutorialActive) {
+                        setIsVoiceTutorialActive(false);
+                    } else {
+                        setSelectedCourse(null);
+                        setTopicToOpen(null);
+                        setActiveExternalSession(null);
+                        writeCachedJson('avelut_active_voice_tutorial', null);
+                        if (setCustomHeaderConfig) {
+                            setCustomHeaderConfig(null);
+                        }
+                    }
+                }}
+                onNavigate={onNavigate}
+                setCustomHeaderConfig={setCustomHeaderConfig}
+            />
+        );
+    }
+
+    // ── 2. DEFAULT COURSE CHAT TUTOR (SOCRATIC BIT-BY-BIT TEACHING) ──
+    if (selectedCourse) {
+        const resolvedTopic: Topic = topicToOpen || (Array.isArray(selectedCourse.topics) && selectedCourse.topics.length > 0 ? selectedCourse.topics[0] : {
+            topic_id: 'core_principles',
+            topic_name: 'Core Principles & Overview',
+            topic_context: `Overview and principles of ${selectedCourse.course_name}`,
+        });
+
+        return (
+            <CourseChatTutor
+                course={selectedCourse}
+                topic={resolvedTopic}
+                userProfile={userProfile}
+                onBack={() => {
                     setSelectedCourse(null);
                     setTopicToOpen(null);
-                    setActiveExternalSession(null);
-                    writeCachedJson('avelut_active_voice_tutorial', null);
                     if (setCustomHeaderConfig) {
                         setCustomHeaderConfig(null);
                     }
                 }}
-                onNavigate={onNavigate}
+                onOpenVoiceTutorial={() => setIsVoiceTutorialActive(true)}
                 setCustomHeaderConfig={setCustomHeaderConfig}
             />
         );
