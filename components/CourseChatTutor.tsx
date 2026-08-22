@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
-import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
+import { checkAICredits, deductAICredits, getFeatureCost, hasLiveTutorialAccess } from '../utils/usage';
 import { readCachedJson, writeCachedJson, clearCachedKey } from '../utils/cache';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -102,6 +102,19 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Configure Main App Header for Course Chat Tutor
+  // Check live tutorial access
+  const liveAccess = hasLiveTutorialAccess(userProfile);
+
+  const handleTriggerLiveTutorial = useCallback(() => {
+    if (!liveAccess.allowed) {
+      setLimitCost(450);
+      setShowLimitModal(true);
+      return;
+    }
+    onOpenVoiceTutorial();
+  }, [liveAccess.allowed, onOpenVoiceTutorial]);
+
+  // Configure Main App Header for Course Chat Tutor
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
@@ -109,11 +122,11 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
         hideTitle: true,
         hideDefaultRightActions: true,
         leftActions: (
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
             {/* Back Arrow Button — Off-white styling */}
             <button
               onClick={onBack}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
               aria-label="Back to study guide"
               title="Back"
             >
@@ -121,14 +134,22 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
               <span className="hidden sm:inline">Back</span>
             </button>
 
-            {/* Live Tutorial Button — Off-white styling */}
+            {/* Live Tutorial Button — Enlarged with high visibility & padlock gating */}
             <button
-              onClick={onOpenVoiceTutorial}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
-              title="Launch Live Voice & Whiteboard Tutorial"
+              onClick={handleTriggerLiveTutorial}
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-2xl border border-[#0066FF]/30 hover:border-[#0066FF] bg-white dark:bg-slate-900 hover:bg-blue-50/40 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs sm:text-sm font-extrabold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs group"
+              title={liveAccess.allowed ? "Launch Live Voice & Whiteboard Tutorial" : "Live Tutorial Locked (Weekly/Monthly Plan or ₦450/topic)"}
             >
-              <i className="bi bi-broadcast text-xs font-bold text-[#0066FF] animate-pulse"></i>
-              <span className="whitespace-nowrap">Live Tutorial</span>
+              <div className="w-5 h-5 rounded-full bg-[#0066FF]/10 flex items-center justify-center text-[#0066FF] shrink-0">
+                <i className="bi bi-broadcast text-xs font-bold animate-pulse"></i>
+              </div>
+              <span className="whitespace-nowrap font-black tracking-tight text-[#0F172A] dark:text-white">Live Tutorial</span>
+              {!liveAccess.allowed && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold border border-amber-500/20">
+                  <i className="bi bi-lock-fill text-[10px]"></i>
+                  <span className="hidden sm:inline">₦450</span>
+                </span>
+              )}
             </button>
 
             {/* Topic & Course Info */}
@@ -136,7 +157,7 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
               <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block truncate">
                 {course.course_code || course.course_name}
               </span>
-              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white truncate max-w-[120px] sm:max-w-[240px] md:max-w-[340px]">
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white truncate max-w-[110px] sm:max-w-[220px] md:max-w-[320px]">
                 {topic.topic_name}
               </h2>
             </div>
@@ -150,7 +171,7 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
         setCustomHeaderConfig(null);
       }
     };
-  }, [setCustomHeaderConfig, onBack, onOpenVoiceTutorial, course, topic]);
+  }, [setCustomHeaderConfig, onBack, handleTriggerLiveTutorial, course, topic, liveAccess.allowed]);
 
   const toggleUserMessageExpand = (id: string) => {
     setExpandedUserMessageIds((prev) => {

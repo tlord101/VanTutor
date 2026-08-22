@@ -1371,17 +1371,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     const filesToSend = overrideFiles !== undefined ? overrideFiles : (messageText ? [] : [...attachments]);
     if (!prompt && filesToSend.length === 0) return;
 
-    // Check message limits
-    const featureCost = getFeatureCost('chat_interaction', appSettings);
-    const limitCheck = checkAICredits(userProfile, featureCost, appSettings);
-    if (!limitCheck.allowed) {
-      setLimitModalData({
-        balance: limitCheck.balance,
-        cost: limitCheck.cost
-      });
-      setShowLimitModal(true);
-      return;
-    }
+    // Avelut AI Chat is FREE for all users - no credit deduction
+    // Credits only apply to: Notebook Chat, Study Guide Chat, Live Tutorial Q&A, Visual Solver, Flashcards, Quizzes
 
     isSendingRef.current = true;
     setIsSending(true);
@@ -1733,8 +1724,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         prev.map((m) => (m.id === assistantMsgId ? { ...m, text: finalResponseText } : m))
       );
 
-      // Deduct credits
-      deductAICredits(userProfile.uid, featureCost, 'AI Assistant Chat', appSettings).catch(console.error);
+      // Note: Avelut AI Chat is FREE - no credit deduction
 
       // Save assistant response to SQLite instantly
       void saveLocalMessage({

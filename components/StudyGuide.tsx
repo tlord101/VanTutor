@@ -9,7 +9,7 @@ import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import { LimitExceededModal } from './LimitExceededModal';
-import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
+import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel, hasLiveTutorialAccess } from '../utils/usage';
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
 import CourseChatTutor from './CourseChatTutor';

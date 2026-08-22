@@ -19,9 +19,31 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
     const [isProcessing, setIsProcessing] = useState(false);
     const { addToast } = useToast();
 
-    const quickAmounts = [500, 1000, 5000];
+    const quickPacks = [
+        {
+            title: '1 Live Voice Tutorial Pass',
+            amount: 450,
+            description: 'Unlocks 1 full topic interactive live blackboard voice tutorial.',
+            badge: 'Single Topic',
+            icon: 'bi-broadcast',
+        },
+        {
+            title: '3 Live Tutorials Bundle',
+            amount: 1350,
+            description: '3 full topic live tutorial passes for revision sessions.',
+            badge: 'Save Time',
+            icon: 'bi-collection-play',
+        },
+        {
+            title: '10 Flashcards Pack',
+            amount: 500,
+            description: '10 AI-generated flashcards (₦50 per flashcard).',
+            badge: '₦50 / Card',
+            icon: 'bi-card-text',
+        },
+    ];
 
-    const handlePurchaseCredits = async (amount: number) => {
+    const handlePurchaseCredits = async (amount: number, label?: string) => {
         const searchParams = new URLSearchParams(window.location.search);
         const targetUid = userProfile?.uid || searchParams.get('uid');
         const emailFromParam = searchParams.get('email');
@@ -52,11 +74,10 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 amount: amount,
                 userId: targetUid,
                 purchaseType: 'additional_credits',
-                metadata: { credit_amount: amount },
+                metadata: { credit_amount: amount, pack_label: label || 'Refill Credits' },
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        // Immediate real-time database credit top-up
                         const userRef = dbRef(db, `users/${targetUid}`);
                         let newBal = 0;
                         await runTransaction(userRef, (profile) => {
@@ -68,7 +89,6 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                         });
                         saveLocalCredits(targetUid, newBal, userProfile?.subscription_status || 'free').catch(console.warn);
 
-                        // Call verification function
                         try {
                             const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
                             await verifyTx({
@@ -106,94 +126,139 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
     };
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA]  dark:text-white font-sans pb-24">
+        <div className="min-h-screen bg-[#F6F6F3] text-[#0F172A] font-sans pb-28">
             {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-50">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+            <header className="bg-white border-b border-[#E3E9F1] sticky top-0 z-50 shadow-2xs">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+                    <a href="/" className="flex items-center gap-3">
                         <img src="/logo_icon.png" alt="AVELUT" className="w-8 h-8 object-contain" />
-                        <span className="text-xl font-bold tracking-tight  dark:text-white">AVELUT <span className="font-light text-slate-500">Credits</span></span>
-                    </div>
+                        <span className="text-lg font-black tracking-tight text-[#0F172A]">
+                            AVELUT <span className="text-[#0066FF] font-extrabold">Pay-As-You-Go</span>
+                        </span>
+                    </a>
+                    <a
+                        href="/plans"
+                        className="text-xs font-bold text-[#0066FF] hover:text-[#002D62] bg-[#F1F5F9] px-3.5 py-1.5 rounded-full border border-[#E3E9F1] transition-colors"
+                    >
+                        View Weekly / Monthly Plans →
+                    </a>
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-                
-                {/* Hero Section */}
-                <div className="text-center max-w-2xl mx-auto space-y-4">
-                    <h1 className="text-4xl sm:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Refill your AI Credits
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-10 animate-fade-in">
+                {/* Hero Title */}
+                <div className="text-center max-w-2xl mx-auto space-y-3">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-[#0066FF] bg-[#F1F5F9] px-3.5 py-1 rounded-full border border-[#E3E9F1]">
+                        Credit Refills & Passes
+                    </span>
+                    <h1 className="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight">
+                        Pay As You Learn
                     </h1>
-                    <p className="text-lg text-slate-600">
-                        Purchase credits on-demand to continue using AVELUT's powerful visual solver and AI tutor. Securely processed by Paystack.
+                    <p className="text-sm sm:text-base text-[#64748B] font-medium leading-relaxed">
+                        Purchase single topic Live Voice Tutorial passes (₦450/topic) or extra flashcard credits (₦50/flashcard) without a recurring subscription.
                     </p>
-                    {userProfile && userProfile.ai_credits_balance !== undefined && (
-                        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full font-semibold border border-blue-100">
-                            <span>Current Balance:</span>
-                            <span className="text-blue-900">{userProfile.ai_credits_balance.toLocaleString()} Credits</span>
-                        </div>
-                    )}
                 </div>
 
-                {/* Credit Refill Section */}
-                <section className="bg-white rounded-3xl p-8 sm:p-12 shadow-sm border border-slate-200 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <svg className="w-48 h-48 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.7c.09 1.28 1.07 1.84 2.25 1.84 1.47 0 2.23-.74 2.23-1.6 0-1.14-.99-1.48-2.68-1.96-1.85-.53-3.49-1.39-3.49-3.41 0-1.63 1.21-2.9 3.01-3.32V4h2.67v1.91c1.51.32 2.72 1.34 2.92 3.02h-1.7c-.16-1.04-1.06-1.6-2.12-1.6-1.32 0-2.1.67-2.1 1.5 0 1.05.91 1.4 2.56 1.88 2.06.6 3.61 1.5 3.61 3.51 0 1.94-1.36 2.99-3.05 3.37z"/></svg>
-                    </div>
-                    
-                    <div className="relative z-10 max-w-xl">
-                        <h2 className="text-2xl font-bold mb-6">Payment Details</h2>
-                        
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-                                <input 
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Enter your email"
-                                    className="bg-slate-50 border border-slate-200  dark:text-white text-base rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3"
-                                />
-                                <p className="text-xs text-slate-500 mt-1">Required for your Paystack receipt.</p>
-                            </div>
+                {/* Email Input for Receipt */}
+                <div className="max-w-md mx-auto">
+                    <label className="block text-xs font-bold text-[#64748B] mb-1.5 text-center">
+                        Billing Email Address
+                    </label>
+                    <input 
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter email address for official receipt"
+                        className="bg-white border border-[#E3E9F1] text-[#0F172A] text-center font-bold text-sm rounded-2xl focus:ring-2 focus:ring-[#0066FF] focus:border-transparent block w-full py-3 px-5 shadow-2xs outline-none"
+                    />
+                </div>
 
-                            <div className="pt-4 border-t border-slate-100">
-                                <label className="block text-sm font-semibold text-slate-700 mb-3">Quick Select</label>
-                                <div className="flex flex-wrap gap-3">
-                                    {quickAmounts.map(amt => (
-                                        <button
-                                            key={amt}
-                                            onClick={() => setCustomAmount(amt.toString())}
-                                            className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all ${customAmount === amt.toString() ? 'bg-blue-50 border-blue-600 text-blue-700' : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-slate-50'}`}
-                                        >
-                                            ₦{amt.toLocaleString()}
-                                        </button>
-                                    ))}
+                {/* Quick Credit Packs */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {quickPacks.map((pack) => (
+                        <div
+                            key={pack.amount}
+                            className="bg-white border border-[#E3E9F1] rounded-3xl p-6 shadow-xs flex flex-col justify-between hover:border-[#0066FF]/50 transition-all group"
+                        >
+                            <div className="space-y-3.5">
+                                <div className="flex items-center justify-between">
+                                    <div className="w-10 h-10 rounded-2xl bg-[#F1F5F9] border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] text-lg font-bold group-hover:bg-[#0066FF] group-hover:text-white transition-colors shadow-2xs">
+                                        <i className={`bi ${pack.icon}`}></i>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-[#F1F5F9] text-[#64748B] rounded-full border border-[#E3E9F1]">
+                                        {pack.badge}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-base font-black text-[#0F172A] group-hover:text-[#0066FF] transition-colors">
+                                        {pack.title}
+                                    </h3>
+                                    <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                                        {pack.description}
+                                    </p>
+                                </div>
+
+                                <div className="text-2xl font-black text-[#0F172A] pt-1">
+                                    ₦{pack.amount.toLocaleString()}
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-3">Custom Amount (₦)</label>
-                                <div className="flex items-center gap-4">
-                                    <input 
-                                        type="number"
-                                        value={customAmount}
-                                        onChange={(e) => setCustomAmount(e.target.value)}
-                                        placeholder="Enter amount (min 100)"
-                                        className="flex-1 max-w-[200px] bg-slate-50 border border-slate-200  dark:text-white text-lg rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3"
-                                    />
-                                    <button
-                                        disabled={isProcessing || !customAmount || parseInt(customAmount) < 100 || !email}
-                                        onClick={() => handlePurchaseCredits(parseInt(customAmount))}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20"
-                                    >
-                                        {isProcessing ? 'Processing...' : 'Buy Credits'}
-                                    </button>
-                                </div>
+                            <div className="pt-5">
+                                <button
+                                    type="button"
+                                    onClick={() => handlePurchaseCredits(pack.amount, pack.title)}
+                                    disabled={isProcessing || !email}
+                                    className="w-full py-3 bg-[#0066FF] hover:bg-[#002D62] disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95"
+                                >
+                                    Purchase Pass
+                                </button>
                             </div>
                         </div>
+                    ))}
+                </div>
+
+                {/* Custom Amount Form */}
+                <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-xs max-w-xl mx-auto space-y-4">
+                    <div>
+                        <h4 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">
+                            Custom Credit Refill
+                        </h4>
+                        <p className="text-xs text-[#64748B] mt-0.5">
+                            Enter any custom amount to top up your balance (min ₦100).
+                        </p>
                     </div>
-                </section>
+
+                    <div className="flex items-center gap-3">
+                        <div className="relative flex-1">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-sm text-[#64748B]">₦</span>
+                            <input
+                                type="number"
+                                min="100"
+                                step="50"
+                                value={customAmount}
+                                onChange={(e) => setCustomAmount(e.target.value)}
+                                placeholder="500"
+                                className="w-full pl-8 pr-4 py-3 bg-[#F6F6F3] border border-[#E3E9F1] rounded-2xl font-bold text-sm text-[#0F172A] focus:ring-2 focus:ring-[#0066FF] focus:border-transparent outline-none"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const val = parseInt(customAmount, 10);
+                                if (isNaN(val) || val < 100) {
+                                    alert("Please enter a valid amount of at least ₦100");
+                                    return;
+                                }
+                                void handlePurchaseCredits(val, `Custom Refill ₦${val}`);
+                            }}
+                            disabled={isProcessing || !email || !customAmount}
+                            className="px-6 py-3 bg-[#0F172A] hover:bg-[#002D62] disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                        >
+                            Top Up
+                        </button>
+                    </div>
+                </div>
             </main>
         </div>
     );

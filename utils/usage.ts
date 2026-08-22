@@ -169,10 +169,12 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
 
 // Helper to get dynamic costs from app settings with fallbacks
 export const getFeatureCost = (
-  feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson',
+  feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'live_tutorial' | 'live_tutorial_question',
   appSettings?: AppSettings | null
 ): number => {
-  return appSettings?.usage_settings?.feature_costs?.[feature] ?? DEFAULT_USAGE_SETTINGS.feature_costs[feature] ?? 1;
+  const costs = appSettings?.usage_settings?.feature_costs as any;
+  const defaults = DEFAULT_USAGE_SETTINGS.feature_costs as any;
+  return costs?.[feature] ?? defaults?.[feature] ?? (feature === 'live_tutorial_question' ? 50 : 1);
 };
 
 export const getFeatureModel = (
@@ -190,8 +192,38 @@ export const AI_COSTS = {
 };
 
 // Check if user is exempt from limits
-const isExempt = (userProfile: UserProfile): boolean => {
-  return !!(userProfile?.is_admin || userProfile?.use_personal_token || userProfile?.subscription_status === 'personal_token');
+export const isExempt = (userProfile?: UserProfile | null): boolean => {
+  if (!userProfile) return false;
+  return !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
+};
+
+/**
+ * Checks if the user is on an active paid plan (Weekly, Monthly, Semester, Pro, Premium).
+ */
+export const isPaidSubscriber = (userProfile?: UserProfile | null): boolean => {
+  if (!userProfile) return false;
+  if (isExempt(userProfile)) return true;
+  const status = userProfile.subscription_status;
+  return status === 'weekly' || status === 'monthly' || status === 'semester' || status === 'basic' || status === 'pro' || status === 'premium';
+};
+
+/**
+ * Checks whether the user has access to Live Voice Tutorial:
+ * - Paid subscribers (Weekly: 1/day, Monthly: 10/day, Semester: 10/day)
+ * - Free users with at least 450 credits (pay-as-you-go topic cost)
+ */
+export const hasLiveTutorialAccess = (userProfile?: UserProfile | null): { allowed: boolean; reason?: 'locked_free' | 'insufficient_credits' | 'allowed' } => {
+  if (!userProfile) return { allowed: false, reason: 'locked_free' };
+  if (isExempt(userProfile)) return { allowed: true, reason: 'allowed' };
+  if (isPaidSubscriber(userProfile)) return { allowed: true, reason: 'allowed' };
+
+  // Pay-As-You-Go single topic pass requires 450 credits (₦450)
+  const balance = userProfile.ai_credits_balance ?? 0;
+  if (balance >= 450) {
+    return { allowed: true, reason: 'allowed' };
+  }
+
+  return { allowed: false, reason: 'locked_free' };
 };
 
 /**
@@ -206,12 +238,20 @@ export const checkAICredits = (
     return { allowed: true, balance: Infinity, cost: 0 };
   }
 
-  const planKey = (userProfile?.subscription_status === 'pro' ? 'premium' : (userProfile?.subscription_status || 'free')) as 'free' | 'basic' | 'premium';
+  const subStatus = userProfile?.subscription_status || 'free';
+  const isSubscriber = isPaidSubscriber(userProfile);
+
+  // If user is a paid subscriber and doing standard chat/scan/flashcards, allow
+  if (isSubscriber && cost <= 50) {
+    return { allowed: true, balance: Infinity, cost: 0 };
+  }
+
   const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
-  const monthlyLimit = tiers[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers.free.credit_allocation;
+  const planKey = (subStatus === 'pro' ? 'monthly' : subStatus) as string;
+  const allocation = (tiers as any)[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers.free.credit_allocation;
   
-  const balance = userProfile?.ai_credits_balance ?? monthlyLimit;
+  const balance = userProfile?.ai_credits_balance ?? allocation;
   const allowed = balance >= cost;
 
   return { allowed, balance, cost };

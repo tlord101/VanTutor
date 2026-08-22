@@ -5,7 +5,6 @@ import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-
 import { db } from '../../firebase';
 import { ref as dbRef, update } from 'firebase/database';
 import { saveLocalCredits } from '../../services/creditsStorageService';
@@ -37,13 +36,13 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
         }
     }, []);
 
-    const handlePurchasePlan = async (planKey: string) => {
+    const handlePurchasePlan = async (planKey: string, priceNgn: number, creditAlloc: number) => {
         const searchParams = new URLSearchParams(window.location.search);
         const targetUid = userProfile?.uid || searchParams.get('uid');
         const emailFromParam = searchParams.get('email');
         const finalEmail = email || emailFromParam || userProfile?.email;
 
-        if (planKey === 'free') return; // Cannot buy free plan
+        if (planKey === 'free') return;
 
         if (!targetUid) {
             alert("Please log in to purchase a plan.");
@@ -60,41 +59,36 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
 
         setIsProcessing(true);
         try {
-            const effectivePlanKey = planKey === 'pro' ? 'premium' : planKey;
-            const activePlan = tiers[effectivePlanKey];
-            const amount = activePlan.price_ngn;
-
             await triggerPaystackPurchase({
                 publicKey: appSettings.paystack_public_key,
                 email: finalEmail.trim(),
-                amount: amount,
+                amount: priceNgn,
                 userId: targetUid,
                 purchaseType: 'subscription',
+                metadata: { plan_key: planKey, credit_amount: creditAlloc },
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        // Immediate real-time database credit update
                         const userRef = dbRef(db, `users/${targetUid}`);
                         await update(userRef, {
-                            subscription_status: effectivePlanKey,
-                            ai_credits_balance: activePlan.credit_allocation,
+                            subscription_status: planKey,
+                            ai_credits_balance: creditAlloc,
                             subscription_updated_at: Date.now(),
                         });
-                        saveLocalCredits(targetUid, activePlan.credit_allocation, effectivePlanKey).catch(console.warn);
+                        saveLocalCredits(targetUid, creditAlloc, planKey).catch(console.warn);
 
-                        // Call verification function
                         try {
                             const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
                             await verifyTx({
                                 reference,
                                 purchaseType: 'subscription',
-                                planKey: effectivePlanKey
+                                planKey
                             });
                         } catch (fnErr) {
                             console.warn('[PlansWeb] Cloud verification notice:', fnErr);
                         }
 
-                        addToast('Payment successful! Your plan and credits have been updated.', 'success');
+                        addToast('Payment successful! Your plan and credits have been activated.', 'success');
                         setTimeout(() => {
                             window.location.href = '/payment-success';
                         }, 800);
@@ -119,201 +113,285 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
         }
     };
 
-    const getFeatures = (tier: any) => {
-        if (!tier) return [];
-        return [
-            { text: `${tier.credit_allocation} AI credits allocation`, included: true },
-            { text: tier.max_saved_courses === -1 ? 'Unlimited saved courses' : `Up to ${tier.max_saved_courses} saved courses`, included: true },
-            { text: tier.description?.split('.')[0] || 'Standard study tools', included: true },
-            { text: 'Unlimited study time', included: tier.tier_id === 'premium' },
-            { text: 'Verification badge', included: tier.has_verification_badge }
-        ];
-    };
+    const currentStatus = userProfile?.subscription_status || 'free';
 
     return (
-        <div className="min-h-screen bg-[#f8fafc]  dark:text-white font-sans pb-24 overflow-x-hidden">
+        <div className="min-h-screen bg-[#F6F6F3] text-[#0F172A] font-sans pb-28">
             {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-50">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+            <header className="bg-white border-b border-[#E3E9F1] sticky top-0 z-50 shadow-2xs">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+                    <a href="/" className="flex items-center gap-3">
                         <img src="/logo_icon.png" alt="AVELUT" className="w-8 h-8 object-contain" />
-                        <span className="text-xl font-bold tracking-tight  dark:text-white">AVELUT <span className="font-light text-slate-500">Premium</span></span>
-                    </div>
+                        <span className="text-lg font-black tracking-tight text-[#0F172A]">
+                            AVELUT <span className="text-[#0066FF] font-extrabold">Plans</span>
+                        </span>
+                    </a>
+                    <a
+                        href="/refill-credits"
+                        className="text-xs font-bold text-[#0066FF] hover:text-[#002D62] bg-[#F1F5F9] px-3.5 py-1.5 rounded-full border border-[#E3E9F1] transition-colors"
+                    >
+                        Buy Credits Pay-As-You-Go →
+                    </a>
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
-                
-                {/* Hero Section */}
-                <div className="text-center max-w-2xl mx-auto space-y-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-widest text-slate-700 uppercase">
-                        Pricing Table Design
+            <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-12 animate-fade-in">
+                {/* Hero Title */}
+                <div className="text-center max-w-2xl mx-auto space-y-3">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-[#0066FF] bg-[#F1F5F9] px-3.5 py-1 rounded-full border border-[#E3E9F1]">
+                        Academic Subscription Tiers
+                    </span>
+                    <h1 className="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight">
+                        Power Your Studies with AI
                     </h1>
+                    <p className="text-sm sm:text-base text-[#64748B] font-medium leading-relaxed">
+                        Choose the plan that matches your study rhythm. Unlock interactive whiteboard Live Voice Tutorials, unlimited AI chat, and textbook solver tools.
+                    </p>
                 </div>
 
-                <div className="max-w-md mx-auto mb-12">
+                {/* Email Input for Receipt */}
+                <div className="max-w-md mx-auto">
+                    <label className="block text-xs font-bold text-[#64748B] mb-1.5 text-center">
+                        Billing Email Address
+                    </label>
                     <input 
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Enter email address for receipt"
-                        className="bg-white border border-slate-200  dark:text-white text-center font-medium text-base rounded-full focus:ring-[#009EE2] focus:border-[#009EE2] block w-full py-3 px-6 shadow-sm outline-none"
+                        placeholder="Enter email address for official receipt"
+                        className="bg-white border border-[#E3E9F1] text-[#0F172A] text-center font-bold text-sm rounded-2xl focus:ring-2 focus:ring-[#0066FF] focus:border-transparent block w-full py-3 px-5 shadow-2xs outline-none"
                     />
                 </div>
 
-                {/* Plans Section */}
-                <section>
-                    <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-8 max-w-5xl mx-auto pt-4">
-                        
-                        {/* Basic Plan Wrapper */}
-                        <div id="plan-free" className="w-full max-w-[300px]">
-                            <PricingCard 
-                                plan="BASIC"
-                                displayPrice="Free"
-                                theme={{
-                                    tab: '#2dd4bf', // Teal 400
-                                    glow: '#2dd4bf',
-                                    buttonBg: '#ccfbf1', // Teal 50
-                                    buttonText: '#0f766e' // Teal 700
-                                }}
-                                isCurrentPlan={!userProfile?.subscription_status || userProfile.subscription_status === 'free' || userProfile.subscription_status === 'none'}
-                                features={getFeatures(tiers?.free)}
-                                onPurchase={() => handlePurchasePlan('free')}
-                                disabled={true}
-                            />
+                {/* 3 Subscription Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto pt-2">
+                    
+                    {/* 1. Weekly Plan */}
+                    <div id="plan-weekly" className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col justify-between hover:border-[#0066FF]/40 transition-all relative">
+                        <div className="space-y-4">
+                            <div>
+                                <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">
+                                    Flexible Term
+                                </span>
+                                <h3 className="text-xl font-black text-[#0F172A] mt-0.5">Weekly Plan</h3>
+                            </div>
+
+                            <div className="flex items-baseline gap-1.5 pt-1">
+                                <span className="text-3xl sm:text-4xl font-black text-[#0F172A]">₦1,200</span>
+                                <span className="text-xs font-bold text-[#64748B]">/ week</span>
+                            </div>
+                            <p className="text-xs text-[#64748B] leading-relaxed">
+                                Great for test preparation and focused weekly revision sessions.
+                            </p>
+
+                            <div className="border-t border-[#E3E9F1] pt-4 space-y-2.5">
+                                <FeatureItem text="Unlimited Chat Tutorial per day" included />
+                                <FeatureItem text="1 Live Tutorial topic / day (7 topics per week)" included highlight />
+                                <FeatureItem text="Unlimited Camera Scans per day" included />
+                                <FeatureItem text="Unlimited Textbook Uploads" included />
+                                <FeatureItem text="3 Flashcard generations / day" included />
+                                <FeatureItem text="3 Quizzes / day" included />
+                                <FeatureItem text="All content saved for Offline Access" included />
+                            </div>
                         </div>
 
-                        {/* Business Plan Wrapper */}
-                        <div id="plan-basic" className="w-full max-w-[300px]">
-                            <PricingCard 
-                                plan="BUSINESS"
-                                displayPrice={`$${(tiers?.basic?.price_ngn / 1000)?.toFixed(2) || '1.00'}`}
-                                theme={{
-                                    tab: '#818cf8', // Indigo 400
-                                    glow: '#6366f1',
-                                    buttonBg: '#e0e7ff', // Indigo 100
-                                    buttonText: '#4338ca' // Indigo 700
-                                }}
-                                isCurrentPlan={userProfile?.subscription_status === 'basic'}
-                                features={getFeatures(tiers?.basic)}
-                                onPurchase={() => handlePurchasePlan('basic')}
-                                disabled={isProcessing || !email}
-                            />
+                        <div className="pt-6">
+                            <button
+                                type="button"
+                                onClick={() => handlePurchasePlan('weekly', 1200, 500)}
+                                disabled={isProcessing || !email || currentStatus === 'weekly'}
+                                className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                                    currentStatus === 'weekly'
+                                        ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
+                                        : 'bg-[#0066FF] hover:bg-[#002D62] text-white'
+                                }`}
+                            >
+                                {currentStatus === 'weekly' ? 'Current Plan' : 'Subscribe Weekly'}
+                            </button>
                         </div>
-
-                        {/* Premium Plan Wrapper */}
-                        <div id="plan-premium" className="w-full max-w-[300px]">
-                            <PricingCard 
-                                plan="PREMIUM"
-                                displayPrice={`$${(tiers?.premium?.price_ngn / 1000)?.toFixed(2) || '3.00'}`}
-                                theme={{
-                                    tab: '#c084fc', // Purple 400
-                                    glow: '#a855f7',
-                                    buttonBg: '#f3e8ff', // Purple 100
-                                    buttonText: '#7e22ce' // Purple 700
-                                }}
-                                isCurrentPlan={userProfile?.subscription_status === 'premium' || userProfile?.subscription_status === 'pro'}
-                                features={getFeatures(tiers?.premium)}
-                                onPurchase={() => handlePurchasePlan('premium')}
-                                disabled={isProcessing || !email}
-                            />
-                        </div>
-
                     </div>
-                </section>
+
+                    {/* 2. Monthly Plan (Featured) */}
+                    <div id="plan-monthly" className="bg-white border-2 border-[#0066FF] rounded-3xl p-6 sm:p-7 shadow-lg flex flex-col justify-between relative transform md:-translate-y-2">
+                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#0066FF] text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">
+                            Most Popular
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <span className="text-[11px] font-bold text-[#0066FF] uppercase tracking-wider block">
+                                    Standard Term
+                                </span>
+                                <h3 className="text-xl font-black text-[#0F172A] mt-0.5">Monthly Plan</h3>
+                            </div>
+
+                            <div className="flex items-baseline gap-1.5 pt-1">
+                                <span className="text-3xl sm:text-4xl font-black text-[#0F172A]">₦4,000</span>
+                                <span className="text-xs font-bold text-[#64748B]">/ month</span>
+                            </div>
+                            <p className="text-xs text-[#64748B] leading-relaxed">
+                                Complete mastery package for active students studying multiple courses.
+                            </p>
+
+                            <div className="border-t border-[#E3E9F1] pt-4 space-y-2.5">
+                                <FeatureItem text="Unlimited Chats per day" included />
+                                <FeatureItem text="Max 3 Live Tutorial topics / day (15 per month)" included highlight />
+                                <FeatureItem text="50 credits deducted per Q&A question in Live Tutorial" included />
+                                <FeatureItem text="Unlimited Camera Scans per day" included />
+                                <FeatureItem text="Unlimited Textbook Uploads" included />
+                                <FeatureItem text="Unlimited Flashcards per day" included />
+                                <FeatureItem text="Unlimited Quizzes & Tests" included />
+                                <FeatureItem text="All content saved for Offline Access" included />
+                            </div>
+                        </div>
+
+                        <div className="pt-6">
+                            <button
+                                type="button"
+                                onClick={() => handlePurchasePlan('monthly', 4000, 2500)}
+                                disabled={isProcessing || !email || currentStatus === 'monthly' || currentStatus === 'premium'}
+                                className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-md active:scale-95 ${
+                                    currentStatus === 'monthly' || currentStatus === 'premium'
+                                        ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
+                                        : 'bg-[#0066FF] hover:bg-[#002D62] text-white'
+                                }`}
+                            >
+                                {currentStatus === 'monthly' || currentStatus === 'premium' ? 'Current Plan' : 'Subscribe Monthly'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 3. Semester Plan (Best Value) */}
+                    <div id="plan-semester" className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col justify-between hover:border-[#0066FF]/40 transition-all relative">
+                        <div className="absolute -top-3.5 right-6 px-3.5 py-1 bg-[#0F172A] text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">
+                            Best Value
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">
+                                    Full Semester
+                                </span>
+                                <h3 className="text-xl font-black text-[#0F172A] mt-0.5">Semester Plan</h3>
+                            </div>
+
+                            <div className="flex items-baseline gap-1.5 pt-1">
+                                <span className="text-3xl sm:text-4xl font-black text-[#0F172A]">₦12,000</span>
+                                <span className="text-xs font-bold text-[#64748B]">/ semester</span>
+                            </div>
+                            <p className="text-xs text-[#64748B] leading-relaxed">
+                                Uninterrupted access for the entire semester. Maximum savings.
+                            </p>
+
+                            <div className="border-t border-[#E3E9F1] pt-4 space-y-2.5">
+                                <FeatureItem text="All Monthly Plan features included" included />
+                                <FeatureItem text="Max 3 Live Tutorial topics / day (15 per month)" included highlight />
+                                <FeatureItem text="50 credits per Q&A question in Live Tutorial" included />
+                                <FeatureItem text="Unlimited Chats, Scans & Uploads" included />
+                                <FeatureItem text="Unlimited Flashcards & Quizzes" included />
+                                <FeatureItem text="Priority AI tutor processing" included />
+                                <FeatureItem text="All content saved Offline — incl. Live Tutorial" included />
+                                <FeatureItem text="Official Verification Student Badge" included />
+                            </div>
+                        </div>
+
+                        <div className="pt-6">
+                            <button
+                                type="button"
+                                onClick={() => handlePurchasePlan('semester', 12000, 8000)}
+                                disabled={isProcessing || !email || currentStatus === 'semester'}
+                                className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                                    currentStatus === 'semester'
+                                        ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
+                                        : 'bg-[#0F172A] hover:bg-[#002D62] text-white'
+                                }`}
+                            >
+                                {currentStatus === 'semester' ? 'Current Plan' : 'Get Semester Access'}
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* Free Tier Limits Comparison Section */}
+                <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs max-w-5xl mx-auto space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E3E9F1] pb-4">
+                        <div>
+                            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
+                                Default Account
+                            </span>
+                            <h3 className="text-lg sm:text-xl font-black text-[#0F172A]">
+                                Free Tier Specifications & Limits
+                            </h3>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] text-[#64748B] rounded-full text-xs font-bold border border-[#E3E9F1]">
+                            <i className="bi bi-shield-check text-[#0066FF]"></i> Standard Account
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] block">Notebooks & Storage</span>
+                            <p className="text-[#64748B]">Up to 100 notebooks per account, 50 sources per notebook.</p>
+                        </div>
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] block">Source File Limits</span>
+                            <p className="text-[#64748B]">Up to 500,000 words or 200 MB per individual source.</p>
+                        </div>
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] block">Chat Queries</span>
+                            <p className="text-[#64748B]">50 AI chat messages per day (Notebook & Study Guide).</p>
+                        </div>
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] block">Visual Solver Scans</span>
+                            <p className="text-[#64748B]">3 camera problem scans per day.</p>
+                        </div>
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] block">Overviews & Research</span>
+                            <p className="text-[#64748B]">10 deep research/month, 3 audio & 3 video overviews/day.</p>
+                        </div>
+                        <div className="p-4 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] space-y-1">
+                            <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                                <i className="bi bi-lock-fill text-amber-500"></i>
+                                Live Voice Tutorial
+                            </span>
+                            <p className="text-[#64748B]">Locked on Free Tier. Available via Plan or ₦450/topic pass.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Pay As You Go Banner */}
+                <div className="bg-gradient-to-br from-[#0F172A] to-[#002D62] text-white rounded-3xl p-6 sm:p-8 max-w-5xl mx-auto shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="space-y-1.5 text-center md:text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] bg-white/10 px-3 py-0.5 rounded-full inline-block">
+                            Pay-As-You-Go Credits
+                        </span>
+                        <h4 className="text-lg sm:text-xl font-black">Don't need a weekly subscription?</h4>
+                        <p className="text-xs text-slate-300 max-w-md">
+                            Buy single Live Tutorial topic passes at <strong className="text-white">₦450 per topic</strong> or flashcard packs at <strong className="text-white">₦50 per flashcard</strong>.
+                        </p>
+                    </div>
+                    <a
+                        href="/refill-credits"
+                        className="px-6 py-3 bg-white text-[#0F172A] hover:bg-[#F6F6F3] font-black text-xs sm:text-sm rounded-2xl shadow-sm active:scale-95 transition-all shrink-0 cursor-pointer"
+                    >
+                        Buy Extra Credits (₦450) →
+                    </a>
+                </div>
             </main>
         </div>
     );
 };
 
-// --- Custom Components ---
-
-interface PricingFeature {
-    text: string;
-    included: boolean;
-}
-
-interface PricingCardTheme {
-    tab: string;
-    glow: string;
-    buttonBg: string;
-    buttonText: string;
-}
-
-interface PricingCardProps {
-    plan: string;
-    displayPrice: string;
-    theme: PricingCardTheme;
-    isCurrentPlan?: boolean;
-    features: PricingFeature[];
-    onPurchase: () => void;
-    disabled: boolean;
-    buttonText?: string;
-}
-
-const PricingCard: React.FC<PricingCardProps> = ({ 
-    plan, 
-    displayPrice, 
-    theme, 
-    isCurrentPlan,
-    features, 
-    onPurchase, 
-    disabled, 
-    buttonText 
-}) => {
-    return (
-        <div className="relative w-full mx-auto pt-6 pb-4">
-            {/* The Tab at the top */}
-            <div 
-                className="absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2.5 rounded-t-2xl text-white font-bold text-xs tracking-wider shadow-sm z-10" 
-                style={{ backgroundColor: theme.tab, minWidth: '140px', textAlign: 'center' }}
-            >
-                {plan}
-            </div>
-            
-            {/* The white inner card */}
-            <div className="relative bg-white rounded-3xl px-6 pb-8 pt-12 shadow-lg flex flex-col items-center overflow-hidden">
-                
-                {/* The Glow Effect */}
-                <div 
-                    className="absolute -top-16 left-1/2 -translate-x-1/2 w-[160%] h-48 rounded-[100%] blur-[30px] opacity-90 pointer-events-none"
-                    style={{ backgroundColor: theme.glow }}
-                ></div>
-
-                {/* Price */}
-                <div className="relative z-10 text-center mb-10 mt-2">
-                    <div className="text-4xl font-extrabold text-white mb-1 drop-shadow-md">{displayPrice}</div>
-                    {displayPrice !== 'Free' && <div className="text-white/90 text-[11px] font-semibold uppercase tracking-wider">per month</div>}
-                    {displayPrice === 'Free' && <div className="text-white/90 text-[11px] font-semibold uppercase tracking-wider">forever</div>}
-                </div>
-                
-                {/* Features */}
-                <ul className="space-y-4 w-full mb-10 relative z-10 px-2">
-                    {features.map((feature, i) => (
-                        <li key={i} className="flex items-start text-[13px] font-medium leading-relaxed">
-                            {feature.included ? (
-                                <svg className="w-4 h-4 mt-0.5 mr-3 shrink-0" style={{ color: '#10b981' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                            ) : (
-                                <svg className="w-4 h-4 mt-0.5 mr-3 shrink-0" style={{ color: '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            )}
-                            <span className={feature.included ? 'text-slate-600' : 'text-slate-400'}>{feature.text}</span>
-                        </li>
-                    ))}
-                </ul>
-
-                {/* Button */}
-                <button 
-                    onClick={onPurchase}
-                    disabled={disabled}
-                    className="relative z-10 w-[80%] py-3 rounded-full font-bold transition-all text-sm tracking-wide disabled:opacity-50 hover:opacity-90 active:scale-95"
-                    style={{ 
-                        backgroundColor: isCurrentPlan ? '#f1f5f9' : theme.buttonBg,
-                        color: isCurrentPlan ? '#94a3b8' : theme.buttonText 
-                    }}
-                >
-                    {isCurrentPlan ? 'Current Plan' : (buttonText || 'Get Started')}
-                </button>
-            </div>
-        </div>
-    );
-}
+const FeatureItem: React.FC<{ text: string; included: boolean; highlight?: boolean }> = ({ text, included, highlight }) => (
+    <div className="flex items-start gap-2.5 text-xs font-medium leading-relaxed">
+        {included ? (
+            <i className={`bi bi-check2 text-sm font-bold shrink-0 mt-0.5 ${highlight ? 'text-[#0066FF]' : 'text-emerald-600'}`}></i>
+        ) : (
+            <i className="bi bi-lock-fill text-xs text-amber-500 shrink-0 mt-0.5"></i>
+        )}
+        <span className={highlight ? 'text-[#0F172A] font-bold' : included ? 'text-[#0F172A]' : 'text-[#64748B]'}>
+            {text}
+        </span>
+    </div>
+);

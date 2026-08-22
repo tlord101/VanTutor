@@ -63,22 +63,38 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
     <div className="p-4 sm:p-6 space-y-8 animate-in fade-in duration-300 max-w-6xl mx-auto">
       
       {/* Account Balance Card */}
-      <div className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+      <div className="bg-white dark:bg-[#0F172A] border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 block">Account Balance</span>
+            <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider mb-1 block">Account Plan & Balance</span>
             <div className="flex items-baseline gap-3">
-              <span className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter">{userProfile.ai_credits_balance ?? 0}</span>
-              <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Credits</span>
+              <span className="text-4xl sm:text-5xl font-black text-[#0F172A] dark:text-white tracking-tight">{userProfile.ai_credits_balance ?? 0}</span>
+              <span className="text-sm font-bold text-[#64748B] dark:text-slate-400">Credits</span>
+              <span className="text-xs font-bold px-3 py-1 bg-[#F1F5F9] dark:bg-slate-800 text-[#0066FF] rounded-full border border-[#E3E9F1] dark:border-slate-700 capitalize ml-2">
+                {userProfile.subscription_status || 'Free Tier'}
+              </span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 max-w-sm font-medium">Use credits to generate answers, ask follow-up questions, and analyze images with our AI tutors.</p>
+            <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-2 max-w-md font-medium">
+              Use credits for Live Voice Tutorials (₦450/topic), flashcards (₦50/card), or subscribe to Weekly/Monthly plans for unlimited access.
+            </p>
           </div>
-          <div className="flex flex-col gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 w-full md:w-auto">
+            <button
+              onClick={async () => {
+                const baseUrl = isNative() ? 'https://avelut.xyz' : window.location.origin;
+                const url = `${baseUrl}/plans?uid=${userProfile.uid}`;
+                if (isNative()) await Browser.open({ url });
+                else window.open(url, '_blank');
+              }}
+              className="px-6 py-3 bg-[#0066FF] hover:bg-[#002D62] text-white rounded-2xl text-xs font-bold transition-all w-full md:w-auto shadow-2xs cursor-pointer active:scale-95 text-center"
+            >
+              View Subscription Plans
+            </button>
             <button
               onClick={handleManageBilling}
-              className="px-8 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-black hover:opacity-90 active:scale-[0.98] rounded-xl text-sm font-bold transition-all w-full md:w-auto"
+              className="px-6 py-3 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#E3E9F1] text-[#0F172A] dark:text-white rounded-2xl text-xs font-bold transition-all w-full md:w-auto border border-[#E3E9F1] dark:border-slate-700 cursor-pointer active:scale-95 text-center"
             >
-              Refill Credits
+              Refill Credits (₦450 Pass)
             </button>
           </div>
         </div>

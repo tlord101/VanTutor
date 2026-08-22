@@ -11,6 +11,8 @@ import { useAppSettings } from '../hooks/useAppSettings';
 
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { formatLastVisited } from './StudyGuide';
+import { hasLiveTutorialAccess } from '../utils/usage';
+import { LimitExceededModal } from './LimitExceededModal';
 
 interface NotebookDetailProps {
   notebook: Notebook;
@@ -36,6 +38,8 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
   const [activeMode, setActiveMode] = useState<StudyMode>('none');
   const [chapterFullContent, setChapterFullContent] = useState<string>('');
   const [isLoadingContent, setIsLoadingContent] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitCost, setLimitCost] = useState(450);
   const [chapterVisits, setChapterVisits] = useState<Record<string, number>>(() => {
     if (!userProfile?.uid) return {};
     return readCachedJson<Record<string, number>>(`avelut_chapter_visits_${userProfile.uid}`, {});
@@ -61,7 +65,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
     }
   };
 
+  const liveAccess = hasLiveTutorialAccess(userProfile);
+
   const handleSelectMode = (mode: StudyMode) => {
+    if (mode === 'voice' && !liveAccess.allowed) {
+      setLimitCost(450);
+      setShowLimitModal(true);
+      return;
+    }
     setShowActionModal(false);
     setActiveMode(mode);
   };
@@ -350,13 +361,21 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('voice')}
                 disabled={isLoadingContent}
-                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group relative"
               >
                 <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
                   <i className="bi bi-mic text-base"></i>
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Voice Tutorial</h4>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Voice Tutorial</h4>
+                    {!liveAccess.allowed && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold border border-amber-500/20 shrink-0">
+                        <i className="bi bi-lock-fill text-[9px]"></i>
+                        <span>₦450</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Blackboard voice lesson</p>
                 </div>
               </button>
@@ -397,6 +416,17 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
         </div>,
         document.body
       )}
+
+      {/* Limit Exceeded Modal for Locked Live Tutorial */}
+      <LimitExceededModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        userProfile={userProfile}
+        appSettings={appSettings}
+        cost={limitCost}
+        balance={userProfile?.ai_credits_balance ?? 0}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };

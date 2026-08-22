@@ -23,6 +23,7 @@ import 'katex/dist/katex.min.css';
 import { LimitExceededModal } from './LimitExceededModal';
 import { grokTts, grokVoiceEngine } from '../services/voice/GrokVoiceEngine';
 import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
+import { deductAICredits, getFeatureCost, checkAICredits, isPaidSubscriber } from '../utils/usage';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BOARD_LINES = 6;
@@ -858,6 +859,16 @@ OUTPUT VALID JSON ONLY:
         if (!questionText.trim() && !imageAttachment) return;
         if (!lessonPlan || isGeneratingLesson) return;
 
+        // --- Credit check: 50 credits per question ---
+        const qaCost = getFeatureCost('live_tutorial_question', appSettings) || 50;
+        const creditCheck = checkAICredits(userProfile, qaCost, appSettings);
+        if (!creditCheck.allowed) {
+            setLimitModalData({ cost: qaCost, balance: creditCheck.balance });
+            setShowLimitModal(true);
+            addToast('Insufficient credits to ask a question. Top up to continue.', 'info');
+            return;
+        }
+
         // 1. Immediately pause current board audio
         stopAudioImmediate();
         clearAllStreamTimers();
@@ -902,6 +913,11 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
 
             const answerText = getResponseText(result) || "I see what you mean. Let's make sure that's clear, and now let's continue our lesson.";
             setQaAnswer(answerText);
+
+            // Deduct 50 credits for this question
+            if (userProfile?.uid) {
+                void deductAICredits(userProfile.uid, qaCost, 'Live Tutorial Q&A Question', appSettings);
+            }
 
             // Speak answer to student
             const cleanedAnswer = cleanSpokenTextForTTS(answerText);
