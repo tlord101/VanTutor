@@ -485,23 +485,47 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         const courseContext = session.syllabusContext ? `SYLLABUS CONTEXT:\n${session.syllabusContext}\n` : '';
         const customPromptCtx = session.customPrompt ? `SPECIFIC FOCUS INSTRUCTIONS:\n${session.customPrompt}\n` : '';
 
-        const prompt = `You are AVELUT Master Multi-Disciplinary Voice & Visual Academic Tutor.
-Generate a COMPLETE, VIDEO-STYLE PRE-COMPILED LESSON for "${topicName}" in a single structured JSON response.
+        const isNotebookSource = Boolean(
+            session.syllabusContext?.toLowerCase().includes('notebook') || 
+            session.syllabusContext?.toLowerCase().includes('chapter') ||
+            session.course?.course_id?.startsWith('nb_')
+        );
+
+        const prompt = `You are AVELUT Master Academic Voice & Visual Tutor.
+Generate a DEEP, EXPLICIT, CRYSTAL-CLEAR VIDEO-STYLE PRE-COMPILED LESSON for "${topicName}" in a single structured JSON response.
 
 ${courseContext}${customPromptCtx}
 ${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
 
-TEACHING METHODOLOGY & BOARD SEQUENCE:
-Create an engaging sequence of 5 to 7 high-impact pre-compiled boards covering this topic from first principles to mastery:
-- Board 1: "Real-World Intuition & Analogy" — Relatable scenario, physical meaning / practical intuition, [DIAGRAM] or [TABLE].
-- Board 2: "Core Principles & Governing Model" — Clear definition, governing law/formula/rule, key variables/distinctions, [TABLE].
-- Board 3: "Guided Step-by-Step Worked Example" — Concrete problem or practical case study, setup, step-by-step logic, conclusion, [DIAGRAM].
-- Board 4: "Common Pitfalls & Misconceptions" — Classic student trap, why incorrect logic fails, correct invariant principle.
-- Board 5: "Golden Rule & Memory Anchor" — Memorable takeaway, summary rule, core invariant to remember forever.
+TEACHING METHODOLOGY & EXPLICIT 10-TO-15 BOARD STRUCTURE:
+Break down the topic into an explicit, highly accessible sequence of 10 to 15 bite-sized boards.
+EVERY SINGLE BOARD MUST COVER ONLY ONE FOCUSED STEP OR CONCEPT (as simple and clear as possible).
+ALL WORKED EXAMPLES MUST SPAN AT LEAST 3 DEDICATED CONSECUTIVE BOARDS:
+  - Example Board A: Problem Setup, Real-World Context & Given Quantities
+  - Example Board B: Step-by-Step Mathematical/Mechanistic Substitution
+  - Example Board C: Final Evaluation, Calculation Result & Intuitive Verification
+
+MANDATORY 10-15 BOARD SEQUENCE TEMPLATE:
+- Board 1: "Real-World Intuition & Analogy" — Relatable scenario, physical meaning / everyday intuition, [DIAGRAM] or [TABLE].
+- Board 2: "Foundational Definition & Core Meaning" — Clear definition without jargon, core terminology, [TABLE].
+- Board 3: "Governing Law / Fundamental Principle" — The core equation/law/mechanism ($...$), conditions of validity, [DIAGRAM].
+- Board 4: "Variable Anatomy & Dimensional Analysis" — Breakdown of each variable, symbols, units, and physical significance, [TABLE].
+- Board 5: "Worked Example — Setup & Given Quantities" — Concrete problem scenario, listing what is given and what is required, [DIAGRAM].
+- Board 6: "Worked Example — Step 1: Formulation & Substitution" — Choosing the governing equation, substituting values step-by-step.
+- Board 7: "Worked Example — Step 2: Calculation & Interpretation" — Arithmetic/algebraic solution, final answer with units, intuitive sanity check.
+- Board 8: "Deep-Dive Mechanism / Conceptual Proof" — Why this works under the hood, visual mechanism, [DIAGRAM].
+- Board 9: "Comparative Classification / Taxonomy" — Key distinctions, subtypes, or structural relationships, [TABLE].
+- Board 10: "Classic Student Trap & Misconception" — Common error students make in exams, why it is false, and how to avoid it.
+- Board 11: "Subtle Nuance & Edge Case" — Boundary conditions, when the rule changes, critical exception.
+- Board 12: "Real-World Engineering / Scientific Application" — How professionals/industry apply this concept today, [DIAGRAM].
+- Board 13: "Golden Rule & Master Memory Anchor" — Memorable 1-line rule, invariant principle to remember forever.
+
+${isNotebookSource ? `NOTEBOOK TUTOR PERSONA (MANDATORY):
+In your spoken explanations, personalize the teaching by naturally referring directly to the student's notebook and textbook material (e.g., "Looking at this chapter of your notes...", "From this part of your note...", "As outlined in this chapter...", "In your notes right here...").` : ''}
 
 CRITICAL RULES:
-1. UNIVERSAL DOMAIN ADAPTATION: If the subject is qualitative (e.g. Constitutional Law, Biology, Macroeconomics, Literature, History), teach principles, mechanisms, and case comparisons without forcing calculation formulas.
-2. SHORT BOARD LINES (1-3 lines max): Never write dense walls of text on the board!
+1. UNIVERSAL DOMAIN ADAPTATION: If the topic is qualitative (e.g. Constitutional Law, Biology, History, Philosophy, Literature), teach mechanisms, doctrines, and case comparisons with explicit steps and 3-board case studies.
+2. SHORT BOARD LINES (1-3 lines max): Keep board text ultra-clean, legible, and uncluttered.
 3. EXPRESSIVE GROK SPEECH TAGS: In spokenExplanation, naturally incorporate [pause], <emphasis>key terms</emphasis>, <slow>core rules</slow>, [chuckle], or [sigh].
 4. ALWAYS PROVIDE A VISUAL (MANDATORY): Include a complete realistic SVG string (diagramSvg) OR a structured markdown table (tableMarkdown) for every board.
 5. Place [DIAGRAM] or [TABLE] tag inside boardLines array where the visual best fits.
@@ -515,7 +539,7 @@ OUTPUT VALID JSON ONLY:
       "boardId": "board_1",
       "conceptIdx": 0,
       "conceptName": "Concept Name",
-      "phaseTitle": "Real-World Intuition & Analogy",
+      "phaseTitle": "Phase Title",
       "boardLines": ["Line 1 with LaTeX ($...$)", "[DIAGRAM]", "Line 2"],
       "spokenExplanation": "Conversational narration with [pause] and <emphasis>tags</emphasis>",
       "diagramSvg": "Complete SVG string (viewBox=\\"0 0 800 480\\") or null",
@@ -655,19 +679,21 @@ OUTPUT VALID JSON ONLY:
         await presentBoard(lesson, startBoardIndex);
     }, [sessionData, userProfile, generateCompleteTopicLesson, presentBoard]);
 
-    // ── Start on mount ──────────────────────────────────────────────────
+    // ── Start on mount & Hide bottom nav on mobile ──────────────────────
     useEffect(() => {
         isActiveRef.current = true;
+        setCustomHeaderConfig?.({ hideBottomNav: true });
         if (!hasStartedRef.current && sessionData) {
             hasStartedRef.current = true;
             void bootstrapSession();
         }
         return () => {
             isActiveRef.current = false;
+            setCustomHeaderConfig?.(null);
             stopAudioImmediate();
             clearAllStreamTimers();
         };
-    }, [bootstrapSession, sessionData, stopAudioImmediate, clearAllStreamTimers]);
+    }, [bootstrapSession, sessionData, stopAudioImmediate, clearAllStreamTimers, setCustomHeaderConfig]);
 
     // ── Live Interruptible Q&A Handler ──────────────────────────────────
     const handleStudentInterruptionQuestion = useCallback(async (
@@ -1077,26 +1103,38 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                         ref={boardScrollRef}
                         className="relative flex-1 min-h-0 flex flex-col justify-start bg-white border-2 border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#CBD5E1] [&::-webkit-scrollbar-thumb]:rounded-full text-[#0F172A]"
                     >
-                        {/* ── Live Q&A Answering Overlay ── */}
+                        {/* ── Live Q&A Realtime Audio Waveform Overlay (No text on board) ── */}
                         {isAnsweringQuestion && (
-                            <div className="sticky top-0 z-30 mb-4 p-4 rounded-2xl bg-blue-50 border-2 border-[#0066FF]/40 shadow-md animate-fade-in">
-                                <div className="flex items-center gap-2 text-xs font-bold text-[#0066FF] uppercase tracking-wider mb-1">
-                                    <i className="bi bi-chat-quote-fill"></i>
-                                    <span>Teacher Answering Your Question:</span>
+                            <div className="sticky top-0 z-30 mb-4 p-4 sm:p-5 rounded-2xl bg-[#002D62] text-white border-2 border-[#0066FF] shadow-xl animate-fade-in">
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-blue-200 uppercase tracking-wider">
+                                        <i className="bi bi-broadcast text-[#0066FF] animate-pulse text-sm"></i>
+                                        <span>Altair Explaining Your Question</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                        <span className="text-[10px] font-mono font-bold text-emerald-300 uppercase tracking-wider">Live Voice</span>
+                                    </div>
                                 </div>
-                                <p className="text-xs sm:text-sm font-semibold text-[#0F172A] mb-2 italic">
+
+                                <p className="text-xs sm:text-sm font-medium text-blue-100 mb-3 italic">
                                     "{qaQuestion}"
                                 </p>
-                                {qaAnswer ? (
-                                    <p className="text-sm font-medium text-[#0F172A] leading-relaxed">
-                                        {qaAnswer}
-                                    </p>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                        <span>Thinking...</span>
+
+                                {/* Realtime Audio Waveform Animation Bars */}
+                                <div className="flex items-center justify-center gap-2 py-3.5 px-4 bg-black/30 rounded-xl border border-white/10 shadow-inner">
+                                    <div className="flex items-center gap-1.5 h-8">
+                                        <span className="w-1.5 bg-[#0066FF] rounded-full animate-[bounce_0.8s_ease-in-out_infinite] h-3 shadow-[0_0_8px_#0066FF]" />
+                                        <span className="w-1.5 bg-blue-400 rounded-full animate-[bounce_0.6s_ease-in-out_infinite_0.15s] h-6 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                                        <span className="w-1.5 bg-white rounded-full animate-[bounce_0.75s_ease-in-out_infinite_0.3s] h-8 shadow-[0_0_10px_white]" />
+                                        <span className="w-1.5 bg-blue-300 rounded-full animate-[bounce_0.5s_ease-in-out_infinite_0.1s] h-7 shadow-[0_0_8px_rgba(147,197,253,0.8)]" />
+                                        <span className="w-1.5 bg-[#0066FF] rounded-full animate-[bounce_0.7s_ease-in-out_infinite_0.25s] h-5 shadow-[0_0_8px_#0066FF]" />
+                                        <span className="w-1.5 bg-blue-400 rounded-full animate-[bounce_0.9s_ease-in-out_infinite_0.05s] h-4 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
                                     </div>
-                                )}
+                                    <span className="text-xs font-semibold text-white ml-2 tracking-wide">
+                                        {qaAnswer ? 'Speaking answer aloud...' : 'Preparing spoken explanation...'}
+                                    </span>
+                                </div>
                             </div>
                         )}
 

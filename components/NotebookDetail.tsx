@@ -110,7 +110,8 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
     const voiceSession: VoiceTutorialSessionData = {
       course: syntheticCourse,
       topic: syntheticTopic,
-      syllabusContext: `Textbook: ${notebook.title}. Chapter: ${selectedChapter.title}`,
+      syllabusContext: `NOTEBOOK TEXTBOOK SOURCE: "${notebook.title}". CHAPTER: "${selectedChapter.title}".`,
+      customPrompt: `Speak as a personalized tutor teaching directly from the student's notebook. Naturally reference their notes throughout (e.g. "Looking at this chapter of your note...", "From this part of your note...", "As outlined in chapter ${selectedChapter.title}...").`,
     };
 
     return (
