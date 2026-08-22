@@ -43,6 +43,7 @@ class GrokVoiceEngine {
   private currentAudioElement: HTMLAudioElement | null = null;
   private activeSessionId = 0;
   private prefetchCache = new Map<string, Promise<GrokTtsResponsePayload | null>>();
+  private memoryCache = new Map<string, GrokTtsResponsePayload>();
 
   private getAudioContext(): AudioContext {
     if (!this.audioCtx || this.audioCtx.state === 'closed') {
@@ -56,7 +57,10 @@ class GrokVoiceEngine {
   }
 
   /**
-   * Fetch audio + timestamps from Avelut /api/speech proxy
+   * Fetch audio + timestamps from Avelut /api/speech proxy with Multi-Tier Caching:
+   * 1. In-Memory Map Cache (0ms)
+   * 2. Persistent Local Cache (0ms, 0 Grok API characters, $0.00)
+   * 3. Vercel 7-Day Edge CDN Cache
    */
   public async fetchGrokSpeech(
     text: string,
@@ -65,9 +69,17 @@ class GrokVoiceEngine {
     if (!text || !text.trim()) return null;
 
     const cacheKey = options.cacheKey ? `avelut_grok_tts_${options.cacheKey}` : null;
+    
+    // 1. Check in-memory cache (0ms instant)
+    if (cacheKey && this.memoryCache.has(cacheKey)) {
+      return this.memoryCache.get(cacheKey)!;
+    }
+
+    // 2. Check persistent local storage cache (0ms, $0.00 cost)
     if (cacheKey) {
       const cached = readCachedJson<GrokTtsResponsePayload | null>(cacheKey, null);
       if (cached?.audio) {
+        this.memoryCache.set(cacheKey, cached);
         return cached;
       }
     }
@@ -106,7 +118,10 @@ class GrokVoiceEngine {
           });
           if (fallbackRes.ok) {
             const data: GrokTtsResponsePayload = await fallbackRes.json();
-            if (cacheKey && data.audio) writeCachedJson(cacheKey, data);
+            if (cacheKey && data.audio) {
+              this.memoryCache.set(cacheKey, data);
+              writeCachedJson(cacheKey, data);
+            }
             return data;
           }
         }
@@ -115,6 +130,7 @@ class GrokVoiceEngine {
 
       const payload: GrokTtsResponsePayload = await res.json();
       if (cacheKey && payload.audio) {
+        this.memoryCache.set(cacheKey, payload);
         writeCachedJson(cacheKey, payload);
       }
       return payload;
