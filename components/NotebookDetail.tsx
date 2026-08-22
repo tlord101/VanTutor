@@ -273,7 +273,8 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Action Modal (6 Study Options) — Rendered via createPortal to escape transformed parent bounds */}
