@@ -25,7 +25,7 @@ export interface LocalMessage {
 
 export interface SyncQueueItem {
   id: string;
-  entity_type: 'conversation' | 'message' | 'app_state' | 'history';
+  entity_type: 'conversation' | 'message' | 'app_state' | 'history' | 'flashcard' | 'exam' | 'notebook';
   entity_id: string;
   action: 'create' | 'update' | 'delete';
   payload_json: string;

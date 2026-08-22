@@ -595,7 +595,9 @@ OUTPUT VALID JSON ONLY:
             const uid = userProfile?.uid || 'anon';
             const cid = sessionData?.course?.course_id || 'general';
             const tid = sessionData?.topic?.topic_id || 'core';
-            void recordSessionCompletion(uid, cid, tid, 100);
+            const tName = sessionData?.topic?.topic_name || tid;
+            const cName = sessionData?.course?.course_name || cid;
+            void recordSessionCompletion(uid, tid, tName, cName, lesson.overallSummary || 'Topic completed', []);
             void saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'completed', true, lesson);
             return;
         }
