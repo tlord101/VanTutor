@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText } from '../utils/inference';
-import { GoogleGenAI } from '@google/genai';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import type { UserProfile, Course, Topic } from '../types';
 import {
     getStudentCognitiveProfile,
-    recordConceptProgress,
     recordSessionCompletion,
     StudentCognitiveProfile,
 } from '../services/tutorMemoryService';
@@ -20,61 +18,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import katex from 'katex';
 // @ts-ignore: KaTeX stylesheet
 import 'katex/dist/katex.min.css';
-import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { grokTts, grokVoiceEngine } from '../services/voice/GrokVoiceEngine';
-
+import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BOARD_LINES = 6;
-const LINE_STREAM_MS = 300;
-
-// ── Adaptive Teaching Phases (capabilities, not fixed sequence) ───────────────
-import type { TutorPhase, DiagnosticDimensionResult, RepairStrategy } from '../services/adaptivePathEngine';
-import { generatePhasePath, adaptPath, selectRepairStrategy, scoreDiagnosticAnswers, REPAIR_STRATEGY_INSTRUCTIONS } from '../services/adaptivePathEngine';
-import { DimensionalMastery, defaultMastery, updateMastery, updateMasteryOnAnswer, generateMasteryNarration, evaluateReadiness, PhaseResult, MisconceptionType } from '../services/masteryModel';
-import { evaluateLocally, evaluateWithAI, evaluateStudentAnswer, isHintRequest, EvaluationResult } from '../services/answerEvaluator';
-import { createInitialHintState, getNextHint, HintState } from '../services/hintEngine';
-import { createInitialDifficultyState, recordQuestionPerformance, DifficultyState } from '../services/difficultyController';
-import { calculateInitialReview, saveSpacedReviewItem, scheduleSpacedReviewItem } from '../services/spacedReviewService';
-import { recordConceptDimensionalMastery } from '../services/tutorMemoryService';
-import type { LearningQuestion, QuestionDifficulty } from '../types/learningQuestion';
-import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
-
-export type { TutorPhase };
-
-/** @deprecated — backward-compatible alias for SubStep during migration */
-export type SubStep = TutorPhase;
-
-export const INTERACTIVE_PHASES: Set<TutorPhase> = new Set([
-    'diagnostic', 'predict', 'guided_practice',
-    'independent_practice', 'misconception', 'transfer', 'retrieval', 'synthesis',
-]);
-
-export const PHASE_LABEL: Record<TutorPhase, string> = {
-    diagnostic:           'Diagnostic',
-    concept_map:          'Concept Map',
-    intuition:            'Intuition',
-    concept_core:         'Core Concept',
-    predict:              'Predict',
-    formalize:            'Formalize',
-    multi_represent:      'Representations',
-    guided_practice:      'Guided Practice',
-    independent_practice: 'Independent Practice',
-    misconception:        'Misconception Check',
-    transfer:             'Transfer',
-    retrieval:            'Retrieval',
-    mastery_decision:     'Mastery Check',
-    repair:               'Repair',
-    synthesis:            'Synthesis',
-};
-
-/** @deprecated — kept for backward-compat; phases are now runtime-generated */
-export const SUB_STEP_LABEL = PHASE_LABEL;
-export const SUB_STEP_ORDER: TutorPhase[] = ['diagnostic'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface VoiceTutorialSessionData {
@@ -84,6 +35,35 @@ export interface VoiceTutorialSessionData {
     image?: string | null;
     customPrompt?: string | null;
     source?: string;
+}
+
+export interface PrecompiledBoard {
+    boardId: string;
+    conceptIdx: number;
+    conceptName: string;
+    phaseTitle: string;
+    boardLines: string[];
+    spokenExplanation: string;
+    diagramSvg?: string | null;
+    tableMarkdown?: string | null;
+    diagramCaption?: string | null;
+}
+
+export interface SinglePassTopicLesson {
+    topicName: string;
+    courseName?: string;
+    overview: string;
+    boards: PrecompiledBoard[];
+    overallSummary: string;
+}
+
+export interface VoiceTutorialPageProps {
+    userProfile?:  UserProfile | null;
+    appSettings?:  any;
+    onNavigate?:   (tab: string) => void;
+    initialSessionData?: VoiceTutorialSessionData | null;
+    onBack?:       () => void;
+    setCustomHeaderConfig?: (config: any) => void;
 }
 
 const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUrl: string; mimeType: string }> => {
@@ -119,12 +99,7 @@ const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUr
 };
 
 /**
- * Robust JSON parser capable of handling:
- * 1. Markdown code blocks (```json ... ```)
- * 2. Unescaped LaTeX backslashes (\sigma, \Delta, \frac, \nabla, \alpha, etc.) without control character corruption
- * 3. Literal newlines or tabs inside JSON strings
- * 4. Trailing commas
- * 5. Truncated JSON responses (auto-closes quotes and braces)
+ * Robust JSON parser capable of handling LaTeX backslashes, unclosed quotes, and markdown code blocks.
  */
 export function robustParseJson<T = any>(raw: string): T {
     if (!raw || typeof raw !== 'string') {
@@ -132,73 +107,38 @@ export function robustParseJson<T = any>(raw: string): T {
     }
     let cleaned = raw.replace(/^```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
     
-    // Extract JSON substring between first { or [ and last } or ]
     const firstBrace = cleaned.search(/[\{\[]/);
     const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }
 
-    // Pre-escape LaTeX words so JSON.parse doesn't turn \frac into \x0c + rac or \beta into \x08 + eta
-    const preEscapeLatex = (str: string) => {
-        return str.replace(/(?<!\\)\\([a-zA-Z]+)/g, (match, word) => {
-            if (/^(frac|nabla|text|times|theta|tau|tan|rho|right|nu|neq|neg|normal|beta|begin|bar|bot|bf|bold|box|bullet|approx|gamma|delta|epsilon|zeta|eta|iota|kappa|lambda|mu|xi|pi|sigma|upsilon|phi|chi|psi|omega|sqrt|sum|int|partial|infty|cdot|pm|mp|le|ge|equiv|rightarrow|leftarrow|left|right|vec|hat|dot|ddot|tilde|mathbf|mathrm|mathit|displaystyle)/i.test(word)) {
-                return `\\\\${word}`;
-            }
-            return match;
-        });
-    };
-
-    const preprocessed = preEscapeLatex(cleaned);
-
-    // Attempt 1: Preprocessed JSON.parse
     try {
-        return JSON.parse(preprocessed) as T;
+        return JSON.parse(cleaned) as T;
     } catch (_) {}
 
-    // Attempt 2: Advanced character-by-character sanitize with LaTeX escape handler
     try {
         let inString = false;
         let isEscaped = false;
         let out = '';
-
         for (let i = 0; i < cleaned.length; i++) {
             const ch = cleaned[i];
-
             if (inString) {
-                if (ch === '"' && !isEscaped) {
+                if (isEscaped) {
+                    if (ch === '"' || ch === '\\' || ch === '/' || ch === 'b' || ch === 'f' || ch === 'n' || ch === 'r' || ch === 't' || ch === 'u') {
+                        out += '\\' + ch;
+                    } else {
+                        out += '\\\\' + ch;
+                    }
+                    isEscaped = false;
+                } else if (ch === '\\') {
+                    isEscaped = true;
+                } else if (ch === '"') {
                     inString = false;
                     out += ch;
-                } else if (ch === '\\' && !isEscaped) {
-                    const next = cleaned[i + 1] || '';
-                    if (next === '"' || next === '\\' || next === '/') {
-                        out += '\\' + next;
-                        i++;
-                    } else if (next === 'u' && /^[0-9a-fA-F]{4}/.test(cleaned.slice(i + 2, i + 6))) {
-                        out += '\\u' + cleaned.slice(i + 2, i + 6);
-                        i += 5;
-                    } else if (/^[bfnrt]/.test(next)) {
-                        const remainder = cleaned.slice(i + 1, i + 15);
-                        if (/^(frac|nabla|text|times|theta|tau|tan|rho|right|nu|neq|neg|normal|beta|begin|bar|bot|bf|bold|box|bullet|approx|gamma)/i.test(remainder)) {
-                            out += '\\\\' + next;
-                        } else {
-                            out += '\\' + next;
-                        }
-                        i++;
-                    } else {
-                        out += '\\\\' + next;
-                        i++;
-                    }
-                } else if (ch === '\n') {
-                    out += '\\n';
-                } else if (ch === '\r') {
-                    out += '\\r';
-                } else if (ch === '\t') {
-                    out += '\\t';
                 } else {
                     out += ch;
                 }
-                isEscaped = false;
             } else {
                 if (ch === '"') {
                     inString = true;
@@ -208,480 +148,24 @@ export function robustParseJson<T = any>(raw: string): T {
                 }
             }
         }
-
-        const withoutTrailingCommas = out.replace(/,\s*([\}\]])/g, '$1');
-        return JSON.parse(withoutTrailingCommas) as T;
+        return JSON.parse(out.replace(/,\s*([\}\]])/g, '$1')) as T;
     } catch (_) {}
 
-    // Attempt 3: Regex replacer function fixing all single backslashes
-    try {
-        const sanitized = cleaned
-            .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, () => '\\\\')
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t')
-            .replace(/,\s*([\}\]])/g, '$1');
-        return JSON.parse(sanitized) as T;
-    } catch (_) {}
-
-    // Attempt 4: Auto-balance unclosed quotes and braces if truncated
-    try {
-        let openBraces = (cleaned.match(/\{/g) || []).length - (cleaned.match(/\}/g) || []).length;
-        let openBrackets = (cleaned.match(/\[/g) || []).length - (cleaned.match(/\]/g) || []).length;
-        let openQuotes = (cleaned.match(/(?<!\\)"/g) || []).length % 2 !== 0;
-
-        let patched = cleaned;
-        if (openQuotes) patched += '"';
-        while (openBrackets > 0) {
-            patched += ']';
-            openBrackets--;
-        }
-        while (openBraces > 0) {
-            patched += '}';
-            openBraces--;
-        }
-
-        const sanitized = patched
-            .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, () => '\\\\')
-            .replace(/,\s*([\}\]])/g, '$1');
-        return JSON.parse(sanitized) as T;
-    } catch (_) {}
-
-    // Attempt 5: Resilient regex-field extractor for truncated or malformed responses
-    try {
-        const obj: any = {};
-
-        // Extract boardLines array
-        const boardMatch = cleaned.match(/"boardLines"\s*:\s*\[([\s\S]*?)(\]|$)/);
-        if (boardMatch) {
-            const rawItems = boardMatch[1].match(/"((?:[^"\\]|\\.)*)"/g);
-            if (rawItems && rawItems.length > 0) {
-                obj.boardLines = rawItems.map(item => item.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\'));
-            }
-        }
-
-        // Extract spokenExplanation
-        const spokenMatch = cleaned.match(/"spokenExplanation"\s*:\s*"((?:[^"\\]|\\.)*)/);
-        if (spokenMatch) {
-            obj.spokenExplanation = spokenMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-        }
-
-        // Extract diagramSvg
-        const svgMatch = cleaned.match(/"diagramSvg"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
-        if (svgMatch && svgMatch[1] !== 'null') {
-            obj.diagramSvg = svgMatch[1].slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-        }
-
-        // Extract tableMarkdown
-        const tableMatch = cleaned.match(/"tableMarkdown"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
-        if (tableMatch && tableMatch[1] !== 'null') {
-            obj.tableMarkdown = tableMatch[1].slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-        }
-
-        // Extract action buttons
-        const posLabelMatch = cleaned.match(/"positiveReplyLabel"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (posLabelMatch) obj.positiveReplyLabel = posLabelMatch[1];
-        const posTextMatch = cleaned.match(/"positiveReplyText"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (posTextMatch) obj.positiveReplyText = posTextMatch[1];
-        const negLabelMatch = cleaned.match(/"negativeReplyLabel"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (negLabelMatch) obj.negativeReplyLabel = negLabelMatch[1];
-        const negTextMatch = cleaned.match(/"negativeReplyText"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (negTextMatch) obj.negativeReplyText = negTextMatch[1];
-
-        // Extract Blueprint title & overview
-        const titleMatch = cleaned.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (titleMatch) obj.title = titleMatch[1];
-        const overviewMatch = cleaned.match(/"overview"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (overviewMatch) obj.overview = overviewMatch[1];
-        const summaryMatch = cleaned.match(/"overallSummary"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-        if (summaryMatch) obj.overallSummary = summaryMatch[1];
-
-        if (obj.boardLines || obj.spokenExplanation || obj.title) {
-            if (!obj.boardLines) obj.boardLines = [];
-            if (!obj.spokenExplanation) obj.spokenExplanation = obj.boardLines.join(' ');
-            if (obj.title && !obj.concepts) obj.concepts = [];
-            return obj as T;
-        }
-    } catch (_) {}
-
-    console.warn('[robustParseJson] All JSON parse strategies failed. Snippet:', cleaned.slice(0, 300));
-    // Return a safe minimal fallback object instead of throwing
     return {
-        title: 'Interactive STEM Tutorial',
-        overview: 'Adaptive lesson breakdown',
-        concepts: [],
-        boardLines: ['Interactive Tutorial Step'],
-        spokenExplanation: 'Let us continue our interactive lesson.',
+        topicName: 'Academic Tutorial',
+        overview: 'Interactive Multi-Disciplinary Lesson',
+        boards: [
+            {
+                boardId: 'b_0',
+                conceptIdx: 0,
+                conceptName: 'Core Overview',
+                phaseTitle: 'Intuition & Key Concepts',
+                boardLines: ['**Academic Topic Overview**', 'Interactive Voice Lesson'],
+                spokenExplanation: 'Welcome to this interactive tutorial. Let us explore the core concepts step by step.',
+            }
+        ],
+        overallSummary: 'Topic completed.',
     } as any as T;
-}
-
-export interface BlueprintVariable {
-    symbol: string;
-    meaning: string;
-    unit?: string;
-}
-
-export interface BlueprintStep {
-    stepNumber: number;
-    title: string;
-    principle?: string;
-    formula?: string;
-    substitution?: string;
-    calculation?: string;
-    result?: string;
-    explanation: string;
-    mathExpression: string;
-}
-
-export interface BlueprintExample {
-    problem: string;
-    givens: { symbol: string; value: string; unit?: string }[];
-    find: string;
-    step1: BlueprintStep;
-    step2: BlueprintStep;
-    step3: BlueprintStep;
-    answer: string;
-    physicalTakeaway: string;
-    hints?: [string, string, string, string];
-}
-
-export interface DiagnosticQuestionItem {
-    id: string;
-    question: string;
-    type: 'multiple_choice' | 'numeric' | 'open_ended';
-    options?: string[];
-    correctAnswer: string;
-    dimension: 'prerequisiteKnowledge' | 'conceptualUnderstanding' | 'proceduralFluency' | 'transferAbility';
-    difficulty: QuestionDifficulty;
-    prerequisiteConcept: string;
-    hints?: [string, string, string, string];
-}
-
-export interface BlueprintConcept {
-    conceptName:        string;
-    // ── Diagnostic Materials ──
-    diagnosticQuestions?: DiagnosticQuestionItem[];
-    // ── Intuition & Mental Model ──
-    relatableQuestion:  string;
-    realWorldScenario:  string;
-    keyDefinition:      string;
-    physicalMeaning:    string;
-    progressionTable:   string;
-    // ── Formalization ──
-    formula:            string | null;
-    variables:          BlueprintVariable[];
-    keyDistinction:     string;
-    goldenRule:         string;
-    // ── Prediction ──
-    predictionScenario?: string;
-    predictionQuestion?: string;
-    predictionAnswer?:   string;
-    // ── Socratic Guided & Independent Practice ──
-    example:            BlueprintExample;
-    guidedSocraticQuestions?: string[];
-    independentProblem?: BlueprintExample;
-    // ── Misconception & Edge Cases ──
-    misconceptionStatement?: string;
-    misconceptionExplanation?: string;
-    // ── Transfer & Retrieval ──
-    transferProblem?:   string;
-    transferAnswer?:    string;
-    retrievalPrompts?:  string[];
-    // ── Summary & Visuals ──
-    commonPitfalls:     string[];
-    summaryPoints:      string[];
-    diagramSvg?:        string | null;
-    tableMarkdown?:     string | null;
-    diagramCaption?:    string;
-}
-
-export interface SynthesisProblem {
-    problem: string;
-    integratedConcepts: string[];
-    givens: { symbol: string; value: string; unit?: string }[];
-    expectedAnswer: string;
-    explanation: string;
-    hints: [string, string, string, string];
-}
-
-export interface LessonBlueprint {
-    title:          string;
-    overview:       string;
-    concepts:       BlueprintConcept[];
-    synthesisProblem?: SynthesisProblem;
-    overallSummary: string;
-}
-
-export interface UnitPresentationResponse {
-    boardLines: string[];
-    spokenExplanation: string;
-    diagramSvg?: string | null;
-    tableMarkdown?: string | null;
-    diagramCaption?: string;
-    positiveReplyLabel?: string;
-    positiveReplyText?: string;
-    negativeReplyLabel?: string;
-    negativeReplyText?: string;
-}
-
-export interface DialogueTurn {
-    role: 'tutor' | 'student';
-    text: string;
-    boardSummary?: string;
-}
-
-export interface VoiceTutorialPageProps {
-    userProfile?:  UserProfile | null;
-    appSettings?:  any;
-    onNavigate?:   (tab: string) => void;
-    initialSessionData?: VoiceTutorialSessionData | null;
-    onBack?:       () => void;
-    setCustomHeaderConfig?: (config: any) => void;
-}
-
-// ── Dynamic Action Button Helpers for All 15 Adaptive Phases ──────────────────
-function getDefaultActions(step: TutorPhase): {
-    positive: { label: string; text: string };
-    negative: { label: string; text: string };
-} {
-    switch (step) {
-        case 'diagnostic':
-            return {
-                positive: { label: "Submit Answer →", text: "I've submitted my answer." },
-                negative: { label: "I'm not sure ↺", text: "I don't know the answer to this diagnostic question." },
-            };
-        case 'concept_map':
-            return {
-                positive: { label: "Explore Intuition →", text: "I see the roadmap, let's explore the real-world intuition." },
-                negative: { label: "Explain Roadmap ↺", text: "Could you clarify what we'll cover in this topic?" },
-            };
-        case 'intuition':
-            return {
-                positive: { label: "Makes sense, define it →", text: "I understand the real-world idea, let's look at the core meaning." },
-                negative: { label: "Another real-world example ↺", text: "Can you give another real-world scenario?" },
-            };
-        case 'concept_core':
-            return {
-                positive: { label: "Let me predict →", text: "The physical meaning is clear, test me with a prediction." },
-                negative: { label: "Simpler terms ↺", text: "Can you explain the core meaning in simpler terms?" },
-            };
-        case 'predict':
-            return {
-                positive: { label: "Check my prediction →", text: "Here is what I predict will happen." },
-                negative: { label: "Give me a hint 💡", text: "Can you give me a hint on what might happen?" },
-            };
-        case 'formalize':
-            return {
-                positive: { label: "Formula clear, let's practice →", text: "I follow the equation and variables, let's solve a problem together." },
-                negative: { label: "Explain variables & units ↺", text: "Can you walk through the variables and units once more?" },
-            };
-        case 'multi_represent':
-            return {
-                positive: { label: "Representations clear →", text: "The graphs and symbols are clear, let's practice." },
-                negative: { label: "Explain the visual ↺", text: "Can you walk through this visual representation again?" },
-            };
-        case 'guided_practice':
-            return {
-                positive: { label: "Submit Step →", text: "Here is my reasoning for this step." },
-                negative: { label: "Need a hint 💡", text: "I need a hint for this step." },
-            };
-        case 'independent_practice':
-            return {
-                positive: { label: "Submit My Solution →", text: "I've solved it independently, please check my work." },
-                negative: { label: "Give me a hint 💡", text: "Could you give me a hint to get started?" },
-            };
-        case 'misconception':
-            return {
-                positive: { label: "I can explain why →", text: "I know why this statement is incorrect." },
-                negative: { label: "Explain the trap ↺", text: "Why do students fall into this common misconception?" },
-            };
-        case 'repair':
-            return {
-                positive: { label: "Aha! Now I get it →", text: "That explanation makes complete sense now." },
-                negative: { label: "Still slightly unclear ↺", text: "Could you explain from another angle?" },
-            };
-        case 'transfer':
-            return {
-                positive: { label: "Apply principle →", text: "Here is how this applies to the new situation." },
-                negative: { label: "Give context hint 💡", text: "How does our principle relate to this new context?" },
-            };
-        case 'retrieval':
-            return {
-                positive: { label: "Recall Concept →", text: "Here is the concept explained from memory." },
-                negative: { label: "Prompt my memory ↺", text: "Give me a starting prompt to jog my memory." },
-            };
-        case 'mastery_decision':
-            return {
-                positive: { label: "Next Concept →", text: "I'm ready to advance!" },
-                negative: { label: "Review Weak Points ↺", text: "Can we reinforce the parts I was shaky on?" },
-            };
-        case 'synthesis':
-            return {
-                positive: { label: "Submit Synthesis Solution →", text: "Here is my complete solution combining the concepts." },
-                negative: { label: "Synthesis Hint 💡", text: "Give me a hint on how to connect these principles." },
-            };
-        default:
-            return { positive: { label: "Continue →", text: "Continue" }, negative: { label: "Explain ↺", text: "Explain" } };
-    }
-}
-
-function sanitizeSvg(rawSvg: string | null | undefined): string | null {
-    return sanitizeAndValidateSvg(rawSvg);
-}
-
-// ── Pure Board Content Generators for Fallback ────────────────────────────────
-function getBoardLines(concept: BlueprintConcept, step: TutorPhase, activeDiagIdx = 0): string[] {
-    switch (step) {
-        case 'diagnostic': {
-            const diag = concept.diagnosticQuestions?.[activeDiagIdx];
-            if (diag) {
-                const lines = [`**Diagnostic Check** (${diag.dimension}):`, diag.question];
-                if (diag.options && diag.options.length > 0) {
-                    diag.options.forEach((opt, i) => lines.push(`${String.fromCharCode(65 + i)}) ${opt}`));
-                }
-                return lines;
-            }
-            return [
-                `**Diagnostic Check**: ${concept.conceptName}`,
-                `Before we begin, how would you define or calculate ${concept.conceptName}?`,
-            ];
-        }
-        case 'concept_map':
-            return [
-                `**Topic Roadmap**: ${concept.conceptName}`,
-                `**Core Goal**: Master physical intuition, governing laws, and problem solving.`,
-                `**Key Distinctions**: ${concept.keyDistinction || 'Direction, units, and boundaries.'}`,
-            ];
-        case 'intuition':
-            return [
-                `**Real-World Question**: ${concept.relatableQuestion}`,
-                `**Physical Scenario**: ${concept.realWorldScenario || 'Everyday physical phenomenon'}`,
-                `**Intuitive Meaning**: ${concept.physicalMeaning || concept.keyDefinition}`,
-            ];
-        case 'concept_core':
-            return [
-                `**Core Definition**: ${concept.keyDefinition}`,
-                `**Physical Principle**: ${concept.physicalMeaning || concept.keyDefinition}`,
-                `**Golden Rule**: ${concept.goldenRule || 'Consistent physical behavior.'}`,
-            ];
-        case 'predict':
-            return [
-                `**Predictive Challenge**: ${concept.predictionScenario || concept.realWorldScenario || 'Think about this system.'}`,
-                `**Question**: ${concept.predictionQuestion || concept.relatableQuestion || 'What happens next?'}`,
-                `*State your prediction before we reveal the mathematical model.*`,
-            ];
-        case 'formalize': {
-            const lines: string[] = [];
-            if (concept.formula) lines.push(concept.formula);
-            if (concept.variables && concept.variables.length > 0) {
-                concept.variables.slice(0, 4).forEach(v => {
-                    lines.push(`$${v.symbol}$ $\\rightarrow$ ${v.meaning} ($${v.unit || '\\text{SI}'}$)`);
-                });
-            }
-            return lines.length > 0 ? lines : [`$$${concept.conceptName} = f(x)$$`];
-        }
-        case 'multi_represent':
-            return [
-                `**Multiple Representations of ${concept.conceptName}**:`,
-                `• **Verbal**: ${concept.keyDefinition}`,
-                `• **Symbolic**: ${concept.formula || 'Governing algebraic form'}`,
-                `• **Rule**: ${concept.goldenRule || 'Core invariant'}`,
-            ];
-        case 'guided_practice': {
-            const ex = concept.example;
-            return [
-                `**Guided Socratic Example**: ${ex?.problem || `Calculate ${concept.conceptName}`}`,
-                `**Given**: ` + (ex?.givens?.map(g => `$${g.symbol} = ${g.value}$ $${g.unit || ''}$`).join(', ') || 'Knowns'),
-                `**Target**: Find ${ex?.find || 'the unknown quantity'}`,
-            ];
-        }
-        case 'independent_practice': {
-            const ind = concept.independentProblem || concept.example;
-            return [
-                `**Independent Problem (Solve on your own)**:`,
-                ind?.problem || `Calculate the parameters for ${concept.conceptName}.`,
-                `*Try solving without looking at previous steps. Ask for a hint if stuck.*`,
-            ];
-        }
-        case 'misconception':
-            return [
-                `**Common Pitfall & Trap**:`,
-                `"${concept.misconceptionStatement || concept.commonPitfalls?.[0] || 'Students often confuse the sign or direction.'}"`,
-                `*Do you agree or disagree? Explain why.*`,
-            ];
-        case 'repair':
-            return [
-                `**Targeted Conceptual Repair**: ${concept.conceptName}`,
-                `Let's look at this from a different angle.`,
-                `**Golden Rule**: ${concept.goldenRule || 'Observe the fundamental balance.'}`,
-            ];
-        case 'transfer':
-            return [
-                `**Transfer Challenge (New Context)**:`,
-                concept.transferProblem || `How does ${concept.conceptName} apply when boundary conditions change?`,
-                `*Apply the same underlying principle to this novel scenario.*`,
-            ];
-        case 'retrieval':
-            return [
-                `**Memory Retrieval Check**:`,
-                concept.retrievalPrompts?.[0] || `Without notes: State the core rule and formula for ${concept.conceptName}.`,
-            ];
-        case 'mastery_decision':
-            return [
-                `**Concept Mastery Review**: ${concept.conceptName}`,
-                `Evaluating conceptual understanding, procedure, transfer, and retrieval.`,
-            ];
-        case 'synthesis':
-            return [
-                `**Topic Synthesis Problem**: Integrated Cross-Concept Challenge`,
-                `Combine your understanding of all concepts to solve this university-level problem.`,
-            ];
-        default:
-            return [`${concept.conceptName}`];
-    }
-}
-
-function getSpokenText(concept: BlueprintConcept, step: TutorPhase, activeDiagIdx = 0): string {
-    const name = concept.conceptName;
-    const ex = concept.example;
-    switch (step) {
-        case 'diagnostic': {
-            const diag = concept.diagnosticQuestions?.[activeDiagIdx];
-            return diag
-                ? `Let's start with a quick diagnostic check. ${diag.question} What do you think?`
-                : `Before we explore ${name}, what is your current understanding of how it works?`;
-        }
-        case 'concept_map':
-            return `Here is our roadmap for ${name}. We will build physical intuition, construct the mathematical model, and practice until you've reached full mastery.`;
-        case 'intuition':
-            return `Let us explore ${name}. Think about this: ${concept.relatableQuestion || 'What happens when physical quantities interact?'} Picture ${concept.realWorldScenario || 'a real situation'}. What comes to mind?`;
-        case 'concept_core':
-            return `Here is what ${name} means physically. ${concept.physicalMeaning || concept.keyDefinition}. Notice how it connects directly to our everyday physical intuition.`;
-        case 'predict':
-            return `Before we look at the math, make a prediction. ${concept.predictionScenario || 'In this setup'}, ${concept.predictionQuestion || 'what do you think will happen?'} State your prediction!`;
-        case 'formalize':
-            return `Now look at the board. Here is the mathematical formula for ${name}. Notice how each variable represents a specific physical quantity. Let's look at the symbols.`;
-        case 'multi_represent':
-            return `Notice how ${name} looks across different representations: in words, as an equation, and visually on the board. Each view gives you a deeper mental model.`;
-        case 'guided_practice':
-            return `Let's work through this problem together. Here is our setup on the board: ${ex?.problem || `Find the key parameters for ${name}`}. What principle or equation should we apply first?`;
-        case 'independent_practice':
-            return `Now it's your turn to solve a problem independently. Take your time, calculate the result, and let me know your answer. If you get stuck, simply ask for a hint!`;
-        case 'misconception':
-            return `Here is a classic trap many students fall into: ${concept.misconceptionStatement || 'a common mistake'}. Do you agree with this statement, or what is wrong with it?`;
-        case 'repair':
-            return `Let us clarify this misunderstanding with a new perspective. Look at the board as we break down the exact relationship.`;
-        case 'transfer':
-            return `Great! Now let's see if you can transfer this principle to a completely different context: ${concept.transferProblem || 'a new physical application'}. How would you approach this?`;
-        case 'retrieval':
-            return `To lock this concept into long-term memory: Without looking at your notes, how would you explain ${name} and its governing formula in your own words?`;
-        case 'mastery_decision':
-            return `Let's review your mastery profile across conceptual reasoning, procedural fluency, and transfer ability.`;
-        case 'synthesis':
-            return `Outstanding! You have mastered all individual concepts. Now, let us tackle an integrated synthesis problem that brings all these principles together!`;
-        default:
-            return '';
-    }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -697,279 +181,96 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const appSettings = propAppSettings || hookAppSettings;
     const { addToast } = useToast();
 
-    // ── Session & State ──────────────────────────────────────────────────
+    // ── Session & Lesson State ──────────────────────────────────────────
     const [sessionData, setSessionData] = useState<VoiceTutorialSessionData | null>(initialSessionData || null);
-    const [blueprint, setBlueprint] = useState<LessonBlueprint | null>(null);
-    const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
-    const [blueprintGenStep, setBlueprintGenStep] = useState('');
-    const [isModelDownloading, setIsModelDownloading] = useState(false);
-    const [modelDownloadProgress, setModelDownloadProgress] = useState(0);
-    const [showScannedImageModal, setShowScannedImageModal] = useState(false);
-    const [showLimitModal, setShowLimitModal] = useState(false);
-    const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
-
-    // ── Teaching Position & Adaptive State Machine ────────────────────────
-    const [conceptIdx, setConceptIdx] = useState(0);
-    const [subStep, setSubStep] = useState<TutorPhase>('diagnostic');
-    const [activePhasePath, setActivePhasePath] = useState<TutorPhase[]>(['diagnostic']);
-    const [phaseIdx, setPhaseIdx] = useState(0);
-    const [conceptMastery, setConceptMastery] = useState<DimensionalMastery>(() => defaultMastery());
-    const [difficultyState, setDifficultyState] = useState<DifficultyState>(() => createInitialDifficultyState(2));
-    const [hintState, setHintState] = useState<HintState>(() => createInitialHintState('init'));
-    const [repairAttempt, setRepairAttempt] = useState(0);
-    const [repairStrategiesUsed, setRepairStrategiesUsed] = useState<RepairStrategy[]>([]);
-    const [activeDiagnosticIdx, setActiveDiagnosticIdx] = useState(0);
-    const [activeLearningQuestion, setActiveLearningQuestion] = useState<LearningQuestion | null>(null);
+    const [lessonPlan, setLessonPlan] = useState<SinglePassTopicLesson | null>(null);
+    const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
+    const [lessonGenStep, setLessonGenStep] = useState('');
+    const [boardIndex, setBoardIndex] = useState(0);
     const [isDone, setIsDone] = useState(false);
 
-    // ── Dynamic Action Buttons ───────────────────────────────────────────
-    const [positiveAction, setPositiveAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('diagnostic').positive
-    );
-    const [negativeAction, setNegativeAction] = useState<{ label: string; text: string }>(
-        getDefaultActions('diagnostic').negative
-    );
-
-    // ── Board State ──────────────────────────────────────────────────────
+    // ── Board Content & Animation State ─────────────────────────────────
     const [visibleBoardLines, setVisibleBoardLines] = useState<string[]>([]);
-    const [activeWritingIndex, setActiveWritingIndex] = useState<number>(-1);
     const [isStreaming, setIsStreaming] = useState(false);
-    const [isLoadingUnit, setIsLoadingUnit] = useState(false);
+    const [activeWritingIndex, setActiveWritingIndex] = useState<number>(-1);
     const [activeDiagramSvg, setActiveDiagramSvg] = useState<string | null>(null);
     const [activeTableMarkdown, setActiveTableMarkdown] = useState<string | null>(null);
-    const [activeVisualCaption, setActiveVisualCaption] = useState<string | null>(null);
     const [diagramKey, setDiagramKey] = useState(0);
     const [isDiagramZoomed, setIsDiagramZoomed] = useState(false);
 
-    // ── Audio / Mic / Input / Image Attachment ────────────────────────────
+    // ── Audio & Voice State (Altair) ────────────────────────────────────
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isTtsLoading, setIsTtsLoading] = useState(false);
-    const [isMicListening, setIsMicListening] = useState(false);
-    const [textInput, setTextInput] = useState('');
-    const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
-    const [isNavigatingBack, setIsNavigatingBack] = useState(false);
-    const [micDisplay, setMicDisplay] = useState('');
     const [activeSpokenWord, setActiveSpokenWord] = useState<string>('');
-    const previewPlayerRef = useRef<any>(null);
 
-    // ── Refs ─────────────────────────────────────────────────────────────
+    // ── Live Interruptible Q&A State ────────────────────────────────────
+    const [isMicListening, setIsMicListening] = useState(false);
+    const [micDisplay, setMicDisplay] = useState('');
+    const [isAnsweringQuestion, setIsAnsweringQuestion] = useState(false);
+    const [qaQuestion, setQaQuestion] = useState<string | null>(null);
+    const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+    const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
+    const [showScannedImageModal, setShowScannedImageModal] = useState(false);
+    const [showLimitModal, setShowLimitModal] = useState(false);
+    const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
+    const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+
+    // ── Refs ────────────────────────────────────────────────────────────
+    const boardScrollRef            = useRef<HTMLDivElement | null>(null);
     const fileInputRef              = useRef<HTMLInputElement | null>(null);
     const isActiveRef               = useRef(true);
     const hasStartedRef             = useRef(false);
-    const conceptIdxRef             = useRef(0);
-    const subStepRef                = useRef<TutorPhase>('diagnostic');
-    const activePhasePathRef        = useRef<TutorPhase[]>(['diagnostic']);
-    const phaseIdxRef               = useRef(0);
-    const conceptMasteryRef         = useRef<DimensionalMastery>(defaultMastery());
-    const difficultyStateRef        = useRef<DifficultyState>(createInitialDifficultyState(2));
-    const hintStateRef              = useRef<HintState>(createInitialHintState('init'));
-    const repairAttemptRef          = useRef(0);
-    const repairStrategiesUsedRef   = useRef<RepairStrategy[]>([]);
-    const diagnosticAnswersRef      = useRef<{ questionIdx: number; correct: boolean; dimension: string }[]>([]);
-    const activeDiagnosticIdxRef    = useRef(0);
-    const activeLearningQuestionRef = useRef<LearningQuestion | null>(null);
-
-    const positiveActionRef         = useRef<{ label: string; text: string }>(getDefaultActions('diagnostic').positive);
-    const negativeActionRef         = useRef<{ label: string; text: string }>(getDefaultActions('diagnostic').negative);
-
+    const boardIndexRef             = useRef(0);
+    const isSpeakingRef             = useRef(false);
+    const currentAudioRef           = useRef<any>(null);
+    const playSessionIdRef          = useRef(0);
+    const streamTimersRef           = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const recognitionRef            = useRef<any>(null);
+    const spokenTextRef             = useRef('');
     const pendingBoardLinesRef      = useRef<string[]>([]);
     const pendingVisualsRef         = useRef<{ svg: string | null; table: string | null; caption: string | null }>({ svg: null, table: null, caption: null });
 
-    const audioContextRef           = useRef<AudioContext | null>(null);
-    const currentAudioRef           = useRef<AudioBufferSourceNode | null>(null);
-    const playSessionIdRef          = useRef<number>(0);
-    const recognitionRef            = useRef<any>(null);
-    const spokenTextRef             = useRef('');
-    const lastSpokenTextRef         = useRef('');
-    const handleStudentReplyRef     = useRef<(reply: string, image?: { base64: string; mimeType: string } | null) => Promise<void>>(() => Promise.resolve());
-    const streamTimersRef           = useRef<ReturnType<typeof setTimeout>[]>([]);
-    const dialogueHistoryRef        = useRef<DialogueTurn[]>([]);
-
-    // Keep state refs in sync
-    useEffect(() => { conceptIdxRef.current = conceptIdx; }, [conceptIdx]);
-    useEffect(() => { subStepRef.current = subStep; }, [subStep]);
-    useEffect(() => { activePhasePathRef.current = activePhasePath; }, [activePhasePath]);
-    useEffect(() => { positiveActionRef.current = positiveAction; }, [positiveAction]);
-    useEffect(() => { negativeActionRef.current = negativeAction; }, [negativeAction]);
-    useEffect(() => { phaseIdxRef.current = phaseIdx; }, [phaseIdx]);
-    useEffect(() => { conceptMasteryRef.current = conceptMastery; }, [conceptMastery]);
-    useEffect(() => { difficultyStateRef.current = difficultyState; }, [difficultyState]);
-    useEffect(() => { hintStateRef.current = hintState; }, [hintState]);
-    useEffect(() => { repairAttemptRef.current = repairAttempt; }, [repairAttempt]);
-    useEffect(() => { repairStrategiesUsedRef.current = repairStrategiesUsed; }, [repairStrategiesUsed]);
-    useEffect(() => { activeDiagnosticIdxRef.current = activeDiagnosticIdx; }, [activeDiagnosticIdx]);
-    useEffect(() => { activeLearningQuestionRef.current = activeLearningQuestion; }, [activeLearningQuestion]);
-
-    // ── Unmount / Cleanup ─────────────────────────────────────────────────
-    useEffect(() => {
-        isActiveRef.current = true;
-        return () => {
-            isActiveRef.current = false;
-            stopAudioImmediate();
-            clearAllStreamTimers();
-            stopMicImmediate();
-        };
-    }, []);
-
-    // ── Load Session Data ─────────────────────────────────────────────────
-    useEffect(() => {
-        if (initialSessionData?.course) {
-            setSessionData(initialSessionData);
-            return;
-        }
-        const stored = readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null);
-        if (stored?.course) {
-            setSessionData(stored);
-        } else {
-            setSessionData({
-                course: {
-                    course_id: 'general_tutorial',
-                    course_name: 'Academic Tutorial',
-                    level: userProfile?.level || 'University',
-                    topics: [],
-                },
-                topic: {
-                    topic_id: 'core_principles',
-                    topic_name: 'Core Principles & Overview',
-                    topic_context: 'General academic tutoring',
-                },
+    // ── Auto-Scroll Board Content Smoothly to Bottom ────────────────────
+    const scrollToBottom = useCallback(() => {
+        if (boardScrollRef.current) {
+            boardScrollRef.current.scrollTo({
+                top: boardScrollRef.current.scrollHeight,
+                behavior: 'smooth',
             });
         }
-    }, [initialSessionData, userProfile?.level]);
+    }, []);
 
-    // ── Bootstrap session ─────────────────────────────────────────────────
     useEffect(() => {
-        if (!sessionData || hasStartedRef.current) return;
-        hasStartedRef.current = true;
-        void bootstrapSession();
-    }, [sessionData]);
+        scrollToBottom();
+    }, [visibleBoardLines, isStreaming, activeSpokenWord, activeDiagramSvg, activeTableMarkdown, scrollToBottom]);
 
-    const isSpeakingRef = useRef(false);
-
-    // ── Audio & Mic Functions ─────────────────────────────────────────────
-    function stopAudioImmediate() {
-        playSessionIdRef.current++;
-        isSpeakingRef.current = false;
-        if (currentAudioRef.current) {
-            try { currentAudioRef.current.stop(); } catch (_) {}
-            currentAudioRef.current = null;
-        }
-        setIsSpeaking(false);
-    }
-
-    function stopMicImmediate() {
-        if (recognitionRef.current) {
-            try { 
-                recognitionRef.current.abort();
-            } catch (_) {
-                try { recognitionRef.current.stop(); } catch (_) {}
-            }
-            recognitionRef.current = null;
-        }
-        setIsMicListening(false);
-        setMicDisplay('');
-        spokenTextRef.current = '';
-    }
-
-    function clearAllStreamTimers() {
+    const clearAllStreamTimers = useCallback(() => {
         streamTimersRef.current.forEach(t => clearTimeout(t));
         streamTimersRef.current = [];
-    }
-
-    const getAudioCtx = useCallback((): AudioContext => {
-        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        return audioContextRef.current;
     }, []);
 
-    const pcm16ToAudioBuffer = useCallback(async (b64: string, ctx: AudioContext): Promise<AudioBuffer> => {
-        const bin  = atob(b64);
-        const raw  = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i);
-        const n    = raw.length / 2;
-        const buf  = ctx.createBuffer(1, n, 24000);
-        const ch   = buf.getChannelData(0);
-        const view = new DataView(raw.buffer);
-        for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
-        return buf;
+    const stopAudioImmediate = useCallback(() => {
+        playSessionIdRef.current++;
+        if (currentAudioRef.current) {
+            try {
+                if (typeof currentAudioRef.current.stop === 'function') {
+                    currentAudioRef.current.stop();
+                } else if (typeof currentAudioRef.current.pause === 'function') {
+                    currentAudioRef.current.pause();
+                }
+            } catch (_) {}
+            currentAudioRef.current = null;
+        }
+        grokVoiceEngine.stopAudio();
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        setIsTtsLoading(false);
+        setActiveSpokenWord('');
     }, []);
 
-    const startMicListening = useCallback(() => {
-        if (!isActiveRef.current || isPaused || isSpeakingRef.current) return;
-        const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SR) return;
-        stopMicImmediate();
-
-        try {
-            const rec = new SR();
-            rec.continuous      = false; // Single utterance turn to prevent recording subsequent AI speech
-            rec.interimResults  = true;
-            rec.lang            = 'en-US';
-            let speechTimeout: ReturnType<typeof setTimeout> | null = null;
-            let hasSubmitted = false;
-
-            rec.onstart = () => {
-                if (isActiveRef.current) {
-                    setIsMicListening(true);
-                    setMicDisplay('');
-                    spokenTextRef.current = '';
-                }
-            };
-
-            const submitSpeech = (text: string) => {
-                if (hasSubmitted) return;
-                hasSubmitted = true;
-                if (speechTimeout) clearTimeout(speechTimeout);
-
-                // Immediately turn off and deactivate microphone
-                stopMicImmediate();
-
-                const final = text.trim();
-                if (final.length > 1) {
-                    addToast(`Heard: "${final}"`, 'info');
-                    void handleStudentReplyRef.current(final, attachedImage);
-                }
-            };
-
-            rec.onresult = (e: any) => {
-                const resultsArr = Array.from(e.results);
-                const t = resultsArr.map((r: any) => r[0].transcript).join(' ').trim();
-                spokenTextRef.current = t;
-                if (isActiveRef.current) setMicDisplay(t);
-
-                // When speech pause detected (1.4s), deactivate mic and submit
-                if (speechTimeout) clearTimeout(speechTimeout);
-                if (t.length > 1) {
-                    speechTimeout = setTimeout(() => {
-                        submitSpeech(spokenTextRef.current);
-                    }, 1400);
-                }
-            };
-
-            rec.onend = () => {
-                if (!isActiveRef.current) return;
-                if (!hasSubmitted && spokenTextRef.current.trim().length > 1) {
-                    submitSpeech(spokenTextRef.current);
-                } else {
-                    stopMicImmediate();
-                }
-            };
-
-            rec.onerror = () => {
-                stopMicImmediate();
-            };
-
-            recognitionRef.current = rec;
-            rec.start();
-        } catch (_) {
-            stopMicImmediate();
-        }
-    }, [addToast, attachedImage, isPaused]);
-
-    // ── Dedicated Grok AI (Altair) TTS Speech Engine with Expressive Tags ─────
+    // ── Speech Text Sanitizer (Preserves Grok Speech Tags) ───────────────
     const cleanSpokenTextForTTS = (rawText: string): string => {
         return rawText
             .replace(/\$\$([\s\S]*?)\$\$/g, ' ')
@@ -994,14 +295,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                     .replace(/\\rightarrow/g, ' leads to ')
                     .replace(/\\Delta/g, 'change in ');
             })
-            // Clean unneeded markdown symbols while preserving Grok speech tags [tag] and <tag>...</tag>
             .replace(/[#`_~]/g, '')
             .replace(/\*\*(.*?)\*\*/g, '<emphasis>$1</emphasis>')
             .replace(/\s+/g, ' ')
             .trim();
     };
 
-    // ── Progressive Line-by-Line Chalk Reveal (Synchronized with Voice) ────────
+    // ── Synchronized Progressive Board Reveal (Accurate Voice Pacing) ────
     const revealLinesProgressively = useCallback((lines: string[], spokenText?: string) => {
         clearAllStreamTimers();
         if (!lines || lines.length === 0) {
@@ -1013,72 +313,58 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         setIsStreaming(true);
         const words = spokenText ? spokenText.split(/\s+/).filter(Boolean) : [];
-        const wordCount = words.length > 0 ? words.length : 24;
-        
-        const totalEstMs = Math.max(3000, wordCount * 380);
-        const lineCount = lines.length;
-        const lineIntervalMs = Math.max(2000, Math.min(4800, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+        const wordCount = Math.max(words.length, 20);
 
-        // Start line 0
+        // Pacing at 520ms per word gives natural speech duration and prevents text racing ahead of voice
+        const totalEstMs = Math.max(3500, wordCount * 520);
+        const lineCount = lines.length;
+        const lineIntervalMs = Math.max(2400, Math.min(6000, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+
+        // Lead delay of 280ms before Line 0 writes
         const initTimer = setTimeout(() => {
             if (!isActiveRef.current) return;
             setVisibleBoardLines([lines[0]]);
             setActiveWritingIndex(0);
-        }, 200);
+            scrollToBottom();
+        }, 280);
         streamTimersRef.current.push(initTimer);
 
-        // Schedule subsequent lines sequentially
         for (let i = 1; i < lineCount; i++) {
             const timer = setTimeout(() => {
                 if (!isActiveRef.current) return;
                 setVisibleBoardLines(lines.slice(0, i + 1));
                 setActiveWritingIndex(i);
-            }, 200 + i * lineIntervalMs);
+                scrollToBottom();
+            }, 280 + i * lineIntervalMs);
             streamTimersRef.current.push(timer);
         }
 
-        // Settle all lines cleanly when narration concludes
         const finishTimer = setTimeout(() => {
             if (!isActiveRef.current) return;
             setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
             setIsStreaming(false);
             setActiveWritingIndex(-1);
             setActiveSpokenWord('');
-        }, 200 + lineCount * lineIntervalMs);
+            scrollToBottom();
+        }, 280 + lineCount * lineIntervalMs);
         streamTimersRef.current.push(finishTimer);
-    }, [clearAllStreamTimers]);
+    }, [clearAllStreamTimers, scrollToBottom]);
 
-    const streamBoardLines = useCallback((lines: string[], spokenText?: string) => {
-        clearAllStreamTimers();
-        pendingBoardLinesRef.current = lines.slice(0, MAX_BOARD_LINES);
-        if (isMuted) {
-            revealLinesProgressively(pendingBoardLinesRef.current, spokenText);
-        } else {
-            setVisibleBoardLines([]);
-            setIsStreaming(true);
-            setActiveWritingIndex(-1);
-        }
-    }, [clearAllStreamTimers, isMuted, revealLinesProgressively]);
-
-    const speakText = useCallback(async (
+    // ── Speak Board Audio & Live Timestamp Sync ──────────────────────────
+    const speakBoardAudio = useCallback(async (
         text: string,
-        onEnd?: () => void,
-        linesToReveal?: string[]
+        lines: string[],
+        cacheKey: string,
+        onEnd?: () => void
     ): Promise<void> => {
         if (!isActiveRef.current || !text) {
             onEnd?.();
             return;
         }
 
-        const lines = (linesToReveal && linesToReveal.length > 0)
-            ? linesToReveal.slice(0, MAX_BOARD_LINES)
-            : pendingBoardLinesRef.current;
-        pendingBoardLinesRef.current = lines;
-
         stopAudioImmediate();
         clearAllStreamTimers();
         setIsPaused(false);
-        lastSpokenTextRef.current = text;
 
         if (isMuted) {
             setIsTtsLoading(false);
@@ -1088,12 +374,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             if (pendingVisualsRef.current.svg) {
                 setActiveDiagramSvg(pendingVisualsRef.current.svg);
                 setActiveTableMarkdown(null);
-                setActiveVisualCaption(pendingVisualsRef.current.caption);
                 setDiagramKey(k => k + 1);
             } else if (pendingVisualsRef.current.table) {
                 setActiveDiagramSvg(null);
                 setActiveTableMarkdown(pendingVisualsRef.current.table);
-                setActiveVisualCaption(pendingVisualsRef.current.caption);
                 setDiagramKey(k => k + 1);
             }
             onEnd?.();
@@ -1117,8 +401,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        const cacheKey = `${sessionData?.topic?.topic_id || 'gen'}_${subStepRef.current}_${conceptIdxRef.current}`;
-
         const player = grokTts.playSpeech(cleanedText, {
             voice: 'altair',
             withTimestamps: true,
@@ -1129,18 +411,15 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 isSpeakingRef.current = true;
                 setIsTtsLoading(false);
 
-                // Voice starts speaking: reveal lines with visual attachments
-                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                revealLinesProgressively(lines, cleanedText);
 
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
                     setActiveTableMarkdown(null);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
                     setDiagramKey(k => k + 1);
                 } else if (pendingVisualsRef.current.table) {
                     setActiveDiagramSvg(null);
                     setActiveTableMarkdown(pendingVisualsRef.current.table);
-                    setActiveVisualCaption(pendingVisualsRef.current.caption);
                     setDiagramKey(k => k + 1);
                 }
             },
@@ -1156,7 +435,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
 
-                setVisibleBoardLines(pendingBoardLinesRef.current);
+                setVisibleBoardLines(lines);
                 setIsStreaming(false);
                 setActiveWritingIndex(-1);
                 setActiveSpokenWord('');
@@ -1170,7 +449,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
-                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                revealLinesProgressively(lines, cleanedText);
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
                 } else if (pendingVisualsRef.current.table) {
@@ -1181,305 +460,65 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         });
 
         currentAudioRef.current = player as any;
-    }, [isMuted, clearAllStreamTimers, revealLinesProgressively, sessionData]);
+    }, [isMuted, clearAllStreamTimers, revealLinesProgressively, stopAudioImmediate]);
 
-    const streamText = useCallback(async (
-        text: string,
-        onEnd?: () => void,
-        linesToReveal?: string[]
-    ): Promise<void> => {
-        return speakText(text, onEnd, linesToReveal);
-    }, [speakText]);
-
-    function normalizeBlueprint(bp: any): LessonBlueprint {
-        if (!bp || typeof bp !== 'object') {
-            return {
-                title: 'Adaptive STEM Tutorial',
-                overview: 'Adaptive, student-driven interactive lesson.',
-                concepts: [],
-                overallSummary: 'Comprehensive tutorial completed.',
-            };
-        }
-        const rawConcepts = Array.isArray(bp.concepts) ? bp.concepts : [];
-        const topicLabel = bp.title || sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Core Topic Principles';
-        
-        // Ensure at least 3 deep structured concepts if empty
-        const defaultConceptsList: any[] = [
-            {
-                conceptName: `${topicLabel}: Physical Intuition & Foundations`,
-                relatableQuestion: `What happens physically in real scenarios involving ${topicLabel}?`,
-                realWorldScenario: `Everyday physical occurrence demonstrating the foundational intuition of ${topicLabel}.`,
-                keyDefinition: `Fundamental principle and governing definition of ${topicLabel}.`,
-                physicalMeaning: `Physical intuition and core behavior of ${topicLabel}.`,
-                formula: '$$\\Delta y = f(x)$$',
-                goldenRule: 'Physical quantities and conservation laws remain invariant across frames.',
-            },
-            {
-                conceptName: `${topicLabel}: Governing Mathematical Model & Laws`,
-                relatableQuestion: `How do we mathematically quantify and formulate ${topicLabel}?`,
-                realWorldScenario: `Calculations and relations predicting precise behavior in ${topicLabel}.`,
-                keyDefinition: `Mathematical formalization and equations governing ${topicLabel}.`,
-                physicalMeaning: `Relationship between variables, constants, and rates for ${topicLabel}.`,
-                formula: '$$F = m \\cdot a$$',
-                goldenRule: 'Units and dimensional homogeneity must balance across all terms in every formula.',
-            },
-            {
-                conceptName: `${topicLabel}: Applied Socratic Problem Solving & Boundary Principles`,
-                relatableQuestion: `How do we apply our equations to solve complex, multi-step problems in ${topicLabel}?`,
-                realWorldScenario: `Practical STEM scenario applying ${topicLabel}.`,
-                keyDefinition: `Step-by-step problem decomposition and solution strategy for ${topicLabel}.`,
-                physicalMeaning: `Applying governing laws to determine target unknowns accurately.`,
-                formula: '$$\\sum F = 0$$',
-                goldenRule: 'Always verify physical boundary conditions and the reasonableness of final answers.',
-            }
-        ];
-
-        const sourceConcepts = rawConcepts.length > 0 ? rawConcepts : defaultConceptsList;
-        const concepts: BlueprintConcept[] = sourceConcepts.map((c: any, i: number) => {
-            const cName = c.conceptName || `Concept ${i + 1}`;
-            const ex = c.example || {};
-            const ind = c.independentProblem || ex;
-            const diags: DiagnosticQuestionItem[] = Array.isArray(c.diagnosticQuestions) && c.diagnosticQuestions.length > 0
-                ? c.diagnosticQuestions.map((d: any, dIdx: number) => ({
-                    id: d.id || `diag_${i}_${dIdx}`,
-                    question: d.question || `What is your understanding of ${cName}?`,
-                    type: d.type || (d.options ? 'multiple_choice' : 'open_ended'),
-                    options: Array.isArray(d.options) ? d.options : undefined,
-                    correctAnswer: d.correctAnswer || cName,
-                    dimension: d.dimension || (dIdx === 0 ? 'prerequisiteKnowledge' : dIdx === 1 ? 'conceptualUnderstanding' : 'proceduralFluency'),
-                    difficulty: (d.difficulty || 2) as QuestionDifficulty,
-                    prerequisiteConcept: d.prerequisiteConcept || cName,
-                    hints: Array.isArray(d.hints) && d.hints.length === 4 ? d.hints : [
-                        `Think about the physical meaning of ${cName}.`,
-                        `Consider what law connects these quantities.`,
-                        `Look at the equation relating the variables.`,
-                        `Substitute the given values into the formula.`
-                    ],
-                }))
-                : [
-                    {
-                        id: `diag_${i}_0`,
-                        question: `Before we explore ${cName}, how would you describe what happens physically when forces or variables interact?`,
-                        type: 'open_ended',
-                        correctAnswer: c.keyDefinition || cName,
-                        dimension: 'prerequisiteKnowledge',
-                        difficulty: 2,
-                        prerequisiteConcept: 'Foundations',
-                        hints: [
-                            `Think about everyday physical objects.`,
-                            `Consider how energy or forces transfer.`,
-                            `Focus on cause and effect.`,
-                            `State the basic relationship.`
-                        ],
-                    }
-                ];
-
-            return {
-                conceptName: cName,
-                diagnosticQuestions: diags,
-                relatableQuestion: c.relatableQuestion || `What happens in real physical situations involving ${cName}?`,
-                realWorldScenario: c.realWorldScenario || `Everyday practical interaction with ${cName}`,
-                keyDefinition: c.keyDefinition || `Fundamental definition and role of ${cName}`,
-                physicalMeaning: c.physicalMeaning || c.keyDefinition || `Physical intuition and meaning of ${cName}`,
-                progressionTable: c.progressionTable || '| State | Value | Meaning |\n| :---: | :---: | :--- |\n| Initial | 0 | Rest |',
-                formula: c.formula || '',
-                variables: Array.isArray(c.variables) ? c.variables : [],
-                keyDistinction: c.keyDistinction || 'Pay attention to units, direction, and boundary limits.',
-                goldenRule: c.goldenRule || 'Physical laws remain consistent across coordinate frames.',
-                predictionScenario: c.predictionScenario || c.realWorldScenario || `Consider a physical system where ${cName} changes.`,
-                predictionQuestion: c.predictionQuestion || `If we double the input, what will happen to the output?`,
-                predictionAnswer: c.predictionAnswer || `It scales proportionally according to the governing formula.`,
-                example: {
-                    problem: ex.problem || `Calculate the governing parameters for ${cName}.`,
-                    givens: Array.isArray(ex.givens) ? ex.givens : [{ symbol: 'x', value: '10', unit: 'units' }],
-                    find: ex.find || `The primary value of ${cName}`,
-                    step1: {
-                        stepNumber: 1,
-                        title: ex.step1?.title || 'Identify Principle & Formula',
-                        explanation: ex.step1?.explanation || 'Relate knowns to unknown.',
-                        formula: ex.step1?.formula || c.formula || 'y = f(x)',
-                        mathExpression: ex.step1?.mathExpression || c.formula || 'y = f(x)',
-                    },
-                    step2: {
-                        stepNumber: 2,
-                        title: ex.step2?.title || 'Substitute Values & Calculate',
-                        explanation: ex.step2?.explanation || 'Substitute known numerical values.',
-                        mathExpression: ex.step2?.mathExpression || 'y = 10',
-                    },
-                    step3: {
-                        stepNumber: 3,
-                        title: ex.step3?.title || 'Final Result & Verification',
-                        explanation: ex.step3?.explanation || 'Verify units and physical meaning.',
-                        mathExpression: ex.step3?.mathExpression || ex.answer || '10\\text{ units}',
-                    },
-                    answer: ex.answer || '10\\text{ units}',
-                    physicalTakeaway: ex.physicalTakeaway || 'Result is dimensionally consistent.',
-                    hints: Array.isArray(ex.hints) && ex.hints.length === 4 ? ex.hints : [
-                        `Identify which quantity is given and what we need to find.`,
-                        `Select the governing equation connecting our knowns.`,
-                        `Rearrange the equation for the target unknown.`,
-                        `Substitute values and verify the final units.`
-                    ],
-                },
-                guidedSocraticQuestions: Array.isArray(c.guidedSocraticQuestions) && c.guidedSocraticQuestions.length > 0
-                    ? c.guidedSocraticQuestions
-                    : ['Which principle or formula should we apply first?', 'What happens when we substitute our known values?', 'What does this final number tell us physically?'],
-                independentProblem: {
-                    problem: ind.problem || `A system operates with ${cName}. Calculate the resulting unknown parameter.`,
-                    givens: Array.isArray(ind.givens) ? ind.givens : [{ symbol: 'm', value: '5', unit: 'kg' }],
-                    find: ind.find || `The resulting state`,
-                    step1: ind.step1 || { stepNumber: 1, title: 'Principle', explanation: 'Formulate relation', mathExpression: 'F = ma' },
-                    step2: ind.step2 || { stepNumber: 2, title: 'Calculation', explanation: 'Compute value', mathExpression: 'a = 4' },
-                    step3: ind.step3 || { stepNumber: 3, title: 'Result', explanation: 'Dimension check', mathExpression: '4\\text{ m/s}^2' },
-                    answer: ind.answer || '4\\text{ m/s}^2',
-                    physicalTakeaway: ind.physicalTakeaway || 'Physical consistency confirmed.',
-                    hints: Array.isArray(ind.hints) && ind.hints.length === 4 ? ind.hints : [
-                        `Start by listing your given variables and required target.`,
-                        `Apply the universal formula we derived.`,
-                        `Isolate the target variable algebraically.`,
-                        `Perform arithmetic carefully and check standard SI units.`
-                    ],
-                },
-                misconceptionStatement: c.misconceptionStatement || `Heavier objects always accelerate faster regardless of applied force.`,
-                misconceptionExplanation: c.misconceptionExplanation || `Mass provides inertia which resists acceleration ($a = F/m$), so greater mass reduces acceleration for a given force.`,
-                transferProblem: c.transferProblem || `How would this principle apply in an orbital or submerged fluid environment?`,
-                transferAnswer: c.transferAnswer || `The same conservation and force balance laws hold with buoyant or gravitational field adjustments.`,
-                retrievalPrompts: Array.isArray(c.retrievalPrompts) && c.retrievalPrompts.length > 0
-                    ? c.retrievalPrompts
-                    : [`State the governing formula for ${cName} and explain what each variable represents physically.`],
-                commonPitfalls: Array.isArray(c.commonPitfalls) ? c.commonPitfalls : ['Forgetting vector direction', 'Mixing units'],
-                summaryPoints: Array.isArray(c.summaryPoints) && c.summaryPoints.length > 0 ? c.summaryPoints : ['Concept locked in.'],
-            };
-        });
-
-        return {
-            title: bp.title || 'Adaptive STEM Tutorial',
-            overview: bp.overview || 'Adaptive student-driven tutorial.',
-            concepts,
-            synthesisProblem: bp.synthesisProblem || {
-                problem: `Integrate the core principles learned in this topic to solve for the overall equilibrium of the system.`,
-                integratedConcepts: concepts.map(c => c.conceptName),
-                givens: [{ symbol: 'K', value: '100', unit: 'N/m' }],
-                expectedAnswer: 'Verified result',
-                explanation: 'Combines multiple laws across all concepts.',
-                hints: [
-                    `Break the complex problem into sub-systems matching our learned concepts.`,
-                    `Apply the first concept equation to find the intermediate state.`,
-                    `Substitute intermediate results into the second governing law.`,
-                    `Verify overall dimensional consistency and physical limits.`
-                ],
-            },
-            overallSummary: bp.overallSummary || 'Topic successfully completed with demonstrated mastery.',
-        };
-    }
-
-    // ── Master Adaptive Blueprint Generation ──────────────────────────────────
-    const generateBlueprint = useCallback(async (session: VoiceTutorialSessionData, studentMem?: StudentCognitiveProfile | null): Promise<LessonBlueprint | null> => {
-        setIsGeneratingBlueprint(true);
-        setBlueprintGenStep('Designing adaptive curriculum & diagnostic checks...');
+    // ── Single-Pass Complete Topic Lesson Generator (1 Gemini Call!) ──────
+    const generateCompleteTopicLesson = useCallback(async (
+        session: VoiceTutorialSessionData,
+        studentMem?: StudentCognitiveProfile | null
+    ): Promise<SinglePassTopicLesson | null> => {
+        setIsGeneratingLesson(true);
+        setLessonGenStep('Pre-compiling Full Topic Lesson...');
 
         const aiClient = createAvelutAI(appSettings, userProfile || null);
-        if (!aiClient) { setIsGeneratingBlueprint(false); return null; }
+        if (!aiClient) {
+            setIsGeneratingLesson(false);
+            addToast('AI service unavailable. Check your internet connection or API settings.', 'error');
+            return null;
+        }
 
-        const courseName = session.course?.course_name || 'Academic Tutorial';
-        const topicName  = session.topic?.topic_name || 'Core Concepts';
-        const level      = session.course?.level || userProfile?.level || 'University';
-        const hasImage   = Boolean(session.image);
+        const topicName = session.topic?.topic_name || session.course.course_name || 'Academic Subject';
+        const courseContext = session.syllabusContext ? `SYLLABUS CONTEXT:\n${session.syllabusContext}\n` : '';
+        const customPromptCtx = session.customPrompt ? `SPECIFIC FOCUS INSTRUCTIONS:\n${session.customPrompt}\n` : '';
 
-        setBlueprintGenStep(hasImage ? 'Analyzing scanned problem image & structuring adaptive stages...' : 'Constructing adaptive pedagogical diagnostic and practice modules...');
+        const prompt = `You are AVELUT Master Multi-Disciplinary Voice & Visual Academic Tutor.
+Generate a COMPLETE, VIDEO-STYLE PRE-COMPILED LESSON for "${topicName}" in a single structured JSON response.
 
-        const memoryContext = studentMem?.lastTopicTaught
-            ? `STUDENT COGNITIVE HISTORY:
-- Last Topic: "${studentMem.lastTopicTaught.topicName}"
-- Demonstrated Masteries: ${studentMem.overallMasteries.slice(-4).join(', ') || 'Foundations'}
-- Struggles: ${studentMem.overallWeakPoints.slice(-4).join(', ') || studentMem.lastTopicTaught.struggledKeyPoints.join(', ') || 'Unit consistency'}`
-            : `STUDENT: New learner session.`;
+${courseContext}${customPromptCtx}
+${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
 
-        const imageInstructions = hasImage ? `
-*** SCANNED PROBLEM ADAPTIVE TUTORIAL ***
-The student uploaded an image of a problem/diagram.
-1. Inspect image in detail: equations, geometry, givens, target unknowns.
-2. Build the lesson concepts, diagnostics, guided example, and independent practice DIRECTLY around the scanned problem.
-` : '';
+TEACHING METHODOLOGY & BOARD SEQUENCE:
+Create an engaging sequence of 5 to 7 high-impact pre-compiled boards covering this topic from first principles to mastery:
+- Board 1: "Real-World Intuition & Analogy" — Relatable scenario, physical meaning / practical intuition, [DIAGRAM] or [TABLE].
+- Board 2: "Core Principles & Governing Model" — Clear definition, governing law/formula/rule, key variables/distinctions, [TABLE].
+- Board 3: "Guided Step-by-Step Worked Example" — Concrete problem or practical case study, setup, step-by-step logic, conclusion, [DIAGRAM].
+- Board 4: "Common Pitfalls & Misconceptions" — Classic student trap, why incorrect logic fails, correct invariant principle.
+- Board 5: "Golden Rule & Memory Anchor" — Memorable takeaway, summary rule, core invariant to remember forever.
 
-        const prompt = `You are AVELUT Master Educational Architect & Adaptive Learning Engine.
-Design an intelligent, highly engaging, and clear adaptive lesson blueprint for:
-Course: "${courseName}"
-Topic: "${topicName}"
-Level: ${level}
-${imageInstructions}
-${memoryContext}
-
-PEDAGOGICAL REQUIREMENTS:
-1. Universal Concept-Driven Teaching: Teach this topic clearly regardless of domain (sciences, humanities, business, law, engineering, literature, medicine, or social sciences). Explain core ideas intuitively with simple, everyday language first before technical formalization.
-2. 3 Sequential Core Concepts: Structure this topic into exactly 3 progressive concepts:
-   - Concept 1: Intuition & Fundamental Meaning
-   - Concept 2: Core Mechanism & Practical Application
-   - Concept 3: Critical Analysis & Real-World Integration
-3. Real-World Analogies & Practical Examples: Anchor each concept in familiar everyday scenarios and relatable case studies.
-4. Concise Board Narration (Strict ≤ 5,000 Chars Budget):
-   - Every spoken explanation must be strictly 140 to 200 characters (max 35 words).
-   - Board lines must be punchy visual summaries (1-3 short lines).
-5. Guided Example & Interactive Practice: Each concept includes 1 guided worked example and 1 interactive check problem with 3 progressive hints.
-6. Topic Synthesis Problem: 1 integrated real-world problem connecting all 3 concepts.
-7. Formulas / LaTeX: Use LaTeX ($...$) only if equations or formulas naturally occur in the subject.
+CRITICAL RULES:
+1. UNIVERSAL DOMAIN ADAPTATION: If the subject is qualitative (e.g. Constitutional Law, Biology, Macroeconomics, Literature, History), teach principles, mechanisms, and case comparisons without forcing calculation formulas.
+2. SHORT BOARD LINES (1-3 lines max): Never write dense walls of text on the board!
+3. EXPRESSIVE GROK SPEECH TAGS: In spokenExplanation, naturally incorporate [pause], <emphasis>key terms</emphasis>, <slow>core rules</slow>, [chuckle], or [sigh].
+4. ALWAYS PROVIDE A VISUAL (MANDATORY): Include a complete realistic SVG string (diagramSvg) OR a structured markdown table (tableMarkdown) for every board.
+5. Place [DIAGRAM] or [TABLE] tag inside boardLines array where the visual best fits.
 
 OUTPUT VALID JSON ONLY:
 {
-  "title": "${topicName} - Adaptive Tutorial",
-  "overview": "2-3 sentence engaging overview",
-  "concepts": [
+  "topicName": "${topicName}",
+  "overview": "2-sentence engaging topic overview",
+  "boards": [
     {
-      "conceptName": "Short Concept Name",
-      "relatableQuestion": "Everyday intuitive question",
-      "realWorldScenario": "Concrete everyday scenario or case study",
-      "keyDefinition": "Clear, plain-English definition",
-      "physicalMeaning": "Intuitive explanation of why it works this way",
-      "progressionTable": "| State / Phase | Example | Key Meaning |\\n| :---: | :---: | :--- |\\n| Phase 1 | Initial state | Baseline |",
-      "formula": "$$Governing Principle or Formula$$",
-      "variables": [{"symbol": "X", "meaning": "Key Factor", "unit": "Unit/Context"}],
-      "keyDistinction": "Crucial distinction from commonly confused counterpart",
-      "goldenRule": "Memorable Golden Rule or core takeaway",
-      "example": {
-        "problem": "Clear problem statement or practical case study",
-        "givens": [{"symbol": "Input", "value": "Given Value", "unit": "Unit"}],
-        "find": "Target objective or unknown",
-        "step1": {"stepNumber": 1, "title": "Identify Core Rule", "explanation": "Determine the governing principle", "mathExpression": "Principle setup"},
-        "step2": {"stepNumber": 2, "title": "Apply Logic / Math", "explanation": "Substitute values or trace mechanism", "mathExpression": "Application"},
-        "step3": {"stepNumber": 3, "title": "Conclusion & Verification", "explanation": "Verify practical meaning", "mathExpression": "Final result"},
-        "answer": "Clear outcome or numerical answer",
-        "physicalTakeaway": "Practical real-world takeaway",
-        "hints": ["Identify key factors", "Apply governing rule", "Verify final meaning"]
-      },
-      "guidedSocraticQuestions": ["Which principle applies here?", "How does this factor influence the outcome?", "What is the final conclusion?"],
-      "independentProblem": {
-        "problem": "Engaging problem or scenario for the student to solve",
-        "givens": [{"symbol": "Data", "value": "Given input", "unit": "Unit"}],
-        "find": "Target outcome",
-        "step1": {"stepNumber": 1, "title": "Rule", "explanation": "State principle", "mathExpression": "Logic"},
-        "step2": {"stepNumber": 2, "title": "Solution", "explanation": "Execute steps", "mathExpression": "Result"},
-        "step3": {"stepNumber": 3, "title": "Check", "explanation": "Verify sense", "mathExpression": "Verification"},
-        "answer": "Expected answer",
-        "physicalTakeaway": "Key takeaway",
-        "hints": ["Review known inputs", "Apply core principle", "Check consistency"]
-      },
-      "misconceptionStatement": "Common student misunderstanding statement",
-      "misconceptionExplanation": "Detailed explanation of why it is incorrect",
-      "transferProblem": "Application of principle to a novel, fresh context",
-      "transferAnswer": "Explanation of how the rule applies in this new context",
-      "retrievalPrompts": ["Explain the golden rule and core mechanism from memory"],
-      "commonPitfalls": ["Common mistake 1", "Common mistake 2"],
-      "summaryPoints": ["Key Point 1", "Key Point 2"]
+      "boardId": "board_1",
+      "conceptIdx": 0,
+      "conceptName": "Concept Name",
+      "phaseTitle": "Real-World Intuition & Analogy",
+      "boardLines": ["Line 1 with LaTeX ($...$)", "[DIAGRAM]", "Line 2"],
+      "spokenExplanation": "Conversational narration with [pause] and <emphasis>tags</emphasis>",
+      "diagramSvg": "Complete SVG string (viewBox=\\"0 0 800 480\\") or null",
+      "tableMarkdown": "Markdown table or null",
+      "diagramCaption": "Caption string or null"
     }
   ],
-  "synthesisProblem": {
-    "problem": "Integrated multi-concept university/practical problem",
-    "integratedConcepts": ["Concept 1", "Concept 2", "Concept 3"],
-    "givens": [{"symbol": "Context", "value": "Inputs", "unit": "Units"}],
-    "expectedAnswer": "Complete solution",
-    "explanation": "Step-by-step cross-concept solution",
-    "hints": ["Identify interconnected parts", "Apply core principles", "Synthesize final outcome"]
-  },
   "overallSummary": "Comprehensive summary of topic mastery."
 }`;
 
@@ -1493,7 +532,7 @@ OUTPUT VALID JSON ONLY:
                         parts.push({ inlineData: { data: base64Data, mimeType: mimeType || 'image/jpeg' } });
                     }
                 } catch (imgErr) {
-                    console.warn('[Blueprint] Failed to format image for AI:', imgErr);
+                    console.warn('[LessonGen] Failed to format image for AI:', imgErr);
                 }
             }
             parts.push({ text: prompt });
@@ -1504,1265 +543,368 @@ OUTPUT VALID JSON ONLY:
                 config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 8192 },
             });
             const raw = getResponseText(result);
-            if (!raw) throw new Error('Empty blueprint response');
-            const bp: LessonBlueprint = robustParseJson<LessonBlueprint>(raw);
-            setIsGeneratingBlueprint(false);
-            return bp;
+            if (!raw) throw new Error('Empty lesson response');
+            const lesson: SinglePassTopicLesson = robustParseJson<SinglePassTopicLesson>(raw);
+            setIsGeneratingLesson(false);
+            return lesson;
         } catch (err) {
-            console.error('[Blueprint] generation failed:', err);
-            addToast('Failed to generate lesson blueprint. Please try again.', 'error');
-            setIsGeneratingBlueprint(false);
+            console.error('[LessonGen] failed:', err);
+            addToast('Failed to pre-compile lesson. Please try again.', 'error');
+            setIsGeneratingLesson(false);
             return null;
         }
     }, [appSettings, userProfile, addToast]);
 
-    // ── Session Bootstrap & SQLite Restore ────────────────────────────────────
+    // ── Present Precompiled Board Unit ──────────────────────────────────
+    const presentBoard = useCallback(async (
+        lesson: SinglePassTopicLesson,
+        targetIndex: number
+    ) => {
+        if (!isActiveRef.current || !lesson || !lesson.boards || lesson.boards.length === 0) return;
+
+        if (targetIndex >= lesson.boards.length) {
+            setIsDone(true);
+            const uid = userProfile?.uid || 'anon';
+            const cid = sessionData?.course?.course_id || 'general';
+            const tid = sessionData?.topic?.topic_id || 'core';
+            void recordSessionCompletion(uid, cid, tid, 100);
+            void saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'completed', true, lesson);
+            return;
+        }
+
+        const board = lesson.boards[targetIndex];
+        setBoardIndex(targetIndex);
+        boardIndexRef.current = targetIndex;
+
+        const uid = userProfile?.uid || 'anon';
+        const cid = sessionData?.course?.course_id || 'general';
+        const tid = sessionData?.topic?.topic_id || 'core';
+        void saveLocalVoiceTutorialProgress(uid, cid, tid, targetIndex, board.phaseTitle, false, lesson);
+
+        // Sanitize visual attachments
+        const svg = sanitizeAndValidateSvg(board.diagramSvg);
+        const table = (board.tableMarkdown && board.tableMarkdown.trim().includes('|')) ? board.tableMarkdown : null;
+
+        pendingVisualsRef.current = {
+            svg,
+            table,
+            caption: board.diagramCaption || board.phaseTitle,
+        };
+        pendingBoardLinesRef.current = board.boardLines.slice(0, MAX_BOARD_LINES);
+
+        // Pre-fetch next board's audio in background
+        const nextIdx = targetIndex + 1;
+        if (nextIdx < lesson.boards.length) {
+            const nextBoard = lesson.boards[nextIdx];
+            const nextCacheKey = `avelut_grok_${cid}_${tid}_${nextIdx}`;
+            grokVoiceEngine.prefetchSpeech(cleanSpokenTextForTTS(nextBoard.spokenExplanation), nextCacheKey);
+        }
+
+        // On board audio completion: Auto-clean board and advance smoothly (YouTube Video Style)
+        const onBoardAudioEnd = () => {
+            if (!isActiveRef.current) return;
+            setTimeout(() => {
+                if (!isActiveRef.current) return;
+                // Auto-advance to next board
+                const nextBoardIdx = boardIndexRef.current + 1;
+                void presentBoard(lesson, nextBoardIdx);
+            }, 1200);
+        };
+
+        const currentCacheKey = `avelut_grok_${cid}_${tid}_${targetIndex}`;
+        await speakBoardAudio(board.spokenExplanation, board.boardLines, currentCacheKey, onBoardAudioEnd);
+
+    }, [speakBoardAudio, sessionData, userProfile]);
+
+    // ── Session Bootstrap & SQLite Restore ──────────────────────────────
     const bootstrapSession = useCallback(async () => {
         if (!sessionData) return;
 
         const uid = userProfile?.uid || 'anon';
         const cid = sessionData.course?.course_id || 'general';
         const tid = sessionData.topic?.topic_id || 'core';
+        const lessonCacheKey = `avelut_topic_lesson_${cid}_${tid}`;
 
         const studentMem = await getStudentCognitiveProfile(uid);
+        const cachedLesson = readCachedJson<SinglePassTopicLesson | null>(lessonCacheKey, null);
         const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
-        let bp: LessonBlueprint | null = sqliteRecord?.blueprint ? normalizeBlueprint(sqliteRecord.blueprint) : null;
+        
+        let lesson: SinglePassTopicLesson | null = cachedLesson || (sqliteRecord?.blueprint ? (sqliteRecord.blueprint as SinglePassTopicLesson) : null);
 
-        if (!bp) {
-            const rawBp = await generateBlueprint(sessionData, studentMem);
-            if (!rawBp || !isActiveRef.current) return;
-            bp = normalizeBlueprint(rawBp);
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, bp, {
-                phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
-                mastery: defaultMastery(),
-                difficultyLevel: 2,
-            });
+        if (!lesson || !lesson.boards || lesson.boards.length === 0) {
+            const rawLesson = await generateCompleteTopicLesson(sessionData, studentMem);
+            if (!rawLesson || !isActiveRef.current) return;
+            lesson = rawLesson;
+            writeCachedJson(lessonCacheKey, lesson);
+            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'start', false, lesson);
         }
 
-        if (!isActiveRef.current || !bp) return;
+        if (!isActiveRef.current || !lesson) return;
         setIsDone(false);
-        setBlueprint(bp);
+        setLessonPlan(lesson);
 
-        let startConceptIdx = sqliteRecord?.conceptIdx ?? 0;
-        let startPhase: TutorPhase = (sqliteRecord?.subStep as TutorPhase) || 'intuition';
-        let savedPath: TutorPhase[] = (sqliteRecord?.phasePath as TutorPhase[]) || ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
-        let savedMastery: DimensionalMastery = sqliteRecord?.mastery || defaultMastery();
-        let savedDifficulty: DifficultyState = createInitialDifficultyState((sqliteRecord?.difficultyLevel || 2) as QuestionDifficulty);
-
-        if (sqliteRecord?.isCompleted || startConceptIdx >= bp.concepts.length) {
-            startConceptIdx = 0;
-            startPhase = 'intuition';
-            savedPath = ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
-            savedMastery = defaultMastery();
-            savedDifficulty = createInitialDifficultyState(2);
+        let startBoardIndex = sqliteRecord?.conceptIdx ?? 0;
+        if (sqliteRecord?.isCompleted || startBoardIndex >= lesson.boards.length) {
+            startBoardIndex = 0;
         }
 
-        setConceptIdx(startConceptIdx);
-        setSubStep(startPhase);
-        setActivePhasePath(savedPath);
-        setPhaseIdx(0);
-        setConceptMastery(savedMastery);
-        setDifficultyState(savedDifficulty);
+        await presentBoard(lesson, startBoardIndex);
+    }, [sessionData, userProfile, generateCompleteTopicLesson, presentBoard]);
 
-        conceptIdxRef.current = startConceptIdx;
-        subStepRef.current    = startPhase;
-        activePhasePathRef.current = savedPath;
-        phaseIdxRef.current   = 0;
-        conceptMasteryRef.current = savedMastery;
-        difficultyStateRef.current = savedDifficulty;
-
-        const defaultActs = getDefaultActions(startPhase);
-        positiveActionRef.current = defaultActs.positive;
-        setPositiveAction(defaultActs.positive);
-        setNegativeAction(defaultActs.negative);
-
-        await presentUnit(bp, startConceptIdx, startPhase, 0, studentMem, true);
-    }, [sessionData, userProfile, generateBlueprint]);
-
-    // ── Present Unit (Adaptive Phased Engine) ──────────────────────────────────
-    const presentUnit = useCallback(async (
-        bp: LessonBlueprint,
-        cIdx: number,
-        currentPhase: TutorPhase,
-        diagIdx = 0,
-        studentMem?: StudentCognitiveProfile | null,
-        isSessionStart?: boolean,
-    ) => {
-        if (!isActiveRef.current) return;
-
-        const concept = bp.concepts[cIdx] || bp.concepts[0];
-        if (!concept && currentPhase !== 'synthesis') {
-            setIsLoadingUnit(false);
-            return;
+    // ── Start on mount ──────────────────────────────────────────────────
+    useEffect(() => {
+        isActiveRef.current = true;
+        if (!hasStartedRef.current && sessionData) {
+            hasStartedRef.current = true;
+            void bootstrapSession();
         }
-
-        const fallbackActs = getDefaultActions(currentPhase);
-        setPositiveAction(fallbackActs.positive);
-        setNegativeAction(fallbackActs.negative);
-        positiveActionRef.current = fallbackActs.positive;
-
-        setIsLoadingUnit(true);
-        setVisibleBoardLines([]);
-        setActiveDiagramSvg(null);
-        setActiveTableMarkdown(null);
-        setActiveVisualCaption(null);
-
-        // Save progress to SQLite & local cache
-        const cid = sessionData?.course?.course_id || 'general';
-        const tid = sessionData?.topic?.topic_id || 'core';
-        void saveLocalVoiceTutorialProgress(userProfile?.uid || 'anon', cid, tid, cIdx, currentPhase, false, bp, {
-            phasePath: activePhasePathRef.current,
-            mastery: conceptMasteryRef.current,
-            difficultyLevel: difficultyStateRef.current.currentLevel,
-            repairCount: repairAttemptRef.current,
-        });
-
-        // Configure learning question metadata if applicable
-        if (currentPhase === 'diagnostic' && concept?.diagnosticQuestions?.[diagIdx]) {
-            const dq = concept.diagnosticQuestions[diagIdx];
-            const lq: LearningQuestion = {
-                id: dq.id,
-                question: dq.question,
-                expectedAnswer: dq.correctAnswer,
-                difficulty: dq.difficulty,
-                skill: dq.dimension === 'prerequisiteKnowledge' ? 'recall' : dq.dimension === 'conceptualUnderstanding' ? 'concept' : 'application',
-                type: dq.type,
-                options: dq.options,
-                prerequisiteConcepts: [dq.prerequisiteConcept],
-                hints: dq.hints || ['Consider the fundamental definition.', 'Identify the governing rule.', 'Look at the formula.', 'Calculate step by step.'],
-            };
-            setActiveLearningQuestion(lq);
-            setHintState(createInitialHintState(dq.id));
-        } else if (currentPhase === 'independent_practice' && concept?.independentProblem) {
-            const ind = concept.independentProblem;
-            const lq: LearningQuestion = {
-                id: `ind_${cIdx}`,
-                question: ind.problem,
-                expectedAnswer: ind.answer,
-                difficulty: difficultyStateRef.current.currentLevel,
-                skill: 'application',
-                type: 'numeric',
-                prerequisiteConcepts: [concept.conceptName],
-                hints: ind.hints || ['Identify given values.', 'Formulate equation.', 'Substitute numbers.', 'Check units.'],
-            };
-            setActiveLearningQuestion(lq);
-            setHintState(createInitialHintState(`ind_${cIdx}`));
-        } else if (currentPhase === 'synthesis' && bp.synthesisProblem) {
-            const sp = bp.synthesisProblem;
-            const lq: LearningQuestion = {
-                id: `synth_${tid}`,
-                question: sp.problem,
-                expectedAnswer: sp.expectedAnswer,
-                difficulty: 4,
-                skill: 'analysis',
-                type: 'open_ended',
-                prerequisiteConcepts: sp.integratedConcepts,
-                hints: sp.hints,
-            };
-            setActiveLearningQuestion(lq);
-            setHintState(createInitialHintState(`synth_${tid}`));
-        } else {
-            setActiveLearningQuestion(null);
-        }
-
-        const repairStrategy = repairStrategiesUsedRef.current[repairStrategiesUsedRef.current.length - 1] || 'simpler_language';
-        const repairInstruction = REPAIR_STRATEGY_INSTRUCTIONS[repairStrategy] || 'Explain in simpler words.';
-
-        const memoryOpening = (isSessionStart && cIdx === 0 && currentPhase === 'diagnostic' && studentMem?.lastTopicTaught)
-            ? `OPENING MEMORY CONTEXT: The student previously completed "${studentMem.lastTopicTaught.topicName}". Welcome them warmly before starting diagnostic check.`
-            : '';
-
-        const phaseInstructions: Record<TutorPhase, string> = {
-            diagnostic: `PHASE 0: DIAGNOSTIC PREREQUISITE CHECK for "${concept?.conceptName}".
-${memoryOpening}
-Diagnostic Question ${diagIdx + 1}: "${concept?.diagnosticQuestions?.[diagIdx]?.question || `How does ${concept?.conceptName} work?`}"
-- spokenExplanation: (2-3 sentences). Warmly pose this diagnostic question. Ask the student what they think or to choose an option.
-- boardLines: Show the diagnostic question clearly with options if available.
-- positiveReplyLabel: "Submit Answer →"
-- negativeReplyLabel: "I'm not sure ↺"`,
-
-            concept_map: `PHASE 1: CONCEPT MAP & ROADMAP for "${concept?.conceptName}".
-- spokenExplanation: (3-4 sentences). Present the learning objective and big-picture roadmap. Explain what we will master.
-- boardLines[0]: "**Learning Roadmap**: ${concept?.conceptName}"
-- boardLines[1]: "**Core Goal**: Master physical intuition & problem solving"
-- boardLines[2]: "**Key Focus**: ${concept?.keyDistinction || 'Boundaries & principles'}"
-- positiveReplyLabel: "Explore Intuition →"
-- negativeReplyLabel: "Explain Roadmap ↺"`,
-
-            intuition: `PHASE 2: REAL-WORLD INTUITION for "${concept?.conceptName}".
-Relatable Question: ${concept?.relatableQuestion}
-Everyday Scenario: ${concept?.realWorldScenario}
-- spokenExplanation: (3-4 sentences). Ground the concept in everyday physical experience using concrete physical objects.
-- boardLines[0]: "**Question**: ${concept?.relatableQuestion}"
-- boardLines[1]: "**Physical Scenario**: ${concept?.realWorldScenario}"
-- boardLines[2]: "**Intuitive Meaning**: ${concept?.physicalMeaning || concept?.keyDefinition}"
-- diagramSvg: Labeled physical scenario sketch (e.g. car, ruler, diving board, circuit).
-- positiveReplyLabel: "Makes sense, define it →"
-- negativeReplyLabel: "Another real-world example ↺"`,
-
-            concept_core: `PHASE 3: CORE MENTAL MODEL for "${concept?.conceptName}".
-Definition: ${concept?.keyDefinition}
-Physical Meaning: ${concept?.physicalMeaning}
-- spokenExplanation: (3-4 sentences). Break down the core physical meaning and golden rule.
-- boardLines[0]: "${concept?.keyDefinition}"
-- boardLines[1]: "**Physical Meaning**: ${concept?.physicalMeaning}"
-- boardLines[2]: "**Golden Rule**: ${concept?.goldenRule}"
-- positiveReplyLabel: "Let me predict →"
-- negativeReplyLabel: "Simpler terms ↺"`,
-
-            predict: `PHASE 4: STUDENT PREDICTION CHALLENGE for "${concept?.conceptName}".
-Prediction Scenario: ${concept?.predictionScenario || concept?.realWorldScenario}
-Prediction Question: ${concept?.predictionQuestion}
-- spokenExplanation: (3-4 sentences). Challenge the student to predict what will happen in this scenario BEFORE revealing the formula. Ask for their prediction.
-- boardLines[0]: "**Predictive Challenge**: ${concept?.predictionScenario || concept?.realWorldScenario}"
-- boardLines[1]: "**Question**: ${concept?.predictionQuestion}"
-- boardLines[2]: "*State your prediction before looking at the formula.*"
-- positiveReplyLabel: "Check my prediction →"
-- negativeReplyLabel: "Give me a hint 💡"`,
-
-            formalize: `PHASE 5: MATHEMATICAL FORMALIZATION for "${concept?.conceptName}".
-Formula: ${concept?.formula || 'Core Equation'}
-Progression Table: ${concept?.progressionTable}
-- spokenExplanation: (3-4 sentences). Show how the mathematical equation quantifies our physical intuition. Walk through the variables and units.
-- boardLines[0]: "${concept?.formula || '$$v_f = v_i + at$$'}"
-- boardLines[1-3]: Variable breakdown with LaTeX units.
-- tableMarkdown: Markdown table of states if helpful.
-- positiveReplyLabel: "Formula clear, let's practice →"
-- negativeReplyLabel: "Explain variables & units ↺"`,
-
-            multi_represent: `PHASE 6: MULTIPLE REPRESENTATIONS for "${concept?.conceptName}".
-- spokenExplanation: (3-4 sentences). Contrast verbal, symbolic, and diagrammatic views of the concept.
-- boardLines[0]: "**Verbal**: ${concept?.keyDefinition}"
-- boardLines[1]: "**Symbolic**: ${concept?.formula}"
-- boardLines[2]: "**Key Invariant**: ${concept?.goldenRule}"
-- diagramSvg: Clean visual representation of the concept.
-- positiveReplyLabel: "Representations clear →"
-- negativeReplyLabel: "Explain the visual ↺"`,
-
-            guided_practice: `PHASE 7: SOCRATIC GUIDED PRACTICE for "${concept?.conceptName}".
-Problem: ${concept?.example?.problem}
-- spokenExplanation: (3-4 sentences). Present the problem and ask the student Socratic questions on what principle or formula to apply.
-- boardLines[0]: "**Guided Example**: ${concept?.example?.problem}"
-- boardLines[1]: "**Given**: ${concept?.example?.givens ? concept.example.givens.map(g => '$' + g.symbol + ' = ' + g.value + '$ ' + (g.unit || '')).join(', ') : 'Knowns'}"
-- boardLines[2]: "**Target**: Find ${concept?.example?.find || 'the unknown quantity'}"
-- positiveReplyLabel: "Submit Step →"
-- negativeReplyLabel: "Need a hint 💡"`,
-
-            independent_practice: `PHASE 8: INDEPENDENT PRACTICE for "${concept?.conceptName}".
-Problem: ${concept?.independentProblem?.problem || concept?.example?.problem}
-- spokenExplanation: (2-3 sentences). Invite the student to solve this problem independently. Remind them they can ask for hints.
-- boardLines[0]: "**Independent Problem**: ${concept?.independentProblem?.problem || concept?.example?.problem}"
-- boardLines[1]: "*Calculate the answer independently. Ask for a hint if stuck.*"
-- positiveReplyLabel: "Submit My Solution →"
-- negativeReplyLabel: "Give me a hint 💡"`,
-
-            misconception: `PHASE 9: MISCONCEPTION DEFENSE for "${concept?.conceptName}".
-Trap Statement: "${concept?.misconceptionStatement}"
-Scientific Explanation: "${concept?.misconceptionExplanation}"
-- spokenExplanation: (3-4 sentences). Present this common misconception and ask the student to explain why it is false.
-- boardLines[0]: "**Common Misconception Trap**:"
-- boardLines[1]: "\"${concept?.misconceptionStatement}\""
-- boardLines[2]: "*Do you agree or disagree? Explain why.*"
-- positiveReplyLabel: "I can explain why →"
-- negativeReplyLabel: "Explain the trap ↺"`,
-
-            repair: `TARGETED REPAIR PHASE for "${concept?.conceptName}".
-Repair Strategy: ${repairStrategy}
-Strategy Guidelines: ${repairInstruction}
-- spokenExplanation: (3-4 sentences). Re-explain using the specific repair strategy. Address the misunderstanding directly without restarting from scratch.
-- boardLines[0]: "**Conceptual Repair**: ${concept?.conceptName}"
-- boardLines[1]: "**Key Insight**: ${concept?.goldenRule}"
-- positiveReplyLabel: "Aha! Now I get it →"
-- negativeReplyLabel: "Still slightly unclear ↺"`,
-
-            transfer: `PHASE 10: TRANSFER TO NOVEL CONTEXT for "${concept?.conceptName}".
-Transfer Scenario: ${concept?.transferProblem}
-- spokenExplanation: (3-4 sentences). Ask the student to apply this principle to a completely new context.
-- boardLines[0]: "**Transfer Challenge**: ${concept?.transferProblem}"
-- boardLines[1]: "*Apply the underlying principle to this novel scenario.*"
-- positiveReplyLabel: "Apply principle →"
-- negativeReplyLabel: "Give context hint 💡"`,
-
-            retrieval: `PHASE 11: CLOSED-BOOK RETRIEVAL for "${concept?.conceptName}".
-Retrieval Prompt: "${concept?.retrievalPrompts?.[0]}"
-- spokenExplanation: (2-3 sentences). Ask the student to recall and summarize the core rule and formula from memory.
-- boardLines[0]: "**Retrieval Check**:"
-- boardLines[1]: "${concept?.retrievalPrompts?.[0] || `Explain ${concept?.conceptName} and its formula from memory.`}"
-- positiveReplyLabel: "Recall Concept →"
-- negativeReplyLabel: "Prompt my memory ↺"`,
-
-            mastery_decision: `PHASE 12: MASTERY EVALUATION for "${concept?.conceptName}".
-Mastery Breakdown: Conceptual (${Math.round(conceptMasteryRef.current.conceptualUnderstanding)}%), Procedure (${Math.round(conceptMasteryRef.current.proceduralFluency)}%), Transfer (${Math.round(conceptMasteryRef.current.transferAbility)}%), Retrieval (${Math.round(conceptMasteryRef.current.retrievalStrength)}%).
-- spokenExplanation: (3-4 sentences). ${generateMasteryNarration(conceptMasteryRef.current, concept?.conceptName || 'this concept')} Ask if they feel ready to advance!
-- boardLines[0]: "**Mastery Summary for ${concept?.conceptName}**"
-- boardLines[1]: "• Conceptual: ${Math.round(conceptMasteryRef.current.conceptualUnderstanding)}% | Procedural: ${Math.round(conceptMasteryRef.current.proceduralFluency)}%"
-- boardLines[2]: "• Transfer: ${Math.round(conceptMasteryRef.current.transferAbility)}% | Retrieval: ${Math.round(conceptMasteryRef.current.retrievalStrength)}%"
-- positiveReplyLabel: "Next Concept →"
-- negativeReplyLabel: "Review Weak Points ↺"`,
-
-            synthesis: `TOPIC SYNTHESIS: Cross-Concept University Integration.
-Problem: ${bp.synthesisProblem?.problem}
-- spokenExplanation: (3-4 sentences). Congratulate the student on mastering all concepts. Present the synthesis problem combining all topic principles!
-- boardLines[0]: "**Topic Synthesis Challenge**"
-- boardLines[1]: "${bp.synthesisProblem?.problem}"
-- positiveReplyLabel: "Submit Synthesis Solution →"
-- negativeReplyLabel: "Synthesis Hint 💡"`,
+        return () => {
+            isActiveRef.current = false;
+            stopAudioImmediate();
+            clearAllStreamTimers();
         };
+    }, [bootstrapSession, sessionData, stopAudioImmediate, clearAllStreamTimers]);
 
-        const aiPrompt = `You are AVELUT Master Voice & Visual Multi-Disciplinary Academic Tutor.
-You embody Adaptive Teaching Engine methodology across ALL subjects (STEM, Sciences, Humanities, Law, Literature, Economics, Computer Science, Business, Medicine, Social Sciences):
-- UNIVERSAL DOMAIN ADAPTATION: If the subject is qualitative or analytical (e.g. Constitutional Law, Cell Biology, Macroeconomics, Literature), teach mechanisms, principles, case studies, cause-and-effect chains, and comparison tables without forcing calculation formulas.
-- PEDAGOGICAL HARMONY: Board lines must be a punchy visual summary of spoken voice.
-- SHORT BOARD LINES (1-3 lines max): Never write dense walls of text on the board!
-- ALWAYS PROVIDE A VISUAL (MANDATORY): Always generate a realistic vector diagram illustration (diagramSvg) OR a structured markdown comparison/progression table (tableMarkdown).
-- EXPRESSIVE GROK SPEECH TAGS: In spokenExplanation, naturally incorporate Grok voice tags for lively, engaging delivery:
-  * [pause] or [long-pause] to let concepts land.
-  * <emphasis>key terms</emphasis> or <slow>governing rule or principle</slow>.
-  * [chuckle] or [sigh] where natural in tutoring dialogue.
-- LaTeX Math: Format formulas, variables, and units in LaTeX ($...$ or $$...$$) only when relevant to the discipline.
+    // ── Live Interruptible Q&A Handler ──────────────────────────────────
+    const handleStudentInterruptionQuestion = useCallback(async (
+        questionText: string,
+        imageAttachment?: { base64: string; mimeType: string } | null
+    ) => {
+        if (!questionText.trim() && !imageAttachment) return;
+        if (!lessonPlan || isGeneratingLesson) return;
 
-${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
+        // 1. Immediately pause current board audio
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        setIsAnsweringQuestion(true);
+        setQaQuestion(questionText);
+        setQaAnswer(null);
 
-CURRENT TOPIC: "${sessionData?.topic?.topic_name || sessionData?.course?.course_name}"
-CURRENT CONCEPT: "${concept?.conceptName}"
-CURRENT ADAPTIVE PHASE: "${currentPhase}" (${PHASE_LABEL[currentPhase]})
-DIFFICULTY LEVEL: ${difficultyStateRef.current.currentLevel}/5
-INSTRUCTION: ${phaseInstructions[currentPhase]}
+        const currentBoard = lessonPlan.boards[boardIndexRef.current] || lessonPlan.boards[0];
+        const topicName = lessonPlan.topicName || sessionData?.topic?.topic_name || 'Topic';
 
-OUTPUT VALID JSON ONLY:
-{
-  "boardLines": ["Line 1", "[DIAGRAM]", "Line 2", "Line 3"],
-  "spokenExplanation": "Engaging conversational spoken explanation with [pause] and <emphasis>tags</emphasis>",
-  "diagramSvg": "Complete realistic SVG string (viewBox=\\"0 0 800 480\\") or null",
-  "tableMarkdown": "Structured markdown table (| Header 1 | Header 2 |) or null",
-  "diagramCaption": "Caption string or null",
-  "positiveReplyLabel": "Button text",
-  "positiveReplyText": "Spoken text if affirmative button tapped",
-  "negativeReplyLabel": "Button text",
-  "negativeReplyText": "Spoken text if question/hint button tapped"
-}
-NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines array where the visual best fits!`;
-
-        const boardCacheKey = `avelut_board_${cid}_${tid}_${cIdx}_${currentPhase}`;
-        const cachedBoard = readCachedJson<UnitPresentationResponse | null>(boardCacheKey, null);
-
-        if (cachedBoard?.boardLines && cachedBoard?.spokenExplanation) {
-            setIsLoadingUnit(false);
-            const sanitized = sanitizeSvg(cachedBoard.diagramSvg || concept?.diagramSvg);
-            const table = cachedBoard.tableMarkdown || concept?.tableMarkdown;
-
-            pendingVisualsRef.current = {
-                svg: sanitized || null,
-                table: (table && table.trim().includes('|')) ? table : null,
-                caption: cachedBoard.diagramCaption || `${concept?.conceptName || 'Lesson'} Visual`,
-            };
-            pendingBoardLinesRef.current = cachedBoard.boardLines.slice(0, MAX_BOARD_LINES);
-
-            if (cachedBoard.positiveReplyLabel && cachedBoard.positiveReplyText) {
-                const pos = { label: cachedBoard.positiveReplyLabel, text: cachedBoard.positiveReplyText };
-                positiveActionRef.current = pos;
-                setPositiveAction(pos);
-            }
-            if (cachedBoard.negativeReplyLabel && cachedBoard.negativeReplyText) {
-                setNegativeAction({ label: cachedBoard.negativeReplyLabel, text: cachedBoard.negativeReplyText });
-            }
-
-            // On speech completion: auto-flip to next board for narrative phases
-            const onBoardSpeechEnd = () => {
-                if (!isActiveRef.current) return;
-                const isNarrativePhase = (
-                    currentPhase === 'concept_map' || 
-                    currentPhase === 'intuition' || 
-                    currentPhase === 'concept_core' || 
-                    currentPhase === 'formalize' || 
-                    currentPhase === 'multi_represent'
-                );
-
-                if (isNarrativePhase) {
-                    setTimeout(() => {
-                        if (!isActiveRef.current) return;
-                        void handleAdvanceNextBoard();
-                    }, 1400);
-                }
-            };
-
-            await speakText(cachedBoard.spokenExplanation, onBoardSpeechEnd, cachedBoard.boardLines.slice(0, MAX_BOARD_LINES));
+        const aiClient = createAvelutAI(appSettings, userProfile || null);
+        if (!aiClient) {
+            setIsAnsweringQuestion(false);
+            addToast('Could not reach AI to answer question.', 'error');
             return;
         }
 
-        const cost = getFeatureCost('study_guide_lesson', appSettings);
-        if (userProfile) {
-            const limitCheck = checkAICredits(userProfile, cost, appSettings);
-            if (!limitCheck.allowed) {
-                setIsLoadingUnit(false);
-                setLimitModalData({ balance: limitCheck.balance, cost: limitCheck.cost });
-                setShowLimitModal(true);
-                return;
-            }
-        }
+        const qaPrompt = `You are AVELUT Master Academic Voice Tutor.
+The student is watching a voice tutorial on "${topicName}".
+Current Board: "${currentBoard.phaseTitle}" (${currentBoard.conceptName}).
+Board lines visible on screen: ${currentBoard.boardLines.join(' | ')}.
+The student paused the video lesson to ask: "${questionText}".
+
+Provide a direct, crystal-clear, encouraging 2-3 sentence answer explaining their question.
+At the end of your explanation, say: "Now, let us continue our lesson."
+
+OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
 
         try {
-            const aiClient = createAvelutAI(appSettings, userProfile || null);
-            if (!aiClient || !isActiveRef.current) {
-                setIsLoadingUnit(false);
-                const defaultLines = getBoardLines(concept || bp.concepts[0], currentPhase, diagIdx);
-                const defaultSpoken = getSpokenText(concept || bp.concepts[0], currentPhase, diagIdx);
-                pendingBoardLinesRef.current = defaultLines;
-                setActiveDiagramSvg(null);
-                setActiveTableMarkdown(null);
-                setActiveVisualCaption(null);
-                await speakText(defaultSpoken, undefined, defaultLines);
-                return;
+            const parts: any[] = [];
+            if (imageAttachment) {
+                const base64Data = imageAttachment.base64.includes(',') ? imageAttachment.base64.split(',')[1] : imageAttachment.base64;
+                parts.push({ inlineData: { data: base64Data, mimeType: imageAttachment.mimeType || 'image/jpeg' } });
             }
+            parts.push({ text: qaPrompt });
 
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
-                contents: [{ role: 'user', parts: [{ text: aiPrompt }] }],
-                config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 4096 },
+                contents: [{ role: 'user', parts }],
+                config: { temperature: 0.3, maxOutputTokens: 300 },
             });
 
-            if (!isActiveRef.current) return;
-            const raw = getResponseText(result);
-            if (!raw) throw new Error('Empty unit response');
+            const answerText = getResponseText(result) || "I see what you mean. Let's make sure that's clear, and now let's continue our lesson.";
+            setQaAnswer(answerText);
 
-            const parsed: UnitPresentationResponse = robustParseJson<UnitPresentationResponse>(raw);
-            writeCachedJson(boardCacheKey, parsed);
-
-            const sanitized = sanitizeSvg(parsed.diagramSvg || concept?.diagramSvg);
-            const table = parsed.tableMarkdown || concept?.tableMarkdown;
-
-            pendingVisualsRef.current = {
-                svg: sanitized || null,
-                table: (table && table.trim().includes('|')) ? table : null,
-                caption: parsed.diagramCaption || `${concept?.conceptName || 'Lesson'} Visual`,
-            };
-            pendingBoardLinesRef.current = parsed.boardLines.slice(0, MAX_BOARD_LINES);
-
-            if (parsed.positiveReplyLabel && parsed.positiveReplyText) {
-                const pos = { label: parsed.positiveReplyLabel, text: parsed.positiveReplyText };
-                positiveActionRef.current = pos;
-                setPositiveAction(pos);
-            }
-            if (parsed.negativeReplyLabel && parsed.negativeReplyText) {
-                setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText });
-            }
-
-            dialogueHistoryRef.current.push({
-                role: 'tutor',
-                text: parsed.spokenExplanation,
-                boardSummary: parsed.boardLines.join(' | '),
-            });
-            if (dialogueHistoryRef.current.length > 8) {
-                dialogueHistoryRef.current = dialogueHistoryRef.current.slice(-8);
-            }
-
-            setIsLoadingUnit(false);
-
-            // Pre-fetch next board's audio in background
-            const nextPIdx = phaseIdxRef.current + 1;
-            const currentPath = activePhasePathRef.current;
-            if (nextPIdx < currentPath.length) {
-                const nextPhase = currentPath[nextPIdx];
-                const nextCacheKey = `${cid}_${tid}_${cIdx}_${nextPhase}`;
-                const nextFallbackSpoken = getSpokenText(concept || bp.concepts[0], nextPhase, 0);
-                grokVoiceEngine.prefetchSpeech(nextFallbackSpoken, nextCacheKey);
-            }
-
-            // On speech completion: auto-flip to next board for narrative phases
-            const onBoardSpeechEnd = () => {
-                if (!isActiveRef.current) return;
-                const isNarrativePhase = (
-                    currentPhase === 'concept_map' || 
-                    currentPhase === 'intuition' || 
-                    currentPhase === 'concept_core' || 
-                    currentPhase === 'formalize' || 
-                    currentPhase === 'multi_represent'
-                );
-
-                if (isNarrativePhase) {
+            // Speak answer to student
+            const cleanedAnswer = cleanSpokenTextForTTS(answerText);
+            await grokTts.playSpeech(cleanedAnswer, {
+                voice: 'altair',
+                withTimestamps: true,
+                onEnd: () => {
+                    if (!isActiveRef.current) return;
                     setTimeout(() => {
                         if (!isActiveRef.current) return;
-                        void handleAdvanceNextBoard();
+                        setIsAnsweringQuestion(false);
+                        setQaQuestion(null);
+                        setQaAnswer(null);
+                        setAttachedImage(null);
+
+                        // Resume current board
+                        void presentBoard(lessonPlan, boardIndexRef.current);
+                    }, 1000);
+                },
+            });
+        } catch (err) {
+            console.warn('[QA Interruption] failed:', err);
+            setIsAnsweringQuestion(false);
+            setQaQuestion(null);
+            setQaAnswer(null);
+            void presentBoard(lessonPlan, boardIndexRef.current);
+        }
+    }, [lessonPlan, isGeneratingLesson, sessionData, appSettings, userProfile, addToast, stopAudioImmediate, clearAllStreamTimers, presentBoard]);
+
+    // ── Microphone Controller ───────────────────────────────────────────
+    const stopMicImmediate = useCallback(() => {
+        if (recognitionRef.current) {
+            try { recognitionRef.current.abort(); } catch (_) {}
+            recognitionRef.current = null;
+        }
+        setIsMicListening(false);
+        setMicDisplay('');
+        spokenTextRef.current = '';
+    }, []);
+
+    const toggleMic = useCallback(() => {
+        if (isMicListening) {
+            stopMicImmediate();
+            return;
+        }
+
+        // Pause audio immediately
+        stopAudioImmediate();
+
+        const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SR) {
+            addToast('Speech recognition not supported on this browser. Type your question below.', 'info');
+            return;
+        }
+
+        try {
+            const rec = new SR();
+            rec.continuous = false;
+            rec.interimResults = true;
+            rec.lang = 'en-US';
+            let speechTimeout: ReturnType<typeof setTimeout> | null = null;
+            let hasSubmitted = false;
+
+            rec.onstart = () => {
+                if (isActiveRef.current) {
+                    setIsMicListening(true);
+                    setMicDisplay('');
+                    spokenTextRef.current = '';
+                }
+            };
+
+            const submitSpeech = (text: string) => {
+                if (hasSubmitted) return;
+                hasSubmitted = true;
+                if (speechTimeout) clearTimeout(speechTimeout);
+                stopMicImmediate();
+                const final = text.trim();
+                if (final.length > 1) {
+                    addToast(`Asking: "${final}"`, 'info');
+                    void handleStudentInterruptionQuestion(final, attachedImage);
+                }
+            };
+
+            rec.onresult = (e: any) => {
+                const resultsArr = Array.from(e.results);
+                const t = resultsArr.map((r: any) => r[0].transcript).join(' ').trim();
+                spokenTextRef.current = t;
+                if (isActiveRef.current) setMicDisplay(t);
+
+                if (speechTimeout) clearTimeout(speechTimeout);
+                if (t.length > 1) {
+                    speechTimeout = setTimeout(() => {
+                        submitSpeech(spokenTextRef.current);
                     }, 1400);
                 }
             };
 
-            await speakText(parsed.spokenExplanation, onBoardSpeechEnd, parsed.boardLines.slice(0, MAX_BOARD_LINES));
-
-        } catch (err) {
-            console.warn('[PresentUnit] presentation fallback:', err);
-            if (!isActiveRef.current) return;
-            setIsLoadingUnit(false);
-            const fallbackConcept = concept || bp.concepts[0];
-            const fallbackLines = getBoardLines(fallbackConcept, currentPhase, diagIdx);
-            pendingBoardLinesRef.current = fallbackLines;
-            pendingVisualsRef.current = { svg: null, table: null, caption: null };
-            await speakText(getSpokenText(fallbackConcept, currentPhase, diagIdx), undefined, fallbackLines);
-        }
-    }, [speakText, streamBoardLines, userProfile, appSettings, sessionData]);
-
-    // ── Advance to Next Board ────────────────────────────────────────────────
-    const handleAdvanceNextBoard = useCallback(async () => {
-        if (!blueprint || isGeneratingBlueprint) return;
-        stopAudioImmediate();
-        stopMicImmediate();
-        clearAllStreamTimers();
-
-        const currentPIdx = phaseIdxRef.current;
-        const currentPath = activePhasePathRef.current;
-        const nextPIdx = currentPIdx + 1;
-
-        if (nextPIdx < currentPath.length) {
-            const nextPhase = currentPath[nextPIdx];
-            setPhaseIdx(nextPIdx);
-            phaseIdxRef.current = nextPIdx;
-            setSubStep(nextPhase);
-            subStepRef.current = nextPhase;
-            setIsLoadingUnit(false);
-            await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
-            return;
-        }
-
-        // Advance to next concept
-        const nextCIdx = conceptIdxRef.current + 1;
-        if (nextCIdx < blueprint.concepts.length) {
-            conceptIdxRef.current = nextCIdx;
-            setConceptIdx(nextCIdx);
-            const freshPath: TutorPhase[] = ['diagnostic'];
-            setActivePhasePath(freshPath);
-            activePhasePathRef.current = freshPath;
-            setPhaseIdx(0);
-            phaseIdxRef.current = 0;
-            setSubStep('diagnostic');
-            subStepRef.current = 'diagnostic';
-            setActiveDiagnosticIdx(0);
-            activeDiagnosticIdxRef.current = 0;
-            setIsLoadingUnit(false);
-            await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
-            return;
-        }
-
-        // Synthesis / Completion
-        if (subStepRef.current !== 'synthesis' && blueprint.synthesisProblem) {
-            const synthPath: TutorPhase[] = ['synthesis'];
-            setActivePhasePath(synthPath);
-            activePhasePathRef.current = synthPath;
-            setPhaseIdx(0);
-            phaseIdxRef.current = 0;
-            setSubStep('synthesis');
-            subStepRef.current = 'synthesis';
-            setIsLoadingUnit(false);
-            await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
-            return;
-        }
-
-        setIsDone(true);
-        setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
-        void speakText(`Congratulations! ${blueprint.overallSummary} You have mastered this entire topic!`);
-    }, [blueprint, isGeneratingBlueprint, presentUnit, speakText]);
-
-    // ── Restart Current Board with Simpler Explanation ───────────────────────
-    const handleRestartSimplerBoard = useCallback(async () => {
-        if (!blueprint || isGeneratingBlueprint) return;
-        stopAudioImmediate();
-        stopMicImmediate();
-        clearAllStreamTimers();
-
-        repairStrategiesUsedRef.current.push('simpler_language');
-        setRepairStrategiesUsed([...repairStrategiesUsedRef.current]);
-        
-        setIsLoadingUnit(false);
-        await presentUnit(blueprint, conceptIdxRef.current, subStepRef.current, activeDiagnosticIdxRef.current);
-    }, [blueprint, isGeneratingBlueprint, presentUnit]);
-
-    // ── Interactive Student Reply (Intelligence & Decision Engine) ────────────
-    const handleStudentReply = useCallback(async (
-        reply: string,
-        imageAttachment?: { base64: string; mimeType: string } | null
-    ) => {
-        if (!blueprint || !isActiveRef.current || (!reply.trim() && !imageAttachment)) return;
-
-        stopAudioImmediate();
-        stopMicImmediate();
-        clearAllStreamTimers();
-        setTextInput('');
-        const attached = imageAttachment || attachedImage;
-        setAttachedImage(null);
-
-        const userText = reply.trim() || (attached ? 'Please check my work in this attached photo.' : 'Continue');
-        const currentC = blueprint.concepts[conceptIdxRef.current];
-        const currentPhase = subStepRef.current;
-        const currentPath = activePhasePathRef.current;
-        const currentPIdx = phaseIdxRef.current;
-        const currentDiagIdx = activeDiagnosticIdxRef.current;
-        const uid = userProfile?.uid || 'anon';
-        const tid = sessionData?.topic?.topic_id || 'core';
-        const tName = sessionData?.topic?.topic_name || 'Core Principles';
-        const cName = sessionData?.course?.course_name || 'Academic Tutorial';
-        const cid = sessionData?.course?.course_id || 'general';
-
-        dialogueHistoryRef.current.push({ role: 'student', text: attached ? `[Photo Attached] ${userText}` : userText });
-
-        const aiClient = createAvelutAI(appSettings, userProfile || null);
-
-        // ── 1. Progressive Hint Check ──────────────────────────────────────────
-        if (isHintRequest(userText) && activeLearningQuestionRef.current) {
-            const currentHState = hintStateRef.current;
-            const delivery = getNextHint(activeLearningQuestionRef.current, currentHState);
-            const nextH: HintState = {
-                ...currentHState,
-                hintsRevealed: Math.min(currentHState.maxHints, currentHState.hintsRevealed + 1)
+            rec.onend = () => {
+                if (!isActiveRef.current) return;
+                if (!hasSubmitted && spokenTextRef.current.trim().length > 1) {
+                    submitSpeech(spokenTextRef.current);
+                } else {
+                    stopMicImmediate();
+                }
             };
-            setHintState(nextH);
-            hintStateRef.current = nextH;
 
-            const hintLines = [
-                `💡 **Hint ${delivery.hintTier} of ${currentHState.maxHints}**`,
-                delivery.hintText || 'Review the given values and equations.'
-            ];
-            pendingBoardLinesRef.current = hintLines;
-            setPositiveAction({ label: "Try Answering Now →", text: "I'll try calculating now" });
-            setNegativeAction({ label: delivery.hintsRemaining > 0 ? "Need Next Hint 💡" : "Explain Step ↺", text: "Need more guidance" });
-
-            const spokenHint = `Here is a clue: ${delivery.hintText} Take your time and give it a shot.`;
-            dialogueHistoryRef.current.push({ role: 'tutor', text: spokenHint, boardSummary: hintLines.join(' | ') });
-            await streamText(spokenHint, undefined, hintLines);
-            return;
+            rec.onerror = () => { stopMicImmediate(); };
+            recognitionRef.current = rec;
+            rec.start();
+        } catch (_) {
+            stopMicImmediate();
         }
+    }, [isMicListening, stopMicImmediate, stopAudioImmediate, addToast, attachedImage, handleStudentInterruptionQuestion]);
 
-        const isInteractivePhase = Boolean(
-            activeLearningQuestionRef.current &&
-            (currentPhase === 'diagnostic' || currentPhase === 'predict' || currentPhase === 'guided_practice' ||
-             currentPhase === 'independent_practice' || currentPhase === 'misconception' || currentPhase === 'transfer' ||
-             currentPhase === 'retrieval' || currentPhase === 'synthesis')
-        );
-
-        // ── 2. Handle Non-Interactive Presentation Phases ──────────────────────
-        if (!isInteractivePhase) {
-            const isAffirmative = /^(continue|next|ok|okay|got it|makes sense|let's go|proceed|clear|yes|understood|i see|let me predict|explore|formula clear)/i.test(userText.toLowerCase()) ||
-                userText === positiveActionRef.current.text;
-
-            // Student asked a question or asked to explain again during presentation phase
-            if (!isAffirmative && aiClient) {
-                try {
-                    setIsLoadingUnit(true);
-                    const clarifyPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
-The student is in presentation phase "${currentPhase}" for "${currentC?.conceptName}".
-Student said: "${userText}"
-
-Provide a warm, concise clarification (2-3 sentences) answering their specific question without skipping ahead, plus 2-3 crisp blackboard lines in LaTeX.
-OUTPUT VALID JSON ONLY:
-{
-  "spokenExplanation": "Spoken clarification in plain English",
-  "boardLines": ["Clarification point 1 with LaTeX", "Clarification point 2 with LaTeX"],
-  "positiveReplyLabel": "Got it, continue →",
-  "positiveReplyText": "I understand now, let's continue.",
-  "negativeReplyLabel": "Ask another question ↺",
-  "negativeReplyText": "Could you explain more about this?"
-}`;
-                    const res = await aiClient.models.generateContent({
-                        model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
-                        contents: [{ role: 'user', parts: [{ text: clarifyPrompt }] }],
-                        config: { responseMimeType: 'application/json', temperature: 0.3 },
-                    });
-                    const raw = getResponseText(res);
-                    const parsed = robustParseJson<{ spokenExplanation: string; boardLines: string[]; positiveReplyLabel: string; positiveReplyText: string; negativeReplyLabel: string; negativeReplyText: string }>(raw);
-                    setIsLoadingUnit(false);
-                    if (parsed.boardLines) pendingBoardLinesRef.current = parsed.boardLines.slice(0, MAX_BOARD_LINES);
-                    if (parsed.positiveReplyLabel) setPositiveAction({ label: parsed.positiveReplyLabel, text: parsed.positiveReplyText || 'Continue' });
-                    if (parsed.negativeReplyLabel) setNegativeAction({ label: parsed.negativeReplyLabel, text: parsed.negativeReplyText || 'Explain more' });
-                    dialogueHistoryRef.current.push({ role: 'tutor', text: parsed.spokenExplanation, boardSummary: (parsed.boardLines || []).join(' | ') });
-                    await streamText(parsed.spokenExplanation, undefined, parsed.boardLines);
-                    return;
-                } catch (e) {
-                    console.warn('[HandleStudentReply] clarification error:', e);
-                    setIsLoadingUnit(false);
-                }
-            }
-
-            // Standard progression along path for presentation phase
-            const nextPIdx = currentPIdx + 1;
-            if (nextPIdx < currentPath.length) {
-                const nextPhase = currentPath[nextPIdx];
-                setPhaseIdx(nextPIdx);
-                phaseIdxRef.current = nextPIdx;
-                setSubStep(nextPhase);
-                subStepRef.current = nextPhase;
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
-                return;
-            }
-
-            // End of concept path
-            const readiness = evaluateReadiness(conceptMasteryRef.current);
-            if (currentC) {
-                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, readiness.readyToAdvance);
-                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, 3);
-            }
-
-            const nextCIdx = conceptIdxRef.current + 1;
-            if (nextCIdx < blueprint.concepts.length) {
-                conceptIdxRef.current = nextCIdx;
-                setConceptIdx(nextCIdx);
-                const freshPath: TutorPhase[] = ['diagnostic'];
-                setActivePhasePath(freshPath);
-                activePhasePathRef.current = freshPath;
-                setPhaseIdx(0);
-                phaseIdxRef.current = 0;
-                setSubStep('diagnostic');
-                subStepRef.current = 'diagnostic';
-                setActiveDiagnosticIdx(0);
-                activeDiagnosticIdxRef.current = 0;
-                setRepairAttempt(0);
-                repairAttemptRef.current = 0;
-                setRepairStrategiesUsed([]);
-                repairStrategiesUsedRef.current = [];
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
-                return;
-            }
-
-            if (currentPhase !== 'synthesis' && blueprint.synthesisProblem) {
-                const synthPath: TutorPhase[] = ['synthesis'];
-                setActivePhasePath(synthPath);
-                activePhasePathRef.current = synthPath;
-                setPhaseIdx(0);
-                phaseIdxRef.current = 0;
-                setSubStep('synthesis');
-                subStepRef.current = 'synthesis';
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
-                return;
-            }
-
-            // Topic Mastered
-            setIsDone(true);
-            setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
-            setActiveDiagramSvg(null);
-            setActiveTableMarkdown(null);
-            setActiveVisualCaption(null);
-            void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
-            void saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, 'mastery_decision', true, blueprint, {
-                phasePath: activePhasePathRef.current,
-                mastery: conceptMasteryRef.current,
-                difficultyLevel: difficultyStateRef.current.currentLevel,
-            });
-            void speakText(`Congratulations! ${blueprint.overallSummary} You have demonstrated mastery across all concepts!`);
-            setIsLoadingUnit(false);
-            return;
-        }
-
-        // ── 3. Evaluate Interactive Answers (Diagnostic & Practice) ───────────
-        try {
-            // Check if student is explicitly asking to retry calculating
-            const isTryAgainIntent = /^(try answering again|i'll try calculating again|try calculating again|let me calculate|let me try|i'll try again|retry calculation|try again)/i.test(userText.trim());
-            if (isTryAgainIntent) {
-                const promptMsg = `Take your time to work out the calculation. Whenever you're ready, type or speak your answer!`;
-                dialogueHistoryRef.current.push({ role: 'tutor', text: promptMsg, boardSummary: 'Ready for calculation attempt' });
-                setPositiveAction({ label: "Submit Answer →", text: "Ready to submit answer" });
-                setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
-                await speakText(promptMsg);
-                return;
-            }
-
-            // Check if student is explicitly requesting a step-by-step walkthrough / explanation
-            const isWalkthroughIntent = /^(walk through step|please explain this step in detail|explain this step|walk me through|step by step|show me how to solve|how to solve this|need walkthrough|need more guidance|i don't know the answer)/i.test(userText.trim());
-            if (isWalkthroughIntent && blueprint) {
-                setIsLoadingUnit(true);
-                const currentAttempts = repairAttemptRef.current + 1;
-                setRepairAttempt(currentAttempts);
-                repairAttemptRef.current = currentAttempts;
-
-                const strategy = selectRepairStrategy(
-                    'definition_confusion',
-                    repairStrategiesUsedRef.current
-                );
-                const updatedUsed = [...repairStrategiesUsedRef.current, strategy];
-                setRepairStrategiesUsed(updatedUsed);
-                repairStrategiesUsedRef.current = updatedUsed;
-
-                const adaptedPath = adaptPath(
-                    currentPath,
-                    currentPIdx,
-                    {
-                        phase: currentPhase,
-                        score: 0,
-                        success: false,
-                        errorType: 'definition_confusion',
-                        misconceptionDetail: 'Student requested step-by-step walkthrough',
-                        hintsUsed: hintStateRef.current.hintsRevealed,
-                        difficulty: activeLearningQuestionRef.current?.difficulty,
-                    },
-                    conceptMasteryRef.current
-                );
-                setActivePhasePath(adaptedPath);
-                activePhasePathRef.current = adaptedPath;
-
-                setSubStep('repair');
-                subStepRef.current = 'repair';
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, 'repair', 0);
-                return;
-            }
-
-            setIsLoadingUnit(true);
-            let isCorrect = true;
-            let misconceptionType: MisconceptionType | undefined;
-            let feedback = '';
-
-            if (activeLearningQuestionRef.current) {
-                const evalResult = await evaluateStudentAnswer(
-                    activeLearningQuestionRef.current,
-                    userText,
-                    dialogueHistoryRef.current.map(d => `${d.role}: ${d.text}`).join('\n'),
-                    aiClient,
-                    appSettings?.primary_gemini_model
-                );
-                isCorrect = evalResult.isCorrect;
-                misconceptionType = evalResult.misconceptionType;
-                feedback = evalResult.feedback;
-
-                // Update dynamic difficulty
-                const newDiffState = recordQuestionPerformance(
-                    difficultyStateRef.current,
-                    isCorrect,
-                    hintStateRef.current.hintsRevealed > 0,
-                    activeLearningQuestionRef.current.difficulty
-                );
-                setDifficultyState(newDiffState);
-                difficultyStateRef.current = newDiffState;
-
-                // Update 5-axis Mastery Model
-                const newMastery = updateMasteryOnAnswer(
-                    conceptMasteryRef.current,
-                    currentPhase,
-                    isCorrect,
-                    hintStateRef.current.hintsRevealed,
-                    activeLearningQuestionRef.current.difficulty,
-                    misconceptionType,
-                    feedback
-                );
-                setConceptMastery(newMastery);
-                conceptMasteryRef.current = newMastery;
-            }
-
-            // ── Diagnostic Phase Handling ──
-            if (currentPhase === 'diagnostic') {
-                diagnosticAnswersRef.current.push({
-                    questionIdx: currentDiagIdx,
-                    correct: isCorrect,
-                    dimension: currentC?.diagnosticQuestions?.[currentDiagIdx]?.dimension || 'prerequisiteKnowledge',
-                });
-
-                const totalDiags = currentC?.diagnosticQuestions?.length || 1;
-                if (currentDiagIdx + 1 < totalDiags) {
-                    const nextDiagIdx = currentDiagIdx + 1;
-                    setActiveDiagnosticIdx(nextDiagIdx);
-                    activeDiagnosticIdxRef.current = nextDiagIdx;
-                    setIsLoadingUnit(false);
-                    await presentUnit(blueprint, conceptIdxRef.current, 'diagnostic', nextDiagIdx);
-                    return;
-                }
-
-                // Diagnostic complete for this concept -> evaluate dimensions independently
-                const scoredDims = scoreDiagnosticAnswers(diagnosticAnswersRef.current);
-                const generatedPath = generatePhasePath(scoredDims, conceptMasteryRef.current);
-                diagnosticAnswersRef.current = [];
-                setActiveDiagnosticIdx(0);
-                activeDiagnosticIdxRef.current = 0;
-
-                setActivePhasePath(generatedPath);
-                activePhasePathRef.current = generatedPath;
-                setPhaseIdx(0);
-                phaseIdxRef.current = 0;
-
-                const firstPhase = generatedPath[0] || 'concept_map';
-                setSubStep(firstPhase);
-                subStepRef.current = firstPhase;
-
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, firstPhase, 0);
-                return;
-            }
-
-            // ── Interactive Practice / Predict / Misconception: If Incorrect ──
-            if (!isCorrect) {
-                const currentAttempts = repairAttemptRef.current + 1;
-                setRepairAttempt(currentAttempts);
-                repairAttemptRef.current = currentAttempts;
-
-                const strategy = selectRepairStrategy(
-                    misconceptionType || 'definition_confusion',
-                    repairStrategiesUsedRef.current
-                );
-                const updatedUsed = [...repairStrategiesUsedRef.current, strategy];
-                setRepairStrategiesUsed(updatedUsed);
-                repairStrategiesUsedRef.current = updatedUsed;
-
-                const adaptedPath = adaptPath(
-                    currentPath,
-                    currentPIdx,
-                    {
-                        phase: currentPhase,
-                        score: 0,
-                        success: false,
-                        errorType: misconceptionType,
-                        misconceptionDetail: feedback,
-                        hintsUsed: hintStateRef.current.hintsRevealed,
-                        difficulty: activeLearningQuestionRef.current?.difficulty,
-                    },
-                    conceptMasteryRef.current
-                );
-                setActivePhasePath(adaptedPath);
-                activePhasePathRef.current = adaptedPath;
-
-                // Show corrective feedback and allow retry or repair
-                const feedbackLines = [
-                    `❌ **Let's review this step**`,
-                    feedback || `Check the governing relationship for ${currentC?.conceptName}.`,
-                ];
-                pendingBoardLinesRef.current = feedbackLines;
-                setPositiveAction({ label: "Try Answering Again →", text: "I'll try calculating again." });
-                setNegativeAction({ label: "Walk Through Step ↺", text: "Please explain this step in detail." });
-
-                const spokenFeedback = feedback
-                    ? `${feedback} Take a moment and try answering again, or tap Walk Through Step below for a step-by-step walkthrough.`
-                    : `Let's double-check our calculation. Take a moment and try answering again, or tap Walk Through Step below for a step-by-step walkthrough.`;
-                dialogueHistoryRef.current.push({ role: 'tutor', text: spokenFeedback, boardSummary: feedbackLines.join(' | ') });
-                setIsLoadingUnit(false);
-                await streamText(spokenFeedback, undefined, feedbackLines);
-                return;
-            }
-
-            // ── Interactive Practice: If Correct ──
-            setRepairAttempt(0);
-            repairAttemptRef.current = 0;
-
-            const nextPIdx = currentPIdx + 1;
-            if (nextPIdx < currentPath.length) {
-                const nextPhase = currentPath[nextPIdx];
-                setPhaseIdx(nextPIdx);
-                phaseIdxRef.current = nextPIdx;
-                setSubStep(nextPhase);
-                subStepRef.current = nextPhase;
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
-                return;
-            }
-
-            // End of concept path
-            const readiness = evaluateReadiness(conceptMasteryRef.current);
-            if (currentC) {
-                void recordConceptProgress(uid, tid, tName, cName, currentC.conceptName, readiness.readyToAdvance);
-                void scheduleSpacedReviewItem(uid, cid, tid, currentC.conceptName, conceptMasteryRef.current, 4);
-            }
-
-            const nextCIdx = conceptIdxRef.current + 1;
-            if (nextCIdx < blueprint.concepts.length) {
-                conceptIdxRef.current = nextCIdx;
-                setConceptIdx(nextCIdx);
-
-                const freshPath: TutorPhase[] = ['diagnostic'];
-                setActivePhasePath(freshPath);
-                activePhasePathRef.current = freshPath;
-                setPhaseIdx(0);
-                phaseIdxRef.current = 0;
-                setSubStep('diagnostic');
-                subStepRef.current = 'diagnostic';
-                setActiveDiagnosticIdx(0);
-                activeDiagnosticIdxRef.current = 0;
-                setRepairAttempt(0);
-                repairAttemptRef.current = 0;
-                setRepairStrategiesUsed([]);
-                repairStrategiesUsedRef.current = [];
-
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, nextCIdx, 'diagnostic', 0);
-                return;
-            }
-
-            // Synthesis phase
-            if (currentPhase !== 'synthesis' && blueprint.synthesisProblem) {
-                const synthPath: TutorPhase[] = ['synthesis'];
-                setActivePhasePath(synthPath);
-                activePhasePathRef.current = synthPath;
-                setPhaseIdx(0);
-                phaseIdxRef.current = 0;
-                setSubStep('synthesis');
-                subStepRef.current = 'synthesis';
-
-                setIsLoadingUnit(false);
-                await presentUnit(blueprint, conceptIdxRef.current, 'synthesis', 0);
-                return;
-            }
-
-            // All completed with demonstrated mastery
-            setIsDone(true);
-            setVisibleBoardLines(['🎓 Topic Mastered!', blueprint.overallSummary]);
-            setActiveDiagramSvg(null);
-            setActiveTableMarkdown(null);
-            setActiveVisualCaption(null);
-
-            void recordSessionCompletion(uid, tid, tName, cName, blueprint.overallSummary, currentC?.commonPitfalls || []);
-            void saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, 'mastery_decision', true, blueprint, {
-                phasePath: activePhasePathRef.current,
-                mastery: conceptMasteryRef.current,
-                difficultyLevel: difficultyStateRef.current.currentLevel,
-            });
-
-            void speakText(`Congratulations! ${blueprint.overallSummary} You have demonstrated mastery across all concepts!`);
-            setIsLoadingUnit(false);
-
-        } catch (err) {
-            console.warn('[HandleStudentReply] intelligence engine error:', err);
-            setIsLoadingUnit(false);
-            // Safe fallback without abruptly completing topic
-            const nextPIdx = currentPIdx + 1;
-            if (nextPIdx < currentPath.length) {
-                const nextPhase = currentPath[nextPIdx];
-                setPhaseIdx(nextPIdx);
-                phaseIdxRef.current = nextPIdx;
-                setSubStep(nextPhase);
-                subStepRef.current = nextPhase;
-                await presentUnit(blueprint, conceptIdxRef.current, nextPhase, 0);
-            } else {
-                await speakText("Let's review this step together. Take another look at the key principle on the board.");
-            }
-        }
-    }, [blueprint, speakText, presentUnit, userProfile, sessionData, appSettings, streamBoardLines, visibleBoardLines, attachedImage]);
-
-    useEffect(() => {
-        handleStudentReplyRef.current = handleStudentReply;
-    }, [handleStudentReply]);
-
-    const handleSendText = () => {
-        if (!textInput.trim() && !attachedImage) return;
-        const text = textInput.trim();
-        const img = attachedImage;
-        setTextInput('');
-        setAttachedImage(null);
-        void handleStudentReply(text, img);
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            addToast('Please select a valid image file', 'error');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = typeof reader.result === 'string' ? reader.result : '';
-            if (base64) {
-                setAttachedImage({ base64, mimeType: file.type || 'image/jpeg' });
-                addToast('Photo attached. Ask your question or press send!', 'info');
-            }
-        };
-        reader.readAsDataURL(file);
-        // Reset file input value so user can re-select same image if needed
-        e.target.value = '';
-    };
-
-    // ── Controls ─────────────────────────────────────────────────────────────
-    const togglePauseAI = () => {
+    // ── Navigation & Control Actions ────────────────────────────────────
+    const togglePauseAI = useCallback(() => {
+        if (!lessonPlan) return;
         if (isSpeaking) {
             stopAudioImmediate();
-            setIsSpeaking(false);
             setIsPaused(true);
-            addToast('Tutor Paused', 'info');
         } else {
             setIsPaused(false);
-            if (lastSpokenTextRef.current) {
-                void speakText(lastSpokenTextRef.current);
-            } else if (blueprint) {
-                const concept = blueprint.concepts[conceptIdxRef.current];
-                if (concept) void speakText(getSpokenText(concept, subStepRef.current));
-            }
+            void presentBoard(lessonPlan, boardIndexRef.current);
         }
-    };
+    }, [isSpeaking, lessonPlan, presentBoard, stopAudioImmediate]);
 
-    const toggleMic = () => {
-        if (isMicListening) {
-            stopMicImmediate();
-        } else {
-            if (isSpeaking) {
-                stopAudioImmediate();
-            }
-            startMicListening();
-        }
-    };
-
-    const toggleMute = () => {
+    const toggleMute = useCallback(() => {
+        setIsMuted(prev => !prev);
         if (!isMuted) {
             stopAudioImmediate();
-            setIsMuted(true);
-        } else {
-            setIsMuted(false);
-            if (lastSpokenTextRef.current) {
-                void speakText(lastSpokenTextRef.current);
-            } else if (blueprint) {
-                const concept = blueprint.concepts[conceptIdxRef.current];
-                if (concept) void speakText(getSpokenText(concept, subStepRef.current));
-            }
         }
-    };
+    }, [isMuted, stopAudioImmediate]);
 
-    const handlePreviewVoice = (voiceId: string = 'altair', e?: React.MouseEvent) => {
-        e?.stopPropagation();
+    const handleRestartBoard = useCallback(() => {
+        if (!lessonPlan) return;
         stopAudioImmediate();
-        grokTts.playSpeech("Hello! I am Altair, your personal voice tutor on Avelut.", {
-            voice: 'altair',
-            withTimestamps: true,
-        });
-    };
+        clearAllStreamTimers();
+        void presentBoard(lessonPlan, boardIndexRef.current);
+    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
+
+    const handleAdvanceNextBoard = useCallback(() => {
+        if (!lessonPlan) return;
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        void presentBoard(lessonPlan, boardIndexRef.current + 1);
+    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
+
+    const handlePreviousBoard = useCallback(() => {
+        if (!lessonPlan) return;
+        stopAudioImmediate();
+        clearAllStreamTimers();
+        const prevIdx = Math.max(0, boardIndexRef.current - 1);
+        void presentBoard(lessonPlan, prevIdx);
+    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
 
     const handleGoBack = useCallback(async () => {
         setIsNavigatingBack(true);
         isActiveRef.current = false;
         stopAudioImmediate();
         clearAllStreamTimers();
-        stopMicImmediate();
-
-        if (blueprint) {
-            const uid = userProfile?.uid || 'anon';
-            const cid = sessionData?.course?.course_id || 'general';
-            const tid = sessionData?.topic?.topic_id || 'core';
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, conceptIdxRef.current, subStepRef.current, false, blueprint);
-        }
-
-        await new Promise(r => setTimeout(r, 80));
         if (onBack) {
             onBack();
         } else if (onNavigate) {
             onNavigate('study_guide');
-        } else {
-            window.history.back();
         }
-    }, [blueprint, userProfile, onBack, onNavigate, sessionData]);
+    }, [onBack, onNavigate, stopAudioImmediate, clearAllStreamTimers]);
 
-    const currentTopicIdx = sessionData?.course?.topics?.findIndex(
-        t => t.topic_id === sessionData?.topic?.topic_id
-    ) ?? -1;
-    const nextTopic = (currentTopicIdx >= 0 && sessionData?.course?.topics && currentTopicIdx + 1 < sessionData.course.topics.length)
-        ? sessionData.course.topics[currentTopicIdx + 1]
-        : null;
-
-    const handleNextTopic = useCallback(async () => {
-        if (!nextTopic || !sessionData) {
-            void handleGoBack();
-            return;
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const { dataUrl, mimeType } = await readImageAsDataUrl(file);
+            setAttachedImage({ base64: dataUrl, mimeType });
+            addToast('Work photo attached. Tap mic to ask your question!', 'info');
+        } catch (_) {
+            addToast('Failed to attach image.', 'error');
         }
-        stopAudioImmediate();
-        clearAllStreamTimers();
-        stopMicImmediate();
+    };
 
-        const newSessionData: VoiceTutorialSessionData = {
-            course: sessionData.course,
-            topic: nextTopic,
-        };
-        writeCachedJson('avelut_active_voice_tutorial', newSessionData);
-        setSessionData(newSessionData);
-        setBlueprint(null);
-        setIsDone(false);
-        setConceptIdx(0);
-        setSubStep('diagnostic');
-        setActivePhasePath(['diagnostic']);
-        setPhaseIdx(0);
-        conceptIdxRef.current = 0;
-        subStepRef.current = 'diagnostic';
-        activePhasePathRef.current = ['diagnostic'];
-        phaseIdxRef.current = 0;
-        dialogueHistoryRef.current = [];
-        setVisibleBoardLines([]);
-        setActiveDiagramSvg(null);
-        setActiveTableMarkdown(null);
-        setActiveVisualCaption(null);
-
-        const uid = userProfile?.uid || 'anon';
-        const cid = newSessionData.course?.course_id || 'general';
-        const tid = nextTopic.topic_id;
-
-        const studentMem = await getStudentCognitiveProfile(uid);
-        const sqliteRecord = await getLocalVoiceTutorialProgress(uid, cid, tid);
-        let bp: LessonBlueprint | null = sqliteRecord?.blueprint || null;
-
-        if (!bp) {
-            bp = await generateBlueprint(newSessionData, studentMem);
-            if (!bp || !isActiveRef.current) return;
-            await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, bp, {
-                phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
-                mastery: defaultMastery(),
-                difficultyLevel: 2,
-            });
-        }
-
-        if (!isActiveRef.current) return;
-        setBlueprint(bp);
-        const defaultActs = getDefaultActions('intuition');
-        positiveActionRef.current = defaultActs.positive;
-        setPositiveAction(defaultActs.positive);
-        setNegativeAction(defaultActs.negative);
-
-        await presentUnit(bp, 0, 'intuition', 0, studentMem, true);
-    }, [nextTopic, sessionData, handleGoBack, userProfile, generateBlueprint, presentUnit]);
-
-    const handleReStudyTopic = useCallback(async () => {
-        const uid = userProfile?.uid || 'anon';
-        const cid = sessionData?.course?.course_id || 'general';
-        const tid = sessionData?.topic?.topic_id || 'core';
-
-        stopAudioImmediate();
-        clearAllStreamTimers();
-        stopMicImmediate();
-
-        await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'intuition', false, blueprint, {
-            phasePath: ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'],
-            mastery: defaultMastery(),
-            difficultyLevel: 2,
-        });
-
-        setIsDone(false);
-        setConceptIdx(0);
-        setSubStep('intuition');
-        setActivePhasePath(['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision']);
-        setPhaseIdx(0);
-        conceptIdxRef.current = 0;
-        subStepRef.current = 'intuition';
-        activePhasePathRef.current = ['intuition', 'concept_core', 'guided_practice', 'independent_practice', 'mastery_decision'];
-        phaseIdxRef.current = 0;
-        dialogueHistoryRef.current = [];
-        setVisibleBoardLines([]);
-        setActiveDiagramSvg(null);
-        setActiveTableMarkdown(null);
-        setActiveVisualCaption(null);
-
-        if (blueprint) {
-            const studentMem = await getStudentCognitiveProfile(uid);
-            await presentUnit(blueprint, 0, 'intuition', 0, studentMem, true);
-        }
-    }, [blueprint, userProfile, sessionData, presentUnit, clearAllStreamTimers]);
-
-    const currentConcept  = blueprint?.concepts[conceptIdx];
-    const totalConcepts   = blueprint?.concepts.length ?? 0;
-    const currentPathLen  = Math.max(activePhasePath.length, 1);
-    const progressPercent = totalConcepts > 0
-        ? Math.min(100, Math.round(((conceptIdx * currentPathLen + phaseIdx) /
-            (totalConcepts * currentPathLen)) * 100))
-        : 0;
-
-    const hasVisualElement = !!(activeDiagramSvg || activeTableMarkdown);
-
-    // ── Dynamic App Header Synchronization ──
+    // ── Custom Header Integration ───────────────────────────────────────
     useEffect(() => {
         if (setCustomHeaderConfig) {
-            const topicName = sessionData?.topic?.topic_name || sessionData?.course?.course_name || 'Voice Tutorial';
+            const currentBoard = lessonPlan?.boards?.[boardIndex];
+            const totalBoards = lessonPlan?.boards?.length || 1;
+            const topicName = lessonPlan?.topicName || sessionData?.topic?.topic_name || 'Interactive Tutorial';
+
             setCustomHeaderConfig({
-                hideTitle: true,
-                hideDefaultRightActions: true,
-                leftActions: (
+                leftAction: (
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
                         <button
                             onClick={handleGoBack}
@@ -2776,9 +918,9 @@ OUTPUT VALID JSON ONLY:
                             <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[120px] sm:max-w-[280px] md:max-w-[400px]">
                                 {topicName}
                             </span>
-                            {currentConcept && (
+                            {currentBoard && (
                                 <span className="text-[10px] text-[#0066FF] font-mono font-bold truncate max-w-[120px] sm:max-w-[280px]">
-                                    Concept {conceptIdx + 1}/{totalConcepts}: {currentConcept.conceptName}
+                                    Board {boardIndex + 1}/{totalBoards}: {currentBoard.phaseTitle}
                                 </span>
                             )}
                         </div>
@@ -2815,13 +957,16 @@ OUTPUT VALID JSON ONLY:
                 setCustomHeaderConfig(null);
             }
         };
-    }, [setCustomHeaderConfig, sessionData, currentConcept, conceptIdx, totalConcepts, isMuted, isNavigatingBack, handleGoBack]);
+    }, [setCustomHeaderConfig, sessionData, lessonPlan, boardIndex, isMuted, isNavigatingBack, handleGoBack, toggleMute]);
 
-    // Helper to render embedded diagram directly inside the board (clean, diagram-only, space-efficient)
+    // ── Visual Elements ─────────────────────────────────────────────────
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div className="w-full my-2 flex items-center justify-center bg-[#F8FAFC] p-2 sm:p-4 rounded-2xl border border-[#E3E9F1] shadow-xs animate-fade-in transition-all cursor-pointer" onClick={() => setIsDiagramZoomed(true)}>
+            <div
+                className="w-full my-2 flex items-center justify-center bg-[#F8FAFC] p-3 sm:p-4 rounded-2xl border border-[#E3E9F1] shadow-xs animate-fade-in transition-all cursor-pointer hover:border-blue-300"
+                onClick={() => setIsDiagramZoomed(true)}
+            >
                 <div
                     key={`svg-${diagramKey}`}
                     className="w-full max-h-[220px] sm:max-h-[260px] flex items-center justify-center py-0.5 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[220px] sm:[&>svg]:max-h-[260px]"
@@ -2831,7 +976,6 @@ OUTPUT VALID JSON ONLY:
         );
     };
 
-    // Helper to render inline table
     const renderInlineTable = () => {
         if (!activeTableMarkdown) return null;
         return (
@@ -2843,16 +987,19 @@ OUTPUT VALID JSON ONLY:
         );
     };
 
-    // Check if boardLines explicitly contain diagram/table placeholders
     const hasExplicitDiagramTag = visibleBoardLines.some(l => /\[(diagram|visual|image)\]/i.test(l));
     const hasExplicitTableTag = visibleBoardLines.some(l => /\[table\]/i.test(l));
 
-    // ── Render ────────────────────────────────────────────────────────────
+    const totalBoards = lessonPlan?.boards?.length || 1;
+    const progressPercent = Math.min(100, Math.round(((boardIndex + 1) / totalBoards) * 100));
+    const currentBoard = lessonPlan?.boards?.[boardIndex];
+
+    // ── Render ──────────────────────────────────────────────────────────
     return (
         <div className="flex-1 w-full h-full flex flex-col bg-[#F6F6F3] text-[#0F172A] overflow-hidden select-none relative">
 
-            {/* ── Progress bar ────────────────────────────────────────── */}
-            {blueprint && !isGeneratingBlueprint && (
+            {/* ── Progress Bar ────────────────────────────────────────── */}
+            {lessonPlan && !isGeneratingLesson && (
                 <div className="h-1.5 bg-[#E3E9F1] shrink-0">
                     <div
                         className="h-full bg-[#0066FF] rounded-r-full transition-all duration-500"
@@ -2861,8 +1008,8 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Blueprint generation screen ─────────────────────────── */}
-            {isGeneratingBlueprint && (
+            {/* ── Single-Pass Generation Screen ───────────────────────── */}
+            {isGeneratingLesson && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center animate-fade-in my-auto">
                     <div className="w-20 h-20 rounded-3xl bg-white border-2 border-blue-200 flex items-center justify-center shadow-lg shadow-blue-500/10">
                         <i className="bi bi-mortarboard-fill text-3xl text-[#0066FF]"></i>
@@ -2870,13 +1017,13 @@ OUTPUT VALID JSON ONLY:
 
                     <div className="space-y-2 max-w-md">
                         <span className="text-xs font-mono font-bold tracking-widest uppercase text-[#0066FF]">
-                            Avelut Adaptive Engine
+                            Avelut Single-Pass Engine
                         </span>
                         <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
-                            {blueprintGenStep || 'Building Lesson Blueprint...'}
+                            {lessonGenStep || 'Pre-compiling Full Topic Lesson...'}
                         </h2>
                         <p className="text-xs sm:text-sm text-[#64748B]">
-                            Preparing multi-disciplinary breakdown, analogies, worked applications, and Grok Altair voice synthesis.
+                            Preparing all lesson boards, diagrams, worked applications, and Grok Altair voice synthesis upfront.
                         </p>
                     </div>
 
@@ -2886,8 +1033,8 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Completion screen ─────────────────────────────────────── */}
-            {isDone && !isGeneratingBlueprint && (
+            {/* ── Completion Screen ───────────────────────────────────── */}
+            {isDone && !isGeneratingLesson && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in my-auto">
                     <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0066FF]">
                         <i className="bi bi-mortarboard-fill text-3xl"></i>
@@ -2896,28 +1043,19 @@ OUTPUT VALID JSON ONLY:
                         <h3 className="text-2xl font-bold text-[#0F172A]">Topic Mastered!</h3>
                         <p className="text-xs font-semibold text-[#0066FF] mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
                     </div>
-                    <p className="text-sm text-[#64748B] max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
+                    <p className="text-sm text-[#64748B] max-w-md leading-relaxed">{lessonPlan?.overallSummary}</p>
                     
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
-                        {nextTopic ? (
-                            <button
-                                onClick={handleNextTopic}
-                                className="w-full sm:flex-1 py-3.5 px-6 bg-[#0066FF] hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-                            >
-                                <span>Next Topic: {nextTopic.topic_name}</span>
-                                <i className="bi bi-arrow-right font-bold"></i>
-                            </button>
-                        ) : null}
                         <button
-                            onClick={handleReStudyTopic}
+                            onClick={() => presentBoard(lessonPlan!, 0)}
                             className="w-full sm:flex-1 py-3.5 px-6 bg-white hover:bg-slate-50 border border-[#E3E9F1] text-[#0F172A] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                         >
                             <i className="bi bi-arrow-counterclockwise"></i>
-                            <span>Re-study Topic</span>
+                            <span>Re-play Tutorial</span>
                         </button>
                         <button
                             onClick={handleGoBack}
-                            className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 border border-[#E3E9F1] text-[#0F172A] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-6 py-3.5 bg-[#0066FF] hover:bg-blue-700 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                         >
                             <i className="bi bi-journal-check"></i>
                             <span>Study Guide</span>
@@ -2926,19 +1064,35 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Main Fullscreen Teaching Canvas ───────────────────────── */}
-            {!isGeneratingBlueprint && !isDone && (
+            {/* ── Main Fullscreen Teaching Canvas ─────────────────────── */}
+            {!isGeneratingLesson && !isDone && (
                 <main className="flex-1 flex flex-col px-2 sm:px-4 pt-1.5 pb-2 w-full h-full gap-2 min-h-0 overflow-hidden">
 
                     {/* ── Elevated Pure White Academic Board ── */}
-                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-white border-2 border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#CBD5E1] [&::-webkit-scrollbar-thumb]:rounded-full text-[#0F172A]">
-
-                        {isLoadingUnit && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-xs rounded-3xl z-20">
-                                <div className="w-8 h-8 border-2 border-[#E3E9F1] border-t-[#0066FF] rounded-full animate-spin" />
-                                <p className="text-sm font-semibold text-[#0F172A] tracking-wide">
-                                    Preparing board & Altair voice...
+                    <div
+                        ref={boardScrollRef}
+                        className="relative flex-1 min-h-0 flex flex-col justify-start bg-white border-2 border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#CBD5E1] [&::-webkit-scrollbar-thumb]:rounded-full text-[#0F172A]"
+                    >
+                        {/* ── Live Q&A Answering Overlay ── */}
+                        {isAnsweringQuestion && (
+                            <div className="sticky top-0 z-30 mb-4 p-4 rounded-2xl bg-blue-50 border-2 border-[#0066FF]/40 shadow-md animate-fade-in">
+                                <div className="flex items-center gap-2 text-xs font-bold text-[#0066FF] uppercase tracking-wider mb-1">
+                                    <i className="bi bi-chat-quote-fill"></i>
+                                    <span>Teacher Answering Your Question:</span>
+                                </div>
+                                <p className="text-xs sm:text-sm font-semibold text-[#0F172A] mb-2 italic">
+                                    "{qaQuestion}"
                                 </p>
+                                {qaAnswer ? (
+                                    <p className="text-sm font-medium text-[#0F172A] leading-relaxed">
+                                        {qaAnswer}
+                                    </p>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
+                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                        <span>Thinking...</span>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -2947,30 +1101,30 @@ OUTPUT VALID JSON ONLY:
                             <div className="w-full border-b border-[#E3E9F1] pb-3 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5 shrink-0">
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-[10px] font-mono tracking-widest uppercase text-[#0066FF] font-bold">
-                                        {currentConcept ? `${currentConcept.conceptName}` : 'Lesson'}
+                                        {currentBoard?.conceptName || 'Lesson Unit'}
                                     </span>
                                     <h2 className="font-bold text-xl sm:text-2xl text-[#0F172A] tracking-tight truncate">
-                                        {sessionData?.topic?.topic_name || sessionData?.course.course_name}
+                                        {currentBoard?.phaseTitle || lessonPlan?.topicName}
                                     </h2>
                                 </div>
                                 <span className="text-[11px] font-mono font-bold text-[#64748B] bg-[#F1F5F9] px-2.5 py-1 rounded-full border border-[#E3E9F1] shrink-0">
-                                    {PHASE_LABEL[subStep] || subStep}
+                                    Board {boardIndex + 1} of {totalBoards}
                                 </span>
                             </div>
 
-                            {/* ── Waiting for voice / preparation state ── */}
+                            {/* ── Waiting for voice synthesizer ── */}
                             {visibleBoardLines.length === 0 && !isDone && (
                                 <div className="flex-1 flex flex-col items-start justify-start pt-6 sm:pt-8 px-2 animate-fade-in">
                                     <div className="flex items-center gap-3 font-mono text-sm sm:text-base tracking-wide">
                                         <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-[#0066FF] rounded-xs animate-blink" />
                                         <span className="text-xs text-[#64748B] font-mono italic">
-                                            {isTtsLoading ? 'Altair Voice Synthesizer active...' : isLoadingUnit ? 'Loading lesson step...' : ''}
+                                            {isTtsLoading ? 'Altair Voice Synthesizer active...' : 'Loading board...'}
                                         </span>
                                     </div>
                                 </div>
                             )}
 
-                            {/* ── Academic Board Content Area ── */}
+                            {/* ── Board Content Lines ── */}
                             {visibleBoardLines.length > 0 && (
                                 <div className="flex-1 w-full space-y-3.5 pb-2">
                                     {visibleBoardLines.map((line, idx) => {
@@ -3015,7 +1169,7 @@ OUTPUT VALID JSON ONLY:
                                                             <span className="font-bold text-xs text-[#0066FF] tracking-wide font-mono bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md w-fit">
                                                                 {stepMatch[1]}
                                                             </span>
-                                                            <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed overflow-x-auto pl-1">
+                                                            <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed overflow-x-auto pl-1 font-medium">
                                                                 <ReactMarkdown
                                                                     remarkPlugins={[remarkGfm, remarkMath]}
                                                                     rehypePlugins={[rehypeKatex]}
@@ -3083,15 +1237,15 @@ OUTPUT VALID JSON ONLY:
                                     <img src={attachedImage.base64} alt="Attached work" className="w-10 h-10 object-cover rounded-xl border border-[#CBD5E1]" />
                                     <div>
                                         <p className="text-xs font-bold text-[#0F172A]">Photo Attached</p>
-                                        <p className="text-[10px] text-[#64748B]">Tap mic to speak question about your work</p>
+                                        <p className="text-[10px] text-[#64748B]">Tap mic to ask your question</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <button
-                                        onClick={() => handleStudentReply('Please inspect my handwritten problem in this attached photo.', attachedImage)}
+                                        onClick={() => handleStudentInterruptionQuestion('Please inspect my handwritten problem in this attached photo.', attachedImage)}
                                         className="px-3 py-1.5 bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
                                     >
-                                        Analyze
+                                        Ask
                                     </button>
                                     <button
                                         onClick={() => setAttachedImage(null)}
@@ -3103,21 +1257,31 @@ OUTPUT VALID JSON ONLY:
                             </div>
                         )}
 
-                        {/* ── Centered Voice Navigation & Interaction Controls ── */}
+                        {/* ── Centered Video-Style Controls ── */}
                         <div className="flex items-center justify-between w-full">
-                            <button
-                                onClick={handleRestartSimplerBoard}
-                                disabled={isGeneratingBlueprint || isTtsLoading}
-                                title="Restart this board with simpler language"
-                                className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
-                            >
-                                <i className="bi bi-arrow-counterclockwise text-base"></i>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handlePreviousBoard}
+                                    disabled={isGeneratingLesson || boardIndex === 0}
+                                    title="Previous board"
+                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] disabled:opacity-40 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                >
+                                    <i className="bi bi-chevron-left text-base"></i>
+                                </button>
+                                <button
+                                    onClick={handleRestartBoard}
+                                    disabled={isGeneratingLesson || isTtsLoading}
+                                    title="Replay current board"
+                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                >
+                                    <i className="bi bi-arrow-counterclockwise text-base"></i>
+                                </button>
+                            </div>
 
                             <div className="flex items-center gap-2.5 sm:gap-3">
                                 <button
                                     onClick={togglePauseAI}
-                                    disabled={isTtsLoading || !blueprint}
+                                    disabled={isTtsLoading || !lessonPlan}
                                     title={isSpeaking ? "Pause speech" : "Resume speech"}
                                     className={`flex items-center justify-center w-11 h-11 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
                                         isSpeaking ? 'bg-blue-50 border-blue-200 text-[#0066FF]' : 'bg-[#F1F5F9] border-[#E3E9F1] text-[#64748B]'
@@ -3126,10 +1290,11 @@ OUTPUT VALID JSON ONLY:
                                     <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
                                 </button>
 
+                                {/* Center Mic Button (Interrupts and asks Question) */}
                                 <button
                                     onClick={toggleMic}
-                                    disabled={isGeneratingBlueprint || !blueprint}
-                                    title={isMicListening ? "Listening... Click to send" : "Tap to speak question or answer"}
+                                    disabled={isGeneratingLesson || !lessonPlan}
+                                    title={isMicListening ? "Listening... Click to send" : "Tap mic to pause video and ask a question"}
                                     className={`flex items-center justify-center w-14 h-14 rounded-2xl font-bold transition-all cursor-pointer shadow-lg active:scale-95 ${
                                         isMicListening 
                                             ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30' 
@@ -3151,11 +1316,11 @@ OUTPUT VALID JSON ONLY:
 
                             <button
                                 onClick={handleAdvanceNextBoard}
-                                disabled={isGeneratingBlueprint || isTtsLoading}
-                                title="Advance to next board"
+                                disabled={isGeneratingLesson || isTtsLoading}
+                                title="Next board"
                                 className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
                             >
-                                <i className="bi bi-arrow-right text-base"></i>
+                                <i className="bi bi-chevron-right text-base"></i>
                             </button>
 
                             <input
@@ -3170,7 +1335,7 @@ OUTPUT VALID JSON ONLY:
                 </main>
             )}
 
-            {/* ── Diagram Zoom Modal ────────────────────────────────────────── */}
+            {/* ── Diagram Zoom Modal ──────────────────────────────────── */}
             {isDiagramZoomed && activeDiagramSvg && (
                 <div
                     onClick={() => setIsDiagramZoomed(false)}
@@ -3178,29 +1343,29 @@ OUTPUT VALID JSON ONLY:
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-[#181C20] border-2 border-[#373E47] rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-white max-h-[92vh] overflow-y-auto"
+                        className="bg-white border-2 border-[#E3E9F1] rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl flex flex-col gap-4 relative cursor-default text-[#0F172A] max-h-[92vh] overflow-y-auto"
                     >
-                        <div className="flex items-center justify-between border-b border-white/20 pb-3">
+                        <div className="flex items-center justify-between border-b border-[#E3E9F1] pb-3">
                             <div className="flex items-center gap-2">
-                                <i className="bi bi-diagram-3-fill text-sky-400 text-lg"></i>
-                                <h3 className="font-bold text-base text-white">Realistic Scientific Illustration</h3>
+                                <i className="bi bi-diagram-3-fill text-[#0066FF] text-lg"></i>
+                                <h3 className="font-bold text-base text-[#0F172A]">Detailed Academic Visual</h3>
                             </div>
                             <button
                                 onClick={() => setIsDiagramZoomed(false)}
-                                className="w-8 h-8 rounded-full bg-[#2D333B] hover:bg-[#444C56] text-white flex items-center justify-center cursor-pointer transition-colors"
+                                className="w-8 h-8 rounded-full bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] flex items-center justify-center cursor-pointer transition-colors"
                             >
                                 <i className="bi bi-x-lg text-xs"></i>
                             </button>
                         </div>
                         <div
-                            className="w-full flex items-center justify-center p-4 sm:p-6 bg-[#22272E] rounded-2xl border border-[#373E47] overflow-auto [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[65vh]"
+                            className="w-full flex items-center justify-center p-4 sm:p-6 bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] overflow-auto [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[65vh]"
                             dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                         />
                     </div>
                 </div>
             )}
 
-            {/* ── Scanned Problem Image Modal ────────────────────────────────── */}
+            {/* ── Scanned Problem Image Modal ──────────────────────────── */}
             {showScannedImageModal && sessionData?.image && (
                 <div
                     onClick={() => setShowScannedImageModal(false)}
@@ -3208,36 +1373,28 @@ OUTPUT VALID JSON ONLY:
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 max-w-2xl w-full max-h-[88vh] shadow-2xl flex flex-col gap-3 relative cursor-default"
+                        className="bg-white border border-[#E3E9F1] rounded-3xl p-5 max-w-2xl w-full max-h-[88vh] shadow-2xl flex flex-col gap-3 relative cursor-default text-[#0F172A]"
                     >
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                            <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-2">
-                                <i className="bi bi-image text-sky-500"></i>
+                        <div className="flex items-center justify-between border-b border-[#E3E9F1] pb-3">
+                            <h3 className="font-bold text-sm text-[#0F172A] flex items-center gap-2">
+                                <i className="bi bi-image text-[#0066FF]"></i>
                                 <span>Original Scanned Problem</span>
                             </h3>
                             <button
                                 onClick={() => setShowScannedImageModal(false)}
-                                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200"
+                                className="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#0F172A] flex items-center justify-center cursor-pointer hover:bg-[#E2E8F0]"
                             >
                                 ✕
                             </button>
                         </div>
-                        <div className="flex-1 overflow-auto flex items-center justify-center bg-black/5 dark:bg-black/40 rounded-2xl p-2 max-h-[62vh]">
+                        <div className="flex-1 overflow-auto flex items-center justify-center bg-black/5 rounded-2xl p-2 max-h-[62vh]">
                             <img src={sessionData.image} alt="Scanned problem" className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-md" />
                         </div>
-                        {sessionData.customPrompt && (
-                            <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                                <span className="font-semibold text-slate-700 dark:text-slate-300">Instructions: </span>
-                                {sessionData.customPrompt}
-                            </p>
-                        )}
                     </div>
                 </div>
             )}
 
-
-
-            {/* ── Limit Exceeded Modal (Upgrade Account / Buy Credits) ────────── */}
+            {/* ── Limit Exceeded Modal ─────────────────────────────────── */}
             <LimitExceededModal
                 isOpen={showLimitModal}
                 onClose={() => setShowLimitModal(false)}
