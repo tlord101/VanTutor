@@ -25,7 +25,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
-import { kittenTts, KittenVoice, kittenWebGpu } from '../services/kittenTtsService';
+import { grokTts, grokVoiceEngine } from '../services/voice/GrokVoiceEngine';
 
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -751,8 +751,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string } | null>(null);
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
     const [micDisplay, setMicDisplay] = useState('');
-    const [previewingVoice, setPreviewingVoice] = useState<KittenVoice | null>(null);
-    const [selectedVoice, setSelectedVoice] = useState<KittenVoice>(KittenVoice.Bella);
+    const [activeSpokenWord, setActiveSpokenWord] = useState<string>('');
     const previewPlayerRef = useRef<any>(null);
 
     // ── Refs ─────────────────────────────────────────────────────────────
@@ -970,7 +969,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         }
     }, [addToast, attachedImage, isPaused]);
 
-    // ── Dedicated Pure Gemini Natural Voice (Charon) Engine ─────────────────
+    // ── Dedicated Grok AI (Altair) TTS Speech Engine with Expressive Tags ─────
     const cleanSpokenTextForTTS = (rawText: string): string => {
         return rawText
             .replace(/\$\$([\s\S]*?)\$\$/g, ' ')
@@ -992,10 +991,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                     .replace(/\+/g, ' plus ')
                     .replace(/-/g, ' minus ')
                     .replace(/\*/g, ' times ')
-                    .replace(/\\rightarrow/g, ' is ')
+                    .replace(/\\rightarrow/g, ' leads to ')
                     .replace(/\\Delta/g, 'change in ');
             })
-            .replace(/[#*`_~]/g, '')
+            // Clean unneeded markdown symbols while preserving Grok speech tags [tag] and <tag>...</tag>
+            .replace(/[#`_~]/g, '')
+            .replace(/\*\*(.*?)\*\*/g, '<emphasis>$1</emphasis>')
             .replace(/\s+/g, ' ')
             .trim();
     };
@@ -1012,28 +1013,27 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
         setIsStreaming(true);
         const words = spokenText ? spokenText.split(/\s+/).filter(Boolean) : [];
-        const wordCount = words.length > 0 ? words.length : 28;
+        const wordCount = words.length > 0 ? words.length : 24;
         
-        // Pacing at 480ms per word gives natural speech duration and prevents text from revealing ahead of voice
-        const totalEstMs = Math.max(3600, wordCount * 480);
+        const totalEstMs = Math.max(3000, wordCount * 380);
         const lineCount = lines.length;
-        const lineIntervalMs = Math.max(2800, Math.min(5600, Math.floor(totalEstMs / Math.max(lineCount, 1))));
+        const lineIntervalMs = Math.max(2000, Math.min(4800, Math.floor(totalEstMs / Math.max(lineCount, 1))));
 
-        // Lead delay of 450ms so the voice begins speaking before Line 0 writes on the board
+        // Start line 0
         const initTimer = setTimeout(() => {
             if (!isActiveRef.current) return;
             setVisibleBoardLines([lines[0]]);
             setActiveWritingIndex(0);
-        }, 450);
+        }, 200);
         streamTimersRef.current.push(initTimer);
 
-        // Schedule subsequent lines sequentially synchronized with spoken progress
+        // Schedule subsequent lines sequentially
         for (let i = 1; i < lineCount; i++) {
             const timer = setTimeout(() => {
                 if (!isActiveRef.current) return;
                 setVisibleBoardLines(lines.slice(0, i + 1));
                 setActiveWritingIndex(i);
-            }, 450 + i * lineIntervalMs);
+            }, 200 + i * lineIntervalMs);
             streamTimersRef.current.push(timer);
         }
 
@@ -1043,7 +1043,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             setVisibleBoardLines(lines.slice(0, MAX_BOARD_LINES));
             setIsStreaming(false);
             setActiveWritingIndex(-1);
-        }, 450 + lineCount * lineIntervalMs);
+            setActiveSpokenWord('');
+        }, 200 + lineCount * lineIntervalMs);
         streamTimersRef.current.push(finishTimer);
     }, [clearAllStreamTimers]);
 
@@ -1053,7 +1054,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         if (isMuted) {
             revealLinesProgressively(pendingBoardLinesRef.current, spokenText);
         } else {
-            // Keep board text hidden until voice is ready and begins reading
             setVisibleBoardLines([]);
             setIsStreaming(true);
             setActiveWritingIndex(-1);
@@ -1100,7 +1100,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        // Voice is preparing: hide board lines and visuals to prevent premature text display
         setIsTtsLoading(true);
         setIsSpeaking(false);
         setVisibleBoardLines([]);
@@ -1118,33 +1117,36 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
-        const player = kittenTts.speak(cleanedText, {
-            cleanText: true,
-            voice: KittenVoice.Bella,
-            rate: 1.2,
+        const cacheKey = `${sessionData?.topic?.topic_id || 'gen'}_${subStepRef.current}_${conceptIdxRef.current}`;
+
+        const player = grokTts.playSpeech(cleanedText, {
+            voice: 'altair',
+            withTimestamps: true,
+            cacheKey,
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);
                 isSpeakingRef.current = true;
                 setIsTtsLoading(false);
 
-                // Voice has started speaking: start progressive line-by-line chalk write-in with slight lead delay
-                setTimeout(() => {
-                    if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                    revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
+                // Voice starts speaking: reveal lines with visual attachments
+                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
 
-                    if (pendingVisualsRef.current.svg) {
-                        setActiveDiagramSvg(pendingVisualsRef.current.svg);
-                        setActiveTableMarkdown(null);
-                        setActiveVisualCaption(pendingVisualsRef.current.caption);
-                        setDiagramKey(k => k + 1);
-                    } else if (pendingVisualsRef.current.table) {
-                        setActiveDiagramSvg(null);
-                        setActiveTableMarkdown(pendingVisualsRef.current.table);
-                        setActiveVisualCaption(pendingVisualsRef.current.caption);
-                        setDiagramKey(k => k + 1);
-                    }
-                }, 350);
+                if (pendingVisualsRef.current.svg) {
+                    setActiveDiagramSvg(pendingVisualsRef.current.svg);
+                    setActiveTableMarkdown(null);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                    setDiagramKey(k => k + 1);
+                } else if (pendingVisualsRef.current.table) {
+                    setActiveDiagramSvg(null);
+                    setActiveTableMarkdown(pendingVisualsRef.current.table);
+                    setActiveVisualCaption(pendingVisualsRef.current.caption);
+                    setDiagramKey(k => k + 1);
+                }
+            },
+            onTimeUpdate: (curTime, charIndex, currentWord) => {
+                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+                setActiveSpokenWord(currentWord);
             },
             onEnd: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -1154,10 +1156,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
 
-                // Ensure all lines are revealed and active writing marker clears
                 setVisibleBoardLines(pendingBoardLinesRef.current);
                 setIsStreaming(false);
                 setActiveWritingIndex(-1);
+                setActiveSpokenWord('');
 
                 onEnd?.();
             },
@@ -1168,7 +1170,6 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
                 setIsPaused(false);
                 setIsTtsLoading(false);
                 currentAudioRef.current = null;
-                // Reveal lines only if voice completely failed
                 revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
                 if (pendingVisualsRef.current.svg) {
                     setActiveDiagramSvg(pendingVisualsRef.current.svg);
@@ -1180,89 +1181,15 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         });
 
         currentAudioRef.current = player as any;
-    }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
+    }, [isMuted, clearAllStreamTimers, revealLinesProgressively, sessionData]);
 
-    // ── Real-Time Streaming Speech Engine for Live Interaction & Q&A ──────────
     const streamText = useCallback(async (
         text: string,
         onEnd?: () => void,
         linesToReveal?: string[]
     ): Promise<void> => {
-        if (!isActiveRef.current || !text) {
-            onEnd?.();
-            return;
-        }
-
-        const lines = (linesToReveal && linesToReveal.length > 0)
-            ? linesToReveal.slice(0, MAX_BOARD_LINES)
-            : pendingBoardLinesRef.current;
-        pendingBoardLinesRef.current = lines;
-
-        stopAudioImmediate();
-        clearAllStreamTimers();
-        setIsPaused(false);
-        lastSpokenTextRef.current = text;
-
-        if (isMuted) {
-            setIsTtsLoading(false);
-            setIsSpeaking(false);
-            revealLinesProgressively(lines, text);
-            onEnd?.();
-            return;
-        }
-
-        setIsTtsLoading(true);
-        setIsSpeaking(false);
-        setVisibleBoardLines([]);
-        setActiveWritingIndex(-1);
-
-        const sessionId = ++playSessionIdRef.current;
-        const cleanedText = cleanSpokenTextForTTS(text);
-
-        if (!cleanedText) {
-            setIsTtsLoading(false);
-            revealLinesProgressively(lines, text);
-            onEnd?.();
-            return;
-        }
-
-        const player = kittenWebGpu.streamSpeech(cleanedText, {
-            cleanText: true,
-            voice: KittenVoice.Bella,
-            speed: 1.1,
-            onStart: () => {
-                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                setIsSpeaking(true);
-                isSpeakingRef.current = true;
-                setIsTtsLoading(false);
-                revealLinesProgressively(lines, cleanedText);
-            },
-            onEnd: () => {
-                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                setIsSpeaking(false);
-                isSpeakingRef.current = false;
-                setIsPaused(false);
-                setIsTtsLoading(false);
-                currentAudioRef.current = null;
-                setVisibleBoardLines(pendingBoardLinesRef.current);
-                setIsStreaming(false);
-                setActiveWritingIndex(-1);
-                onEnd?.();
-            },
-            onError: () => {
-                if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
-                setIsSpeaking(false);
-                isSpeakingRef.current = false;
-                setIsPaused(false);
-                setIsTtsLoading(false);
-                currentAudioRef.current = null;
-                revealLinesProgressively(pendingBoardLinesRef.current, cleanedText);
-                onEnd?.();
-            },
-        });
-
-        currentAudioRef.current = player as any;
-    }, [isMuted, clearAllStreamTimers, revealLinesProgressively]);
+        return speakText(text, onEnd, linesToReveal);
+    }, [speakText]);
 
     function normalizeBlueprint(bp: any): LessonBlueprint {
         if (!bp || typeof bp !== 'object') {
@@ -1649,18 +1576,6 @@ OUTPUT VALID JSON ONLY:
         setPositiveAction(defaultActs.positive);
         setNegativeAction(defaultActs.negative);
 
-        // Enforce: Do not continue unless Kitten TTS voice model finishes download
-        if (!kittenTts.getStatus().isDownloaded) {
-            setIsModelDownloading(true);
-            await kittenTts.startBackgroundDownload((p) => {
-                if (isActiveRef.current) {
-                    setModelDownloadProgress(Math.round(p * 100));
-                }
-            });
-            if (!isActiveRef.current) return;
-            setIsModelDownloading(false);
-        }
-
         await presentUnit(bp, startConceptIdx, startPhase, 0, studentMem, true);
     }, [sessionData, userProfile, generateBlueprint]);
 
@@ -1894,17 +1809,21 @@ Problem: ${bp.synthesisProblem?.problem}
 - negativeReplyLabel: "Synthesis Hint 💡"`,
         };
 
-        const aiPrompt = `You are AVELUT Master Voice & Visual STEM Tutor.
-You embody Adaptive Teaching Engine methodology:
+        const aiPrompt = `You are AVELUT Master Voice & Visual Multi-Disciplinary Academic Tutor.
+You embody Adaptive Teaching Engine methodology across ALL subjects (STEM, Sciences, Humanities, Law, Literature, Economics, Computer Science, Business, Medicine, Social Sciences):
+- UNIVERSAL DOMAIN ADAPTATION: If the subject is qualitative or analytical (e.g. Constitutional Law, Cell Biology, Macroeconomics, Literature), teach mechanisms, principles, case studies, cause-and-effect chains, and comparison tables without forcing calculation formulas.
 - PEDAGOGICAL HARMONY: Board lines must be a punchy visual summary of spoken voice.
-- SHORT BOARD LINES (1-3 lines max): Never write long reading paragraphs on the blackboard!
-- SIMPLEST WORDS: Explain plainly without dense jargon.
-- REAL-WORLD OBJECT ANALOGIES: Always use familiar physical objects.
-- LaTeX Math: Format all formulas, powers, superscripts, subscripts, fractions, and units in LaTeX ($...$ or $$...$$).
+- SHORT BOARD LINES (1-3 lines max): Never write dense walls of text on the board!
+- ALWAYS PROVIDE A VISUAL (MANDATORY): Always generate a realistic vector diagram illustration (diagramSvg) OR a structured markdown comparison/progression table (tableMarkdown).
+- EXPRESSIVE GROK SPEECH TAGS: In spokenExplanation, naturally incorporate Grok voice tags for lively, engaging delivery:
+  * [pause] or [long-pause] to let concepts land.
+  * <emphasis>key terms</emphasis> or <slow>governing rule or principle</slow>.
+  * [chuckle] or [sigh] where natural in tutoring dialogue.
+- LaTeX Math: Format formulas, variables, and units in LaTeX ($...$ or $$...$$) only when relevant to the discipline.
 
 ${SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT}
 
-CURRENT TOPIC: "${sessionData?.topic?.topic_name}"
+CURRENT TOPIC: "${sessionData?.topic?.topic_name || sessionData?.course?.course_name}"
 CURRENT CONCEPT: "${concept?.conceptName}"
 CURRENT ADAPTIVE PHASE: "${currentPhase}" (${PHASE_LABEL[currentPhase]})
 DIFFICULTY LEVEL: ${difficultyStateRef.current.currentLevel}/5
@@ -1912,17 +1831,64 @@ INSTRUCTION: ${phaseInstructions[currentPhase]}
 
 OUTPUT VALID JSON ONLY:
 {
-  "boardLines": ["Line 1 with LaTeX", "[DIAGRAM]", "Line 2 with LaTeX", "Line 3 with LaTeX"],
-  "spokenExplanation": "Conversational spoken English text without raw LaTeX codes",
-  "diagramSvg": "Complete realistic SVG string (viewBox=\\"0 0 800 480\\") with actual recognizable objects drawn from scratch or null",
-  "tableMarkdown": "Markdown table with LaTeX or null",
+  "boardLines": ["Line 1", "[DIAGRAM]", "Line 2", "Line 3"],
+  "spokenExplanation": "Engaging conversational spoken explanation with [pause] and <emphasis>tags</emphasis>",
+  "diagramSvg": "Complete realistic SVG string (viewBox=\\"0 0 800 480\\") or null",
+  "tableMarkdown": "Structured markdown table (| Header 1 | Header 2 |) or null",
   "diagramCaption": "Caption string or null",
   "positiveReplyLabel": "Button text",
   "positiveReplyText": "Spoken text if affirmative button tapped",
   "negativeReplyLabel": "Button text",
   "negativeReplyText": "Spoken text if question/hint button tapped"
 }
-NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines array (at any line index) where the illustration or table best fits the visual explanation!`;
+NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines array where the visual best fits!`;
+
+        const boardCacheKey = `avelut_board_${cid}_${tid}_${cIdx}_${currentPhase}`;
+        const cachedBoard = readCachedJson<UnitPresentationResponse | null>(boardCacheKey, null);
+
+        if (cachedBoard?.boardLines && cachedBoard?.spokenExplanation) {
+            setIsLoadingUnit(false);
+            const sanitized = sanitizeSvg(cachedBoard.diagramSvg || concept?.diagramSvg);
+            const table = cachedBoard.tableMarkdown || concept?.tableMarkdown;
+
+            pendingVisualsRef.current = {
+                svg: sanitized || null,
+                table: (table && table.trim().includes('|')) ? table : null,
+                caption: cachedBoard.diagramCaption || `${concept?.conceptName || 'Lesson'} Visual`,
+            };
+            pendingBoardLinesRef.current = cachedBoard.boardLines.slice(0, MAX_BOARD_LINES);
+
+            if (cachedBoard.positiveReplyLabel && cachedBoard.positiveReplyText) {
+                const pos = { label: cachedBoard.positiveReplyLabel, text: cachedBoard.positiveReplyText };
+                positiveActionRef.current = pos;
+                setPositiveAction(pos);
+            }
+            if (cachedBoard.negativeReplyLabel && cachedBoard.negativeReplyText) {
+                setNegativeAction({ label: cachedBoard.negativeReplyLabel, text: cachedBoard.negativeReplyText });
+            }
+
+            // On speech completion: auto-flip to next board for narrative phases
+            const onBoardSpeechEnd = () => {
+                if (!isActiveRef.current) return;
+                const isNarrativePhase = (
+                    currentPhase === 'concept_map' || 
+                    currentPhase === 'intuition' || 
+                    currentPhase === 'concept_core' || 
+                    currentPhase === 'formalize' || 
+                    currentPhase === 'multi_represent'
+                );
+
+                if (isNarrativePhase) {
+                    setTimeout(() => {
+                        if (!isActiveRef.current) return;
+                        void handleAdvanceNextBoard();
+                    }, 1400);
+                }
+            };
+
+            await speakText(cachedBoard.spokenExplanation, onBoardSpeechEnd, cachedBoard.boardLines.slice(0, MAX_BOARD_LINES));
+            return;
+        }
 
         const cost = getFeatureCost('study_guide_lesson', appSettings);
         if (userProfile) {
@@ -1960,6 +1926,7 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
             if (!raw) throw new Error('Empty unit response');
 
             const parsed: UnitPresentationResponse = robustParseJson<UnitPresentationResponse>(raw);
+            writeCachedJson(boardCacheKey, parsed);
 
             const sanitized = sanitizeSvg(parsed.diagramSvg || concept?.diagramSvg);
             const table = parsed.tableMarkdown || concept?.tableMarkdown;
@@ -1996,8 +1963,9 @@ NOTE: You can place "[DIAGRAM]" or "[TABLE]" anywhere inside the boardLines arra
             const currentPath = activePhasePathRef.current;
             if (nextPIdx < currentPath.length) {
                 const nextPhase = currentPath[nextPIdx];
+                const nextCacheKey = `${cid}_${tid}_${cIdx}_${nextPhase}`;
                 const nextFallbackSpoken = getSpokenText(concept || bp.concepts[0], nextPhase, 0);
-                void kittenWebGpu.prefetchAudio(nextFallbackSpoken);
+                grokVoiceEngine.prefetchSpeech(nextFallbackSpoken, nextCacheKey);
             }
 
             // On speech completion: auto-flip to next board for narrative phases
@@ -2642,47 +2610,13 @@ OUTPUT VALID JSON ONLY:
         }
     };
 
-    const handlePreviewVoice = (voiceId: KittenVoice, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (previewingVoice === voiceId) {
-            if (previewPlayerRef.current) {
-                previewPlayerRef.current.stop();
-                previewPlayerRef.current = null;
-            }
-            setPreviewingVoice(null);
-            return;
-        }
-
+    const handlePreviewVoice = (voiceId: string = 'altair', e?: React.MouseEvent) => {
+        e?.stopPropagation();
         stopAudioImmediate();
-        if (previewPlayerRef.current) {
-            previewPlayerRef.current.stop();
-            previewPlayerRef.current = null;
-        }
-
-        setPreviewingVoice(voiceId);
-        const player = kittenTts.previewVoice(voiceId, {
-            onStart: () => setPreviewingVoice(voiceId),
-            onEnd: () => {
-                setPreviewingVoice(null);
-                previewPlayerRef.current = null;
-            },
-            onError: () => {
-                setPreviewingVoice(null);
-                previewPlayerRef.current = null;
-            },
+        grokTts.playSpeech("Hello! I am Altair, your personal voice tutor on Avelut.", {
+            voice: 'altair',
+            withTimestamps: true,
         });
-        previewPlayerRef.current = player;
-    };
-
-    const handleSelectVoice = (voiceId: KittenVoice) => {
-        if (previewPlayerRef.current) {
-            previewPlayerRef.current.stop();
-            previewPlayerRef.current = null;
-        }
-        setPreviewingVoice(null);
-        kittenTts.setVoice(voiceId);
-        setSelectedVoice(voiceId);
-        addToast(`Voice switched to ${voiceId}`, 'success');
     };
 
     const handleGoBack = useCallback(async () => {
@@ -2833,17 +2767,17 @@ OUTPUT VALID JSON ONLY:
                         <button
                             onClick={handleGoBack}
                             disabled={isNavigatingBack}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-white/20 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-900 dark:text-white text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3E9F1] bg-white hover:bg-slate-50 text-[#0F172A] text-xs sm:text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
                         >
-                            <i className="bi bi-arrow-left text-sm font-bold"></i>
-                            <span className="whitespace-nowrap">Back to Study Guide</span>
+                            <i className="bi bi-arrow-left text-sm font-bold text-[#0066FF]"></i>
+                            <span className="whitespace-nowrap">Study Guide</span>
                         </button>
                         <div className="min-w-0 flex flex-col justify-center">
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px] sm:max-w-[280px] md:max-w-[400px]">
+                            <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[120px] sm:max-w-[280px] md:max-w-[400px]">
                                 {topicName}
                             </span>
                             {currentConcept && (
-                                <span className="text-[10px] text-amber-500 dark:text-amber-400 font-mono truncate max-w-[120px] sm:max-w-[280px]">
+                                <span className="text-[10px] text-[#0066FF] font-mono font-bold truncate max-w-[120px] sm:max-w-[280px]">
                                     Concept {conceptIdx + 1}/{totalConcepts}: {currentConcept.conceptName}
                                 </span>
                             )}
@@ -2855,7 +2789,7 @@ OUTPUT VALID JSON ONLY:
                         {sessionData?.image && (
                             <button
                                 onClick={() => setShowScannedImageModal(true)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-900/70 hover:bg-sky-800 border border-sky-500/60 text-sky-200 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#0066FF] text-xs font-bold transition-all cursor-pointer shadow-xs"
                                 title="View original problem scan"
                             >
                                 <i className="bi bi-image text-xs"></i>
@@ -2864,15 +2798,15 @@ OUTPUT VALID JSON ONLY:
                         )}
                         <button
                             onClick={toggleMute}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-white/20 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-bold text-slate-800 dark:text-white cursor-pointer transition-colors active:scale-95 shadow-xs"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#E3E9F1] bg-white hover:bg-slate-50 text-xs font-bold text-[#0F172A] cursor-pointer transition-colors active:scale-95 shadow-xs"
                             title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
                         >
-                            <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-rose-400' : 'bi-volume-up-fill text-amber-500'} text-sm`}></i>
-                            <span className="text-[11px] hidden md:inline">{isMuted ? 'Muted' : 'Voice'}</span>
+                            <i className={`bi ${isMuted ? 'bi-volume-mute-fill text-rose-500' : 'bi-volume-up-fill text-[#0066FF]'} text-sm`}></i>
+                            <span className="text-[11px] hidden md:inline">{isMuted ? 'Muted' : 'Altair'}</span>
                         </button>
                     </div>
                 ),
-                className: 'bg-[#181C20]/95 border-b border-white/10 backdrop-blur-md'
+                className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md'
             });
         }
 
@@ -2883,14 +2817,14 @@ OUTPUT VALID JSON ONLY:
         };
     }, [setCustomHeaderConfig, sessionData, currentConcept, conceptIdx, totalConcepts, isMuted, isNavigatingBack, handleGoBack]);
 
-    // Helper to render embedded diagram directly inside the blackboard (clean, diagram-only, space-efficient)
+    // Helper to render embedded diagram directly inside the board (clean, diagram-only, space-efficient)
     const renderInlineDiagram = () => {
         if (!activeDiagramSvg) return null;
         return (
-            <div className="w-full my-1 flex items-center justify-center bg-transparent border-0 shadow-none animate-fade-in transition-all">
+            <div className="w-full my-2 flex items-center justify-center bg-[#F8FAFC] p-2 sm:p-4 rounded-2xl border border-[#E3E9F1] shadow-xs animate-fade-in transition-all cursor-pointer" onClick={() => setIsDiagramZoomed(true)}>
                 <div
                     key={`svg-${diagramKey}`}
-                    className="w-full max-h-[190px] sm:max-h-[230px] flex items-center justify-center py-0.5 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[190px] sm:[&>svg]:max-h-[230px]"
+                    className="w-full max-h-[220px] sm:max-h-[260px] flex items-center justify-center py-0.5 overflow-visible [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[220px] sm:[&>svg]:max-h-[260px]"
                     dangerouslySetInnerHTML={{ __html: activeDiagramSvg }}
                 />
             </div>
@@ -2901,7 +2835,7 @@ OUTPUT VALID JSON ONLY:
     const renderInlineTable = () => {
         if (!activeTableMarkdown) return null;
         return (
-            <div className="w-full my-2.5 overflow-x-auto p-3 bg-[#1C2128] rounded-2xl border border-[#373E47] text-xs sm:text-sm font-mono text-white shadow-inner animate-fade-in">
+            <div className="w-full my-2.5 overflow-x-auto p-3.5 bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] text-xs sm:text-sm font-mono text-[#0F172A] shadow-xs animate-fade-in">
                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {formatLatexMath(activeTableMarkdown)}
                 </ReactMarkdown>
@@ -2915,13 +2849,13 @@ OUTPUT VALID JSON ONLY:
 
     // ── Render ────────────────────────────────────────────────────────────
     return (
-        <div className="flex-1 w-full h-full flex flex-col bg-[#12161A] text-white overflow-hidden select-none relative">
+        <div className="flex-1 w-full h-full flex flex-col bg-[#F6F6F3] text-[#0F172A] overflow-hidden select-none relative">
 
             {/* ── Progress bar ────────────────────────────────────────── */}
             {blueprint && !isGeneratingBlueprint && (
-                <div className="h-1 bg-white/10 shrink-0">
+                <div className="h-1.5 bg-[#E3E9F1] shrink-0">
                     <div
-                        className="h-full bg-blue-500 transition-all duration-500"
+                        className="h-full bg-[#0066FF] rounded-r-full transition-all duration-500"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
@@ -2930,24 +2864,24 @@ OUTPUT VALID JSON ONLY:
             {/* ── Blueprint generation screen ─────────────────────────── */}
             {isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center animate-fade-in my-auto">
-                    <div className="w-20 h-20 rounded-3xl bg-[#181C20] border-2 border-blue-400/50 flex items-center justify-center shadow-2xl">
-                        <i className="bi bi-mortarboard-fill text-3xl text-blue-400"></i>
+                    <div className="w-20 h-20 rounded-3xl bg-white border-2 border-blue-200 flex items-center justify-center shadow-lg shadow-blue-500/10">
+                        <i className="bi bi-mortarboard-fill text-3xl text-[#0066FF]"></i>
                     </div>
 
                     <div className="space-y-2 max-w-md">
-                        <span className="text-xs font-mono font-bold tracking-widest uppercase text-blue-400">
+                        <span className="text-xs font-mono font-bold tracking-widest uppercase text-[#0066FF]">
                             Avelut Adaptive Engine
                         </span>
-                        <h2 className="text-xl sm:text-2xl font-bold font-handwriting text-white tracking-wide">
+                        <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">
                             {blueprintGenStep || 'Building Lesson Blueprint...'}
                         </h2>
-                        <p className="text-xs sm:text-sm text-slate-300">
-                            Customizing diagnostic checks, real-world analogies, worked examples, and socratic prompts.
+                        <p className="text-xs sm:text-sm text-[#64748B]">
+                            Preparing multi-disciplinary breakdown, analogies, worked applications, and Grok Altair voice synthesis.
                         </p>
                     </div>
 
-                    <div className="w-full max-w-xs bg-slate-800/80 rounded-full h-2 overflow-hidden border border-white/10 shadow-inner">
-                        <div className="bg-blue-400 h-full rounded-full w-full animate-pulse transition-all" />
+                    <div className="w-full max-w-xs bg-[#E3E9F1] rounded-full h-2 overflow-hidden shadow-inner">
+                        <div className="bg-[#0066FF] h-full rounded-full w-full animate-pulse transition-all" />
                     </div>
                 </div>
             )}
@@ -2955,18 +2889,20 @@ OUTPUT VALID JSON ONLY:
             {/* ── Completion screen ─────────────────────────────────────── */}
             {isDone && !isGeneratingBlueprint && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center pb-24 md:pb-6 max-w-xl mx-auto animate-fade-in my-auto">
-                    <div className="w-16 h-16 rounded-full bg-blue-500/15 flex items-center justify-center"><i className="bi bi-mortarboard-fill text-3xl text-blue-500"></i></div>
-                    <div>
-                        <h3 className="text-2xl font-bold text-white">Topic Mastered!</h3>
-                        <p className="text-xs font-semibold text-amber-400 mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
+                    <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0066FF]">
+                        <i className="bi bi-mortarboard-fill text-3xl"></i>
                     </div>
-                    <p className="text-sm text-slate-300 max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
+                    <div>
+                        <h3 className="text-2xl font-bold text-[#0F172A]">Topic Mastered!</h3>
+                        <p className="text-xs font-semibold text-[#0066FF] mt-1 uppercase tracking-wider">{sessionData?.topic?.topic_name}</p>
+                    </div>
+                    <p className="text-sm text-[#64748B] max-w-md leading-relaxed">{blueprint?.overallSummary}</p>
                     
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
                         {nextTopic ? (
                             <button
                                 onClick={handleNextTopic}
-                                className="w-full sm:flex-1 py-3.5 px-6 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full sm:flex-1 py-3.5 px-6 bg-[#0066FF] hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                             >
                                 <span>Next Topic: {nextTopic.topic_name}</span>
                                 <i className="bi bi-arrow-right font-bold"></i>
@@ -2974,14 +2910,14 @@ OUTPUT VALID JSON ONLY:
                         ) : null}
                         <button
                             onClick={handleReStudyTopic}
-                            className="w-full sm:flex-1 py-3.5 px-6 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full sm:flex-1 py-3.5 px-6 bg-white hover:bg-slate-50 border border-[#E3E9F1] text-[#0F172A] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                         >
                             <i className="bi bi-arrow-counterclockwise"></i>
                             <span>Re-study Topic</span>
                         </button>
                         <button
                             onClick={handleGoBack}
-                            className="w-full sm:w-auto px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 border border-[#E3E9F1] text-[#0F172A] rounded-2xl font-bold text-sm shadow-xs transition-colors active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                         >
                             <i className="bi bi-journal-check"></i>
                             <span>Study Guide</span>
@@ -2990,59 +2926,58 @@ OUTPUT VALID JSON ONLY:
                 </div>
             )}
 
-            {/* ── Main Fullscreen Teaching Canvas (Full Screen Width) ───────────────────────── */}
+            {/* ── Main Fullscreen Teaching Canvas ───────────────────────── */}
             {!isGeneratingBlueprint && !isDone && (
-                <main className="flex-1 flex flex-col px-1.5 sm:px-4 pt-1.5 pb-2 w-full h-full gap-2 min-h-0 overflow-hidden">
+                <main className="flex-1 flex flex-col px-2 sm:px-4 pt-1.5 pb-2 w-full h-full gap-2 min-h-0 overflow-hidden">
 
-                    {/* ── Fullscreen Charcoal Blackboard ── */}
-                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-[#181C20] border-2 border-[#2D333B] rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#444C56]/60 [&::-webkit-scrollbar-thumb]:rounded-full text-white">
+                    {/* ── Elevated Pure White Academic Board ── */}
+                    <div className="relative flex-1 min-h-0 flex flex-col justify-start bg-white border-2 border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-[#CBD5E1] [&::-webkit-scrollbar-thumb]:rounded-full text-[#0F172A]">
 
                         {isLoadingUnit && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#181C20]/90 backdrop-blur-xs rounded-3xl z-20">
-                                <div className="w-8 h-8 border-2 border-[#444C56] border-t-amber-400 rounded-full animate-spin" />
-                                <p className="text-sm font-handwriting text-[#E2E8F0] tracking-wide">
-                                    Writing on blackboard...
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-xs rounded-3xl z-20">
+                                <div className="w-8 h-8 border-2 border-[#E3E9F1] border-t-[#0066FF] rounded-full animate-spin" />
+                                <p className="text-sm font-semibold text-[#0F172A] tracking-wide">
+                                    Preparing board & Altair voice...
                                 </p>
                             </div>
                         )}
 
                         <div className="flex flex-col h-full gap-3.5">
-                            {/* ── Fixed Blackboard Topic Header (Underlined) ── */}
-                            <div className="w-full border-b border-white/20 pb-2.5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5 shrink-0">
+                            {/* ── Fixed Board Topic Header ── */}
+                            <div className="w-full border-b border-[#E3E9F1] pb-3 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5 shrink-0">
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-[10px] font-mono tracking-widest uppercase text-amber-300 font-bold">
+                                    <span className="text-[10px] font-mono tracking-widest uppercase text-[#0066FF] font-bold">
                                         {currentConcept ? `${currentConcept.conceptName}` : 'Lesson'}
                                     </span>
-                                    <h2 className="font-handwriting font-bold text-xl sm:text-2xl text-white tracking-wide underline underline-offset-8 decoration-white/70 truncate">
+                                    <h2 className="font-bold text-xl sm:text-2xl text-[#0F172A] tracking-tight truncate">
                                         {sessionData?.topic?.topic_name || sessionData?.course.course_name}
                                     </h2>
                                 </div>
-                                <span className="text-[11px] font-mono font-medium text-[#93C5FD] shrink-0">
+                                <span className="text-[11px] font-mono font-bold text-[#64748B] bg-[#F1F5F9] px-2.5 py-1 rounded-full border border-[#E3E9F1] shrink-0">
                                     {PHASE_LABEL[subStep] || subStep}
                                 </span>
                             </div>
 
-                            {/* ── Waiting for voice / preparation state: Blinking Colored Cursor on Clean Blackboard ── */}
+                            {/* ── Waiting for voice / preparation state ── */}
                             {visibleBoardLines.length === 0 && !isDone && (
                                 <div className="flex-1 flex flex-col items-start justify-start pt-6 sm:pt-8 px-2 animate-fade-in">
                                     <div className="flex items-center gap-3 font-mono text-sm sm:text-base tracking-wide">
-                                        <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-blue-500 rounded-xs animate-blink" />
-                                        <span className="text-xs text-sky-300/80 font-mono italic">
-                                            {isTtsLoading ? 'Tuning audio synthesizer...' : isLoadingUnit ? 'Writing lesson...' : ''}
+                                        <span className="inline-block w-3 h-5 sm:w-3.5 sm:h-6 bg-[#0066FF] rounded-xs animate-blink" />
+                                        <span className="text-xs text-[#64748B] font-mono italic">
+                                            {isTtsLoading ? 'Altair Voice Synthesizer active...' : isLoadingUnit ? 'Loading lesson step...' : ''}
                                         </span>
                                     </div>
                                 </div>
                             )}
 
-                            {/* ── Blackboard Content Area (Progressive Chalk Write-In & Inline Visuals) ── */}
+                            {/* ── Academic Board Content Area ── */}
                             {visibleBoardLines.length > 0 && (
-                                <div className="flex-1 w-full space-y-3 pb-2">
+                                <div className="flex-1 w-full space-y-3.5 pb-2">
                                     {visibleBoardLines.map((line, idx) => {
                                         const trimmed = line.trim();
                                         const isExplicitDiagram = /\[(diagram|visual|image)\]/i.test(trimmed);
                                         const isExplicitTable = /\[table\]/i.test(trimmed);
 
-                                        // Render inline diagram if tag present
                                         if (isExplicitDiagram) {
                                             return (
                                                 <div key={`inline-diag-${idx}`}>
@@ -3051,7 +2986,6 @@ OUTPUT VALID JSON ONLY:
                                             );
                                         }
 
-                                        // Render inline table if tag present
                                         if (isExplicitTable) {
                                             return (
                                                 <div key={`inline-table-${idx}`}>
@@ -3060,17 +2994,15 @@ OUTPUT VALID JSON ONLY:
                                             );
                                         }
 
-                                        const isVarLine       = trimmed.includes('→');
+                                        const isVarLine       = trimmed.includes('→') || trimmed.includes('leads to');
                                         const isBlockFormula  = trimmed.startsWith('$$');
                                         const stepMatch       = trimmed.match(/^\*\*(.*?)\*\*\s*:\s*(.*)$/);
                                         const isWritingActive = (idx === activeWritingIndex || (idx === visibleBoardLines.length - 1 && isStreaming)) && isStreaming;
 
-                                        // Auto-insert diagram right after line 1 (or after the first concept line) if no explicit tag exists
                                         const shouldAutoInsertDiagram = !hasExplicitDiagramTag && activeDiagramSvg && (
                                             idx === 0 || (visibleBoardLines.length === 1 && idx === 0)
                                         );
 
-                                        // Auto-insert table right after formula line if no explicit table tag exists
                                         const shouldAutoInsertTable = !hasExplicitTableTag && activeTableMarkdown && (
                                             isBlockFormula || idx === 1
                                         );
@@ -3080,55 +3012,52 @@ OUTPUT VALID JSON ONLY:
                                                 <div className="flex items-start gap-2.5 animate-fade-in w-full">
                                                     {stepMatch ? (
                                                         <div className="w-full flex flex-col gap-1 my-0.5">
-                                                            <span className="font-bold text-xs sm:text-sm text-sky-300 tracking-wide font-mono bg-sky-400/10 px-2 py-0.5 rounded-md w-fit border border-sky-400/20">
+                                                            <span className="font-bold text-xs text-[#0066FF] tracking-wide font-mono bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md w-fit">
                                                                 {stepMatch[1]}
                                                             </span>
-                                                            <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed overflow-x-auto pl-1">
+                                                            <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed overflow-x-auto pl-1">
                                                                 <ReactMarkdown
                                                                     remarkPlugins={[remarkGfm, remarkMath]}
                                                                     rehypePlugins={[rehypeKatex]}
                                                                     components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                                 >{formatLatexMath(stepMatch[2])}</ReactMarkdown>
                                                                 {isWritingActive && (
-                                                                    <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
+                                                                    <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1.5 bg-[#0066FF] rounded-xs animate-blink align-middle" />
                                                                 )}
                                                             </div>
                                                         </div>
                                                     ) : isBlockFormula ? (
-                                                        <div className="w-full text-center text-white py-2 overflow-x-auto bg-[#22272E]/90 rounded-2xl border border-[#373E47] px-3 my-1 shadow-inner">
+                                                        <div className="w-full text-center text-[#0F172A] py-2.5 overflow-x-auto bg-[#F8FAFC] rounded-2xl border border-[#E3E9F1] px-4 my-1 shadow-xs">
                                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                                                                 {formatLatexMath(line)}
                                                             </ReactMarkdown>
                                                         </div>
                                                     ) : isVarLine ? (
-                                                        <div className="font-mono text-xs sm:text-sm text-[#93C5FD] leading-snug pl-2 w-full">
+                                                        <div className="font-mono text-xs sm:text-sm text-[#002D62] leading-snug pl-2 w-full">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
                                                             >{formatLatexMath(line.trim())}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
+                                                                <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1.5 bg-[#0066FF] rounded-xs animate-blink align-middle" />
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="font-handwriting text-base sm:text-lg text-white leading-relaxed tracking-wide w-full">
+                                                        <div className="text-base sm:text-lg text-[#0F172A] leading-relaxed tracking-tight w-full font-medium">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
                                                                 components={{ p: ({ node, ...props }) => <span {...props} /> }}
-                                                                >{formatLatexMath(line)}</ReactMarkdown>
+                                                            >{formatLatexMath(line)}</ReactMarkdown>
                                                             {isWritingActive && (
-                                                                <span className="inline-block w-2.5 h-4 sm:w-3 sm:h-5 ml-1.5 bg-blue-500 rounded-xs animate-blink align-middle" />
+                                                                <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1.5 bg-[#0066FF] rounded-xs animate-blink align-middle" />
                                                             )}
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                {/* Auto-injected diagram anywhere on board */}
                                                 {shouldAutoInsertDiagram && renderInlineDiagram()}
-
-                                                {/* Auto-injected table anywhere on board */}
                                                 {shouldAutoInsertTable && renderInlineTable()}
                                             </React.Fragment>
                                         );
@@ -3139,35 +3068,34 @@ OUTPUT VALID JSON ONLY:
                     </div>
 
                     {isMicListening && micDisplay && (
-                        <div className="shrink-0 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-amber-300 animate-pulse px-3 py-1 bg-white/10 rounded-full w-fit mx-auto border border-white/20">
-                            <i className="bi bi-mic-fill text-red-400"></i>
+                        <div className="shrink-0 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-[#0F172A] animate-pulse px-3.5 py-1 bg-white rounded-full w-fit mx-auto border border-[#E3E9F1] shadow-xs">
+                            <i className="bi bi-mic-fill text-red-500"></i>
                             <span>"{micDisplay}..."</span>
                         </div>
                     )}
 
-                    {/* ── Voice-First Floating Bottom Control Bar ── */}
-                    <div className="shrink-0 flex flex-col gap-2 bg-[#181C20]/95 border border-[#2D333B] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-2xl backdrop-blur-md w-full mb-1 sm:mb-2 max-w-xl mx-auto">
+                    {/* ── Floating White Bottom Control Bar ── */}
+                    <div className="shrink-0 flex flex-col gap-2 bg-white/95 border border-[#E3E9F1] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-xl backdrop-blur-md w-full mb-1 sm:mb-2 max-w-xl mx-auto">
                         
-                        {/* ── Image Attachment Preview (if photo snapped/uploaded) ── */}
                         {attachedImage && (
-                            <div className="flex items-center justify-between gap-2 p-2 px-3.5 bg-[#22272E] border border-[#373E47] rounded-2xl w-full animate-fade-in shadow-xs">
+                            <div className="flex items-center justify-between gap-2 p-2 px-3.5 bg-[#F8FAFC] border border-[#E3E9F1] rounded-2xl w-full animate-fade-in shadow-xs">
                                 <div className="flex items-center gap-2.5">
-                                    <img src={attachedImage.base64} alt="Attached work" className="w-10 h-10 object-cover rounded-xl border border-white/20" />
+                                    <img src={attachedImage.base64} alt="Attached work" className="w-10 h-10 object-cover rounded-xl border border-[#CBD5E1]" />
                                     <div>
-                                        <p className="text-xs font-bold text-slate-100">Photo Attached</p>
-                                        <p className="text-[10px] text-slate-400">Tap mic to speak question about your work</p>
+                                        <p className="text-xs font-bold text-[#0F172A]">Photo Attached</p>
+                                        <p className="text-[10px] text-[#64748B]">Tap mic to speak question about your work</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={() => handleStudentReply('Please inspect my handwritten problem in this attached photo.', attachedImage)}
-                                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition cursor-pointer"
+                                        className="px-3 py-1.5 bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
                                     >
                                         Analyze
                                     </button>
                                     <button
                                         onClick={() => setAttachedImage(null)}
-                                        className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs text-white cursor-pointer"
+                                        className="w-7 h-7 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center text-xs text-[#0F172A] cursor-pointer"
                                     >
                                         <i className="bi bi-x-lg text-xs"></i>
                                     </button>
@@ -3177,66 +3105,59 @@ OUTPUT VALID JSON ONLY:
 
                         {/* ── Centered Voice Navigation & Interaction Controls ── */}
                         <div className="flex items-center justify-between w-full">
-                            {/* 1. Left: Restart / Simpler Explanation Button */}
                             <button
                                 onClick={handleRestartSimplerBoard}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
                                 title="Restart this board with simpler language"
-                                className="flex items-center justify-center w-12 h-12 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer"
+                                className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
                             >
                                 <i className="bi bi-arrow-counterclockwise text-base"></i>
                             </button>
 
-                            {/* 2. Middle Controls: Pause/Play, Mic (Prominent Center), Camera */}
                             <div className="flex items-center gap-2.5 sm:gap-3">
-                                {/* Play/Pause Button */}
                                 <button
                                     onClick={togglePauseAI}
                                     disabled={isTtsLoading || !blueprint}
                                     title={isSpeaking ? "Pause speech" : "Resume speech"}
                                     className={`flex items-center justify-center w-11 h-11 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
-                                        isSpeaking ? 'bg-amber-500/20 border-amber-400/40 text-amber-300' : 'bg-[#22272E] border-[#373E47] text-slate-300'
+                                        isSpeaking ? 'bg-blue-50 border-blue-200 text-[#0066FF]' : 'bg-[#F1F5F9] border-[#E3E9F1] text-[#64748B]'
                                     }`}
                                 >
                                     <i className={`bi ${isSpeaking ? 'bi-pause-fill text-lg' : 'bi-play-fill text-xl'}`}></i>
                                 </button>
 
-                                {/* Center Prominent Mic Button */}
                                 <button
                                     onClick={toggleMic}
                                     disabled={isGeneratingBlueprint || !blueprint}
                                     title={isMicListening ? "Listening... Click to send" : "Tap to speak question or answer"}
                                     className={`flex items-center justify-center w-14 h-14 rounded-2xl font-bold transition-all cursor-pointer shadow-lg active:scale-95 ${
                                         isMicListening 
-                                            ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/40' 
-                                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-2 ring-amber-400/30'
+                                            ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30' 
+                                            : 'bg-[#0066FF] hover:bg-blue-700 text-white shadow-blue-500/20 ring-2 ring-blue-400/30'
                                     }`}
                                 >
                                     <i className={`bi ${isMicListening ? 'bi-mic-fill' : 'bi-mic'} text-2xl`}></i>
                                 </button>
 
-                                {/* Camera Button */}
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     type="button"
                                     title="Snap or upload picture of your work"
-                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#22272E] hover:bg-[#2D333B] border border-[#373E47] text-slate-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
+                                    className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all cursor-pointer shadow-2xs active:scale-95"
                                 >
                                     <i className="bi bi-camera text-lg"></i>
                                 </button>
                             </div>
 
-                            {/* 3. Right: Next Board / Advance Button */}
                             <button
                                 onClick={handleAdvanceNextBoard}
                                 disabled={isGeneratingBlueprint || isTtsLoading}
                                 title="Advance to next board"
-                                className="flex items-center justify-center w-12 h-12 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer"
+                                className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#F1F5F9] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] transition-all active:scale-95 cursor-pointer shadow-2xs"
                             >
                                 <i className="bi bi-arrow-right text-base"></i>
                             </button>
 
-                            {/* Hidden File Input for Camera / Photo picker */}
                             <input
                                 type="file"
                                 ref={fileInputRef}
