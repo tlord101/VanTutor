@@ -649,6 +649,18 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       clearCachedKey(`avelut_ai_active_chat_id_${userProfile.uid}`);
     }
   }, [activeHistoryId, userProfile.uid]);
+
+  const [expandedUserMessageIds, setExpandedUserMessageIds] = useState<Set<string>>(new Set());
+
+  const toggleUserMessageExpand = (id: string) => {
+    setExpandedUserMessageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const [attachments, setAttachments] = useState<File[]>([]);
   const [courseContext, setCourseContext] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -2061,6 +2073,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                     const shouldShowVisualCue = message.sender === 'assistant' && (Boolean(visualHintText) || shouldHighlightForVisual(cleanVisualText));
 
                     if (message.sender === 'user') {
+                      const isLongUserMsg = cleanText.length > 220 || (cleanText.match(/\n/g) || []).length >= 4;
+                      const isExpanded = expandedUserMessageIds.has(message.id);
+
                       return (
                         <div key={message.id} className="flex justify-end my-3">
                           <div className="min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-[#002D62] text-white px-4 py-3 shadow-xs rounded-tr-none">
@@ -2091,7 +2106,25 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                 ))}
                               </div>
                             )}
-                            <p className="whitespace-pre-wrap leading-relaxed text-sm sm:text-[15px]">{cleanText}</p>
+                            <div className={`relative ${isLongUserMsg && !isExpanded ? 'max-h-[125px] overflow-hidden' : ''}`}>
+                              <p className="whitespace-pre-wrap leading-relaxed text-sm sm:text-[15px]">{cleanText}</p>
+                              {isLongUserMsg && !isExpanded && (
+                                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#002D62] via-[#002D62]/85 to-transparent pointer-events-none" />
+                              )}
+                            </div>
+
+                            {isLongUserMsg && (
+                              <div className="mt-2 flex justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUserMessageExpand(message.id)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-bold transition shadow-[0_3px_10px_rgba(0,0,0,0.3)] active:scale-95 cursor-pointer border border-white/25 backdrop-blur-xs"
+                                >
+                                  <span>{isExpanded ? 'Show less' : 'Read full message'}</span>
+                                  <i className={`bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'} text-xs drop-shadow-md`}></i>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -2262,6 +2295,19 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                           const { cleanText: cleanStreamingText } = parseMessageSuggestions(streamingBotText);
                           const { cleanText: cleanVisualStreamingText, visualHintText: streamingVisualHintText } = parseVisualHint(cleanStreamingText);
                           const shouldShowStreamingVisualCue = Boolean(streamingVisualHintText) || shouldHighlightForVisual(cleanVisualStreamingText);
+                          const text = cleanVisualStreamingText;
+
+                          const lastPunctuationIdx = Math.max(
+                            text.lastIndexOf('\n'),
+                            text.lastIndexOf('. '),
+                            text.lastIndexOf('? '),
+                            text.lastIndexOf('! ')
+                          );
+
+                          const hasCompletedPart = lastPunctuationIdx !== -1 && lastPunctuationIdx < text.length - 1;
+                          const completedPart = hasCompletedPart ? text.slice(0, lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2)) : '';
+                          const activePart = hasCompletedPart ? text.slice(lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2)) : text;
+
                           return (
                             <>
                               {shouldShowStreamingVisualCue && (
@@ -2269,31 +2315,39 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                   Double-tap for a visual
                                 </div>
                               )}
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                                components={{
-                                  p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
-                                  ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
-                                  ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
-                                  li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                                  strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
-                                  code: ({ node, inline, ...props }: any) =>
-                                    inline ? (
-                                      <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
-                                    ) : (
-                                      <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
-                                    ),
-                                  pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
-                                  blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
-                                  a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-                                  table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-                                  th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
-                                  td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
-                                }}
-                              >
-                                {formatLatexMath(cleanVisualStreamingText)}
-                              </ReactMarkdown>
+                              {hasCompletedPart && (
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkMath]}
+                                  rehypePlugins={[rehypeKatex]}
+                                  components={{
+                                    p: ({ node, ...props }: any) => <p className="mb-3.5 last:mb-0 leading-relaxed text-slate-800 dark:text-slate-100" {...props} />,
+                                    ul: ({ node, ...props }: any) => <ul className="mb-3.5 list-disc space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF]" {...props} />,
+                                    ol: ({ node, ...props }: any) => <ol className="mb-3.5 list-decimal space-y-1.5 pl-5 text-slate-800 dark:text-slate-100 marker:text-[#0066FF] font-medium" {...props} />,
+                                    li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+                                    strong: ({ node, ...props }: any) => <strong className="font-bold text-[#002D62] dark:text-[#60A5FA]" {...props} />,
+                                    code: ({ node, inline, ...props }: any) =>
+                                      inline ? (
+                                        <code className="rounded-md bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 text-[0.85em] font-mono text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/50" {...props} />
+                                      ) : (
+                                        <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10 my-3" {...props} />
+                                      ),
+                                    pre: ({ node, ...props }: any) => <pre className="my-3 overflow-x-auto rounded-2xl bg-[#0F172A] dark:bg-[#050711] p-4 text-xs font-mono text-slate-100 border border-slate-700/60 dark:border-white/10" {...props} />,
+                                    blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-[#0066FF] bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-r-xl my-3 text-slate-800 dark:text-slate-200 text-sm" {...props} />,
+                                    a: ({ node, ...props }: any) => <a className="text-[#0066FF] hover:text-[#002D62] dark:hover:text-[#93C5FD] underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                                    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
+                                    th: ({ node, ...props }: any) => <th className="bg-slate-100 dark:bg-slate-800 text-[#002D62] dark:text-[#60A5FA] font-bold p-2.5 text-left border border-slate-200 dark:border-slate-700" {...props} />,
+                                    td: ({ node, ...props }: any) => <td className="p-2.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200" {...props} />,
+                                  }}
+                                >
+                                  {formatLatexMath(completedPart)}
+                                </ReactMarkdown>
+                              )}
+                              {activePart && (
+                                <div className="inline-block text-[#002D62] dark:text-[#60A5FA] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+                                  <span>{activePart}</span>
+                                  <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
+                                </div>
+                              )}
                             </>
                           );
                         })()}

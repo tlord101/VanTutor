@@ -42,11 +42,22 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(new Set());
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const toggleMessageExpand = (id: string) => {
+    setExpandedMessageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -138,6 +149,8 @@ STUDENT'S QUESTION:
 ${messageText}`;
 
       const assistantMsgId = `msg_ai_${Date.now()}`;
+      setStreamingMsgId(assistantMsgId);
+
       // Initialize empty assistant bubble for live streaming
       setMessages([...nextMessagesWithUser, {
         id: assistantMsgId,
@@ -181,6 +194,7 @@ ${messageText}`;
       addToast('Failed to get answer. Please check your connection.', 'error');
     } finally {
       setIsLoading(false);
+      setStreamingMsgId(null);
     }
   };
 
@@ -190,6 +204,69 @@ ${messageText}`;
     'Give me a practical example',
     'Quiz me on this chapter',
   ];
+
+  // Helper to render streaming text with active trailing sentence glowing in deep blue
+  const renderStreamingContent = (text: string) => {
+    const lastPunctuationIdx = Math.max(
+      text.lastIndexOf('\n'),
+      text.lastIndexOf('. '),
+      text.lastIndexOf('? '),
+      text.lastIndexOf('! ')
+    );
+
+    if (lastPunctuationIdx !== -1 && lastPunctuationIdx < text.length - 1) {
+      const completedPart = text.slice(0, lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2));
+      const activePart = text.slice(lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2));
+
+      return (
+        <div className="space-y-1">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={markdownComponents(false)}
+          >
+            {formatLatexMath(completedPart)}
+          </ReactMarkdown>
+          {activePart && (
+            <div className="inline-block text-[#002D62] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+              <span>{activePart}</span>
+              <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="inline-block text-[#002D62] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+        <span>{text}</span>
+        <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
+      </div>
+    );
+  };
+
+  const markdownComponents = (isUser: boolean) => ({
+    p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+    strong: ({ node, ...props }: any) => (
+      <strong className={isUser ? 'font-bold text-blue-200' : 'font-bold text-[#002D62]'} {...props} />
+    ),
+    code: ({ node, inline, ...props }: any) =>
+      inline ? (
+        <code className={`px-1.5 py-0.5 rounded font-mono text-xs ${isUser ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0066FF] border border-blue-100'}`} {...props} />
+      ) : (
+        <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] text-slate-100 p-4 text-xs font-mono my-2.5 border border-slate-700/60" {...props} />
+      ),
+    blockquote: ({ node, ...props }: any) => (
+      <blockquote className={`border-l-4 p-3 rounded-r-xl my-2 text-xs leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 text-slate-800'}`} {...props} />
+    ),
+    ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF]" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium" {...props} />,
+    li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+    a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] underline hover:text-[#002D62]'}`} target="_blank" rel="noopener noreferrer" {...props} />,
+    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-[#E3E9F1] rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
+    th: ({ node, ...props }: any) => <th className="bg-[#F1F5F9] text-[#002D62] font-bold p-2.5 text-left border border-[#E3E9F1]" {...props} />,
+    td: ({ node, ...props }: any) => <td className="p-2.5 border border-[#E3E9F1] bg-white text-[#0F172A]" {...props} />,
+  });
 
   return (
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden bg-[#F6F6F3] animate-fade-in">
@@ -265,6 +342,9 @@ ${messageText}`;
             <div className="bg-white border border-[#E3E9F1] rounded-3xl p-4 sm:p-6 space-y-4 shadow-xs">
               {messages.map((msg) => {
                 const isUser = msg.sender === 'user';
+                const isCurrentlyStreaming = msg.id === streamingMsgId && isLoading;
+                const isLongUserMsg = isUser && (msg.text.length > 220 || (msg.text.match(/\n/g) || []).length >= 4);
+                const isExpanded = expandedMessageIds.has(msg.id);
 
                 return (
                   <div
@@ -272,46 +352,54 @@ ${messageText}`;
                     className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full animate-fade-in`}
                   >
                     <div
-                      className={`p-4 sm:p-5 rounded-2xl leading-relaxed text-sm ${
+                      className={`p-4 sm:p-5 rounded-2xl leading-relaxed text-sm relative ${
                         isUser
                           ? 'min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#002D62] text-white shadow-xs rounded-tr-none'
                           : 'w-full bg-[#F6F6F3] text-[#0F172A] border border-[#E3E9F1] rounded-tl-none shadow-2xs'
                       }`}
                     >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
-                          strong: ({ node, ...props }: any) => (
-                            <strong className={isUser ? 'font-bold text-blue-200' : 'font-bold text-[#002D62]'} {...props} />
-                          ),
-                          code: ({ node, inline, ...props }: any) =>
-                            inline ? (
-                              <code className={`px-1.5 py-0.5 rounded font-mono text-xs ${isUser ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0066FF] border border-blue-100'}`} {...props} />
-                            ) : (
-                              <code className="block overflow-x-auto rounded-2xl bg-[#0F172A] text-slate-100 p-4 text-xs font-mono my-2.5 border border-slate-700/60" {...props} />
-                            ),
-                          blockquote: ({ node, ...props }: any) => (
-                            <blockquote className={`border-l-4 p-3 rounded-r-xl my-2 text-xs leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 text-slate-800'}`} {...props} />
-                          ),
-                          ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF]" {...props} />,
-                          ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium" {...props} />,
-                          li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-                          a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] underline hover:text-[#002D62]'}`} target="_blank" rel="noopener noreferrer" {...props} />,
-                          table: ({ node, ...props }: any) => <div className="overflow-x-auto my-3"><table className="w-full border-collapse text-xs border border-[#E3E9F1] rounded-xl overflow-hidden shadow-2xs" {...props} /></div>,
-                          th: ({ node, ...props }: any) => <th className="bg-[#F1F5F9] text-[#002D62] font-bold p-2.5 text-left border border-[#E3E9F1]" {...props} />,
-                          td: ({ node, ...props }: any) => <td className="p-2.5 border border-[#E3E9F1] bg-white text-[#0F172A]" {...props} />,
-                        }}
-                      >
-                        {formatLatexMath(msg.text)}
-                      </ReactMarkdown>
+                      {isUser ? (
+                        <div>
+                          <div className={`relative ${isLongUserMsg && !isExpanded ? 'max-h-[125px] overflow-hidden' : ''}`}>
+                            <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+
+                            {/* Fade Shadow Gradient for Long User Sent Messages */}
+                            {isLongUserMsg && !isExpanded && (
+                              <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#002D62] via-[#002D62]/85 to-transparent pointer-events-none" />
+                            )}
+                          </div>
+
+                          {/* 3D Arrow Down Expand / Collapse Button */}
+                          {isLongUserMsg && (
+                            <div className="mt-2 flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleMessageExpand(msg.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-bold transition shadow-[0_3px_10px_rgba(0,0,0,0.3)] active:scale-95 cursor-pointer border border-white/25 backdrop-blur-xs"
+                              >
+                                <span>{isExpanded ? 'Show less' : 'Read full message'}</span>
+                                <i className={`bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'} text-xs drop-shadow-md`}></i>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : isCurrentlyStreaming ? (
+                        renderStreamingContent(msg.text)
+                      ) : (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                          components={markdownComponents(false)}
+                        >
+                          {formatLatexMath(msg.text)}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </div>
                 );
               })}
 
-              {isLoading && (
+              {isLoading && !streamingMsgId && (
                 <div className="flex items-center gap-2 p-3 bg-[#F6F6F3] rounded-2xl border border-[#E3E9F1] w-fit">
                   <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping" />
                   <span className="text-xs text-[#64748B] font-medium">Tutor is formulating response...</span>
