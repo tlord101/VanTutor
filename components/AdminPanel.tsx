@@ -14,6 +14,7 @@ import { StackIcon } from './icons/StackIcon';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
 import { GraduationCapIcon } from './icons/GraduationCapIcon';
 import { CheckIcon } from './icons/CheckIcon';
+import { Shield } from 'lucide-react';
 import { getWindowPathname } from '../utils/pathname';
 import { APP_SETTINGS_PATH, DEFAULT_APP_SETTINGS, DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
 import { getFeatureModel } from '../utils/usage';

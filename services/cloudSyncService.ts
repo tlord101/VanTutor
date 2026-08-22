@@ -258,19 +258,6 @@ class CloudSyncEngine {
         }
       }
 
-      // Pull remote exams into SQLite
-      const examRef = dbRef(db, `exam_history/${userId}`);
-      const examSnap = await get(examRef);
-      if (examSnap.exists()) {
-        const examVal = examSnap.val() || {};
-        const { bulkUpsertRemoteExams } = await import('./examStorageService');
-        const remoteExams = Object.keys(examVal).map(k => ({
-          ...examVal[k],
-          id: k
-        }));
-        await bulkUpsertRemoteExams(userId, remoteExams);
-      }
-
       // Pull remote history into SQLite
       const histRef = dbRef(db, `users/${userId}/history`);
       const histSnap = await get(histRef);

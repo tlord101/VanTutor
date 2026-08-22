@@ -1592,9 +1592,9 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           '4. Always maintain a warm, patient, and encouraging demeanor.',
         ].join('\n') : '';
 
-        const studentName = userProfile?.display_name?.split(' ')[0] || userProfile?.first_name || 'there';
+        const studentName = userProfile?.display_name?.split(' ')[0] || (userProfile as any)?.first_name || 'there';
         const studentInfo = isContextAware 
-          ? `Student Name: ${studentName}${userProfile?.department_name ? `, Department: ${userProfile.department_name}` : ''}${userProfile?.level ? `, Level: ${userProfile.level}` : ''}`
+          ? `Student Name: ${studentName}${userProfile?.department_id ? `, Department: ${userProfile.department_id}` : ''}${userProfile?.level ? `, Level: ${userProfile.level}` : ''}`
           : '';
 
         const systemInstructions = isContextAware ? [
