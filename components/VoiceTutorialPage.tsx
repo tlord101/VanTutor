@@ -263,7 +263,11 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             } catch (_) {}
             currentAudioRef.current = null;
         }
-        grokVoiceEngine.stopAudio();
+        if (typeof grokVoiceEngine.stopAudio === 'function') {
+            grokVoiceEngine.stopAudio();
+        } else if (typeof (grokVoiceEngine as any).stopAll === 'function') {
+            (grokVoiceEngine as any).stopAll();
+        }
         setIsSpeaking(false);
         isSpeakingRef.current = false;
         setIsTtsLoading(false);

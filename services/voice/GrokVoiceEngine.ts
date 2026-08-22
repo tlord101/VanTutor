@@ -287,11 +287,25 @@ class GrokVoiceEngine {
     };
   }
 
+  public stopAudio(): void {
+    this.stopAll();
+  }
+
+  public stop(): void {
+    this.stopAll();
+  }
+
+  public stopAudioPlayback(): void {
+    this.stopAll();
+  }
+
   public stopAll(): void {
     this.activeSessionId++;
     if (this.currentAudioElement) {
-      this.currentAudioElement.pause();
-      this.currentAudioElement.src = '';
+      try {
+        this.currentAudioElement.pause();
+        this.currentAudioElement.src = '';
+      } catch (_) {}
       this.currentAudioElement = null;
     }
     if (this.currentSource) {
