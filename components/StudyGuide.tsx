@@ -267,7 +267,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<VoiceEngineStatus>(() => avelutVoice.getStatus());
-    const [activeTab, setActiveTab] = useState<'courses' | 'notebooks'>('courses');
+    const [activeTab, setActiveTab] = useState<'courses' | 'notebooks'>('notebooks');
     const [topicVisits, setTopicVisits] = useState<Record<string, number>>(() => {
         if (!userProfile?.uid) return {};
         return readCachedJson<Record<string, number>>(`avelut_topic_visits_${userProfile.uid}`, {});

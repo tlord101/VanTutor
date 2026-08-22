@@ -1852,7 +1852,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
           {/* Top Half: Quick Action Navigation Items with Clean Colored Badges & Bootstrap Icons */}
           <div className="px-3 py-2 space-y-1.5">
-            {/* 1. Study Guide */}
+            {/* 1. My Notebooks */}
             <button
               type="button"
               onClick={() => {
@@ -1864,7 +1864,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
               <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100/80 dark:border-blue-800/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-105 transition-transform">
                 <i className="bi bi-journal-bookmark-fill text-sm"></i>
               </div>
-              <span className="truncate">Study Guide</span>
+              <span className="truncate">My Notebooks</span>
             </button>
 
             {/* 3. Visual Solver */}

@@ -21,7 +21,7 @@ interface BottomNavBarProps {
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemClick, isVisible, userProfile, items, onCenterActionClick }) => {
   const baseNavItems = [
     { id: 'mobile_menu', icon: <MenuIcon />, label: 'Menu' },
-    { id: 'study_guide', icon: <StudyGuideIcon />, label: 'Guide' },
+    { id: 'study_guide', icon: <StudyGuideIcon />, label: 'Notes' },
     { id: 'visual_solver', icon: <CameraIcon />, label: 'Solver' },
     { id: 'chat', icon: <AIIcon />, label: 'AI' },
     { id: 'messenger', icon: <ChatsIcon />, label: 'Chats' },
