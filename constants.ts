@@ -75,7 +75,7 @@ const FeedbackIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' 
 export const navigationItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: React.createElement(DashboardIcon) },
   { id: 'leaderboard', label: 'Leaderboard', icon: React.createElement(LeaderboardIcon) },
-  { id: 'study_guide', label: 'Study Guide', icon: React.createElement(StudyGuideIcon) },
+  { id: 'study_guide', label: 'BOOKS', icon: React.createElement(StudyGuideIcon) },
   { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
   { id: 'chat', label: 'Chat', icon: React.createElement(ChatIcon) },
   { id: 'messenger', label: 'Messages', icon: React.createElement(MessengerIcon) },

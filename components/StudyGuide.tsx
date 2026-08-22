@@ -81,6 +81,23 @@ const formatDuration = (seconds: number): string => {
     return `${hrs}h ${remMins}m`;
 };
 
+export const formatLastVisited = (timestamp?: number | null): string | null => {
+    if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) return null;
+    const diffMs = Date.now() - timestamp;
+    if (diffMs < 0) return 'Visited just now';
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMinutes < 1) return 'Visited just now';
+    if (diffMinutes < 60) return `Visited ${diffMinutes}m ago`;
+    if (diffHours < 24) return `Visited ${diffHours}h ago`;
+    if (diffDays === 1) return 'Visited yesterday';
+    if (diffDays < 7) return `Visited ${diffDays}d ago`;
+    if (diffDays < 30) return `Visited ${Math.floor(diffDays / 7)}w ago`;
+    return `Visited ${new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+};
+
 // --- SKELETON LOADER ---
 const StudyGuideSkeleton: React.FC = () => (
     <div className="w-full max-w-4xl mx-auto space-y-4 p-4 animate-pulse">
@@ -251,6 +268,31 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const [isLoading, setIsLoading] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<VoiceEngineStatus>(() => avelutVoice.getStatus());
     const [activeTab, setActiveTab] = useState<'courses' | 'notebooks'>('courses');
+    const [topicVisits, setTopicVisits] = useState<Record<string, number>>(() => {
+        if (!userProfile?.uid) return {};
+        return readCachedJson<Record<string, number>>(`avelut_topic_visits_${userProfile.uid}`, {});
+    });
+
+    const getTopicLastVisited = useCallback((courseId: string, topicId: string): number | null => {
+        const directKey = `${courseId}::${topicId}`;
+        if (topicVisits[directKey]) return topicVisits[directKey];
+        if (topicVisits[topicId]) return topicVisits[topicId];
+        if (userProgress?.[topicId]?.timestamp) return userProgress[topicId].timestamp!;
+        return null;
+    }, [topicVisits, userProgress]);
+
+    const handleOpenTopic = useCallback((course: Course, topic: Topic) => {
+        const now = Date.now();
+        const directKey = `${course.course_id}::${topic.topic_id}`;
+        const nextVisits = { ...topicVisits, [directKey]: now, [topic.topic_id]: now };
+        setTopicVisits(nextVisits);
+        if (userProfile?.uid) {
+            writeCachedJson(`avelut_topic_visits_${userProfile.uid}`, nextVisits);
+        }
+        setSelectedCourse(course);
+        setTopicToOpen(topic);
+        setTopicPickerCourse(null);
+    }, [topicVisits, userProfile?.uid]);
 
     const touchStartX = useRef<number | null>(null);
     const touchEndX = useRef<number | null>(null);
@@ -280,10 +322,27 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         touchEndX.current = null;
     };
 
-    // Configure Main App Header with Study Guide / My Notebooks Tab Switcher
+    // Configure Main App Header with Centered Tabs Switcher and Back Button
     useEffect(() => {
         if (!selectedCourse && !isVoiceTutorialActive && !activeExternalSession && setCustomHeaderConfig) {
             setCustomHeaderConfig({
+                leftActions: (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (onNavigate) {
+                                onNavigate('dashboard');
+                            } else {
+                                window.dispatchEvent(new CustomEvent('app-go-back'));
+                            }
+                        }}
+                        className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-sm font-bold active:scale-95 cursor-pointer transition-all shrink-0 shadow-2xs"
+                        aria-label="Back"
+                        title="Back"
+                    >
+                        <i className="bi bi-arrow-left text-sm font-bold text-[#0066FF]"></i>
+                    </button>
+                ),
                 title: (
                     <div className="inline-flex items-center p-1 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl border border-[#E3E9F1] dark:border-slate-700 shadow-2xs">
                         <button
@@ -312,12 +371,13 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         </button>
                     </div>
                 ),
-                hideTitle: false,
-                hideDefaultRightActions: false,
+                hideTitle: true,
+                hideDefaultRightActions: true,
                 hideBottomNav: false,
+                className: 'bg-[#F6F6F3]/95 dark:bg-[#0B0F17]/95 border-b border-[#E3E9F1] dark:border-slate-800 backdrop-blur-md',
             });
         }
-    }, [selectedCourse, isVoiceTutorialActive, activeExternalSession, activeTab, setCustomHeaderConfig]);
+    }, [selectedCourse, isVoiceTutorialActive, activeExternalSession, activeTab, setCustomHeaderConfig, onNavigate]);
 
     // Subscribe to Avelut Voice Engine status
     useEffect(() => {
@@ -364,7 +424,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         writeCachedJson(`pinned_topics_${userProfile.uid}`, next);
     };
 
-    const togglePinTopic = (topic: any, course: Course) => {
+    const togglePinTopic = (course: Course, topic: any) => {
         const topicId = topic.topic_id || topic.id || topic.title;
         const isPinned = pinnedTopics.some(p => p.topic.topic_id === topicId || p.topic.id === topicId);
         let next: any[];
@@ -743,66 +803,73 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                     <i className="bi bi-pin-angle-fill text-xs"></i>
                                     <span>Pinned Topics</span>
                                 </div>
-                                {coursePinned.map((p) => (
-                                    <div
-                                        key={p.key}
-                                        onClick={() => {
-                                            setSelectedCourse(topicPickerCourse);
-                                            setTopicToOpen({
+                                {coursePinned.map((p) => {
+                                    const visitedTime = getTopicLastVisited(topicPickerCourse.course_id, p.topic_id);
+                                    const visitedLabel = formatLastVisited(visitedTime || p.pinnedAt);
+
+                                    return (
+                                        <div
+                                            key={p.key || p.topic_id}
+                                            onClick={() => handleOpenTopic(topicPickerCourse, {
                                                 topic_id: p.topic_id,
                                                 topic_name: p.topic_name,
                                                 topic_context: p.topic_context,
-                                            });
-                                            setTopicPickerCourse(null);
-                                        }}
-                                        className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950 bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer group"
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-amber-500 transition-colors">
-                                                {p.topic_name}
-                                            </div>
-                                            {p.topic_context && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                                                    {p.topic_context}
+                                            })}
+                                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-950 bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer group"
+                                        >
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-amber-500 transition-colors">
+                                                    {p.topic_name}
                                                 </div>
-                                            )}
+                                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                    {visitedLabel && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                                                            <i className="bi bi-clock-history text-[#0066FF] text-[10px]"></i>
+                                                            <span>{visitedLabel}</span>
+                                                        </span>
+                                                    )}
+                                                    {p.topic_context && (
+                                                        <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                                                            {p.topic_context}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenTopic(topicPickerCourse, {
+                                                            topic_id: p.topic_id,
+                                                            topic_name: p.topic_name,
+                                                            topic_context: p.topic_context,
+                                                        });
+                                                    }}
+                                                    className="w-8 h-8 flex items-center justify-center bg-amber-500 text-slate-950 rounded-full hover:bg-amber-400 active:scale-95 transition-all cursor-pointer"
+                                                    title="Start Topic Tutorial"
+                                                >
+                                                    <i className="bi bi-chevron-right text-xs font-bold"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        togglePinTopic(topicPickerCourse, {
+                                                            topic_id: p.topic_id,
+                                                            topic_name: p.topic_name,
+                                                            topic_context: p.topic_context,
+                                                        });
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                                    title="Unpin topic"
+                                                >
+                                                    <i className="bi bi-x-lg text-xs"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedCourse(topicPickerCourse);
-                                                    setTopicToOpen({
-                                                        topic_id: p.topic_id,
-                                                        topic_name: p.topic_name,
-                                                        topic_context: p.topic_context,
-                                                    });
-                                                    setTopicPickerCourse(null);
-                                                }}
-                                                className="w-8 h-8 flex items-center justify-center bg-amber-500 text-slate-950 rounded-full hover:bg-amber-400 active:scale-95 transition-all cursor-pointer"
-                                                title="Start Topic Tutorial"
-                                            >
-                                                <i className="bi bi-chevron-right text-xs font-bold"></i>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    togglePinTopic(topicPickerCourse, {
-                                                        topic_id: p.topic_id,
-                                                        topic_name: p.topic_name,
-                                                        topic_context: p.topic_context,
-                                                    });
-                                                }}
-                                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                                                title="Unpin topic"
-                                            >
-                                                <i className="bi bi-x-lg text-xs"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -825,19 +892,18 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                 </div>
                                 {topics.map((t: Topic, idx: number) => {
                                     const isPinned = pinnedTopics.some(p => p.key === `${topicPickerCourse.course_id}::${t.topic_id}`);
+                                    const visitedTime = getTopicLastVisited(topicPickerCourse.course_id, t.topic_id);
+                                    const visitedLabel = formatLastVisited(visitedTime);
+
                                     return (
                                         <div
                                             key={t.topic_id || idx}
-                                            onClick={() => {
-                                                setSelectedCourse(topicPickerCourse);
-                                                setTopicToOpen(t);
-                                                setTopicPickerCourse(null);
-                                            }}
-                                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-700 transition-all cursor-pointer group"
+                                            onClick={() => handleOpenTopic(topicPickerCourse, t)}
+                                            className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-[#E3E9F1] dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-700 transition-all cursor-pointer group shadow-2xs"
                                         >
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-amber-500 transition-colors">
+                                                    <span className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-[#0066FF] transition-colors">
                                                         {t.topic_name}
                                                     </span>
                                                     <button
@@ -856,21 +922,27 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                                         <i className={`bi ${isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`}></i>
                                                     </button>
                                                 </div>
-                                                {t.topic_context && (
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                                                        {t.topic_context}
-                                                    </p>
-                                                )}
+                                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                    {visitedLabel && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 text-[#64748B] dark:text-slate-400 text-[10px] font-semibold border border-[#E3E9F1] dark:border-slate-700">
+                                                            <i className="bi bi-clock-history text-[#0066FF] text-[10px]"></i>
+                                                            <span>{visitedLabel}</span>
+                                                        </span>
+                                                    )}
+                                                    {t.topic_context && (
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                                                            {t.topic_context}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                             <button
                                                 type="button"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setSelectedCourse(topicPickerCourse);
-                                                    setTopicToOpen(t);
-                                                    setTopicPickerCourse(null);
+                                                    handleOpenTopic(topicPickerCourse, t);
                                                 }}
-                                                className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-500 text-slate-600 group-hover:text-slate-950 dark:text-slate-300 rounded-full transition-all shrink-0 active:scale-95 cursor-pointer"
+                                                className="w-8 h-8 flex items-center justify-center bg-[#F1F5F9] dark:bg-slate-800 group-hover:bg-[#0066FF] text-[#0F172A] group-hover:text-white dark:text-slate-300 rounded-full transition-all shrink-0 active:scale-95 cursor-pointer shadow-2xs"
                                                 title="Start Topic Tutorial"
                                             >
                                                 <i className="bi bi-chevron-right text-xs font-bold"></i>

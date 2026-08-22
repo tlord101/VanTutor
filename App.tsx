@@ -1794,7 +1794,8 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
-                    currentPageLabel={(customHeaderConfig?.title as string) || currentPageLabel}
+                    currentPageLabel={typeof customHeaderConfig?.title === 'string' ? customHeaderConfig.title : currentPageLabel}
+                    title={typeof customHeaderConfig?.title !== 'string' ? customHeaderConfig?.title : undefined}
                     unreadCount={unreadCount}
                     onNotificationsClick={() => setActiveItem('notifications')}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}

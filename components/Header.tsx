@@ -9,7 +9,8 @@ import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
 
 interface HeaderProps {
-  currentPageLabel: string;
+  currentPageLabel?: string | React.ReactNode;
+  title?: React.ReactNode;
   onNotificationsClick?: () => void;
   unreadCount?: number;
   onMenuClick: () => void;
@@ -28,6 +29,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ 
     currentPageLabel, 
+    title,
     onNotificationsClick, 
     unreadCount = 0, 
     onMenuClick, 
@@ -64,27 +66,36 @@ export const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-4 sm:px-6 md:px-8 py-3.5 sm:py-4 border-b border-slate-200/80 dark:border-slate-800/80 ${className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}>
-            <div className="flex items-center min-w-0 flex-1 mr-2">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {leftActions && <div className="flex items-center min-w-0 flex-1">{leftActions}</div>}
-                    {!hideTitle && (
-                        <>
-                            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase truncate">
-                                {currentPageLabel}
-                            </h2>
-                            {userProfile?.use_personal_token && userProfile?.personal_api_key && (
-                                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                    AI Token Active
-                                </span>
-                            )}
-                        </>
-                    )}
-                </div>
+        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-3.5 sm:px-6 md:px-8 py-2.5 sm:py-3.5 border-b border-[#E3E9F1] dark:border-slate-800 ${className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}>
+            {/* Left Slot: Back Button / Left Actions */}
+            <div className="flex items-center gap-2.5 min-w-[40px] shrink-0">
+                {leftActions}
+                {!hideTitle && typeof currentPageLabel === 'string' && (
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#0F172A] dark:text-white tracking-tight uppercase truncate">
+                            {currentPageLabel}
+                        </h2>
+                        {userProfile?.use_personal_token && userProfile?.personal_api_key && (
+                            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                AI Token Active
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Center Slot: Centered Segmented Tabs / Centered Title Element */}
+            <div className="flex-1 flex items-center justify-center min-w-0 px-2">
+                {title ? (
+                    title
+                ) : (React.isValidElement(currentPageLabel) ? (
+                    currentPageLabel
+                ) : null)}
+            </div>
+
+            {/* Right Slot: Default Actions + Avatar Dropdown Menu */}
+            <div className="flex items-center gap-2 min-w-[40px] justify-end shrink-0">
                 {!hideDefaultRightActions && <AppUpdateBadge />}
                 {rightActions ? rightActions : (!hideDefaultRightActions && (
                     <>

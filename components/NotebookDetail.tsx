@@ -9,6 +9,9 @@ import NotebookChat from './NotebookChat';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
 import { useAppSettings } from '../hooks/useAppSettings';
 
+import { readCachedJson, writeCachedJson } from '../utils/cache';
+import { formatLastVisited } from './StudyGuide';
+
 interface NotebookDetailProps {
   notebook: Notebook;
   userProfile: UserProfile;
@@ -33,8 +36,18 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
   const [activeMode, setActiveMode] = useState<StudyMode>('none');
   const [chapterFullContent, setChapterFullContent] = useState<string>('');
   const [isLoadingContent, setIsLoadingContent] = useState(false);
+  const [chapterVisits, setChapterVisits] = useState<Record<string, number>>(() => {
+    if (!userProfile?.uid) return {};
+    return readCachedJson<Record<string, number>>(`avelut_chapter_visits_${userProfile.uid}`, {});
+  });
 
   const handleOpenChapterActions = async (chapter: NotebookChapter) => {
+    const now = Date.now();
+    const nextVisits = { ...chapterVisits, [chapter.id]: now };
+    setChapterVisits(nextVisits);
+    if (userProfile?.uid) {
+      writeCachedJson(`avelut_chapter_visits_${userProfile.uid}`, nextVisits);
+    }
     setSelectedChapter(chapter);
     setShowActionModal(true);
     setIsLoadingContent(true);
@@ -208,27 +221,37 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
           <span className="text-xs text-[#64748B]">Select a chapter to study</span>
         </div>
 
-        {notebook.chapters.map((ch, idx) => (
-          <div
-            key={ch.id}
-            onClick={() => handleOpenChapterActions(ch)}
-            className="w-full flex items-center justify-between p-4 sm:p-5 bg-white border border-[#E3E9F1] rounded-2xl hover:border-[#0066FF]/50 transition-all cursor-pointer group shadow-2xs gap-3"
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-[#F6F6F3] border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] font-bold text-sm shrink-0 group-hover:bg-[#002D62] group-hover:text-white transition-colors">
-                {idx + 1}
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-sm font-bold text-[#0F172A] truncate group-hover:text-[#0066FF] transition-colors">
-                  {ch.title}
-                </h4>
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-[#64748B]">
-                  <span>Pages {ch.startPage}–{ch.endPage}</span>
-                  <span>•</span>
-                  <span>{ch.wordCount.toLocaleString()} words</span>
+        {notebook.chapters.map((ch, idx) => {
+          const visitedTime = chapterVisits[ch.id];
+          const visitedLabel = formatLastVisited(visitedTime);
+
+          return (
+            <div
+              key={ch.id}
+              onClick={() => handleOpenChapterActions(ch)}
+              className="w-full flex items-center justify-between p-4 sm:p-5 bg-white border border-[#E3E9F1] rounded-2xl hover:border-[#0066FF]/50 transition-all cursor-pointer group shadow-2xs gap-3"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-[#F6F6F3] border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] font-bold text-sm shrink-0 group-hover:bg-[#002D62] group-hover:text-white transition-colors">
+                  {idx + 1}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-[#0F172A] truncate group-hover:text-[#0066FF] transition-colors">
+                    {ch.title}
+                  </h4>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5 text-xs text-[#64748B]">
+                    {visitedLabel && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 text-[#64748B] dark:text-slate-400 text-[10px] font-semibold border border-[#E3E9F1] dark:border-slate-700">
+                        <i className="bi bi-clock-history text-[#0066FF] text-[10px]"></i>
+                        <span>{visitedLabel}</span>
+                      </span>
+                    )}
+                    <span>Pages {ch.startPage}–{ch.endPage}</span>
+                    <span>•</span>
+                    <span>{ch.wordCount.toLocaleString()} words</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="hidden sm:inline-block text-xs font-bold text-[#0066FF] opacity-0 group-hover:opacity-100 transition-opacity">

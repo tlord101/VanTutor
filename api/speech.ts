@@ -12,7 +12,7 @@ export async function OPTIONS() {
 }
 
 /**
- * Handle GET requests for Edge CDN caching (7 days Vercel / Cloudflare edge cache)
+ * Handle GET requests for Edge CDN caching (7 days Vercel / Cloudflare edge cache for studyguide)
  */
 export async function GET(req: Request) {
   try {
@@ -21,6 +21,10 @@ export async function GET(req: Request) {
     const voiceId = url.searchParams.get('voice_id') || url.searchParams.get('voice') || 'altair';
     const language = url.searchParams.get('language') || 'en';
     const withTimestamps = url.searchParams.get('with_timestamps') !== 'false';
+    const source = url.searchParams.get('source') || '';
+    const isPrivate = url.searchParams.get('is_private') === 'true' || 
+                      url.searchParams.get('cache_scope') === 'private' || 
+                      source === 'notebook';
 
     if (!text || !text.trim()) {
       return new Response(
@@ -35,7 +39,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return await handleTtsSynthesis(req, text.trim(), voiceId, language, withTimestamps);
+    return await handleTtsSynthesis(req, text.trim(), voiceId, language, withTimestamps, isPrivate);
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || 'Internal Grok TTS Proxy Error' }), {
       status: 500,
@@ -70,8 +74,12 @@ export async function POST(req: Request) {
     const voiceId = body.voice_id || body.voice || 'altair';
     const language = body.language || 'en';
     const withTimestamps = body.with_timestamps !== false;
+    const source = body.source || '';
+    const isPrivate = body.is_private === true || 
+                      body.cache_scope === 'private' || 
+                      source === 'notebook';
 
-    return await handleTtsSynthesis(req, text.trim(), voiceId, language, withTimestamps);
+    return await handleTtsSynthesis(req, text.trim(), voiceId, language, withTimestamps, isPrivate);
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message || 'Internal Grok TTS Proxy Error' }), {
       status: 500,
@@ -84,14 +92,17 @@ export async function POST(req: Request) {
 }
 
 /**
- * Core synthesis helper with 7-day Edge Caching
+ * Core synthesis helper:
+ * - Study Guide voice tutorials: 7-day Public Edge CDN Cache shared across all students
+ * - My Notebooks / Private notes: Private no-store Edge CDN headers (cached on user's device only)
  */
 async function handleTtsSynthesis(
   req: Request,
   text: string,
   voiceId: string,
   language: string,
-  withTimestamps: boolean
+  withTimestamps: boolean,
+  isPrivate = false
 ) {
   const apiKey =
     process.env.XAI_API_KEY ||
@@ -139,13 +150,22 @@ async function handleTtsSynthesis(
 
   const payload = await response.json();
 
-  // 7 Days Edge CDN Cache: 604800 seconds
-  const edgeCacheHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400',
-    'CDN-Cache-Control': 'public, max-age=604800',
-    'Vercel-CDN-Cache-Control': 'public, max-age=604800',
-  };
+  // Edge CDN Cache headers:
+  // - Study Guide: 7 Days Edge CDN Cache (604800s) shared across students
+  // - Notebooks: Private no-store (student device only)
+  const edgeCacheHeaders = isPrivate
+    ? {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      }
+    : {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400',
+        'CDN-Cache-Control': 'public, max-age=604800',
+        'Vercel-CDN-Cache-Control': 'public, max-age=604800',
+      };
 
   const clientWantsBinary = req.headers.get('accept')?.includes('audio/') && !withTimestamps;
   if (clientWantsBinary && payload.audio) {

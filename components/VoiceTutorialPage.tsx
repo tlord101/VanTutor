@@ -402,10 +402,20 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             return;
         }
 
+        const isNotebook = Boolean(
+            sessionData?.syllabusContext?.toLowerCase().includes('notebook') || 
+            sessionData?.syllabusContext?.toLowerCase().includes('chapter') ||
+            sessionData?.course?.course_id?.startsWith('nb_') ||
+            sessionData?.source === 'notebook'
+        );
+
         const player = grokTts.playSpeech(cleanedText, {
             voice: 'altair',
             withTimestamps: true,
             cacheKey,
+            isPrivate: isNotebook,
+            cacheScope: isNotebook ? 'private' : 'public',
+            source: isNotebook ? 'notebook' : 'study_guide',
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);
@@ -654,11 +664,22 @@ OUTPUT VALID JSON ONLY:
         pendingBoardLinesRef.current = board.boardLines.slice(0, MAX_BOARD_LINES);
 
         // Pre-fetch next board's audio in background
+        const isNotebook = Boolean(
+            sessionData?.syllabusContext?.toLowerCase().includes('notebook') || 
+            sessionData?.syllabusContext?.toLowerCase().includes('chapter') ||
+            sessionData?.course?.course_id?.startsWith('nb_') ||
+            sessionData?.source === 'notebook'
+        );
+
         const nextIdx = targetIndex + 1;
         if (nextIdx < lesson.boards.length) {
             const nextBoard = lesson.boards[nextIdx];
             const nextCacheKey = `avelut_grok_${cid}_${tid}_${nextIdx}`;
-            grokVoiceEngine.prefetchSpeech(cleanSpokenTextForTTS(nextBoard.spokenExplanation), nextCacheKey);
+            grokVoiceEngine.prefetchSpeech(cleanSpokenTextForTTS(nextBoard.spokenExplanation), nextCacheKey, {
+                isPrivate: isNotebook,
+                cacheScope: isNotebook ? 'private' : 'public',
+                source: isNotebook ? 'notebook' : 'study_guide',
+            });
         }
 
         // On board audio completion: Auto-advance smoothly
@@ -699,11 +720,21 @@ OUTPUT VALID JSON ONLY:
         const tid = sessionData?.topic?.topic_id || 'core';
         const cacheKey = `avelut_grok_${cid}_${tid}_${currentIdx}`;
 
+        const isNotebook = Boolean(
+            sessionData?.syllabusContext?.toLowerCase().includes('notebook') || 
+            sessionData?.syllabusContext?.toLowerCase().includes('chapter') ||
+            sessionData?.course?.course_id?.startsWith('nb_') ||
+            sessionData?.source === 'notebook'
+        );
+
         // Clear cached failed attempt if any
         try {
             await grokTts.fetchGrokSpeech(cleanSpokenTextForTTS(currentBoard.spokenExplanation), {
                 voice: 'altair',
                 cacheKey,
+                isPrivate: isNotebook,
+                cacheScope: isNotebook ? 'private' : 'public',
+                source: isNotebook ? 'notebook' : 'study_guide',
                 retryCount: 2,
             });
         } catch (_) {}

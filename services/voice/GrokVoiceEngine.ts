@@ -24,6 +24,9 @@ export interface GrokSpeechOptions {
   language?: string;
   withTimestamps?: boolean;
   cacheKey?: string;
+  isPrivate?: boolean;
+  cacheScope?: 'public' | 'private';
+  source?: 'study_guide' | 'notebook' | string;
   onStart?: () => void;
   onTimeUpdate?: (currentTime: number, charIndex: number, spokenWord: string) => void;
   onEnd?: () => void;
@@ -90,7 +93,16 @@ class GrokVoiceEngine {
    */
   public async fetchGrokSpeech(
     text: string,
-    options: { voice?: string; language?: string; withTimestamps?: boolean; cacheKey?: string; retryCount?: number } = {}
+    options: {
+      voice?: string;
+      language?: string;
+      withTimestamps?: boolean;
+      cacheKey?: string;
+      isPrivate?: boolean;
+      cacheScope?: 'public' | 'private';
+      source?: string;
+      retryCount?: number;
+    } = {}
   ): Promise<GrokTtsResponsePayload | null> {
     if (!text || !text.trim()) return null;
 
@@ -120,18 +132,23 @@ class GrokVoiceEngine {
             ? '/api/speech'
             : 'https://www.avelut.xyz/api/speech';
 
+          const requestBody = JSON.stringify({
+            text: text.trim(),
+            voice_id: options.voice || 'altair',
+            language: options.language || 'en',
+            with_timestamps: options.withTimestamps !== false,
+            is_private: options.isPrivate ?? (options.cacheScope === 'private' || options.source === 'notebook'),
+            cache_scope: options.cacheScope || (options.isPrivate ? 'private' : 'public'),
+            source: options.source,
+          });
+
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: JSON.stringify({
-              text: text.trim(),
-              voice_id: options.voice || 'altair',
-              language: options.language || 'en',
-              with_timestamps: options.withTimestamps !== false,
-            }),
+            body: requestBody,
           });
 
           if (!res.ok) {
@@ -140,12 +157,7 @@ class GrokVoiceEngine {
               const fallbackRes = await fetch('/api/speech', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  text: text.trim(),
-                  voice_id: options.voice || 'altair',
-                  language: options.language || 'en',
-                  with_timestamps: options.withTimestamps !== false,
-                }),
+                body: requestBody,
               });
               if (fallbackRes.ok) {
                 const data: GrokTtsResponsePayload = await fallbackRes.json();
@@ -185,11 +197,21 @@ class GrokVoiceEngine {
   /**
    * Pre-fetches the audio for an upcoming board or concept in the background
    */
-  public prefetchSpeech(text: string, cacheKey?: string): void {
+  public prefetchSpeech(
+    text: string,
+    cacheKey?: string,
+    options: { isPrivate?: boolean; cacheScope?: 'public' | 'private'; source?: string } = {}
+  ): void {
     if (!text || !text.trim()) return;
     const key = cacheKey || text.slice(0, 40);
     if (!this.prefetchCache.has(key)) {
-      const p = this.fetchGrokSpeech(text, { voice: 'altair', cacheKey });
+      const p = this.fetchGrokSpeech(text, {
+        voice: 'altair',
+        cacheKey,
+        isPrivate: options.isPrivate,
+        cacheScope: options.cacheScope,
+        source: options.source,
+      });
       this.prefetchCache.set(key, p);
     }
   }
@@ -226,6 +248,9 @@ class GrokVoiceEngine {
           language: options.language || 'en',
           withTimestamps: true,
           cacheKey: options.cacheKey,
+          isPrivate: options.isPrivate,
+          cacheScope: options.cacheScope,
+          source: options.source,
         });
 
         if (isStopped || this.activeSessionId !== sessionId || !payload?.audio) {
