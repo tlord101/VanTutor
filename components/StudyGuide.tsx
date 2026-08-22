@@ -379,6 +379,18 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         }
     }, [selectedCourse, isVoiceTutorialActive, activeExternalSession, activeTab, setCustomHeaderConfig, onNavigate]);
 
+    // Reset the custom header IMMEDIATELY when leaving this view (e.g. pressing the
+    // back arrow to Dashboard) so the default heading text and right-side icons
+    // (calendar, messenger, notification bell) are restored without delay.
+    useEffect(() => {
+        return () => {
+            if (setCustomHeaderConfig) {
+                setCustomHeaderConfig(null);
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Subscribe to Avelut Voice Engine status
     useEffect(() => {
         const unsubscribe = avelutVoice.subscribe(setVoiceStatus);
