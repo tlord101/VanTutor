@@ -1087,7 +1087,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                 ))}
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center justify-center p-12 text-center max-w-lg mx-auto">
+                            <div className="flex flex-col items-center justify-center py-6 px-2 sm:px-0 text-center max-w-4xl mx-auto w-full">
                                 <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center mb-4 text-slate-400 shadow-inner">
                                     <i className="bi bi-search text-2xl"></i>
                                 </div>
@@ -1097,13 +1097,22 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                 </p>
 
                                 {!filter.searchTerm && (
-                                    <div className="w-full bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">Add Courses</h4>
+                                    <div className="w-full bg-white dark:bg-slate-900 p-5 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-left">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                                                    <i className="bi bi-plus-circle-fill text-base"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Add Courses</h4>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">Import course registration PDF or enter individual course codes</p>
+                                                </div>
+                                            </div>
                                             {isManualMode && (
                                                 <button
+                                                    type="button"
                                                     onClick={() => setIsManualMode(false)}
-                                                    className="text-xs text-amber-500 font-bold"
+                                                    className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 cursor-pointer transition-all"
                                                 >
                                                     Cancel
                                                 </button>
@@ -1118,30 +1127,33 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                                                         value={manualCourseCode}
                                                         onChange={(e) => setManualCourseCode(e.target.value.toUpperCase())}
                                                         placeholder="e.g. MTH101, PHY201"
-                                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl pl-4 pr-28 py-3.5 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                                                         disabled={isSavingManual}
                                                     />
                                                     <button
+                                                        type="button"
                                                         onClick={handleSaveManualCourse}
                                                         disabled={isSavingManual || !manualCourseCode.trim()}
-                                                        className="absolute right-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors shadow-xs"
+                                                        className="absolute right-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-extrabold disabled:opacity-50 active:scale-95 transition-all shadow-xs cursor-pointer"
                                                     >
-                                                        {isSavingManual ? 'Saving...' : 'Save'}
+                                                        {isSavingManual ? 'Saving...' : 'Save Course'}
                                                     </button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col gap-2.5">
-                                                <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-md border border-slate-700 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
-                                                    <i className="bi bi-cloud-arrow-up text-sm"></i>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                                <label className={`flex items-center justify-center gap-2.5 px-5 py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-2xl text-xs sm:text-sm font-bold cursor-pointer transition-all shadow-sm border border-slate-800 dark:border-slate-700 active:scale-95 ${isExtractingCourses ? 'opacity-70 pointer-events-none' : ''}`}>
+                                                    <i className="bi bi-cloud-arrow-up text-base"></i>
                                                     <span>{isExtractingCourses ? 'Extracting courses...' : 'Upload Course Form PDF'}</span>
                                                     <input type="file" accept=".pdf" className="hidden" onChange={handleExtractCourses} disabled={isExtractingCourses} />
                                                 </label>
                                                 <button
+                                                    type="button"
                                                     onClick={() => setIsManualMode(true)}
-                                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold transition-all"
+                                                    className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl text-xs sm:text-sm font-bold active:scale-95 transition-all cursor-pointer"
                                                 >
-                                                    Manually Enter Course Code
+                                                    <i className="bi bi-pencil-square text-base text-amber-500"></i>
+                                                    <span>Manually Enter Course Code</span>
                                                 </button>
                                             </div>
                                         )}
