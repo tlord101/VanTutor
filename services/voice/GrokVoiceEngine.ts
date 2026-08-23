@@ -330,6 +330,10 @@ class GrokVoiceEngine {
         if (isStopped || this.activeSessionId !== sessionId || !payload?.audio) {
           if (!payload?.audio && !isStopped) {
             options.onError?.(new Error('Failed to retrieve Grok audio'));
+          } else if (payload?.audio) {
+            // Session was superseded/stopped while fetching — the audio was
+            // paid for, so log it loudly to make silent waste debuggable.
+            console.warn('[GrokVoiceEngine] playSpeech session superseded; discarding downloaded audio.');
           }
           return;
         }

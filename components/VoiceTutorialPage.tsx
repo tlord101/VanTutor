@@ -1063,12 +1063,22 @@ OUTPUT VALID JSON ONLY:
     }, [sessionData, userProfile, generateLessonPhase, presentBoard, addToast]);
 
     // ── Start on mount & Hide bottom nav on mobile ──────────────────────
+    // Keep a stable ref to bootstrap so the mount effect below never re-runs
+    // on ordinary re-renders. Its cleanup calls stopAudioImmediate(), which
+    // invalidates in-flight TTS sessions (engine bumps activeSessionId) —
+    // that silently discarded freshly-downloaded audio and left boards stuck
+    // on "Synthesizing voice narration..." forever.
+    const bootstrapRef = useRef<() => Promise<void> | void>(() => {});
+    useEffect(() => {
+        bootstrapRef.current = bootstrapSession;
+    });
+
     useEffect(() => {
         isActiveRef.current = true;
         setCustomHeaderConfig?.({ hideBottomNav: true });
         if (!hasStartedRef.current && sessionData) {
             hasStartedRef.current = true;
-            void bootstrapSession();
+            void bootstrapRef.current?.();
         }
         return () => {
             isActiveRef.current = false;
@@ -1076,7 +1086,8 @@ OUTPUT VALID JSON ONLY:
             stopAudioImmediate();
             clearAllStreamTimers();
         };
-    }, [bootstrapSession, sessionData, stopAudioImmediate, clearAllStreamTimers, setCustomHeaderConfig]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionData]);
 
     // ── Live Interruptible Q&A Handler ──────────────────────────────────
     const handleStudentInterruptionQuestion = useCallback(async (
