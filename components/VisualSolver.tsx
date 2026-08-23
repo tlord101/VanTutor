@@ -1525,8 +1525,8 @@ CRITICAL FORMATTING & LAYOUT RULES:
     };
 
     return (
-        <div className="flex-1 flex flex-col w-full">
-            <div className="h-[calc(100vh-90px)] bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative shadow-2xl">
+        <div className="flex-1 flex flex-col w-full pb-16 md:pb-0">
+            <div className="h-[calc(100vh-160px)] md:h-[calc(100vh-90px)] bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative shadow-2xl">
                 <canvas ref={canvasRef} className="hidden"></canvas>
                 {renderContent()}
             </div>

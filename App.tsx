@@ -1868,7 +1868,7 @@ const App: React.FC = () => {
                       setActiveItem('visual_solver');
                   }
               }}
-              isVisible={activeItem !== 'chat' && activeItem !== 'voice_tutorial' && activeItem !== 'visual_solver' && !customHeaderConfig?.hideBottomNav}
+              isVisible={activeItem !== 'chat' && activeItem !== 'voice_tutorial' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
             <GuidedTour 
