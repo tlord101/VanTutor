@@ -54,6 +54,8 @@ export class GeminiLiveVoiceClient {
   private activeAudioSources: AudioBufferSourceNode[] = [];
   private isModelSpeaking = false;
   private speakingTimeout: any = null;
+  /** Ensures the opening greeting is spoken exactly once per live session. */
+  private greetingSent = false;
 
   constructor(options: GeminiLiveClientOptions) {
     this.options = options;
@@ -71,6 +73,9 @@ export class GeminiLiveVoiceClient {
     if (!apiKey) {
       throw new Error('Gemini API key is required to connect to the Live API.');
     }
+
+    // Fresh session → allow a new greeting.
+    this.greetingSent = false;
 
     const host = 'generativelanguage.googleapis.com';
     const path = '/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
@@ -203,6 +208,11 @@ VOICE & INTERACTION GUIDELINES:
    * Triggers the AI to speak first out loud immediately upon starting conversation.
    */
   private triggerInitialGreeting(): void {
+    // Fire exactly once per session: both the setupComplete server event and
+    // the post-setup fallback timer can request a greeting, which previously
+    // caused overlapping/duplicated opening speech.
+    if (this.greetingSent) return;
+    this.greetingSent = true;
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const meta = this.options.userMetadata || {};

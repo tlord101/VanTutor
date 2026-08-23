@@ -18,7 +18,7 @@ import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import { LimitExceededModal } from './LimitExceededModal';
-import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
+import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel, isPaidSubscriber } from '../utils/usage';
 import {
   getLocalConversations,
   getLocalMessages,
@@ -1145,11 +1145,24 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     clearAttachment();
   };
 
+  // Free users see an Upgrade CTA in the chat header — shown regardless of
+  // how many pay-as-you-go credits they currently have on their account.
+  const isFreeUser = !isPaidSubscriber(userProfile);
+
+  const handleUpgradeFromChat = async () => {
+    if (onNavigate) {
+      onNavigate('billing');
+      return;
+    }
+    const baseUrl = window.location.origin;
+    window.location.href = `${baseUrl}/plans`;
+  };
+
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
         leftActions: (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
@@ -1162,8 +1175,20 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 <line x1="4" y1="15" x2="14" y2="15" />
               </svg>
             </button>
-            <div className="flex flex-col justify-center">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">AVELUT AI</h1>
+            <div className="flex flex-col justify-center min-w-0">
+              {isFreeUser ? (
+                <button
+                  type="button"
+                  onClick={handleUpgradeFromChat}
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-[#0066FF] to-[#002D62] text-white text-[11px] sm:text-xs font-extrabold shadow-md shadow-blue-500/25 hover:shadow-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  title="Upgrade to Weekly Plan — ₦1,200/week"
+                >
+                  <i className="bi bi-stars text-xs"></i>
+                  <span>Upgrade ₦1,200</span>
+                </button>
+              ) : (
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">AVELUT AI</h1>
+              )}
             </div>
           </div>
         ),
@@ -1187,7 +1212,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         setCustomHeaderConfig(null);
       }
     };
-  }, [setCustomHeaderConfig, conversationSummary, onNavigate]);
+  }, [setCustomHeaderConfig, conversationSummary, onNavigate, isFreeUser]);
 
   const clearAttachment = () => {
     setAttachments([]);
