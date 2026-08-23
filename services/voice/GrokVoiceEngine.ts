@@ -339,7 +339,15 @@ class GrokVoiceEngine {
           }
         };
 
-        await audioEl.play();
+        try {
+          await audioEl.play();
+        } catch (playErr) {
+          // Autoplay policy or user interaction restriction handling
+          console.warn('[GrokVoiceEngine] audioEl.play() initial attempt error:', playErr);
+          if (!isStopped && this.activeSessionId === sessionId) {
+            options.onError?.(playErr);
+          }
+        }
       } catch (err: any) {
         if (!isStopped && this.activeSessionId === sessionId) {
           options.onError?.(err);
