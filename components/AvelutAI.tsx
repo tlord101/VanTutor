@@ -238,49 +238,31 @@ const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reje
   reader.readAsDataURL(file);
 });
 
-const uploadChatAttachment = (
-  userId: string,
-  conversationId: string,
+const prepareLocalChatAttachment = async (
   file: File,
-  index: number,
-  onProgress?: (progress: number) => void
+  index: number
 ): Promise<AssistantAttachment> => {
-  return new Promise((resolve, reject) => {
-    const attachmentToken = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-      ? crypto.randomUUID()
-      : `${Date.now()}_${index}`;
-    const safeName = sanitizeFileName(file.name);
-    const path = `assistant_attachments/${userId}/${conversationId}/${attachmentToken}_${safeName}`;
-    const fileRef = storageRef(storage, path);
-    const uploadTask = uploadBytesResumable(fileRef, file);
+  const attachmentToken = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `${Date.now()}_${index}`;
+  const isImage = isImageMimeType(file.type, file.name);
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = snapshot.totalBytes > 0 ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100 : 0;
-        if (onProgress) {
-          onProgress(Math.round(progress));
-        }
-      },
-      (error) => {
-        reject(error);
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            id: attachmentToken,
-            name: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            url,
-            isImage: isImageMimeType(file.type, file.name),
-          });
-        } catch (err) {
-          reject(err);
-        }
-      }
-    );
-  });
+  let localUrl = '';
+  try {
+    const b64 = await fileToBase64(file);
+    const mime = file.type || (isImage ? 'image/jpeg' : 'application/octet-stream');
+    localUrl = `data:${mime};base64,${b64}`;
+  } catch {
+    localUrl = URL.createObjectURL(file);
+  }
+
+  return {
+    id: attachmentToken,
+    name: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    url: localUrl,
+    isImage,
+  };
 };
 
 const getMimeType = (file: File): string => {
@@ -681,6 +663,18 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   // Custom Input Bar States: 1 (Default), 2 (Typing)
   const [inputState, setInputState] = useState<number>(1);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState<boolean>(false);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showAttachmentMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAttachmentMenu]);
   const [isContextAware, setIsContextAware] = useState<boolean>(false);
   const [viewingImageIds, setViewingImageIds] = useState<Set<string>>(new Set());
   const [generatingMessageIds, setGeneratingMessageIds] = useState<Set<string>>(new Set());
@@ -1472,20 +1466,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         const mimeType = getMimeType(file);
         
         const prefix = filesToSend.length > 1 ? `[File ${index + 1}/${filesToSend.length}] ` : '';
-        setUploadProgress(`Uploading ${prefix}${file.name} (0%)...`);
-        setStatusText(`Uploading ${prefix}${file.name} (0%)...`);
+        setUploadProgress(`Processing ${prefix}${file.name}...`);
+        setStatusText(`Processing ${prefix}${file.name}...`);
 
-        const storedAttachment = await uploadChatAttachment(
-          userProfile.uid,
-          conversationId,
-          file,
-          index,
-          (percent) => {
-            const msg = `Uploading ${prefix}${file.name} (${percent}%)...`;
-            setUploadProgress(msg);
-            setStatusText(msg);
-          }
-        );
+        const storedAttachment = await prepareLocalChatAttachment(file, index);
         storedAttachments.push(storedAttachment);
 
         if (isSupportedInlineMimeType(mimeType, file.name)) {
@@ -2521,10 +2505,10 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   className="relative flex-1 min-w-0 bg-white dark:bg-[#212121] rounded-full flex items-center justify-between pl-3.5 pr-2.5 py-1.5 min-h-[56px] sm:min-h-[58px] border border-slate-200/90 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
                 >
                   {/* Left: Plus Icon Button */}
-                  <div className="relative shrink-0">
+                  <div ref={attachmentMenuRef} className="relative shrink-0">
                     <button
                       type="button"
-                      onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                      onClick={() => setShowAttachmentMenu(prev => !prev)}
                       disabled={isSending}
                       className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-95 disabled:opacity-40 cursor-pointer ${showAttachmentMenu ? 'bg-slate-100 dark:bg-white/10' : ''}`}
                       aria-label="Upload attachment"
