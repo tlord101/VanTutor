@@ -211,6 +211,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [isTtsLoading, setIsTtsLoading] = useState(false);
     const [activeSpokenWord, setActiveSpokenWord] = useState<string>('');
     const [audioErrorBoardIdx, setAudioErrorBoardIdx] = useState<number | null>(null);
+    // Voice pipeline status for the top indicator strip:
+    // 'loading' = synthesizing | 'ready' = audio downloaded (auto-play or tap Play) | 'error' = failed
+    const [voiceStatus, setVoiceStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    const [voiceErrorMsg, setVoiceErrorMsg] = useState<string | null>(null);
     const [isRetryingAudio, setIsRetryingAudio] = useState(false);
 
     // ── Live Interruptible Q&A State ────────────────────────────────────
@@ -446,12 +450,15 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
       if (isMuted) {
         setIsTtsLoading(false);
+        setVoiceStatus('idle');
         setActiveSpokenWord('');
         revealBatchBoard(lesson, s);
         return;
       }
 
       setIsTtsLoading(true);
+      setVoiceStatus('loading');
+      setVoiceErrorMsg(null);
       setIsSpeaking(false);
       setVisibleBoardLines([]);
       setActiveWritingIndex(-1);
@@ -482,6 +489,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
           isSpeakingRef.current = true;
           setIsTtsLoading(false);
           setAudioErrorBoardIdx(null);
+          setVoiceStatus('ready');
           const qaBoard = qaResumeBoardRef.current;
           if (qaBoard >= s && qaBoard <= e) {
             revealBatchBoard(lesson, qaBoard);
@@ -494,6 +502,17 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             currentAudioPlayerRef.current?.seek?.(qaSeek);
             qaResumeSeekRef.current = 0;
           }
+        },
+        onReady: () => {
+          // Audio fully downloaded — show green "ready" state immediately,
+          // even if autoplay policy delays/blocks actual playback start.
+          clearTimeout(startWatchdog);
+          startedOnce = true;
+          if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+          setIsTtsLoading(false);
+          setAudioErrorBoardIdx(null);
+          setVoiceErrorMsg(null);
+          setVoiceStatus('ready');
         },
         onTimeUpdate: (curTime, charIdx, word) => {
           if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -545,6 +564,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
           isSpeakingRef.current = false;
           setIsPaused(false);
           setIsTtsLoading(false);
+          setVoiceStatus('error');
+          setVoiceErrorMsg(err?.message || 'Voice failed to load.');
           currentAudioRef.current = null;
           currentAudioPlayerRef.current = null;
           activeSegmentRef.current = null;
@@ -563,6 +584,8 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         if (startedOnce || !isActiveRef.current || playSessionIdRef.current !== sessionId) return;
         console.warn('[VoiceTutorial] Audio did not start in time — recovering UI.');
         setIsTtsLoading(false);
+        setVoiceStatus('error');
+        setVoiceErrorMsg('Voice server timed out.');
         setAudioErrorBoardIdx(targetIdx);
         addToast('Voice server is slow. Board content is ready — tap Retry Audio for narration.', 'info');
       }, 45000);
@@ -929,6 +952,21 @@ OUTPUT VALID JSON ONLY:
         setAudioErrorBoardIdx(null);
         void presentBoard(lessonPlan, currentIdx);
     }, [lessonPlan, audioErrorBoardIdx, presentBoard]);
+
+    // Manual start for the green "voice ready" state — runs inside a real
+    // user gesture, so platform autoplay policies can never block it.
+    const handleManualVoiceStart = useCallback(() => {
+        const player = currentAudioPlayerRef.current;
+        if (!player) return;
+        try {
+            player.seek?.(0);
+            player.resume?.();
+            setIsSpeaking(true);
+            isSpeakingRef.current = true;
+            setIsPaused(false);
+            setVoiceStatus('ready');
+        } catch (_) {}
+    }, []);
 
     // ── Session Bootstrap & 2-Phase Phased Compilation ─────────────────
     const bootstrapSession = useCallback(async () => {
@@ -1504,6 +1542,66 @@ At the very end say exactly: "Now, let us continue our lesson."`;
                         )}
 
                         {/* ── Live Q&A Realtime Audio Waveform Overlay ── */}
+                        {/* Voice Status Indicator */}
+                        {(voiceStatus === 'loading' || voiceStatus === 'ready' || voiceStatus === 'error') && (
+                            <div
+                                className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border mb-3 animate-fade-in ${
+                                    voiceStatus === 'loading'
+                                        ? 'bg-blue-50 border-blue-200 text-[#0066FF]'
+                                        : voiceStatus === 'ready'
+                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                        : 'bg-rose-50 border-rose-200 text-rose-700'
+                                }`}
+                            >
+                                {voiceStatus === 'loading' && (
+                                    <>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <i className="bi bi-arrow-repeat animate-spin text-sm shrink-0"></i>
+                                            <span className="text-xs font-bold truncate">Synthesizing voice narration…</span>
+                                        </div>
+                                        <span className="text-[10px] font-mono font-semibold opacity-70 shrink-0">please wait</span>
+                                    </>
+                                )}
+                                {voiceStatus === 'ready' && (
+                                    <>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm animate-pulse shrink-0"></span>
+                                            <span className="text-xs font-bold truncate">
+                                                {isSpeaking ? 'Voice playing' : 'Voice downloaded — ready to play'}
+                                            </span>
+                                        </div>
+                                        {!isSpeaking && (
+                                            <button
+                                                onClick={handleManualVoiceStart}
+                                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                                                title="Play narration from the start"
+                                            >
+                                                <i className="bi bi-play-fill text-sm"></i>
+                                                <span>Play</span>
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                                {voiceStatus === 'error' && (
+                                    <>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <i className="bi bi-exclamation-triangle-fill text-sm shrink-0"></i>
+                                            <span className="text-xs font-bold truncate">{voiceErrorMsg || 'Voice failed to load.'}</span>
+                                        </div>
+                                        <button
+                                            onClick={handleRetryAudio}
+                                            disabled={audioErrorBoardIdx === null}
+                                            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[11px] font-extrabold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                                            title="Retry voice narration"
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise text-xs"></i>
+                                            <span>Retry</span>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
                         {isAnsweringQuestion && (
                             <div className="sticky top-0 z-30 mb-4 p-4 sm:p-5 rounded-2xl bg-[#002D62] text-white border-2 border-[#0066FF] shadow-xl animate-fade-in">
                                 <div className="flex items-center justify-between gap-2 mb-2">

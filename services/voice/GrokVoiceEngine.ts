@@ -28,6 +28,8 @@ export interface GrokSpeechOptions {
   cacheScope?: 'public' | 'private';
   source?: 'study_guide' | 'notebook' | string;
   onStart?: () => void;
+  /** Fired once the audio payload is fully downloaded and ready to play (before playback begins). */
+  onReady?: () => void;
   onTimeUpdate?: (currentTime: number, charIndex: number, spokenWord: string) => void;
   onEnd?: () => void;
   onError?: (err: Error) => void;
@@ -404,6 +406,10 @@ class GrokVoiceEngine {
             options.onError?.(new Error('Audio playback error'));
           }
         };
+
+        // Audio is fully downloaded — signal readiness before attempting
+        // playback (autoplay policies may require a user gesture to start).
+        options.onReady?.();
 
         try {
           await audioEl.play();
