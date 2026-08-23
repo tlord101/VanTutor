@@ -13,6 +13,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
 import { XIcon } from './icons/XIcon';
+import { TypingIndicator } from './TypingIndicator';
 import type { Course, Topic, UserProfile } from '../types';
 
 const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -645,9 +646,8 @@ ${textToSend || '(Student attached image)'}`;
           )}
 
           {isSending && streamingBotText === null && (
-            <div className="flex items-center gap-2 p-3 bg-white dark:bg-[#151B26] rounded-2xl border border-[#E3E9F1] dark:border-slate-800 w-fit">
-              <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping" />
-              <span className="text-xs text-[#64748B] dark:text-slate-400 font-medium">Tutor is formulating response...</span>
+            <div className="my-2">
+              <TypingIndicator />
             </div>
           )}
 

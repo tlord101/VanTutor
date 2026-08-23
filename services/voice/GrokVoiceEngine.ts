@@ -128,9 +128,15 @@ class GrokVoiceEngine {
     try {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const endpoint = typeof window !== 'undefined' && window.location.origin.includes('localhost')
-            ? '/api/speech'
-            : 'https://www.avelut.xyz/api/speech';
+          const isNative = typeof window !== 'undefined' && (
+            (window as any).Capacitor?.isNativePlatform?.() ||
+            window.location.protocol === 'file:' ||
+            (window.location.origin.includes('localhost') && !(window.location.port === '3000' || window.location.port === '3001' || window.location.port === '5173'))
+          );
+
+          const endpoint = isNative
+            ? 'https://www.avelut.xyz/api/speech'
+            : (typeof window !== 'undefined' && window.location.origin.includes('localhost') ? '/api/speech' : 'https://www.avelut.xyz/api/speech');
 
           const requestBody = JSON.stringify({
             text: text.trim(),
@@ -333,7 +339,15 @@ class GrokVoiceEngine {
           }
         };
 
-        await audioEl.play();
+        try {
+          await audioEl.play();
+        } catch (playErr) {
+          // Autoplay policy or user interaction restriction handling
+          console.warn('[GrokVoiceEngine] audioEl.play() initial attempt error:', playErr);
+          if (!isStopped && this.activeSessionId === sessionId) {
+            options.onError?.(playErr);
+          }
+        }
       } catch (err: any) {
         if (!isStopped && this.activeSessionId === sessionId) {
           options.onError?.(err);

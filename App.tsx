@@ -529,8 +529,9 @@ const App: React.FC = () => {
         }
     }, [notifications, addToast]);
 
-    const [isLoading, setIsLoading] = useState(() => !userProfile);
-    const [isProfileLoading, setIsProfileLoading] = useState(() => !userProfile);
+    const [isAuthChecking, setIsAuthChecking] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isProfileLoading, setIsProfileLoading] = useState(true);
     const [authView, setAuthView] = useState<'login' | 'signup'>('login');
 
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -899,6 +900,7 @@ const App: React.FC = () => {
 
             initNativeNotifications(currentUser, addToast, setActiveItem, setPendingMessengerChatId);
           }
+          setIsAuthChecking(false);
           setIsLoading(false);
         });
         return () => unsubscribe();
@@ -1554,7 +1556,7 @@ const App: React.FC = () => {
     // Only show full-screen loader when we have NO data at all.
     // If we have a cached userProfile, allow the app to render with skeleton UI
     // in individual components rather than blocking the entire screen.
-    if (isLoading || (isProfileLoading && !userProfile)) {
+    if (isAuthChecking || isLoading || (isProfileLoading && !userProfile && user)) {
         return <div key="app-loader-state"><AppLoader /></div>;
     }
 
@@ -1868,7 +1870,7 @@ const App: React.FC = () => {
                       setActiveItem('visual_solver');
                   }
               }}
-              isVisible={activeItem !== 'chat' && activeItem !== 'voice_tutorial' && activeItem !== 'visual_solver' && !customHeaderConfig?.hideBottomNav}
+              isVisible={activeItem !== 'chat' && activeItem !== 'voice_tutorial' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
             <GuidedTour 

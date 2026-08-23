@@ -121,8 +121,16 @@ export class KittenCloudTtsEngine {
 
         const apiKey = this.getKittenApiKey();
 
-        // 1. Try local/Vercel serverless proxy endpoint to prevent browser CORS blocks
-        const endpoints = ['/api/speech', 'https://www.avelut.xyz/api/speech'];
+        // Determine endpoint order: for native mobile apps or non-localhost web, prioritize remote endpoint
+        const isNative = typeof window !== 'undefined' && (
+            (window as any).Capacitor?.isNativePlatform?.() ||
+            window.location.protocol === 'file:' ||
+            window.location.origin.includes('localhost')
+        );
+
+        const endpoints = isNative
+            ? ['https://www.avelut.xyz/api/speech', '/api/speech']
+            : ['/api/speech', 'https://www.avelut.xyz/api/speech'];
 
         for (const endpoint of endpoints) {
             try {
