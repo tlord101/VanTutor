@@ -372,12 +372,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
 
     // ── Batch Segment Playback (one TTS request covers a group of boards) ─
     const segmentGroupsForIndex = (len: number, idx: number): [number, number] => {
-      if (len <= 0) return [0, 0];
-      const groups: Array<[number, number]> = [[0, 0]];
-      if (len > 1) groups.push([1, Math.min(4, len - 1)]);
-      if (len > 5) groups.push([5, len - 1]);
-      const hit = groups.find(([a, b]) => idx >= a && idx <= b);
-      return hit || [Math.max(0, idx), Math.max(0, idx)];
+      // ONE BOARD PER REQUEST: small payloads synthesize in seconds, cache
+      // instantly, and failures are cheap. Multi-board batches exceeded the
+      // serverless function time limit, left the UI stuck in a perpetual
+      // loading state, and burned credits on retried mega-payloads.
+      const safeIdx = Math.max(0, Math.min(idx, Math.max(len - 1, 0)));
+      return [safeIdx, safeIdx];
     };
 
     const buildGradedSegment = (lesson: SinglePassTopicLesson, start: number, end: number) => {
@@ -474,6 +474,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         cacheScope: isNotebook ? 'private' : 'public',
         source: isNotebook ? 'notebook' : 'study_guide',
         onStart: () => {
+          clearTimeout(startWatchdog);
           if (startedOnce) return;
           startedOnce = true;
           if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
@@ -506,6 +507,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
           if (b > boardIndexRef.current && b <= e) revealBatchBoard(lesson, b);
         },
         onEnd: () => {
+          clearTimeout(startWatchdog);
           if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
           const latest = lessonPlanRef.current || lesson;
           setIsSpeaking(false);
@@ -536,6 +538,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
           }, 1000);
         },
         onError: (err) => {
+          clearTimeout(startWatchdog);
           if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
           console.warn('[VoiceTutorial] Batch audio failed:', err);
           setIsSpeaking(false);
@@ -553,6 +556,28 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
       currentAudioRef.current = player;
       currentAudioPlayerRef.current = player;
       activeSegmentRef.current = { start: s, end: e, script: seg.script, key: seg.key, charStarts: seg.charStarts };
+
+      // Safety net: never leave the board stuck in a perpetual loading state.
+      // If narration hasn't started within 45s, surface the retry UI instead.
+      const startWatchdog = setTimeout(() => {
+        if (startedOnce || !isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+        console.warn('[VoiceTutorial] Audio did not start in time — recovering UI.');
+        setIsTtsLoading(false);
+        setAudioErrorBoardIdx(targetIdx);
+        addToast('Voice server is slow. Board content is ready — tap Retry Audio for narration.', 'info');
+      }, 45000);
+
+      // Pre-fetch ONLY the next single board (small request) so the next
+      // transition is instant without risking oversized synthesis jobs.
+      const nextIdx = targetIdx + 1;
+      if (nextIdx < len && isActiveRef.current) {
+        const nSeg = buildGradedSegment(lessonPlanRef.current || lesson, nextIdx, nextIdx);
+        grokVoiceEngine.prefetchSpeech(nSeg.script, nSeg.key, {
+          isPrivate: isNotebook,
+          cacheScope: isNotebook ? 'private' : 'public',
+          source: isNotebook ? 'notebook' : 'study_guide',
+        });
+      }
     };
 
     // ── Speak Board Audio & Live Timestamp Sync ──────────────────────────
@@ -939,26 +964,9 @@ OUTPUT VALID JSON ONLY:
             writeCachedJson(lessonCacheKey, phase1Lesson);
             await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'phase1_ready', false, phase1Lesson);
 
-            const isNotebookP1 = Boolean(
-                sessionData.syllabusContext?.toLowerCase().includes('notebook') ||
-                sessionData.syllabusContext?.toLowerCase().includes('chapter') ||
-                sessionData.course?.course_id?.startsWith('nb_') ||
-                sessionData.source === 'notebook'
-            );
-
-            // Start playing Phase 1 immediately (board 0 solo = request #1)
+            // Start playing Phase 1 immediately. Each board pre-fetches the
+            // next single board inside playGrokBatch (small, cached requests).
             void presentBoard(phase1Lesson, 0);
-
-            // Prefetch the rest of Part 1 as one batch (request #2)
-            const p1End = Math.min(4, phase1Lesson.boards.length - 1);
-            if (p1End >= 1) {
-                const g1 = buildGradedSegment(phase1Lesson, 1, p1End);
-                grokVoiceEngine.prefetchSpeech(g1.script, g1.key, {
-                    isPrivate: isNotebookP1,
-                    cacheScope: isNotebookP1 ? 'private' : 'public',
-                    source: isNotebookP1 ? 'notebook' : 'study_guide',
-                });
-            }
 
             // 2. Background compile Phase 2 (Next ~5 minutes)
             setIsBackgroundCompilingPhase2(true);
@@ -991,24 +999,6 @@ OUTPUT VALID JSON ONLY:
                         lessonPlanRef.current = completeLesson;
                         writeCachedJson(lessonCacheKey, completeLesson);
                         await saveLocalVoiceTutorialProgress(uid, cid, tid, boardIndexRef.current, 'full_lesson_ready', false, completeLesson);
-
-                        // Prefetch Part 2 (boards 5+) as one more batch (request #3)
-                        const p2Start = 5;
-                        const p2End = completeLesson.boards.length - 1;
-                        if (p2Start <= p2End) {
-                            const isNotebookP2 = Boolean(
-                                sessionData.syllabusContext?.toLowerCase().includes('notebook') ||
-                                sessionData.syllabusContext?.toLowerCase().includes('chapter') ||
-                                sessionData.course?.course_id?.startsWith('nb_') ||
-                                sessionData.source === 'notebook'
-                            );
-                            const g2 = buildGradedSegment(completeLesson, p2Start, p2End);
-                            grokVoiceEngine.prefetchSpeech(g2.script, g2.key, {
-                                isPrivate: isNotebookP2,
-                                cacheScope: isNotebookP2 ? 'private' : 'public',
-                                source: isNotebookP2 ? 'notebook' : 'study_guide',
-                            });
-                        }
                     }
                 } catch (bgErr) {
                     console.warn('[VoiceTutorial] Background Phase 2 compilation error:', bgErr);

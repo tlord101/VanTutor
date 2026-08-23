@@ -200,14 +200,28 @@ class GrokVoiceEngine {
             source: options.source,
           });
 
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: requestBody,
-          });
+          // Hard timeout so a hung proxy can never block the request queue /
+          // leave the UI stuck in a perpetual loading state.
+          const controller = new AbortController();
+          const timeoutTimer = setTimeout(() => controller.abort(), 80000);
+          let res: Response;
+          try {
+            res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: requestBody,
+              signal: controller.signal,
+            });
+          } catch (fetchErr: any) {
+            throw fetchErr?.name === 'AbortError'
+              ? new Error(`Grok TTS request timed out after 80s`)
+              : fetchErr;
+          } finally {
+            clearTimeout(timeoutTimer);
+          }
 
           if (!res.ok) {
             // Fallback to local /api/speech relative path if absolute domain fails
