@@ -111,14 +111,25 @@ export function useOTAUpdater() {
     }, []);
 
     const restartToUpdate = useCallback(async () => {
+        // Native: the new bundle is already staged via CapacitorUpdater.set(),
+        // so it activates on the NEXT app launch. We therefore close the app
+        // completely (process exits) — the user just taps the icon again and
+        // boots straight into the updated version.
         try {
             if (Capacitor.isNativePlatform()) {
-                await CapacitorUpdater.reload();
-            } else {
-                window.location.reload();
+                const { App } = await import('@capacitor/app');
+                await App.exitApp();
+                return;
             }
+            window.location.reload();
         } catch (e) {
-            console.warn('[OTA] Reload error, falling back to window.location.reload():', e);
+            console.warn('[OTA] Full close failed, falling back to in-place reload:', e);
+            try {
+                if (Capacitor.isNativePlatform()) {
+                    await CapacitorUpdater.reload();
+                    return;
+                }
+            } catch { /* ignore */ }
             window.location.reload();
         }
     }, []);
