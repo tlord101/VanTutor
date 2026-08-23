@@ -1553,10 +1553,10 @@ const App: React.FC = () => {
       { target: 'body', title: "🎉 You're all set!", content: 'Enjoy exploring your learning journey. Tap "Finish" to start!', placement: 'center' },
     ];
 
-    // Only show full-screen loader when we have NO data at all.
-    // If we have a cached userProfile, allow the app to render with skeleton UI
-    // in individual components rather than blocking the entire screen.
-    if (isAuthChecking || isLoading || (isProfileLoading && !userProfile && user)) {
+    // Only show full-screen loader when we have NO data at all (no cached user profile).
+    // If we have a cached userProfile (stored in SQLite/localStorage), allow instant app launch
+    // and sync in the background without blocking the user on startup.
+    if (!userProfile && (isAuthChecking || isLoading || (isProfileLoading && user))) {
         return <div key="app-loader-state"><AppLoader /></div>;
     }
 
