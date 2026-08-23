@@ -38,6 +38,8 @@ export interface GrokAudioPlayer {
   resume: () => void;
   stop: () => void;
   isPlaying: () => boolean;
+  /** Seek to an absolute playback position (seconds) without refetching audio. */
+  seek: (time: number) => void;
 }
 
 class GrokVoiceEngine {
@@ -47,6 +49,8 @@ class GrokVoiceEngine {
   private activeSessionId = 0;
   private prefetchCache = new Map<string, Promise<GrokTtsResponsePayload | null>>();
   private memoryCache = new Map<string, GrokTtsResponsePayload>();
+  /** Prevents duplicate POSTs when the same cache key is requested concurrently. */
+  private inFlightCache = new Map<string, Promise<GrokTtsResponsePayload | null>>();
 
   private getAudioContext(): AudioContext {
     if (!this.audioCtx || this.audioCtx.state === 'closed') {
@@ -85,11 +89,8 @@ class GrokVoiceEngine {
   }
 
   /**
-   * Fetch audio + timestamps from Avelut /api/speech proxy with Multi-Tier Caching & Retry:
-   * 1. In-Memory Map Cache (0ms)
-   * 2. Persistent Local Cache (0ms, 0 Grok API characters, $0.00)
-   * 3. Vercel 7-Day Edge CDN Cache
-   * 4. Automatic throttled queue & retry with exponential backoff
+   * Public entry point with single-flight deduplication (concurrent callers
+   * with the same cacheKey share one network request).
    */
   public async fetchGrokSpeech(
     text: string,
@@ -103,6 +104,57 @@ class GrokVoiceEngine {
       source?: string;
       retryCount?: number;
     } = {}
+  ): Promise<GrokTtsResponsePayload | null> {
+    if (!text || !text.trim()) return null;
+
+    const cacheKey = options.cacheKey ? `avelut_grok_tts_${options.cacheKey}` : null;
+
+    // In-memory cache (0ms instant)
+    if (cacheKey && this.memoryCache.has(cacheKey)) {
+      return this.memoryCache.get(cacheKey)!;
+    }
+    // Persistent local cache (0ms, $0.00 cost)
+    if (cacheKey) {
+      const cached = readCachedJson<GrokTtsResponsePayload | null>(cacheKey, null);
+      if (cached?.audio) {
+        this.memoryCache.set(cacheKey, cached);
+        return cached;
+      }
+    }
+
+    // Single-flight: reuse an in-progress request for the same key
+    if (cacheKey) {
+      const existing = this.inFlightCache.get(cacheKey);
+      if (existing) return existing;
+      const p = this.fetchGrokSpeechImpl(text, options, cacheKey);
+      this.inFlightCache.set(cacheKey, p);
+      void p.finally(() => this.inFlightCache.delete(cacheKey));
+      return p;
+    }
+
+    return this.fetchGrokSpeechImpl(text, options, null);
+  }
+
+  /**
+   * Fetch audio + timestamps from Avelut /api/speech proxy with Multi-Tier Caching & Retry:
+   * 1. In-Memory Map Cache (0ms)
+   * 2. Persistent Local Cache (0ms, 0 Grok API characters, $0.00)
+   * 3. Vercel 7-Day Edge CDN Cache
+   * 4. Automatic throttled queue & retry with exponential backoff
+   */
+  private async fetchGrokSpeechImpl(
+    text: string,
+    options: {
+      voice?: string;
+      language?: string;
+      withTimestamps?: boolean;
+      cacheKey?: string;
+      isPrivate?: boolean;
+      cacheScope?: 'public' | 'private';
+      source?: string;
+      retryCount?: number;
+    },
+    _cacheKey: string | null
   ): Promise<GrokTtsResponsePayload | null> {
     if (!text || !text.trim()) return null;
 
@@ -362,6 +414,14 @@ class GrokVoiceEngine {
       },
       resume: () => {
         if (audioEl) audioEl.play().catch(() => {});
+      },
+      seek: (time: number) => {
+        if (audioEl) {
+          try {
+            audioEl.currentTime = time;
+            if (audioEl.paused) audioEl.play().catch(() => {});
+          } catch (_) {}
+        }
       },
       stop: stopAll,
       isPlaying: () => !!audioEl && !audioEl.paused && !audioEl.ended,

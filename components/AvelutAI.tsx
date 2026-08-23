@@ -800,7 +800,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       const client = new GeminiLiveVoiceClient({
         apiKey,
-        model: 'models/gemini-2.0-flash-exp',
+        model: 'models/gemini-3.1-flash-live-preview',
         voiceName: 'Aoede',
         userMetadata: {
           displayName: studentName,

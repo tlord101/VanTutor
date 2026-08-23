@@ -4,6 +4,7 @@ buildscript {
     
     repositories {
         google()
+        maven { url 'https://repo1.maven.org/maven2' }
         mavenCentral()
     }
     dependencies {
@@ -20,6 +21,7 @@ apply from: "variables.gradle"
 allprojects {
     repositories {
         google()
+        maven { url 'https://repo1.maven.org/maven2' }
         mavenCentral()
     }
     configurations.all {

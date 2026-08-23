@@ -79,6 +79,22 @@ export async function POST(req: Request) {
                       body.cache_scope === 'private' || 
                       source === 'notebook';
 
+    // Guard: reject oversized batch scripts so callers fail fast and
+    // deterministically fall back to the per-board pipeline.
+    const MAX_TTS_CHARS = 9000;
+    if (text.length > MAX_TTS_CHARS) {
+      return new Response(
+        JSON.stringify({ error: `Text too long for single TTS synthesis (${text.length} chars, max ${MAX_TTS_CHARS}).` }),
+        {
+          status: 413,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
     return await handleTtsSynthesis(req, text.trim(), voiceId, language, withTimestamps, isPrivate);
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message || 'Internal Grok TTS Proxy Error' }), {

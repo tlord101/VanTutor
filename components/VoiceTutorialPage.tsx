@@ -67,6 +67,12 @@ export interface VoiceTutorialPageProps {
     setCustomHeaderConfig?: (config: any) => void;
 }
 
+const simpleHash = (s: string): string => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+};
+
 const readImageAsDataUrl = async (input: File | Blob | string): Promise<{ dataUrl: string; mimeType: string }> => {
     if (typeof input === 'string') {
         if (input.startsWith('data:')) {
@@ -234,6 +240,14 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const pendingBoardLinesRef      = useRef<string[]>([]);
     const pendingVisualsRef         = useRef<{ svg: string | null; table: string | null; caption: string | null }>({ svg: null, table: null, caption: null });
 
+    // ── Batch Playback Refs (one TTS request covers a group of boards) ────
+    const lessonPlanRef             = useRef<SinglePassTopicLesson | null>(null);
+    const currentAudioPlayerRef     = useRef<any>(null);
+    const lastKnownTimeRef          = useRef(0);
+    const activeSegmentRef          = useRef<{ start: number; end: number; script: string; key: string; charStarts: number[] } | null>(null);
+    const qaResumeSeekRef           = useRef(0); // seconds to resume audio at after a Q&A answer
+    const qaResumeBoardRef          = useRef<number>(-1); // board to reveal immediately after Q&A resume
+
     // ── Auto-Scroll Board Content Smoothly to Bottom ────────────────────
     const scrollToBottom = useCallback(() => {
         if (boardScrollRef.current) {
@@ -355,6 +369,191 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         }, 280 + lineCount * lineIntervalMs);
         streamTimersRef.current.push(finishTimer);
     }, [clearAllStreamTimers, scrollToBottom]);
+
+    // ── Batch Segment Playback (one TTS request covers a group of boards) ─
+    const segmentGroupsForIndex = (len: number, idx: number): [number, number] => {
+      if (len <= 0) return [0, 0];
+      const groups: Array<[number, number]> = [[0, 0]];
+      if (len > 1) groups.push([1, Math.min(4, len - 1)]);
+      if (len > 5) groups.push([5, len - 1]);
+      const hit = groups.find(([a, b]) => idx >= a && idx <= b);
+      return hit || [Math.max(0, idx), Math.max(0, idx)];
+    };
+
+    const buildGradedSegment = (lesson: SinglePassTopicLesson, start: number, end: number) => {
+      const boards = lesson.boards.slice(start, end + 1);
+      const cleaned = boards.map((b) => cleanSpokenTextForTTS(b.spokenExplanation));
+      const charStarts: number[] = [];
+      let script = '';
+      cleaned.forEach((t, i) => {
+        charStarts.push(script.length);
+        script += t;
+        if (i < cleaned.length - 1) script += ' ';
+      });
+      const cid = sessionData?.course?.course_id || 'general';
+      const tid = sessionData?.topic?.topic_id || 'core';
+      return {
+        start,
+        end,
+        script,
+        charStarts,
+        key: `avelut_grok_${cid}_${tid}_batch_${start}_${end}`,
+      };
+    };
+
+    const revealBatchBoard = (lesson: SinglePassTopicLesson, idx: number) => {
+      if (!lesson || !lesson.boards[idx]) return;
+      const board = lesson.boards[idx];
+      const svg = sanitizeAndValidateSvg(board.diagramSvg);
+      const table = board.tableMarkdown && board.tableMarkdown.trim().includes('|') ? board.tableMarkdown : null;
+      pendingVisualsRef.current = { svg, table, caption: board.diagramCaption || board.phaseTitle };
+      pendingBoardLinesRef.current = board.boardLines.slice(0, MAX_BOARD_LINES);
+      setBoardIndex(idx);
+      boardIndexRef.current = idx;
+      setActiveDiagramSvg(svg);
+      if (svg) setDiagramKey((k) => k + 1);
+      revealLinesProgressively(board.boardLines, cleanSpokenTextForTTS(board.spokenExplanation));
+      const uid = userProfile?.uid || 'anon';
+      const cid = sessionData?.course?.course_id || 'lib';
+      const tid = sessionData?.topic?.topic_id || 'core';
+      void saveLocalVoiceTutorialProgress(uid, cid, tid, idx, board.phaseTitle, false, lesson);
+    };
+
+    const playGrokBatch = async (lesson: SinglePassTopicLesson, targetIdx: number) => {
+      if (!isActiveRef.current || !lesson || !lesson.boards.length) return;
+      const len = lesson.boards.length;
+
+      // If the segment containing the target is already playing, just reveal it (no new fetch).
+      const active = activeSegmentRef.current;
+      if (active && targetIdx >= active.start && targetIdx <= active.end && currentAudioPlayerRef.current) {
+        const isRunning = typeof currentAudioPlayerRef.current.isPlaying === 'function'
+          ? currentAudioPlayerRef.current.isPlaying()
+          : true;
+        if (isRunning) {
+          revealBatchBoard(lesson, targetIdx);
+          return;
+        }
+      }
+
+      const [s, e] = segmentGroupsForIndex(len, targetIdx);
+      const seg = buildGradedSegment(lesson, s, e);
+      lessonPlanRef.current = lesson;
+
+      stopAudioImmediate();
+      clearAllStreamTimers();
+      setIsPaused(false);
+      setAudioErrorBoardIdx(null);
+
+      if (isMuted) {
+        setIsTtsLoading(false);
+        setActiveSpokenWord('');
+        revealBatchBoard(lesson, s);
+        return;
+      }
+
+      setIsTtsLoading(true);
+      setIsSpeaking(false);
+      setVisibleBoardLines([]);
+      setActiveWritingIndex(-1);
+      setActiveDiagramSvg(null);
+
+      const sessionId = ++playSessionIdRef.current;
+      let startedOnce = false;
+      const isNotebook = Boolean(
+        sessionData?.syllabusContext?.toLowerCase().includes('notebook') ||
+        sessionData?.syllabusContext?.toLowerCase().includes('chapter') ||
+        sessionData?.course?.course_id?.startsWith('nb_') ||
+        sessionData?.source === 'notebook'
+      );
+
+      const player = grokTts.playSpeech(seg.script, {
+        voice: 'altair',
+        withTimestamps: true,
+        cacheKey: seg.key,
+        isPrivate: isNotebook,
+        cacheScope: isNotebook ? 'private' : 'public',
+        source: isNotebook ? 'notebook' : 'study_guide',
+        onStart: () => {
+          if (startedOnce) return;
+          startedOnce = true;
+          if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+          setIsSpeaking(true);
+          isSpeakingRef.current = true;
+          setIsTtsLoading(false);
+          setAudioErrorBoardIdx(null);
+          const qaBoard = qaResumeBoardRef.current;
+          if (qaBoard >= s && qaBoard <= e) {
+            revealBatchBoard(lesson, qaBoard);
+          } else {
+            revealBatchBoard(lesson, s);
+          }
+          qaResumeBoardRef.current = -1;
+          const qaSeek = qaResumeSeekRef.current;
+          if (qaSeek > 0) {
+            currentAudioPlayerRef.current?.seek?.(qaSeek);
+            qaResumeSeekRef.current = 0;
+          }
+        },
+        onTimeUpdate: (curTime, charIdx, word) => {
+          if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+          lastKnownTimeRef.current = curTime;
+          setActiveSpokenWord(word);
+          let b = s;
+          for (let i = 0; i < seg.charStarts.length; i++) {
+            if (charIdx >= seg.charStarts[i]) b = s + i;
+            else break;
+          }
+          if (b > boardIndexRef.current && b <= e) revealBatchBoard(lesson, b);
+        },
+        onEnd: () => {
+          if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+          const latest = lessonPlanRef.current || lesson;
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          setIsPaused(false);
+          setIsTtsLoading(false);
+          currentAudioRef.current = null;
+          currentAudioPlayerRef.current = null;
+          activeSegmentRef.current = null;
+          const lastBoard = latest?.boards?.[e];
+          setVisibleBoardLines(lastBoard?.boardLines?.slice(0, MAX_BOARD_LINES) || []);
+          setIsStreaming(false);
+          setActiveWritingIndex(-1);
+          setActiveSpokenWord('');
+
+          setTimeout(() => {
+            if (!isActiveRef.current) return;
+            if (!latest || e + 1 >= latest.boards.length) {
+              setIsDone(true);
+              const uid = userProfile?.uid || 'anon';
+              const cid = sessionData?.course?.course_id || 'lib';
+              const tid = sessionData?.topic?.topic_id || 'core';
+              void recordSessionCompletion(uid, tid, sessionData?.topic?.topic_name || tid, sessionData?.course?.course_name || cid, latest?.overallSummary || 'Lesson completed', []);
+              void saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'completed', true, latest);
+              return;
+            }
+            void presentBoard(latest, e + 1);
+          }, 1000);
+        },
+        onError: (err) => {
+          if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
+          console.warn('[VoiceTutorial] Batch audio failed:', err);
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          setIsPaused(false);
+          setIsTtsLoading(false);
+          currentAudioRef.current = null;
+          currentAudioPlayerRef.current = null;
+          activeSegmentRef.current = null;
+          setAudioErrorBoardIdx(targetIdx);
+          addToast('Audio playback encountered an issue. Tap "Retry Audio" to reload.', 'info');
+        },
+      });
+
+      currentAudioRef.current = player;
+      currentAudioPlayerRef.current = player;
+      activeSegmentRef.current = { start: s, end: e, script: seg.script, key: seg.key, charStarts: seg.charStarts };
+    };
 
     // ── Speak Board Audio & Live Timestamp Sync ──────────────────────────
     const speakBoardAudio = useCallback(async (
@@ -672,16 +871,7 @@ OUTPUT VALID JSON ONLY:
             sessionData?.source === 'notebook'
         );
 
-        const nextIdx = targetIndex + 1;
-        if (nextIdx < lesson.boards.length) {
-            const nextBoard = lesson.boards[nextIdx];
-            const nextCacheKey = `avelut_grok_${cid}_${tid}_${nextIdx}`;
-            grokVoiceEngine.prefetchSpeech(cleanSpokenTextForTTS(nextBoard.spokenExplanation), nextCacheKey, {
-                isPrivate: isNotebook,
-                cacheScope: isNotebook ? 'private' : 'public',
-                source: isNotebook ? 'notebook' : 'study_guide',
-            });
-        }
+        // Batch playback fetches whole groups at once; no per-board prefetch needed.
 
         // On board audio completion: Auto-advance smoothly
         const onBoardAudioEnd = () => {
@@ -701,49 +891,19 @@ OUTPUT VALID JSON ONLY:
             addToast('Audio playback encountered an issue. Tap "Retry Audio" to reload.', 'info');
         };
 
-        const currentCacheKey = `avelut_grok_${cid}_${tid}_${targetIndex}`;
-        await speakBoardAudio(board.spokenExplanation, board.boardLines, currentCacheKey, onBoardAudioEnd, onBoardAudioError);
+        await playGrokBatch(lesson, targetIndex);
 
-    }, [speakBoardAudio, sessionData, userProfile, isBackgroundCompilingPhase2, addToast]);
+    }, [sessionData, userProfile, isBackgroundCompilingPhase2, addToast, playGrokBatch]);
 
     // ── Retry Audio on Error Handler ────────────────────────────────────
     const handleRetryAudio = useCallback(async () => {
         if (!lessonPlan || audioErrorBoardIdx === null) return;
         setIsRetryingAudio(true);
         const currentIdx = audioErrorBoardIdx;
-        const currentBoard = lessonPlan.boards[currentIdx];
-        if (!currentBoard) {
-            setIsRetryingAudio(false);
-            return;
-        }
-
-        const cid = sessionData?.course?.course_id || 'general';
-        const tid = sessionData?.topic?.topic_id || 'core';
-        const cacheKey = `avelut_grok_${cid}_${tid}_${currentIdx}`;
-
-        const isNotebook = Boolean(
-            sessionData?.syllabusContext?.toLowerCase().includes('notebook') || 
-            sessionData?.syllabusContext?.toLowerCase().includes('chapter') ||
-            sessionData?.course?.course_id?.startsWith('nb_') ||
-            sessionData?.source === 'notebook'
-        );
-
-        // Clear cached failed attempt if any
-        try {
-            await grokTts.fetchGrokSpeech(cleanSpokenTextForTTS(currentBoard.spokenExplanation), {
-                voice: 'altair',
-                cacheKey,
-                isPrivate: isNotebook,
-                cacheScope: isNotebook ? 'private' : 'public',
-                source: isNotebook ? 'notebook' : 'study_guide',
-                retryCount: 2,
-            });
-        } catch (_) {}
-
         setIsRetryingAudio(false);
         setAudioErrorBoardIdx(null);
         void presentBoard(lessonPlan, currentIdx);
-    }, [lessonPlan, audioErrorBoardIdx, sessionData, presentBoard]);
+    }, [lessonPlan, audioErrorBoardIdx, presentBoard]);
 
     // ── Session Bootstrap & 2-Phase Phased Compilation ─────────────────
     const bootstrapSession = useCallback(async () => {
@@ -775,11 +935,30 @@ OUTPUT VALID JSON ONLY:
             setIsGeneratingLesson(false);
             setIsDone(false);
             setLessonPlan(phase1Lesson);
+            lessonPlanRef.current = phase1Lesson;
             writeCachedJson(lessonCacheKey, phase1Lesson);
             await saveLocalVoiceTutorialProgress(uid, cid, tid, 0, 'phase1_ready', false, phase1Lesson);
 
-            // Start playing Phase 1 immediately
+            const isNotebookP1 = Boolean(
+                sessionData.syllabusContext?.toLowerCase().includes('notebook') ||
+                sessionData.syllabusContext?.toLowerCase().includes('chapter') ||
+                sessionData.course?.course_id?.startsWith('nb_') ||
+                sessionData.source === 'notebook'
+            );
+
+            // Start playing Phase 1 immediately (board 0 solo = request #1)
             void presentBoard(phase1Lesson, 0);
+
+            // Prefetch the rest of Part 1 as one batch (request #2)
+            const p1End = Math.min(4, phase1Lesson.boards.length - 1);
+            if (p1End >= 1) {
+                const g1 = buildGradedSegment(phase1Lesson, 1, p1End);
+                grokVoiceEngine.prefetchSpeech(g1.script, g1.key, {
+                    isPrivate: isNotebookP1,
+                    cacheScope: isNotebookP1 ? 'private' : 'public',
+                    source: isNotebookP1 ? 'notebook' : 'study_guide',
+                });
+            }
 
             // 2. Background compile Phase 2 (Next ~5 minutes)
             setIsBackgroundCompilingPhase2(true);
@@ -809,8 +988,27 @@ OUTPUT VALID JSON ONLY:
 
                     if (isActiveRef.current) {
                         setLessonPlan(completeLesson);
+                        lessonPlanRef.current = completeLesson;
                         writeCachedJson(lessonCacheKey, completeLesson);
                         await saveLocalVoiceTutorialProgress(uid, cid, tid, boardIndexRef.current, 'full_lesson_ready', false, completeLesson);
+
+                        // Prefetch Part 2 (boards 5+) as one more batch (request #3)
+                        const p2Start = 5;
+                        const p2End = completeLesson.boards.length - 1;
+                        if (p2Start <= p2End) {
+                            const isNotebookP2 = Boolean(
+                                sessionData.syllabusContext?.toLowerCase().includes('notebook') ||
+                                sessionData.syllabusContext?.toLowerCase().includes('chapter') ||
+                                sessionData.course?.course_id?.startsWith('nb_') ||
+                                sessionData.source === 'notebook'
+                            );
+                            const g2 = buildGradedSegment(completeLesson, p2Start, p2End);
+                            grokVoiceEngine.prefetchSpeech(g2.script, g2.key, {
+                                isPrivate: isNotebookP2,
+                                cacheScope: isNotebookP2 ? 'private' : 'public',
+                                source: isNotebookP2 ? 'notebook' : 'study_guide',
+                            });
+                        }
                     }
                 } catch (bgErr) {
                     console.warn('[VoiceTutorial] Background Phase 2 compilation error:', bgErr);
@@ -826,6 +1024,7 @@ OUTPUT VALID JSON ONLY:
         if (!isActiveRef.current || !lesson) return;
         setIsDone(false);
         setLessonPlan(lesson);
+        lessonPlanRef.current = lesson;
 
         let startBoardIndex = sqliteRecord?.conceptIdx ?? 0;
         if (sqliteRecord?.isCompleted || startBoardIndex >= lesson.boards.length) {
@@ -869,7 +1068,9 @@ OUTPUT VALID JSON ONLY:
             return;
         }
 
-        // 1. Immediately pause current board audio
+        // 1. Save resume position, then immediately pause current board audio
+        qaResumeSeekRef.current = lastKnownTimeRef.current;
+        qaResumeBoardRef.current = boardIndexRef.current;
         stopAudioImmediate();
         clearAllStreamTimers();
         setIsAnsweringQuestion(true);
@@ -892,10 +1093,8 @@ Current Board: "${currentBoard.phaseTitle}" (${currentBoard.conceptName}).
 Board lines visible on screen: ${currentBoard.boardLines.join(' | ')}.
 The student paused the video lesson to ask: "${questionText}".
 
-Provide a direct, crystal-clear, encouraging 2-3 sentence answer explaining their question.
-At the end of your explanation, say: "Now, let us continue our lesson."
-
-OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
+Provide a clear, encouraging answer in AT MOST 2 short sentences (under 40 words total), plain English, no lists, no markdown.
+At the very end say exactly: "Now, let us continue our lesson."`;
 
         try {
             const parts: any[] = [];
@@ -908,7 +1107,7 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
             const result = await aiClient.models.generateContent({
                 model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
                 contents: [{ role: 'user', parts }],
-                config: { temperature: 0.3, maxOutputTokens: 300 },
+                config: { temperature: 0.3, maxOutputTokens: 150 },
             });
 
             const answerText = getResponseText(result) || "I see what you mean. Let's make sure that's clear, and now let's continue our lesson.";
@@ -919,11 +1118,14 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
                 void deductAICredits(userProfile.uid, qaCost, 'Live Tutorial Q&A Question', appSettings);
             }
 
-            // Speak answer to student
+            // Speak answer to student (cached so repeat questions cost $0)
             const cleanedAnswer = cleanSpokenTextForTTS(answerText);
+            const cidQA = sessionData?.course?.course_id || 'general';
+            const tidQA = sessionData?.topic?.topic_id || 'core';
             await grokTts.playSpeech(cleanedAnswer, {
                 voice: 'altair',
                 withTimestamps: true,
+                cacheKey: `avelut_grok_${cidQA}_${tidQA}_qa_${simpleHash(cleanedAnswer)}`,
                 onEnd: () => {
                     if (!isActiveRef.current) return;
                     setTimeout(() => {
@@ -1035,43 +1237,52 @@ OUTPUT PLAIN TEXT (NO MARKDOWN CODE BLOCKS):`;
     // ── Navigation & Control Actions ────────────────────────────────────
     const togglePauseAI = useCallback(() => {
         if (!lessonPlan) return;
-        if (isSpeaking) {
-            stopAudioImmediate();
+        const player = currentAudioPlayerRef?.current;
+        if (isSpeaking && !isPaused && player) {
+            // Real pause: freeze the live audio, no refetch.
+            player.pause?.();
             setIsPaused(true);
+            setIsSpeaking(false);
+            isSpeakingRef.current = false;
+        } else if (isPaused && player) {
+            // Resume exact position without restarting.
+            player.resume?.();
+            setIsPaused(false);
+            setIsSpeaking(true);
+            isSpeakingRef.current = true;
         } else {
             setIsPaused(false);
             void presentBoard(lessonPlan, boardIndexRef.current);
         }
-    }, [isSpeaking, lessonPlan, presentBoard, stopAudioImmediate]);
+    }, [isSpeaking, isPaused, lessonPlan, presentBoard]);
 
     const toggleMute = useCallback(() => {
         setIsMuted(prev => !prev);
         if (!isMuted) {
             stopAudioImmediate();
+            currentAudioPlayerRef.current = null;
+            activeSegmentRef.current = null;
         }
     }, [isMuted, stopAudioImmediate]);
 
     const handleRestartBoard = useCallback(() => {
         if (!lessonPlan) return;
-        stopAudioImmediate();
-        clearAllStreamTimers();
+        currentAudioPlayerRef.current = null;
+        activeSegmentRef.current = null;
         void presentBoard(lessonPlan, boardIndexRef.current);
-    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
+    }, [lessonPlan, presentBoard]);
 
     const handleAdvanceNextBoard = useCallback(() => {
         if (!lessonPlan) return;
-        stopAudioImmediate();
-        clearAllStreamTimers();
         void presentBoard(lessonPlan, boardIndexRef.current + 1);
-    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
+    }, [lessonPlan, presentBoard]);
 
     const handlePreviousBoard = useCallback(() => {
         if (!lessonPlan) return;
-        stopAudioImmediate();
-        clearAllStreamTimers();
-        const prevIdx = Math.max(0, boardIndexRef.current - 1);
-        void presentBoard(lessonPlan, prevIdx);
-    }, [lessonPlan, presentBoard, stopAudioImmediate, clearAllStreamTimers]);
+        currentAudioPlayerRef.current = null;
+        activeSegmentRef.current = null;
+        void presentBoard(lessonPlan, Math.max(0, boardIndexRef.current - 1));
+    }, [lessonPlan, presentBoard]);
 
     const handleGoBack = useCallback(async () => {
         setIsNavigatingBack(true);

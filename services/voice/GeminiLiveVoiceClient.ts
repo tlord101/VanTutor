@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
  * GEMINI MULTIMODAL LIVE TWO-WAY VOICE CLIENT (WebSocket / BidiGenerateContent)
- * Model: models/gemini-2.0-flash-exp (Fast, high-fidelity native audio streaming)
+ * Model: models/gemini-3.1-flash-live-preview (Fast, high-fidelity native audio streaming)
  * Protocol: Stateful WebSocket (WSS) 16kHz PCM Input -> 24kHz PCM Output
  * Features: AudioWorklet low-latency processing, real-time interruption, natural cadence,
  * and automatic student metadata injection (Name, Department, Level, Courses).
@@ -73,7 +73,7 @@ export class GeminiLiveVoiceClient {
     }
 
     const host = 'generativelanguage.googleapis.com';
-    const path = '/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent';
+    const path = '/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
     const wsUrl = `wss://${host}${path}?key=${apiKey}`;
 
     return new Promise<void>((resolve, reject) => {
@@ -145,7 +145,7 @@ export class GeminiLiveVoiceClient {
     const courses = meta.enrolledCourses?.length ? meta.enrolledCourses.join(', ') : 'Academic Curriculum';
     const context = meta.courseContext ? `Current study context: ${meta.courseContext}` : '';
 
-    let modelName = this.options.model || 'models/gemini-2.0-flash-exp';
+    let modelName = this.options.model || 'models/gemini-3.1-flash-live-preview';
     if (!modelName.startsWith('models/')) {
       modelName = `models/${modelName}`;
     }
@@ -488,19 +488,35 @@ VOICE & INTERACTION GUIDELINES:
    */
   private initOutputAudio(): void {
     if (this.outputAudioCtx) return;
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    this.outputAudioCtx = new AudioCtx({ sampleRate: 24000 });
-    this.nextPlayTime = this.outputAudioCtx.currentTime;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioCtx({ sampleRate: 24000 });
+      } catch (rateErr) {
+        // Some browsers (e.g. iOS Safari) reject an explicit sampleRate.
+        console.warn('[GeminiLive] 24kHz AudioContext failed, falling back to default:', rateErr);
+        ctx = new AudioCtx();
+      }
+      this.outputAudioCtx = ctx;
+      this.nextPlayTime = this.outputAudioCtx.currentTime;
+    } catch (err) {
+      console.warn('[GeminiLive] Output audio init failed:', err);
+      this.outputAudioCtx = null;
+    }
   }
 
   /**
    * Decodes and plays a 24kHz raw PCM chunk from Gemini Live.
    */
   private playAudioChunk(base64Audio: string): void {
+    if (!this.outputAudioCtx) {
+      this.initOutputAudio();
+    }
     if (!this.outputAudioCtx) return;
 
     if (this.outputAudioCtx.state === 'suspended') {
-      void this.outputAudioCtx.resume();
+      void this.outputAudioCtx.resume().catch(() => {});
     }
 
     try {
