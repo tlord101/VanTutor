@@ -289,8 +289,8 @@
   width: 100%;
   margin-top: clamp(4px, 1vw, 8px);
   margin-bottom: clamp(4px, 1vw, 8px);
-  padding-left: clamp(6px, 1.2vw, 14px);
-  padding-right: clamp(6px, 1.2vw, 14px);
+  padding-left: clamp(8px, 2vw, 16px);
+  padding-right: clamp(8px, 2vw, 16px);
 }
 
 .message-bubble {
@@ -344,14 +344,14 @@
   display: inline-flex;
   align-items: flex-end;
   gap: clamp(6px, 1.2vw, 10px);
-  width: 100%;
+  width: auto;
+  max-width: 100%;
 }
 
 .message-text {
   font-size: clamp(15px, 2.8vw, 18px);
   line-height: 1.35;
-  min-width: 0;
-  flex: 1 1 0%;
+  flex: 0 1 auto;
   word-break: normal;
   overflow-wrap: break-word;
 }
