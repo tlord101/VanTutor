@@ -194,30 +194,30 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
 
   // 5. Main Chapter Listing View
   return (
-    <div className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] overflow-y-auto space-y-4 animate-fade-in">
+    <div className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] overflow-y-auto space-y-4 animate-fade-in text-slate-900 dark:text-slate-100">
       {/* Top Info Banner Header */}
-      <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-7 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xs">
         <div>
-          <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">
             Extracted Textbook Material
           </span>
-          <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-tight mt-0.5">
+          <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight mt-0.5">
             {notebook.title}
           </h2>
         </div>
 
         {/* Metadata Pills */}
-        <div className="flex items-center gap-2.5 flex-wrap text-xs text-[#64748B] pt-3 mt-3 border-t border-[#E3E9F1]">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] rounded-full border border-[#E3E9F1]">
-            <i className="bi bi-file-earmark-text text-[#0066FF]"></i>
+        <div className="flex items-center gap-2.5 flex-wrap text-xs text-[#64748B] dark:text-slate-400 pt-3 mt-3 border-t border-[#E3E9F1] dark:border-slate-800">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] dark:bg-slate-800 rounded-full border border-[#E3E9F1] dark:border-slate-700">
+            <i className="bi bi-file-earmark-text text-[#0066FF] dark:text-blue-400"></i>
             {notebook.total_pages} {notebook.total_pages === 1 ? 'Page' : 'Pages'}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] rounded-full border border-[#E3E9F1]">
-            <i className="bi bi-bookmark text-[#0066FF]"></i>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] dark:bg-slate-800 rounded-full border border-[#E3E9F1] dark:border-slate-700">
+            <i className="bi bi-bookmark text-[#0066FF] dark:text-blue-400"></i>
             {notebook.chapter_count} {notebook.chapter_count === 1 ? 'Chapter' : 'Chapters'}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] rounded-full border border-[#E3E9F1]">
-            <i className="bi bi-hdd text-[#0066FF]"></i>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F6F6F3] dark:bg-slate-800 rounded-full border border-[#E3E9F1] dark:border-slate-700">
+            <i className="bi bi-hdd text-[#0066FF] dark:text-blue-400"></i>
             {(notebook.file_size / (1024 * 1024)).toFixed(1)} MB
           </span>
         </div>
@@ -226,10 +226,10 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
       {/* Chapters Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider">
             Chapters in this Material
           </h3>
-          <span className="text-xs text-[#64748B]">Select a chapter to study</span>
+          <span className="text-xs text-[#64748B] dark:text-slate-400">Select a chapter to study</span>
         </div>
 
         {notebook.chapters.map((ch, idx) => {
@@ -240,20 +240,20 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
             <div
               key={ch.id}
               onClick={() => handleOpenChapterActions(ch)}
-              className="w-full flex items-center justify-between p-4 sm:p-5 bg-white border border-[#E3E9F1] rounded-2xl hover:border-[#0066FF]/50 transition-all cursor-pointer group shadow-2xs gap-3"
+              className="w-full flex items-center justify-between p-4 sm:p-5 bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-2xl hover:border-[#0066FF]/50 dark:hover:border-blue-500/50 transition-all cursor-pointer group shadow-2xs gap-3"
             >
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-[#F6F6F3] border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] font-bold text-sm shrink-0 group-hover:bg-[#002D62] group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-2xl bg-[#F6F6F3] dark:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white font-bold text-sm shrink-0 group-hover:bg-[#002D62] dark:group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   {idx + 1}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-sm font-bold text-[#0F172A] truncate group-hover:text-[#0066FF] transition-colors">
+                  <h4 className="text-sm font-bold text-[#0F172A] dark:text-white truncate group-hover:text-[#0066FF] dark:group-hover:text-blue-400 transition-colors">
                     {ch.title}
                   </h4>
-                  <div className="flex items-center gap-2 flex-wrap mt-0.5 text-xs text-[#64748B]">
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5 text-xs text-[#64748B] dark:text-slate-400">
                     {visitedLabel && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 text-[#64748B] dark:text-slate-400 text-[10px] font-semibold border border-[#E3E9F1] dark:border-slate-700">
-                        <i className="bi bi-clock-history text-[#0066FF] text-[10px]"></i>
+                        <i className="bi bi-clock-history text-[#0066FF] dark:text-blue-400 text-[10px]"></i>
                         <span>{visitedLabel}</span>
                       </span>
                     )}
@@ -265,10 +265,10 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
               </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="hidden sm:inline-block text-xs font-bold text-[#0066FF] opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="hidden sm:inline-block text-xs font-bold text-[#0066FF] dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
                 Study Chapter
               </span>
-              <div className="w-8 h-8 rounded-full bg-[#F6F6F3] border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] group-hover:bg-[#0066FF] group-hover:text-white transition-all">
+              <div className="w-8 h-8 rounded-full bg-[#F6F6F3] dark:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white group-hover:bg-[#0066FF] dark:group-hover:bg-blue-600 group-hover:text-white transition-all">
                 <i className="bi bi-chevron-right text-xs"></i>
               </div>
             </div>
@@ -287,21 +287,21 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
           />
 
           {/* Modal Container */}
-          <div className="relative w-full max-w-lg bg-white border border-[#E3E9F1] rounded-3xl p-5 sm:p-7 shadow-2xl z-10 animate-fade-in space-y-5 max-h-[90vh] overflow-y-auto text-[#0F172A]">
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl z-10 animate-fade-in space-y-5 max-h-[90vh] overflow-y-auto text-[#0F172A] dark:text-white">
             {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-[#E3E9F1] pb-3.5">
+            <div className="flex items-start justify-between border-b border-[#E3E9F1] dark:border-slate-800 pb-3.5">
               <div className="min-w-0 pr-2">
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">
                   Choose Study Mode
                 </span>
-                <h3 className="text-base sm:text-lg font-black text-[#0F172A] truncate mt-0.5">
+                <h3 className="text-base sm:text-lg font-black text-[#0F172A] dark:text-white truncate mt-0.5">
                   {selectedChapter.title}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowActionModal(false)}
-                className="w-8 h-8 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-full bg-[#F6F6F3] dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white transition-all cursor-pointer shrink-0"
               >
                 <i className="bi bi-x-lg text-xs font-bold"></i>
               </button>
@@ -314,14 +314,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('chat')}
                 disabled={isLoadingContent}
-                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] dark:bg-slate-800 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 hover:border-[#0066FF]/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0066FF] dark:text-blue-400 shrink-0 shadow-2xs">
                   <i className="bi bi-chat-dots text-base"></i>
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Chat Tutorial</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Socratic 1-on-1 tutor</p>
+                  <h4 className="text-xs font-bold text-[#0F172A] dark:text-white group-hover:text-[#0066FF] dark:group-hover:text-blue-400 truncate">Chat Tutorial</h4>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Socratic 1-on-1 tutor</p>
                 </div>
               </button>
 
@@ -330,14 +330,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('flashcards')}
                 disabled={isLoadingContent}
-                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] dark:bg-slate-800 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 hover:border-[#0066FF]/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0066FF] dark:text-blue-400 shrink-0 shadow-2xs">
                   <i className="bi bi-card-text text-base"></i>
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Flashcards</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Interactive 3D cards</p>
+                  <h4 className="text-xs font-bold text-[#0F172A] dark:text-white group-hover:text-[#0066FF] dark:group-hover:text-blue-400 truncate">Flashcards</h4>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Interactive 3D cards</p>
                 </div>
               </button>
 
@@ -346,14 +346,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('quiz')}
                 disabled={isLoadingContent}
-                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] dark:bg-slate-800 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 hover:border-[#0066FF]/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all cursor-pointer group"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0066FF] dark:text-blue-400 shrink-0 shadow-2xs">
                   <i className="bi bi-check2-square text-base"></i>
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Quiz Test</h4>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Timed test & timer</p>
+                  <h4 className="text-xs font-bold text-[#0F172A] dark:text-white group-hover:text-[#0066FF] dark:group-hover:text-blue-400 truncate">Quiz Test</h4>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Timed test & timer</p>
                 </div>
               </button>
 
@@ -362,14 +362,14 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 type="button"
                 onClick={() => handleSelectMode('voice')}
                 disabled={isLoadingContent}
-                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] hover:bg-[#F1F5F9] border border-[#E3E9F1] hover:border-[#0066FF]/50 rounded-2xl text-left transition-all cursor-pointer group relative"
+                className="flex items-center gap-3 p-3.5 bg-[#F6F6F3] dark:bg-slate-800 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 hover:border-[#0066FF]/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all cursor-pointer group relative"
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] shrink-0 shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0066FF] dark:text-blue-400 shrink-0 shadow-2xs">
                   <i className="bi bi-mic text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0066FF] truncate">Voice Tutorial</h4>
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-white group-hover:text-[#0066FF] dark:group-hover:text-blue-400 truncate">Voice Tutorial</h4>
                     {!liveAccess.allowed && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold border border-amber-500/20 shrink-0">
                         <i className="bi bi-lock-fill text-[9px]"></i>
@@ -377,39 +377,39 @@ export const NotebookDetail: React.FC<NotebookDetailProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Blackboard voice lesson</p>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Blackboard voice lesson</p>
                 </div>
               </button>
 
               {/* 5. Infographics (Coming Soon) */}
-              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-80 relative">
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] shrink-0">
+              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] dark:bg-slate-800/50 border border-[#E2E8F0] dark:border-slate-700/50 rounded-2xl text-left opacity-80 relative">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#64748B] dark:text-slate-400 shrink-0">
                   <i className="bi bi-graph-up text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-[#0F172A] truncate">Infographics</h4>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full shrink-0">
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-white truncate">Infographics</h4>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] dark:bg-slate-700 text-[#475569] dark:text-slate-300 rounded-full shrink-0">
                       Soon
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Visual concept summary</p>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Visual concept summary</p>
                 </div>
               </div>
 
               {/* 6. Podcast (Coming Soon) */}
-              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-left opacity-80 relative">
-                <div className="w-10 h-10 rounded-xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#64748B] shrink-0">
+              <div className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] dark:bg-slate-800/50 border border-[#E2E8F0] dark:border-slate-700/50 rounded-2xl text-left opacity-80 relative">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#64748B] dark:text-slate-400 shrink-0">
                   <i className="bi bi-headphones text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-[#0F172A] truncate">Podcast</h4>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] text-[#475569] rounded-full shrink-0">
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-white truncate">Podcast</h4>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#E2E8F0] dark:bg-slate-700 text-[#475569] dark:text-slate-300 rounded-full shrink-0">
                       Soon
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#64748B] mt-0.5 leading-tight">Audio overview episode</p>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 leading-tight">Audio overview episode</p>
                 </div>
               </div>
             </div>

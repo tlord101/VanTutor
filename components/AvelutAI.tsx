@@ -1559,11 +1559,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         timestamp: Date.now()
       });
 
+      // Sanitize attachments for Firebase RTDB by stripping large inline base64 URLs
+      // to avoid 'Data too large' or transaction errors in cloud RTDB payload
+      const cloudAttachments = storedAttachments.map(att => ({
+        id: att.id,
+        name: att.name,
+        mimeType: att.mimeType,
+        url: att.url.startsWith('data:') ? '' : att.url,
+        isImage: att.isImage,
+      }));
+
       const storedUserMessage = {
         text: userText,
         sender: 'user',
         timestamp: serverTimestamp(),
-        attachments: storedAttachments,
+        attachments: cloudAttachments,
       };
       await push(messagesRef, storedUserMessage);
 
