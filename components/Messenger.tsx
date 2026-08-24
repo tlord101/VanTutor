@@ -1604,45 +1604,82 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     if (activeChat?.otherUser) {
       setCustomHeaderConfig({
         title: (
-          <div onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer">
-            <h2 className="font-semibold text-[#212529] dark:text-white text-[16px] leading-tight truncate flex items-center gap-1.5 hover:underline">
-              <span className="truncate max-w-[180px] sm:max-w-xs">{activeChat.otherUser.display_name || 'User'}</span>
+          <div
+            onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)}
+            className="flex flex-col justify-center min-w-0 flex-1 cursor-pointer pl-1"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-slate-900 dark:text-white text-[15px] sm:text-[16px] leading-tight truncate">
+                {activeChat.otherUser.display_name || 'User'}
+              </span>
               <VerificationBadge status={activeChat.otherUser.subscription_status} />
               <StreakBadge userProfile={activeChat.otherUser} size="sm" />
-            </h2>
-            <p className="text-[12px] text-[#6C757D] dark:text-gray-400 font-normal mt-0.5 flex items-center">
+            </div>
+            <span className="text-[11px] sm:text-[12px] text-slate-500 dark:text-slate-400 font-normal leading-tight truncate mt-0.5 flex items-center">
               {activeChat.otherUser.is_online ? (
                 <>
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span>
-                  <span className="text-[#28A745]">Online</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 shrink-0 animate-pulse" />
+                  <span className="text-emerald-600 font-medium">Online</span>
                 </>
-              ) : formatLastSeen(activeChat.otherUser.last_seen)}
-            </p>
+              ) : (
+                formatLastSeen(activeChat.otherUser.last_seen)
+              )}
+            </span>
           </div>
         ),
         leftActions: (
-          <>
-            <button onClick={() => setActiveChat(null)} className="lg:hidden text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white transition p-3 mr-3 flex items-center justify-center rounded-full bg-neutral-200/50 hover:bg-neutral-200 min-w-[48px] min-h-[48px]" aria-label="Go back">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveChat(null)}
+              className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors"
+              aria-label="Go back"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
             </button>
-            <button onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)} className="mr-3 shrink-0 cursor-pointer transition hover:opacity-80">
-              <Avatar className="w-9 h-9 rounded-full object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={activeChat.otherUser.photo_url} display_name={activeChat.otherUser.display_name || 'User'} />
-            </button>
-          </>
+            <div
+              onClick={() => onNavigate?.(`public_profile_${activeChat.otherUser.uid}`)}
+              className="cursor-pointer shrink-0"
+            >
+              <Avatar
+                className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-transparent"
+                photo_url={activeChat.otherUser.photo_url}
+                display_name={activeChat.otherUser.display_name || 'User'}
+              />
+            </div>
+          </div>
         ),
         rightActions: (
-          <div className="relative">
-            <button onClick={() => setShowUserOptions(!showUserOptions)} className="p-2 text-slate-500 dark:text-gray-400 hover:bg-slate-100 rounded-full transition-colors">
-              <span className="font-bold text-xl leading-none block rotate-90">⋯</span>
+          <div className="relative shrink-0 flex items-center">
+            <button
+              type="button"
+              onClick={() => setShowUserOptions(!showUserOptions)}
+              className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+            >
+              <i className="bi bi-three-dots-vertical text-lg" />
             </button>
             {showUserOptions && (
-              <div className="absolute right-2 sm:right-0 mt-2 w-48 bg-white dark:bg-black border border-slate-200 dark:border-transparent rounded-xl shadow-xl z-[9999] py-1 origin-top-right">
-                <button onClick={handleBlockUser} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Block User</button>
-                <button onClick={() => { setShowReportModal(true); setShowUserOptions(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:bg-black font-bold">Report User</button>
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 origin-top-right">
+                <button
+                  onClick={handleBlockUser}
+                  className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                >
+                  Block User
+                </button>
+                <button
+                  onClick={() => { setShowReportModal(true); setShowUserOptions(false); }}
+                  className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Report User
+                </button>
               </div>
             )}
           </div>
         ),
+        hideDefaultRightActions: true,
+        hideProfileAvatar: true,
         hideBottomNav: true
       });
     } else {
@@ -1652,8 +1689,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     return () => {
       setCustomHeaderConfig(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setCustomHeaderConfig, activeChat, tab, onNavigate, showUserOptions, messageActionTarget, firebaseUser]);
+  }, [setCustomHeaderConfig, activeChat, showUserOptions, onNavigate]);
 
 
   return (
