@@ -1814,6 +1814,7 @@ const App: React.FC = () => {
                     className={customHeaderConfig?.className}
                     hideTitle={customHeaderConfig?.hideTitle}
                     hideDefaultRightActions={customHeaderConfig?.hideDefaultRightActions}
+                    hideProfileAvatar={customHeaderConfig?.hideProfileAvatar || !!customHeaderConfig}
                     onNavigate={(route) => setActiveItem(route)}
                     onLogoutClick={handleLogout}
                 />

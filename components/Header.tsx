@@ -25,6 +25,7 @@ interface HeaderProps {
   onLogoutClick?: () => void;
   hideTitle?: boolean;
   hideDefaultRightActions?: boolean;
+  hideProfileAvatar?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -43,7 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
     onNavigate,
     onLogoutClick,
     hideTitle,
-    hideDefaultRightActions
+    hideDefaultRightActions,
+    hideProfileAvatar
 }) => {
     const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -70,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Left Slot: Back Button / Left Actions */}
             <div className="flex items-center gap-2.5 min-w-[40px] shrink-0">
                 {leftActions}
-                {!hideTitle && typeof currentPageLabel === 'string' && (
+                {!hideTitle && !title && typeof currentPageLabel === 'string' && (
                     <div className="flex items-center gap-3 min-w-0">
                         <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#0F172A] dark:text-white tracking-tight uppercase truncate">
                             {currentPageLabel}
@@ -135,9 +137,10 @@ export const Header: React.FC<HeaderProps> = ({
                     </>
                 ))}
                 
-                {/* Profile Avatar always shows */}
-                <div className="relative ml-2" ref={menuRef}>
-                    <button
+                {/* Profile Avatar */}
+                {!hideProfileAvatar && (
+                    <div className="relative ml-2" ref={menuRef}>
+                        <button
                                 onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
                                 className="focus:outline-none transition-transform active:scale-95"
                             >
@@ -206,7 +209,8 @@ export const Header: React.FC<HeaderProps> = ({
                                     </button>
                                 </div>
                             )}
-                        </div>
+                    </div>
+                )}
                 {/* End of Avatar */}
             </div>
         </header>
