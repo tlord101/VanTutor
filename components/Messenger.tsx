@@ -1873,10 +1873,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <Avatar className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent mb-0.5" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
-                      <div className={`py-1 px-3 shadow-sm w-fit max-w-[85%] md:max-w-[70%] text-[15px] relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''} ${isMe
-                        ? 'bg-[#009EE2] dark:bg-[#103661] text-white rounded-2xl rounded-tr-none'
-                        : 'bg-white dark:bg-[#202C33] text-black dark:text-white rounded-2xl rounded-tl-none border border-[#E9ECEF] dark:border-transparent'
-                        }`.trim()}
+                      <div className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''}`.trim()}
                         onContextMenu={(event) => {
                           event.preventDefault();
                           openMessageActions(msg, event.clientX, event.clientY);
@@ -1959,72 +1956,74 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{msg.replyTo.text}</div>
                           </div>
                         )}
-                        {/* Voice Note Player */}
-                        {msg.type === 'voice' ? (
-                          <VoiceNotePlayer
-                            src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
-                            isMe={isMe}
-                            isUploading={msg.isUploading}
-                          />
-                        ) : msg.type === 'image' ? (
-                          <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
-                            <div className="relative">
-                              {msg.isUploading && (
-                                <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
-                                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                </div>
-                              )}
-                              {imageUrl ? (
-                                <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
-                              ) : (
-                                <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
-                                  <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Processing Media...
-                                </div>
-                              )}
+                        <div className="message-content">
+                          {/* Voice Note Player */}
+                          {msg.type === 'voice' ? (
+                            <VoiceNotePlayer
+                              src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
+                              isMe={isMe}
+                              isUploading={msg.isUploading}
+                            />
+                          ) : msg.type === 'image' ? (
+                            <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                              <div className="relative">
+                                {msg.isUploading && (
+                                  <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  </div>
+                                )}
+                                {imageUrl ? (
+                                  <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                ) : (
+                                  <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+                                    <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Processing Media...
+                                  </div>
+                                )}
+                              </div>
+                              {(() => {
+                                const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                if (!extractedCaption) return null;
+                                return (
+                                  <div className="message-text">
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                        a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                      }}
+                                    >
+                                      {extractedCaption}
+                                    </ReactMarkdown>
+                                  </div>
+                                );
+                              })()}
                             </div>
-                            {(() => {
-                              const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
-                              if (!extractedCaption) return null;
-                              return (
-                                <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans text-[15px] mt-2 px-2 pb-2">
-                                  <ReactMarkdown
-                                    components={{
-                                      p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
-                                      a: ({ node, ...props }: any) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
-                                    }}
-                                  >
-                                    {extractedCaption}
-                                  </ReactMarkdown>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="leading-relaxed break-words whitespace-pre-wrap tracking-wide font-sans">
-                            <ReactMarkdown
-                              components={{
-                                p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
-                                a: ({ node, ...props }: any) => <a className={`${isMe ? 'text-white underline font-medium' : 'text-[#009EE2] dark:text-[#F8F9FA] underline'} break-all`} target="_blank" rel="noreferrer" {...props} />
-                              }}
-                            >
-                              {rawText}
-                            </ReactMarkdown>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="message-text">
+                              <ReactMarkdown
+                                components={{
+                                  p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                  a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                }}
+                              >
+                                {rawText}
+                              </ReactMarkdown>
+                            </div>
+                          )}
 
-                        {/* Meta Timestamp */}
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] select-none pointer-events-none float-right relative top-1 ml-3 ${isMe ? 'text-white/70' : 'text-[#6C757D] dark:text-gray-400'}`}>
-                          <span className="uppercase font-normal tracking-tight">
-                            {msg.isUploading ? 'Sending...' : '12:53 PM'}
-                          </span>
-                          {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#FFFFFF' : 'rgba(255,255,255,0.5)'} />}
+                          {/* Meta Timestamp */}
+                          <div className="message-time">
+                            <span>
+                              {msg.isUploading ? 'Sending...' : '12:53 PM'}
+                            </span>
+                            {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
+                          </div>
                         </div>
                         <div className="clear-both"></div>
 
