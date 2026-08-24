@@ -1244,8 +1244,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const file = fileItem as any;
       const localTimestamp = Date.now();
       const tempId = `temp_file_${localTimestamp}`;
-      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
-      const localUrl = URL.createObjectURL(file);
+      const isImg = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic|heif|gif)$/i.test(file.name || '');
+      const fileType = isImg ? 'image' : 'file';
+
+      let localUrl = '';
+      try {
+        localUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve((event.target?.result as string) || '');
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      } catch {
+        localUrl = URL.createObjectURL(file);
+      }
+
       const pendingMessage = {
         id: tempId,
         senderId: firebaseUser.uid,
@@ -1257,19 +1270,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setOptimisticMessages(prev => [...prev, pendingMessage]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       try {
-        const ext = file.name ? file.name.split('.').pop() : 'jpg';
+        const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
         const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
         const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${safeFileName}`;
         const fileBucketRef = storageRef(storage, cloudPath);
-        const snapshot = await uploadBytes(fileBucketRef, file);
+
+        const mimeType = file.type || (isImg ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'application/octet-stream');
+        const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
         const fileDownloadUrl = await getDownloadURL(snapshot.ref);
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        if (file.type.startsWith('image/')) {
+        if (fileType === 'image') {
           await sendMsg(`![Image](${fileDownloadUrl})`, 'image');
         } else {
           await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
         }
       } catch (err) {
+        console.error("Upload error:", err);
         addToast(`Failed to upload asset: ${file.name}`, 'error');
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
       }
@@ -1281,12 +1297,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const localTimestamp = Date.now();
     const tempId = `temp_img_${localTimestamp}`;
-    const localBlobUrl = URL.createObjectURL(file);
 
-    // 1. Construct optimistic message using lightweight Blob URL
+    let localDataUrl = '';
+    try {
+      localDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve((event.target?.result as string) || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+    } catch {
+      localDataUrl = URL.createObjectURL(file);
+    }
+
     const fullText = caption
-      ? `![Captured Image](${localBlobUrl})\n\n${caption}`
-      : `![Captured Image](${localBlobUrl})`;
+      ? `![Captured Image](${localDataUrl})\n\n${caption}`
+      : `![Captured Image](${localDataUrl})`;
 
     const pendingMessage = {
       id: tempId,
@@ -1297,25 +1323,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       isUploading: true
     };
 
-    // 2. Add optimistic message to the chat stream immediately
     setOptimisticMessages(prev => [...prev, pendingMessage]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      // 3. Rename filename to a random number to prevent Firebase and markdown crashes
-      const ext = file.name ? file.name.split('.').pop() : 'jpg';
+      const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
       const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
       const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
       const fileBucketRef = storageRef(storage, cloudPath);
 
-      // 4. Use uploadBytes directly
-      const snapshot = await uploadBytes(fileBucketRef, file);
+      const mimeType = file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
       const fileDownloadUrl = await getDownloadURL(snapshot.ref);
 
-      // 5. Cleanup the local optimistic message
       setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
 
-      // 6. Send the final, real payload to the chat
       const finalFullText = caption
         ? `![Captured Image](${fileDownloadUrl})\n\n${caption}`
         : `![Captured Image](${fileDownloadUrl})`;
