@@ -1472,11 +1472,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           last_updated_at: now,
         });
 
-        await set(newConversationRef, {
+        // Fire-and-forget push to Firebase Realtime Database
+        set(newConversationRef, {
           title: 'New Chat',
           created_at: now,
           last_updated_at: now,
-        });
+        }).catch(err => console.warn('Cloud conversation creation sync note:', err));
+
         setActiveHistoryId(conversationId);
         // Award streak for starting a new AI chat
         void awardDailyStreak(userProfile.uid);
@@ -1559,13 +1561,24 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         timestamp: Date.now()
       });
 
+      // Sanitize attachments for Firebase RTDB by stripping large inline base64 URLs
+      // to avoid 'Data too large' or transaction errors in cloud RTDB payload
+      const cloudAttachments = storedAttachments.map(att => ({
+        id: att.id,
+        name: att.name,
+        mimeType: att.mimeType,
+        url: att.url.startsWith('data:') ? '' : att.url,
+        isImage: att.isImage,
+      }));
+
       const storedUserMessage = {
         text: userText,
         sender: 'user',
         timestamp: serverTimestamp(),
-        attachments: storedAttachments,
+        attachments: cloudAttachments,
       };
-      await push(messagesRef, storedUserMessage);
+      // Fire-and-forget push to Firebase
+      push(messagesRef, storedUserMessage).catch(err => console.warn('Cloud message sync note:', err));
 
       const assistantMsgId = createMessageId();
       let responseText = '';
@@ -1695,6 +1708,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
             responseText += chunkText;
+            setStreamingBotText(responseText);
             setMessages((prev) =>
               prev.map((m) => (m.id === assistantMsgId ? { ...m, text: responseText } : m))
             );
@@ -1714,15 +1728,25 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       if (!aiResult.success) {
         console.error('Avelut assistant error:', aiResult.message);
         setStatusText('Unable to respond right now.');
-        setMessages([
-          ...nextMessages,
-          {
-            id: createMessageId(),
-            sender: 'assistant',
-            text: 'Sorry, I ran into a problem generating that reply. Please try again.',
-            timestamp: Date.now(),
-          },
-        ]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === assistantMsgId);
+          if (exists) {
+            return prev.map((m) =>
+              m.id === assistantMsgId
+                ? { ...m, text: 'Sorry, I ran into a problem generating that reply. Please try again.' }
+                : m
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: assistantMsgId,
+              sender: 'assistant',
+              text: 'Sorry, I ran into a problem generating that reply. Please try again.',
+              timestamp: Date.now(),
+            },
+          ];
+        });
         return;
       }
 
