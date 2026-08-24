@@ -265,7 +265,7 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
   try {
     const creditsRef = dbRef(db, `users/${userId}/ai_credits_balance`);
     const result = await runTransaction(creditsRef, (currentBalance) => {
-      const balance = typeof currentBalance === 'number' ? currentBalance : 15;
+      const balance = typeof currentBalance === 'number' ? currentBalance : 30;
       return Math.max(0, balance - cost);
     }, { applyLocally: true });
 

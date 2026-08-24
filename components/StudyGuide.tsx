@@ -522,6 +522,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
 
             await update(dbRef(db), updates);
+            void deductAICredits(userProfile.uid, cost, 'Study Guide Manual Course Generation', appSettings);
             addToast(`Added ${courseData.course_code} successfully!`, 'success');
             setManualCourseCode('');
             setIsManualMode(false);
@@ -600,6 +601,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
                 });
                 await update(dbRef(db), updates);
+                void deductAICredits(userProfile.uid, cost, 'Study Guide PDF Extraction', appSettings);
                 addToast(`Successfully extracted and saved ${data.courses.length} courses!`, 'success');
             } else {
                 throw new Error("No courses found in the document");

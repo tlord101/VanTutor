@@ -7,9 +7,9 @@ export const DEFAULT_USAGE_SETTINGS = {
     free: {
       tier_id: 'free',
       display_name: 'Free Tier',
-      description: 'Standard access with daily limits. 50 chat messages/day, 3 camera scans/day. Live tutorial locked.',
+      description: 'Standard access with daily limits. 30 chat messages/day, 3 camera scans/day. Live tutorial locked.',
       price_ngn: 0,
-      credit_allocation: 50,
+      credit_allocation: 30,
       max_saved_courses: 5,
       live_tutorial_daily_topics: 0,
       live_tutorial_minutes_label: '0 mins',

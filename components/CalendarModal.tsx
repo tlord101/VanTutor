@@ -4,7 +4,7 @@ import { ref as dbRef, get, set } from 'firebase/database';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { Type } from '@google/genai';
 import { useToast } from '../hooks/useToast';
-import { getFeatureModel } from '../utils/usage';
+import { getFeatureModel, checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import type { UserProfile } from '../types';
@@ -112,6 +112,13 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, u
             return;
         }
 
+        const cost = getFeatureCost('chat_interaction', appSettings);
+        const creditCheck = checkAICredits(userProfile, cost, appSettings);
+        if (!creditCheck.allowed) {
+            addToast('Insufficient credits. Top up your balance to generate a study timetable.', 'error');
+            return;
+        }
+
         setIsGenerating(true);
         try {
             if (!ai) throw new Error('AI client is not configured.');
@@ -186,6 +193,7 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
                 }));
 
                 await set(dbRef(db, `users/${userProfile.uid}/timetable`), sessionsWithMeta);
+                void deductAICredits(userProfile.uid, cost, 'AI Study Timetable Generation', appSettings);
                 setTimetable(sessionsWithMeta);
                 setTextInput('');
                 setUploadedFile(null);

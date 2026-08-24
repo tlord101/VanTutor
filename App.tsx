@@ -1183,7 +1183,7 @@ const App: React.FC = () => {
                 const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
                 const clientTimezoneOffset = new Date().getTimezoneOffset();
 
-                const nextProfile = {
+                const nextProfile: Record<string, any> = {
                     uid: user.uid,
                     display_name: user.displayName || existingProfile.display_name || 'User',
                     email: user.email || existingProfile.email || '',
@@ -1191,6 +1191,9 @@ const App: React.FC = () => {
                     timezone: clientTimezone,
                     timezone_offset: clientTimezoneOffset,
                 };
+                if (typeof existingProfile.ai_credits_balance !== 'number') {
+                    nextProfile.ai_credits_balance = 30;
+                }
                 const hasProfileUpdates = Object.entries(nextProfile).some(([key, value]) => existingProfile[key] !== value && value);
                 if (hasProfileUpdates) {
                     await update(userRef, nextProfile);
@@ -1458,6 +1461,7 @@ const App: React.FC = () => {
             has_completed_tour: false,
             is_activated: true,
             subscription_status: 'free',
+            ai_credits_balance: typeof userProfile?.ai_credits_balance === 'number' ? userProfile.ai_credits_balance : 30,
         };
         try {
             const userRef = dbRef(db, `users/${user.uid}`);

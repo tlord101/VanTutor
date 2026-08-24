@@ -29,6 +29,24 @@ function setGlobalState(updater: Partial<OTAState> | ((prev: OTAState) => Partia
 
 let isInitialized = false;
 
+function parseVersionParts(ver: string): number[] {
+    return ver.replace(/^v/i, '').split('.').map(p => parseInt(p, 10) || 0);
+}
+
+function isVersionHigher(newVer: string, currentVer: string): boolean {
+    if (!currentVer) return true;
+    const n = parseVersionParts(newVer);
+    const c = parseVersionParts(currentVer);
+    const maxLen = Math.max(n.length, c.length);
+    for (let i = 0; i < maxLen; i++) {
+        const nPart = n[i] || 0;
+        const cPart = c[i] || 0;
+        if (nPart > cPart) return true;
+        if (nPart < cPart) return false;
+    }
+    return false;
+}
+
 async function syncInstalledBundleVersion() {
     try {
         const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -41,6 +59,11 @@ async function syncInstalledBundleVersion() {
             localStorage.setItem('app_bundle_version', data.version);
             localStorage.setItem('app_bundle_commit', data.commit);
             localStorage.setItem('app_bundle_build_timestamp', String(data.buildTimestamp));
+
+            const currentOta = localStorage.getItem('current_ota_version');
+            if (!currentOta || isVersionHigher(data.version, currentOta)) {
+                localStorage.setItem('current_ota_version', data.version);
+            }
         }
     } catch {
         // Offline / dev fallback
@@ -63,9 +86,20 @@ function initOTAEngine() {
             if (!data || !data.version || !data.downloadUrl) return;
 
             try {
-                const currentOtaVersion = localStorage.getItem('current_ota_version');
-                if (data.version !== currentOtaVersion) {
-                    console.log('[OTA] New update found. Starting background download:', data.version);
+                const currentOtaVersion = localStorage.getItem('current_ota_version') || localStorage.getItem('app_bundle_version') || '0.0.0';
+
+                // Only download/install if database version is strictly higher than currently installed OTA version
+                if (isVersionHigher(data.version, currentOtaVersion)) {
+                    // Check if already downloaded pending version
+                    const pendingVersion = localStorage.getItem('pending_ota_version');
+                    const pendingBundleId = localStorage.getItem('pending_ota_bundle_id');
+
+                    if (pendingVersion === data.version && pendingBundleId) {
+                        setGlobalState({ status: 'ready', newVersion: data.version, downloadProgress: 100 });
+                        return;
+                    }
+
+                    console.log('[OTA] New higher update found. Starting background download:', data.version, 'Current:', currentOtaVersion);
                     setGlobalState({ status: 'downloading', newVersion: data.version, downloadProgress: 0 });
 
                     const versionInfo = await CapacitorUpdater.download({
@@ -78,6 +112,8 @@ function initOTAEngine() {
 
                     console.log('[OTA] Update downloaded & ready in background.');
                     setGlobalState({ status: 'ready', newVersion: data.version, downloadProgress: 100 });
+                } else {
+                    setGlobalState({ status: 'idle', newVersion: null, downloadProgress: 0 });
                 }
             } catch (error) {
                 console.error('[OTA] Update error:', error);
@@ -112,15 +148,18 @@ export function useOTAUpdater() {
 
     const restartToUpdate = useCallback(async () => {
         try {
-            if (Capacitor.isNativePlatform()) {
-                const pendingBundleId = localStorage.getItem('pending_ota_bundle_id');
-                const pendingVersion = localStorage.getItem('pending_ota_version');
-                if (pendingBundleId) {
-                    await CapacitorUpdater.set({ id: pendingBundleId });
-                    if (pendingVersion) {
-                        localStorage.setItem('current_ota_version', pendingVersion);
-                    }
-                }
+            const pendingBundleId = localStorage.getItem('pending_ota_bundle_id');
+            const pendingVersion = localStorage.getItem('pending_ota_version');
+
+            if (pendingVersion) {
+                localStorage.setItem('current_ota_version', pendingVersion);
+            }
+            localStorage.removeItem('pending_ota_bundle_id');
+            localStorage.removeItem('pending_ota_version');
+            setGlobalState({ status: 'idle', newVersion: null, downloadProgress: 0 });
+
+            if (Capacitor.isNativePlatform() && pendingBundleId) {
+                await CapacitorUpdater.set({ id: pendingBundleId });
                 await CapacitorUpdater.reload();
                 return;
             }

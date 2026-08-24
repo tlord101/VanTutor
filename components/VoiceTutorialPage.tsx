@@ -23,7 +23,7 @@ import 'katex/dist/katex.min.css';
 import { LimitExceededModal } from './LimitExceededModal';
 import { grokTts, grokVoiceEngine } from '../services/voice/GrokVoiceEngine';
 import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
-import { deductAICredits, getFeatureCost, checkAICredits, isPaidSubscriber } from '../utils/usage';
+import { deductAICredits, getFeatureCost, checkAICredits, isPaidSubscriber, isExempt } from '../utils/usage';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BOARD_LINES = 6;
@@ -958,6 +958,17 @@ OUTPUT VALID JSON ONLY:
         let lesson: SinglePassTopicLesson | null = cachedLesson || (sqliteRecord?.blueprint ? (sqliteRecord.blueprint as SinglePassTopicLesson) : null);
 
         if (!lesson || !lesson.boards || lesson.boards.length === 0) {
+            const tutorialCost = getFeatureCost('live_tutorial', appSettings) || 300;
+            if (userProfile && !isPaidSubscriber(userProfile) && !isExempt(userProfile)) {
+                const creditCheck = checkAICredits(userProfile, tutorialCost, appSettings);
+                if (!creditCheck.allowed) {
+                    setLimitModalData({ cost: tutorialCost, balance: creditCheck.balance });
+                    setShowLimitModal(true);
+                    addToast('Live tutorial requires a subscription or at least 300 credits.', 'error');
+                    return;
+                }
+            }
+
             setIsGeneratingLesson(true);
             setLessonGenStep('Pre-compiling Part 1 (First 5 Minutes)...');
 
@@ -967,6 +978,10 @@ OUTPUT VALID JSON ONLY:
                 setIsGeneratingLesson(false);
                 addToast('Failed to compile Part 1 of tutorial. Please try again.', 'error');
                 return;
+            }
+
+            if (userProfile && !isPaidSubscriber(userProfile) && !isExempt(userProfile)) {
+                void deductAICredits(userProfile.uid, tutorialCost, 'Live Voice Tutorial', appSettings);
             }
 
             lesson = phase1Lesson;
