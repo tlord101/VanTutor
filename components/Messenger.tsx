@@ -1868,7 +1868,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
                 return (
                   <div key={msg.id} className={`message-bubble-wrapper ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className="flex items-end space-x-2">
+                    <div className={`flex items-end space-x-2 max-w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
                         <Avatar className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent mb-0.5" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
