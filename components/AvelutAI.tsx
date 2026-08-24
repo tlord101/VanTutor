@@ -17,6 +17,7 @@ import type { Course, UserProfile } from '../types';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
+import { Avatar } from './Avatar';
 import { LimitExceededModal } from './LimitExceededModal';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel, isPaidSubscriber } from '../utils/usage';
 import {
@@ -2560,17 +2561,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
                   className="relative flex-1 min-w-0 bg-white dark:bg-[#212121] rounded-full flex items-center justify-between pl-3.5 pr-2.5 py-1.5 min-h-[56px] sm:min-h-[58px] border border-slate-200/90 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
                 >
-                  {/* Left: Plus Icon Button */}
+                  {/* Left: Profile Avatar Attachment Button */}
                   <div ref={attachmentMenuRef} className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowAttachmentMenu(prev => !prev)}
                       disabled={isSending}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-95 disabled:opacity-40 cursor-pointer ${showAttachmentMenu ? 'bg-slate-100 dark:bg-white/10' : ''}`}
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 cursor-pointer overflow-hidden ring-2 ring-transparent hover:ring-amber-500/30 ${showAttachmentMenu ? 'ring-amber-500/50' : ''}`}
                       aria-label="Upload attachment"
                       title="Upload attachment"
                     >
-                      <PlusIcon />
+                      <Avatar
+                        photo_url={userProfile?.photo_url}
+                        display_name={userProfile?.display_name || 'User'}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
 
                     {/* Plus Attachment Popup Menu (Camera, Photos, Files, Student Context) */}
