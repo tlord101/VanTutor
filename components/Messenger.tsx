@@ -228,6 +228,7 @@ interface AvelutInputProps {
   onImageSendWithCaption?: (source: any, caption: string, mimeType?: string) => void;
   disabled?: boolean;
   onTyping?: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 const AvelutMessageInput: React.FC<AvelutInputProps> = ({
@@ -242,7 +243,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   onFileSelect,
   onImageSendWithCaption,
   disabled = false,
-  onTyping
+  onTyping,
+  inputRef
 }) => {
   const themeColor = '#0A101F'; // navy blue
 
@@ -401,6 +403,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
               </div>
               <div className="flex-1 h-full flex items-center min-w-0">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={message}
                   onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
@@ -505,6 +508,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     type?: string;
     isUploading?: boolean;
     reactions?: Record<string, string>;
+    replyTo?: any;
+    is_forwarded?: boolean;
+    timestamp?: number;
+    isRead?: boolean;
   } | null>(null);
   const [messageActionPosition, setMessageActionPosition] = useState<{ x: number; y: number } | null>(null);
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
@@ -514,6 +521,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [showUserOptions, setShowUserOptions] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('spam');
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{
+    id: string;
+    senderId?: string;
+  } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -559,6 +570,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       remove(typingRef).catch(console.error);
     }
   };
+
+  const textInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (replyingTo) {
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 50);
+    }
+  }, [replyingTo]);
 
   const messageActionMenuRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1159,7 +1180,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       text: msg.text,
       type: msg.type,
       isUploading: msg.isUploading,
-      reactions: msg.reactions || {}
+      reactions: msg.reactions || {},
+      replyTo: msg.replyTo,
+      is_forwarded: msg.is_forwarded,
+      timestamp: msg.timestamp,
+      isRead: msg.isRead
     });
     setMessageActionPosition({ x, y });
   };
@@ -1189,22 +1214,32 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     closeMessageActions();
   };
 
-  const deleteSelectedMessage = async () => {
-    if (!messageActionTarget || !activeChat || !firebaseUser) return;
-    if (messageActionTarget.senderId !== firebaseUser.uid) {
-      addToast('You can only delete your own messages.', 'info');
-      closeMessageActions();
-      return;
-    }
+  const handleDeleteMessageAction = (forEveryone = true) => {
+    const target = deleteConfirmTarget || messageActionTarget;
+    if (!target || !activeChat || !firebaseUser) return;
 
-    try {
-      await remove(dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}`));
-      await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
-      addToast('Message deleted.', 'success');
-    } catch (error: any) {
-      console.error('Failed to delete message:', error);
-      addToast(error?.message || 'Failed to delete message.', 'error');
-    }
+    setDeleteConfirmTarget(null);
+    closeMessageActions();
+
+    // Instant deletion call
+    (async () => {
+      try {
+        await remove(dbRef(db, `messages/${activeChat.chatId}/${target.id}`));
+        await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
+        addToast('Message deleted.', 'success');
+      } catch (error: any) {
+        console.error('Failed to delete message:', error);
+        addToast(error?.message || 'Failed to delete message.', 'error');
+      }
+    })();
+  };
+
+  const promptDeleteMessageModal = () => {
+    if (!messageActionTarget) return;
+    setDeleteConfirmTarget({
+      id: messageActionTarget.id,
+      senderId: messageActionTarget.senderId
+    });
     closeMessageActions();
   };
 
@@ -2004,6 +2039,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               setReplyingTo(msg);
                               e.currentTarget.style.transform = 'translateX(0px)';
                               swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                              setTimeout(() => {
+                                textInputRef.current?.focus();
+                              }, 50);
                               return;
                             }
                             e.currentTarget.style.transform = 'translateX(0px)';
@@ -2205,6 +2243,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 </div>
               ) : studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                 <AvelutMessageInput
+                  inputRef={textInputRef}
                   onSend={(text) => sendMsg(text, 'text')}
                   startRecording={startRecording}
                   handleMove={handleMove}
@@ -2265,14 +2304,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {messageActionTarget && (
-              <div className="fixed inset-0 z-[80] bg-black/30 animate-fade-in flex items-center justify-center p-4" onClick={closeMessageActions}>
+              <div
+                className="fixed inset-0 z-[80] animate-fade-in flex items-center justify-center p-4 select-none"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  backdropFilter: 'blur(4px)',
+                  WebkitBackdropFilter: 'blur(4px)'
+                }}
+                onClick={closeMessageActions}
+              >
                 <div
                   ref={messageActionMenuRef}
-                  className="flex flex-col gap-3 items-center animate-scale-in max-w-xs w-full"
+                  className="flex flex-col gap-3 items-center animate-scale-in max-w-sm w-full"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Floating Emoji Reaction Bar */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-1 sm:gap-2">
+                  <div className="bg-[#F1F5F9] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-1 sm:gap-2">
                     {REACTION_EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
@@ -2285,8 +2332,95 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     ))}
                   </div>
 
+                  {/* Targeted Message Highlight Preview */}
+                  {(() => {
+                    const isMe = messageActionTarget.senderId === firebaseUser?.uid;
+                    const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
+                    let imageUrl = '';
+                    if (messageActionTarget.type === 'image') {
+                      const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
+                      if (markdownMatch) {
+                        imageUrl = markdownMatch[1];
+                      } else {
+                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+)/);
+                        if (urlMatch) {
+                          imageUrl = urlMatch[1];
+                        } else {
+                          imageUrl = rawText;
+                        }
+                      }
+                    }
+
+                    return (
+                      <div className={`w-full flex ${isMe ? 'justify-end' : 'justify-start'} px-2 max-w-[340px] sm:max-w-[380px]`}>
+                        <div className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} shadow-2xl border border-white/10`}>
+                          <div className="flex flex-col w-full">
+                            {messageActionTarget.is_forwarded && (
+                              <div className="flex items-center gap-1 mb-1 text-[10px] opacity-70 italic">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 21l9-9-9-9v6H3v6h9z" /></svg>
+                                Forwarded
+                              </div>
+                            )}
+                            {messageActionTarget.replyTo && (
+                              <div className={`mb-1.5 p-2 rounded bg-black/10 dark:bg-white/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80 dark:text-gray-200/90'}`}>
+                                <div className="font-bold">{messageActionTarget.replyTo.senderName}</div>
+                                <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{messageActionTarget.replyTo.text}</div>
+                              </div>
+                            )}
+                            <div className="message-content">
+                              {messageActionTarget.type === 'voice' ? (
+                                <VoiceNotePlayer
+                                  src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
+                                  isMe={isMe}
+                                  isUploading={messageActionTarget.isUploading}
+                                />
+                              ) : messageActionTarget.type === 'image' ? (
+                                <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                                  {imageUrl && (
+                                    <img src={imageUrl} alt="Targeted Media" className="max-h-[220px] w-full object-cover" />
+                                  )}
+                                  {(() => {
+                                    const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                    if (!extractedCaption) return null;
+                                    return (
+                                      <div className="message-text">
+                                        <ReactMarkdown
+                                          components={{
+                                            p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                            a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                          }}
+                                        >
+                                          {extractedCaption}
+                                        </ReactMarkdown>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="message-text">
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                      a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                    }}
+                                  >
+                                    {rawText}
+                                  </ReactMarkdown>
+                                </div>
+                              )}
+                              <div className="message-time">
+                                <span>{formatChatTimestamp(messageActionTarget.timestamp)}</span>
+                                {isMe && <DoubleCheckIcon color={messageActionTarget.isRead ? '#009EE2' : '#667'} />}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Floating Context Action Menu */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-56 p-1.5 flex flex-col gap-0.5">
+                  <div className="bg-[#F1F5F9] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl w-60 p-1.5 flex flex-col gap-0.5">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2294,10 +2428,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         setReplyingTo(messageActionTarget);
                         closeMessageActions();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
+                      <span>Reply</span>
                       <i className="bi bi-reply-fill text-lg text-[#009EE2]"></i>
-                      Reply
                     </button>
 
                     <button
@@ -2306,10 +2441,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         e.stopPropagation();
                         void copyMessageContent();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
-                      <i className="bi bi-copy text-base text-slate-500"></i>
-                      Copy
+                      <span>Copy</span>
+                      <i className="bi bi-copy text-base text-slate-500 dark:text-slate-400"></i>
                     </button>
 
                     <button
@@ -2321,10 +2457,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         setIsForwardModalOpen(true);
                         closeMessageActions();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
-                      <i className="bi bi-share-fill text-base text-slate-500"></i>
-                      Forward
+                      <span>Forward</span>
+                      <i className="bi bi-share-fill text-base text-slate-500 dark:text-slate-400"></i>
                     </button>
 
                     {messageActionTarget.senderId === firebaseUser?.uid && (
@@ -2332,12 +2469,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void deleteSelectedMessage();
+                          promptDeleteMessageModal();
                         }}
-                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                       >
+                        <span>Delete</span>
                         <i className="bi bi-trash-fill text-base text-rose-500"></i>
-                        Delete
                       </button>
                     )}
                   </div>
@@ -2357,6 +2495,51 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         )}
       </div>
 
+
+      {/* Delete Message Confirmation Modal */}
+      {deleteConfirmTarget && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in select-none"
+          onClick={() => setDeleteConfirmTarget(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl max-w-xs sm:max-w-sm w-full p-6 border border-slate-100 dark:border-slate-800 animate-scale-in flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">
+              Delete message?
+            </h3>
+
+            <div className="flex flex-col items-end gap-3.5 mt-2">
+              {deleteConfirmTarget.senderId === firebaseUser?.uid && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMessageAction(true)}
+                  className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right"
+                >
+                  Delete for everyone
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleDeleteMessageAction(false)}
+                className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right"
+              >
+                Delete for me
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTarget(null)}
+                className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right mt-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report User Modal */}
       {showReportModal && (
