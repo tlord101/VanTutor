@@ -236,7 +236,7 @@ ${messageText}`;
 
       // Persist full thread to SQLite
       await saveChapterGeneration(notebook.id, chapter.id, userProfile?.uid || 'local', 'chat', finalMessages);
-      void deductAICredits(userProfile?.uid, cost, 'Notebook Chat Tutor');
+      void deductAICredits(userProfile?.uid, cost, 'Notebook Chat Tutor', appSettings);
     } catch (err) {
       console.error('Notebook chat error:', err);
       addToast('Failed to get answer. Please check your connection.', 'error');

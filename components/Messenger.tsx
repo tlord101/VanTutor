@@ -1867,8 +1867,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const sortedReactions = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]);
 
                 return (
-                  <div key={msg.id} className="my-1">
-                    <div className={`flex items-end space-x-2 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id} className={`message-bubble-wrapper ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className="flex items-end space-x-2">
                       {!isMe && (
                         <Avatar className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent mb-0.5" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
@@ -1943,99 +1943,100 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         }}
                         style={{ transition: 'transform 0.1s ease-out' }}
                       >
-                        {/* Reply Snippet */}
-                        {msg.is_forwarded && (
-                          <div className="flex items-center gap-1 mb-1 text-[10px] text-white/70 italic" style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)' }}>
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 21l9-9-9-9v6H3v6h9z" /></svg>
-                            Forwarded
-                          </div>
-                        )}
-                        {msg.replyTo && (
-                          <div className={`mb-1.5 p-2 rounded bg-black/10 dark:bg-white/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80 dark:text-gray-200/90'}`}>
-                            <div className="font-bold">{msg.replyTo.senderName}</div>
-                            <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{msg.replyTo.text}</div>
-                          </div>
-                        )}
-                        <div className="message-content">
-                          {/* Voice Note Player */}
-                          {msg.type === 'voice' ? (
-                            <VoiceNotePlayer
-                              src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
-                              isMe={isMe}
-                              isUploading={msg.isUploading}
-                            />
-                          ) : msg.type === 'image' ? (
-                            <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
-                              <div className="relative">
-                                {msg.isUploading && (
-                                  <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
-                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                  </div>
-                                )}
-                                {imageUrl ? (
-                                  <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
-                                ) : (
-                                  <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
-                                    <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Processing Media...
-                                  </div>
-                                )}
-                              </div>
-                              {(() => {
-                                const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
-                                if (!extractedCaption) return null;
-                                return (
-                                  <div className="message-text">
-                                    <ReactMarkdown
-                                      components={{
-                                        p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
-                                        a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
-                                      }}
-                                    >
-                                      {extractedCaption}
-                                    </ReactMarkdown>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          ) : (
-                            <div className="message-text">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
-                                  a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
-                                }}
-                              >
-                                {rawText}
-                              </ReactMarkdown>
+                        <div className="flex flex-col w-full">
+                          {/* Reply Snippet */}
+                          {msg.is_forwarded && (
+                            <div className="flex items-center gap-1 mb-1 text-[10px] opacity-70 italic">
+                              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 21l9-9-9-9v6H3v6h9z" /></svg>
+                              Forwarded
                             </div>
                           )}
+                          {msg.replyTo && (
+                            <div className={`mb-1.5 p-2 rounded bg-black/10 dark:bg-white/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80 dark:text-gray-200/90'}`}>
+                              <div className="font-bold">{msg.replyTo.senderName}</div>
+                              <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{msg.replyTo.text}</div>
+                            </div>
+                          )}
+                          <div className="message-content">
+                            {/* Voice Note Player */}
+                            {msg.type === 'voice' ? (
+                              <VoiceNotePlayer
+                                src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
+                                isMe={isMe}
+                                isUploading={msg.isUploading}
+                              />
+                            ) : msg.type === 'image' ? (
+                              <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                                <div className="relative">
+                                  {msg.isUploading && (
+                                    <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
+                                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                    </div>
+                                  )}
+                                  {imageUrl ? (
+                                    <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                  ) : (
+                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+                                      <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Processing Media...
+                                    </div>
+                                  )}
+                                </div>
+                                {(() => {
+                                  const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                  if (!extractedCaption) return null;
+                                  return (
+                                    <div className="message-text">
+                                      <ReactMarkdown
+                                        components={{
+                                          p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                          a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                        }}
+                                      >
+                                        {extractedCaption}
+                                      </ReactMarkdown>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            ) : (
+                              <div className="message-text">
+                                <ReactMarkdown
+                                  components={{
+                                    p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                    a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                  }}
+                                >
+                                  {rawText}
+                                </ReactMarkdown>
+                              </div>
+                            )}
 
-                          {/* Meta Timestamp */}
-                          <div className="message-time">
-                            <span>
-                              {msg.isUploading ? 'Sending...' : '12:53 PM'}
-                            </span>
-                            {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
-                          </div>
-                        </div>
-                        <div className="clear-both"></div>
-
-                        {sortedReactions.length > 0 && (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {sortedReactions.map(([emoji, count]) => (
-                              <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white dark:bg-black/20 text-white' : 'bg-[#E9ECEF] text-[#212529] dark:text-white'}`}>
-                                {emoji} {count}
+                            {/* Meta Timestamp */}
+                            <div className="message-time">
+                              <span>
+                                {msg.isUploading ? 'Sending...' : '12:53 PM'}
                               </span>
-                            ))}
+                              {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
+                            </div>
                           </div>
-                        )}
+
+                          {sortedReactions.length > 0 && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {sortedReactions.map(([emoji, count]) => (
+                                <span key={`${msg.id}-${emoji}`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isMe ? 'bg-white/20 text-white' : 'bg-black/10 dark:bg-white/10 text-[#212529] dark:text-white'}`}>
+                                  {emoji} {count}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

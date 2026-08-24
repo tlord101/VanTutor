@@ -6,7 +6,8 @@ import { db } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from 'firebase/database';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { useToast } from '../hooks/useToast';
-import { getFeatureModel } from '../utils/usage';
+import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
+import { LimitExceededModal } from './LimitExceededModal';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
 import {
@@ -136,6 +137,8 @@ const TextChat: React.FC<{
     const [isVoiceMode, setIsVoiceMode] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
     const [courseContext, setCourseContext] = useState<string>('');
+    const [showLimitModal, setShowLimitModal] = useState(false);
+    const { settings: appSettings } = useAppSettings();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const portalRoot = usePortalRoot('avelut-chat-composer-root');
 
@@ -269,6 +272,13 @@ const TextChat: React.FC<{
         const messageToSend = customInput || input;
         if (!messageToSend.trim() || isLoading) return;
         
+        const cost = getFeatureCost('chat_interaction', appSettings);
+        const creditCheck = checkAICredits(userProfile, cost, appSettings);
+        if (!creditCheck.allowed) {
+            setShowLimitModal(true);
+            return;
+        }
+
         const currentInput = messageToSend;
         setInput('');
         setIsLoading(true);
@@ -369,6 +379,8 @@ const TextChat: React.FC<{
                 sender: 'ai',
                 timestamp: serverTimestamp()
             }).catch(console.error);
+
+            void deductAICredits(userProfile.uid, cost, 'AI Chat Assistant', appSettings);
 
         } catch (error) {
             console.error('Error in chat:', error);
@@ -540,6 +552,16 @@ const TextChat: React.FC<{
             />,
             portalRoot
         )}
+
+        <LimitExceededModal
+            isOpen={showLimitModal}
+            onClose={() => setShowLimitModal(false)}
+            userProfile={userProfile}
+            appSettings={appSettings}
+            cost={getFeatureCost('chat_interaction', appSettings)}
+            balance={userProfile?.ai_credits_balance ?? 0}
+            addToast={addToast}
+        />
         </>
     );
 };
