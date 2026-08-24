@@ -1,0 +1,528 @@
+==========================================
+  AVELUT SIGNED RELEASE BUILD (APK + AAB) 
+==========================================
+Checking Java: 
+[1/3] Building Web Assets & Syncing Capacitor...
+[36mvite v6.4.3 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 4419 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mversion.json                                          [39m[1m[2m  0.08 kB[22m[1m[22m[2m │ gzip:   0.09 kB[22m
+[2mdist/[22m[32mindex.html                                            [39m[1m[2m  4.14 kB[22m[1m[22m[2m │ gzip:   1.44 kB[22m
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-CTq5MqoE.woff              [39m[1m[2m  4.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-Dl5lxZxV.woff2             [39m[1m[2m  4.93 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-Dy4dx90m.woff2             [39m[1m[2m  5.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-mCD8mA8B.woff2             [39m[1m[2m  5.47 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-BF-4gkZK.woff              [39m[1m[2m  5.98 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-oD1tc_U0.woff              [39m[1m[2m  6.19 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-C195tn64.woff              [39m[1m[2m  6.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2       [39m[1m[2m  6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2          [39m[1m[2m  6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2  [39m[1m[2m  7.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-DgpXs0kz.ttf               [39m[1m[2m  7.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-CTRA-rTL.woff        [39m[1m[2m  7.66 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-BEiXGLvX.woff           [39m[1m[2m  7.72 kB[22m[1m[22m
+[2mdist/[22m[32massets/geist-vietnamese-wght-normal-6IgcOCM7.woff2    [39m[1m[2m  8.00 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-D3wIWfF6.woff2            [39m[1m[2m  9.64 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2         [39m[1m[2m 10.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-DWFBv043.ttf               [39m[1m[2m 10.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-D5yQViql.woff             [39m[1m[2m 10.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2           [39m[1m[2m 11.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2              [39m[1m[2m 11.35 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-B7gKUWhC.ttf               [39m[1m[2m 11.51 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2          [39m[1m[2m 12.03 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2            [39m[1m[2m 12.22 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-Dbsnue_I.ttf               [39m[1m[2m 12.23 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-CS6fqUqJ.woff          [39m[1m[2m 12.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-wX97UBjC.ttf         [39m[1m[2m 12.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-ATXxdsX0.ttf            [39m[1m[2m 12.37 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-Dxdc4cR9.woff            [39m[1m[2m 13.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-BsDP51OF.woff               [39m[1m[2m 13.30 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2        [39m[1m[2m 13.57 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-DN2j7dab.woff           [39m[1m[2m 14.11 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-DbIhKOiC.woff             [39m[1m[2m 14.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2      [39m[1m[2m 15.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-C0xS9mPB.woff         [39m[1m[2m 16.03 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2           [39m[1m[2m 16.40 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-t53AETM-.woff2               [39m[1m[2m 16.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/geist-latin-ext-wght-normal-DC-KSUi6.woff2     [39m[1m[2m 16.51 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-C5JkGWo-.ttf              [39m[1m[2m 16.65 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2           [39m[1m[2m 16.78 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-NWA7e6Wa.woff2               [39m[1m[2m 16.99 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-iY-2wyZ7.woff            [39m[1m[2m 18.67 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-DA0__PXp.woff                [39m[1m[2m 18.75 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-SpSLRI95.woff            [39m[1m[2m 19.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-BNo7hRIc.ttf           [39m[1m[2m 19.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Regular-CB_wures.ttf             [39m[1m[2m 19.57 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Fraktur-Bold-BdnERNNW.ttf                [39m[1m[2m 19.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-BMLOBm91.woff                [39m[1m[2m 19.68 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Italic-YYjJ1zSn.ttf            [39m[1m[2m 22.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Bold-CFMepnvq.ttf              [39m[1m[2m 24.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-Cx986IdX.woff2                 [39m[1m[2m 25.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-B22Nviop.woff2              [39m[1m[2m 26.27 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Typewriter-Regular-D3Ib7_Hf.ttf          [39m[1m[2m 27.56 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-BQhdFMY1.woff2               [39m[1m[2m 28.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/geist-latin-wght-normal-BgDaEnEv.woff2         [39m[1m[2m 29.40 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-Jm3AIy58.woff                  [39m[1m[2m 29.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-Dr94JaBh.woff               [39m[1m[2m 30.77 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-BoldItalic-B3XSjfu4.ttf             [39m[1m[2m 31.20 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Math-Italic-flOr_0UB.ttf                 [39m[1m[2m 31.31 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-BoldItalic-DzxPMmG6.ttf             [39m[1m[2m 32.97 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-DMm9YOAa.woff                [39m[1m[2m 33.52 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Italic-3WenGoN9.ttf                 [39m[1m[2m 33.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Bold-waoOVXN0.ttf                   [39m[1m[2m 51.34 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Main-Regular-ypZvNtVU.ttf                [39m[1m[2m 53.58 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_AMS-Regular-DRggAlZN.ttf                 [39m[1m[2m 63.63 kB[22m[1m[22m
+[2mdist/[22m[35massets/vendor-katex-DSydD-fn.css                      [39m[1m[2m 28.88 kB[22m[1m[22m[2m │ gzip:   8.03 kB[22m
+[2mdist/[22m[35massets/index-C3MZqCqC.css                             [39m[1m[2m189.45 kB[22m[1m[22m[2m │ gzip:  28.27 kB[22m
+[2mdist/[22m[36massets/XIcon-Cbe7vADo.js                              [39m[1m[2m  0.33 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[36massets/TypingIndicator-Bv55AsNg.js                    [39m[1m[2m  0.69 kB[22m[1m[22m[2m │ gzip:   0.32 kB[22m
+[2mdist/[22m[36massets/userProfileService-Dm3Lf9tI.js                 [39m[1m[2m  0.75 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+[2mdist/[22m[36massets/pdfExtraction-DlftV4wt.js                      [39m[1m[2m  1.07 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[36massets/SEOHead-nC5_mVdv.js                            [39m[1m[2m  1.79 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/PaymentSuccessWeb-Dy06oHXQ.js                  [39m[1m[2m  1.86 kB[22m[1m[22m[2m │ gzip:   0.95 kB[22m
+[2mdist/[22m[36massets/materialStorageService-BK6zw0ny.js             [39m[1m[2m  2.22 kB[22m[1m[22m[2m │ gzip:   0.93 kB[22m
+[2mdist/[22m[36massets/Onboarding-DyjsJ9LD.js                         [39m[1m[2m  3.15 kB[22m[1m[22m[2m │ gzip:   1.34 kB[22m
+[2mdist/[22m[36massets/FounderPage-DeiabUz1.js                        [39m[1m[2m  3.33 kB[22m[1m[22m[2m │ gzip:   1.29 kB[22m
+[2mdist/[22m[36massets/Leaderboard-D0iddydu.js                        [39m[1m[2m  3.92 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2mdist/[22m[36massets/AboutUsPage-BjwY_ZKA.js                        [39m[1m[2m  4.06 kB[22m[1m[22m[2m │ gzip:   1.63 kB[22m
+[2mdist/[22m[36massets/DeleteAccountWeb-CIAPDg7w.js                   [39m[1m[2m  4.49 kB[22m[1m[22m[2m │ gzip:   1.84 kB[22m
+[2mdist/[22m[36massets/Help-PZbd0LNd.js                               [39m[1m[2m  5.04 kB[22m[1m[22m[2m │ gzip:   2.17 kB[22m
+[2mdist/[22m[36massets/vendor-icons-CcZNyPpq.js                       [39m[1m[2m  5.44 kB[22m[1m[22m[2m │ gzip:   1.62 kB[22m
+[2mdist/[22m[36massets/latexFormatter--C02quCt.js                     [39m[1m[2m  6.14 kB[22m[1m[22m[2m │ gzip:   2.30 kB[22m
+[2mdist/[22m[36massets/BillingSettings-8aNd9mB7.js                    [39m[1m[2m  6.24 kB[22m[1m[22m[2m │ gzip:   2.10 kB[22m
+[2mdist/[22m[36massets/Feedback-D9J0VGsX.js                           [39m[1m[2m  6.41 kB[22m[1m[22m[2m │ gzip:   2.27 kB[22m
+[2mdist/[22m[36massets/Notifications-CgKN-IWM.js                      [39m[1m[2m  6.77 kB[22m[1m[22m[2m │ gzip:   2.78 kB[22m
+[2mdist/[22m[36massets/ContactUsPage-BWXEDLsj.js                      [39m[1m[2m  7.16 kB[22m[1m[22m[2m │ gzip:   2.06 kB[22m
+[2mdist/[22m[36massets/RefillCreditsWeb-Bc6bk8TU.js                   [39m[1m[2m  7.37 kB[22m[1m[22m[2m │ gzip:   2.75 kB[22m
+[2mdist/[22m[36massets/PublicProfile-CmzDj0cF.js                      [39m[1m[2m  8.02 kB[22m[1m[22m[2m │ gzip:   2.62 kB[22m
+[2mdist/[22m[36massets/Dashboard-BfVvEnfL.js                          [39m[1m[2m  8.76 kB[22m[1m[22m[2m │ gzip:   2.40 kB[22m
+[2mdist/[22m[36massets/Settings-BjvrR01i.js                           [39m[1m[2m  9.99 kB[22m[1m[22m[2m │ gzip:   3.01 kB[22m
+[2mdist/[22m[36massets/StudyPartners-IbLtMp4f.js                      [39m[1m[2m 11.76 kB[22m[1m[22m[2m │ gzip:   3.22 kB[22m
+[2mdist/[22m[36massets/History-DU1Yq6aV.js                            [39m[1m[2m 11.98 kB[22m[1m[22m[2m │ gzip:   4.09 kB[22m
+[2mdist/[22m[36massets/PlansWeb-BqcXVUHQ.js                           [39m[1m[2m 14.69 kB[22m[1m[22m[2m │ gzip:   3.93 kB[22m
+[2mdist/[22m[36massets/UserProfile-DafKrUY4.js                        [39m[1m[2m 22.41 kB[22m[1m[22m[2m │ gzip:   5.49 kB[22m
+[2mdist/[22m[36massets/LandingPage-C4vLA-_u.js                        [39m[1m[2m 34.65 kB[22m[1m[22m[2m │ gzip:   9.99 kB[22m
+[2mdist/[22m[36massets/VisualSolver-BBmAEHZP.js                       [39m[1m[2m 41.65 kB[22m[1m[22m[2m │ gzip:  12.13 kB[22m
+[2mdist/[22m[36massets/vendor-capacitor-DM9TsqD_.js                   [39m[1m[2m 58.49 kB[22m[1m[22m[2m │ gzip:  14.46 kB[22m
+[2mdist/[22m[36massets/VoiceTutorialPage-Cz98ikhe.js                  [39m[1m[2m 62.96 kB[22m[1m[22m[2m │ gzip:  20.38 kB[22m
+[2mdist/[22m[36massets/Messenger-BmN50hIS.js                          [39m[1m[2m 69.24 kB[22m[1m[22m[2m │ gzip:  19.06 kB[22m
+[2mdist/[22m[36massets/AvelutAI-C35OoykW.js                           [39m[1m[2m 80.53 kB[22m[1m[22m[2m │ gzip:  23.70 kB[22m
+[2mdist/[22m[36massets/vendor-motion-9mtxTKdk.js                      [39m[1m[2m139.23 kB[22m[1m[22m[2m │ gzip:  46.14 kB[22m
+[2mdist/[22m[36massets/StudyGuide-BFma6KhT.js                         [39m[1m[2m149.34 kB[22m[1m[22m[2m │ gzip:  39.20 kB[22m
+[2mdist/[22m[36massets/vendor-katex-CSfy84Aq.js                       [39m[1m[2m297.54 kB[22m[1m[22m[2m │ gzip:  90.66 kB[22m
+[2mdist/[22m[36massets/pinecone-BmHIrGJq.js                           [39m[1m[2m310.78 kB[22m[1m[22m[2m │ gzip:  55.44 kB[22m
+[2mdist/[22m[36massets/index-CuHsQPm7.js                              [39m[1m[2m502.53 kB[22m[1m[22m[2m │ gzip: 131.18 kB[22m
+[2mdist/[22m[36massets/vendor-firebase-BeDzjpGg.js                    [39m[1m[2m518.23 kB[22m[1m[22m[2m │ gzip: 106.92 kB[22m
+[2mdist/[22m[36massets/vendor-docs-Bm87eG14.js                        [39m[1m[2m634.33 kB[22m[1m[22m[2m │ gzip: 226.52 kB[22m
+[2mdist/[22m[36massets/AdminPanel-VocnpC9j.js                         [39m[1m[2m693.45 kB[22m[1m[22m[2m │ gzip: 176.96 kB[22m
+[2mdist/[22m[36massets/index-BTEu0eTx.js                              [39m[1m[2m926.23 kB[22m[1m[22m[2m │ gzip: 242.03 kB[22m
+[32m✓ built in 34.59s[39m
+√ Copying web assets from dist to android\app\src\main\assets\public in 290.28ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 1.75ms
+√ copy android in 430.92ms
+√ Updating Android plugins in 66.19ms
+[info] Found 16 Capacitor plugins for android:
+       @capacitor-community/sqlite@8.1.1
+       @capacitor-firebase/authentication@8.3.0
+       @capacitor/app@8.1.0
+       @capacitor/browser@8.0.3
+       @capacitor/filesystem@8.1.2
+       @capacitor/haptics@8.0.2
+       @capacitor/keyboard@8.0.5
+       @capacitor/push-notifications@8.1.1
+       @capacitor/share@8.0.1
+       @capacitor/splash-screen@8.0.1
+       @capacitor/status-bar@8.0.2
+       @capacitor/toast@8.0.1
+       @capawesome-team/capacitor-file-opener@8.0.1
+       @capawesome/capacitor-app-update@8.0.3
+       @capgo/capacitor-updater@8.50.1
+       capacitor-plugin-send-intent@0.0.2
+√ update android in 425.69ms
+[info] Sync finished in 1.116s
+
+[2/3] Building Signed APK & AAB with Gradle...
+Starting a Gradle Daemon, 5 busy Daemons could not be reused, use --status for details
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preReleaseBuild UP-TO-DATE
+> Task :capacitor-android:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-android:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-android:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-app:preBuild UP-TO-DATE
+> Task :capacitor-app:preReleaseBuild UP-TO-DATE
+> Task :capacitor-app:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-app:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-app:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-browser:preBuild UP-TO-DATE
+> Task :capacitor-browser:preReleaseBuild UP-TO-DATE
+> Task :capacitor-browser:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-browser:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-browser:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-community-sqlite:preBuild UP-TO-DATE
+> Task :capacitor-community-sqlite:preReleaseBuild UP-TO-DATE
+> Task :capacitor-community-sqlite:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-community-sqlite:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-community-sqlite:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preReleaseBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-cordova-android-plugins:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-filesystem:preBuild UP-TO-DATE
+> Task :capacitor-filesystem:preReleaseBuild UP-TO-DATE
+> Task :capacitor-filesystem:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-filesystem:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-filesystem:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-firebase-authentication:preBuild UP-TO-DATE
+> Task :capacitor-firebase-authentication:preReleaseBuild UP-TO-DATE
+> Task :capacitor-firebase-authentication:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-firebase-authentication:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-firebase-authentication:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-haptics:preBuild UP-TO-DATE
+> Task :capacitor-haptics:preReleaseBuild UP-TO-DATE
+> Task :capacitor-haptics:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-haptics:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-haptics:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-keyboard:preBuild UP-TO-DATE
+> Task :capacitor-keyboard:preReleaseBuild UP-TO-DATE
+> Task :capacitor-keyboard:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-keyboard:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-keyboard:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-plugin-send-intent:preBuild UP-TO-DATE
+> Task :capacitor-plugin-send-intent:preReleaseBuild UP-TO-DATE
+> Task :capacitor-plugin-send-intent:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-plugin-send-intent:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-plugin-send-intent:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-push-notifications:preBuild UP-TO-DATE
+> Task :capacitor-push-notifications:preReleaseBuild UP-TO-DATE
+> Task :capacitor-push-notifications:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-push-notifications:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-push-notifications:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-share:preBuild UP-TO-DATE
+> Task :capacitor-share:preReleaseBuild UP-TO-DATE
+> Task :capacitor-share:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-share:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-share:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-splash-screen:preBuild UP-TO-DATE
+> Task :capacitor-splash-screen:preReleaseBuild UP-TO-DATE
+> Task :capacitor-splash-screen:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-splash-screen:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-splash-screen:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-status-bar:preBuild UP-TO-DATE
+> Task :capacitor-status-bar:preReleaseBuild UP-TO-DATE
+> Task :capacitor-status-bar:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-status-bar:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-status-bar:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capacitor-toast:preBuild UP-TO-DATE
+> Task :capacitor-toast:preReleaseBuild UP-TO-DATE
+> Task :capacitor-toast:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capacitor-toast:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-toast:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capawesome-capacitor-app-update:preBuild UP-TO-DATE
+> Task :capawesome-capacitor-app-update:preReleaseBuild UP-TO-DATE
+> Task :capawesome-capacitor-app-update:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capawesome-capacitor-app-update:mergeReleaseNativeLibs NO-SOURCE
+> Task :capawesome-capacitor-app-update:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:preBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:preReleaseBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:mergeReleaseNativeLibs NO-SOURCE
+> Task :capawesome-team-capacitor-file-opener:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :capgo-capacitor-updater:preBuild UP-TO-DATE
+> Task :capgo-capacitor-updater:preReleaseBuild UP-TO-DATE
+> Task :capgo-capacitor-updater:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :capgo-capacitor-updater:mergeReleaseNativeLibs NO-SOURCE
+> Task :capgo-capacitor-updater:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :app:mergeReleaseNativeLibs UP-TO-DATE
+> Task :app:stripReleaseDebugSymbols UP-TO-DATE
+> Task :app:extractReleaseNativeSymbolTables UP-TO-DATE
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :capacitor-android:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-android:generateReleaseResources UP-TO-DATE
+> Task :capacitor-android:packageReleaseResources UP-TO-DATE
+> Task :capacitor-android:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-android:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-android:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-android:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-android:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-android:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :capacitor-community-sqlite:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-community-sqlite:generateReleaseResources UP-TO-DATE
+> Task :capacitor-community-sqlite:packageReleaseResources UP-TO-DATE
+> Task :capacitor-community-sqlite:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-community-sqlite:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-community-sqlite:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-community-sqlite:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-community-sqlite:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-community-sqlite:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-firebase-authentication:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-firebase-authentication:generateReleaseResources UP-TO-DATE
+> Task :capacitor-firebase-authentication:packageReleaseResources UP-TO-DATE
+> Task :capacitor-firebase-authentication:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-firebase-authentication:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-firebase-authentication:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-firebase-authentication:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-firebase-authentication:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-firebase-authentication:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-app:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-app:generateReleaseResources UP-TO-DATE
+> Task :capacitor-app:packageReleaseResources UP-TO-DATE
+> Task :capacitor-app:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-app:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-app:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-app:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-app:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-app:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-browser:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-browser:generateReleaseResources UP-TO-DATE
+> Task :capacitor-browser:packageReleaseResources UP-TO-DATE
+> Task :capacitor-browser:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-browser:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-browser:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-browser:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-browser:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-browser:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-filesystem:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :capacitor-filesystem:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-filesystem:generateReleaseResources UP-TO-DATE
+> Task :capacitor-filesystem:packageReleaseResources UP-TO-DATE
+> Task :capacitor-filesystem:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-filesystem:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-filesystem:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-filesystem:compileReleaseKotlin UP-TO-DATE
+> Task :capacitor-filesystem:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-filesystem:compileReleaseJavaWithJavac NO-SOURCE
+> Task :capacitor-filesystem:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-haptics:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-haptics:generateReleaseResources UP-TO-DATE
+> Task :capacitor-haptics:packageReleaseResources UP-TO-DATE
+> Task :capacitor-haptics:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-haptics:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-haptics:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-haptics:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-haptics:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-haptics:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-keyboard:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-keyboard:generateReleaseResources UP-TO-DATE
+> Task :capacitor-keyboard:packageReleaseResources UP-TO-DATE
+> Task :capacitor-keyboard:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-keyboard:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-keyboard:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-keyboard:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-keyboard:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-keyboard:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-push-notifications:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-push-notifications:generateReleaseResources UP-TO-DATE
+> Task :capacitor-push-notifications:packageReleaseResources UP-TO-DATE
+> Task :capacitor-push-notifications:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-push-notifications:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-push-notifications:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-push-notifications:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-push-notifications:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-push-notifications:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-share:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-share:generateReleaseResources UP-TO-DATE
+> Task :capacitor-share:packageReleaseResources UP-TO-DATE
+> Task :capacitor-share:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-share:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-share:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-share:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-share:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-share:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-splash-screen:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-splash-screen:generateReleaseResources UP-TO-DATE
+> Task :capacitor-splash-screen:packageReleaseResources UP-TO-DATE
+> Task :capacitor-splash-screen:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-splash-screen:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-splash-screen:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-splash-screen:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-splash-screen:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-splash-screen:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-status-bar:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-status-bar:generateReleaseResources UP-TO-DATE
+> Task :capacitor-status-bar:packageReleaseResources UP-TO-DATE
+> Task :capacitor-status-bar:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-status-bar:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-status-bar:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-status-bar:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-status-bar:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-status-bar:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-toast:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-toast:generateReleaseResources UP-TO-DATE
+> Task :capacitor-toast:packageReleaseResources UP-TO-DATE
+> Task :capacitor-toast:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-toast:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-toast:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-toast:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-toast:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-toast:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:generateReleaseResValues UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:generateReleaseResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:packageReleaseResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:processReleaseNavigationResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:parseReleaseLocalResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:generateReleaseRFile UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:javaPreCompileRelease UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capawesome-capacitor-app-update:generateReleaseResValues UP-TO-DATE
+> Task :capawesome-capacitor-app-update:generateReleaseResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:packageReleaseResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:processReleaseNavigationResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:parseReleaseLocalResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:generateReleaseRFile UP-TO-DATE
+> Task :capawesome-capacitor-app-update:javaPreCompileRelease UP-TO-DATE
+> Task :capawesome-capacitor-app-update:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capawesome-capacitor-app-update:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capgo-capacitor-updater:generateReleaseResValues UP-TO-DATE
+> Task :capgo-capacitor-updater:generateReleaseResources UP-TO-DATE
+> Task :capgo-capacitor-updater:packageReleaseResources UP-TO-DATE
+> Task :capgo-capacitor-updater:processReleaseNavigationResources UP-TO-DATE
+> Task :capgo-capacitor-updater:parseReleaseLocalResources UP-TO-DATE
+> Task :capgo-capacitor-updater:generateReleaseRFile UP-TO-DATE
+> Task :capgo-capacitor-updater:javaPreCompileRelease UP-TO-DATE
+> Task :capgo-capacitor-updater:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capgo-capacitor-updater:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-plugin-send-intent:generateReleaseResValues UP-TO-DATE
+> Task :capacitor-plugin-send-intent:generateReleaseResources UP-TO-DATE
+> Task :capacitor-plugin-send-intent:packageReleaseResources UP-TO-DATE
+> Task :capacitor-plugin-send-intent:processReleaseNavigationResources UP-TO-DATE
+> Task :capacitor-plugin-send-intent:parseReleaseLocalResources UP-TO-DATE
+> Task :capacitor-plugin-send-intent:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-plugin-send-intent:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-plugin-send-intent:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :capacitor-plugin-send-intent:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-android:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateReleaseResValues
+> Task :capacitor-cordova-android-plugins:generateReleaseResources
+> Task :capacitor-cordova-android-plugins:packageReleaseResources
+> Task :capacitor-cordova-android-plugins:processReleaseNavigationResources
+> Task :capacitor-cordova-android-plugins:parseReleaseLocalResources
+> Task :app:checkReleaseDuplicateClasses UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:javaPreCompileRelease
+> Task :capacitor-cordova-android-plugins:generateReleaseRFile UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileReleaseJavaWithJavac NO-SOURCE
+> Task :capacitor-cordova-android-plugins:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :app:javaPreCompileRelease UP-TO-DATE
+> Task :capacitor-android:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-app:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-browser:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-community-sqlite:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-filesystem:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-firebase-authentication:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-haptics:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-keyboard:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-plugin-send-intent:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:writeReleaseAarMetadata
+> Task :capacitor-push-notifications:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-share:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-splash-screen:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-status-bar:writeReleaseAarMetadata UP-TO-DATE
+> Task :capacitor-toast:writeReleaseAarMetadata UP-TO-DATE
+> Task :capawesome-capacitor-app-update:writeReleaseAarMetadata UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:writeReleaseAarMetadata UP-TO-DATE
+> Task :capgo-capacitor-updater:writeReleaseAarMetadata UP-TO-DATE
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+> Task :app:processReleaseNavigationResources UP-TO-DATE
+> Task :app:compileReleaseNavigationResources UP-TO-DATE
+> Task :app:generateReleaseResValues UP-TO-DATE
+> Task :app:processReleaseGoogleServices UP-TO-DATE
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :app:generateReleaseResources UP-TO-DATE
+> Task :app:mergeReleaseResources UP-TO-DATE
+> Task :app:packageReleaseResources UP-TO-DATE
+> Task :app:parseReleaseLocalResources UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-android:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-android:processReleaseManifest UP-TO-DATE
+> Task :capacitor-app:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-app:processReleaseManifest UP-TO-DATE
+> Task :capacitor-browser:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-browser:processReleaseManifest UP-TO-DATE
+> Task :capacitor-community-sqlite:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-community-sqlite:processReleaseManifest UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processReleaseManifest UP-TO-DATE
+> Task :capacitor-filesystem:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-filesystem:processReleaseManifest UP-TO-DATE
+> Task :capacitor-firebase-authentication:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-firebase-authentication:processReleaseManifest UP-TO-DATE
+> Task :capacitor-haptics:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-haptics:processReleaseManifest UP-TO-DATE
+> Task :capacitor-keyboard:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-keyboard:processReleaseManifest UP-TO-DATE
+> Task :capacitor-plugin-send-intent:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-plugin-send-intent:processReleaseManifest UP-TO-DATE
+> Task :capacitor-push-notifications:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-push-notifications:processReleaseManifest UP-TO-DATE
+> Task :capacitor-share:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-share:processReleaseManifest UP-TO-DATE
+> Task :capacitor-splash-screen:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-splash-screen:processReleaseManifest UP-TO-DATE
+> Task :capacitor-status-bar:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-status-bar:processReleaseManifest UP-TO-DATE
+> Task :capacitor-toast:extractDeepLinksRelease UP-TO-DATE
+> Task :capacitor-toast:processReleaseManifest UP-TO-DATE
+> Task :capawesome-capacitor-app-update:extractDeepLinksRelease UP-TO-DATE
+> Task :capawesome-capacitor-app-update:processReleaseManifest UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:extractDeepLinksRelease UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:processReleaseManifest UP-TO-DATE
+> Task :capgo-capacitor-updater:extractDeepLinksRelease UP-TO-DATE
+> Task :capgo-capacitor-updater:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage UP-TO-DATE
+> Task :capacitor-android:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-app:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-browser:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-community-sqlite:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-filesystem:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-firebase-authentication:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-haptics:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-keyboard:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-plugin-send-intent:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-push-notifications:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-share:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-splash-screen:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-status-bar:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-toast:compileReleaseLibraryResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:compileReleaseLibraryResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:compileReleaseLibraryResources UP-TO-DATE
+> Task :capgo-capacitor-updater:compileReleaseLibraryResources UP-TO-DATE
+> Task :capacitor-app:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :capacitor-browser:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :capacitor-community-sqlite:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :app:processReleaseResources FAILED
+> Task :capacitor-filesystem:bundleLibCompileToJarRelease UP-TO-DATE
+
+[Incubating] Problems report is available at: file:///C:/Users/Hp/avelut/android/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+297 actionable tasks: 10 executed, 287 up-to-date
+
+[3/3] Verifying Built Artifacts...
+ FAILED: APK was not generated at c:\Users\Hp\avelut\android\app\build\outputs\apk\release\app-release.apk
+ SUCCESS: Signed AAB -> c:\Users\Hp\avelut\release-output\avelut-release.aab (32.45 MB)
+
+==========================================
+  BUILD COMPLETE!                         
+==========================================
