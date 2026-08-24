@@ -49,6 +49,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
             display_name: user.displayName || 'User',
             email: user.email || '',
             photo_url: user.photoURL || '',
+            ai_credits_balance: 30,
             created_at: Date.now()
           });
           sessionStorage.setItem('just_signed_up', 'true');
@@ -64,6 +65,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
             display_name: user.displayName || 'User',
             email: user.email || '',
             photo_url: user.photoURL || '',
+            ai_credits_balance: 30,
             created_at: Date.now()
           });
           sessionStorage.setItem('just_signed_up', 'true');

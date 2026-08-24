@@ -56,6 +56,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
             display_name: user.displayName || 'User',
             email: user.email || '',
             photo_url: user.photoURL || '',
+            ai_credits_balance: 30,
             created_at: Date.now()
           });
           await set(ipRef, { uid: user.uid, timestamp: Date.now() });
@@ -72,6 +73,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
             display_name: user.displayName || 'User',
             email: user.email || '',
             photo_url: user.photoURL || '',
+            ai_credits_balance: 30,
             created_at: Date.now()
           });
           await set(ipRef, { uid: user.uid, timestamp: Date.now() });
@@ -119,6 +121,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
         uid: user.uid,
         display_name: displayName.trim(),
         email: user.email,
+        ai_credits_balance: 30,
         created_at: Date.now()
       });
       await set(ipRef, { uid: user.uid, timestamp: Date.now() });
