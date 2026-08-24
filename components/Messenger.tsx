@@ -505,6 +505,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     type?: string;
     isUploading?: boolean;
     reactions?: Record<string, string>;
+    replyTo?: any;
+    is_forwarded?: boolean;
+    timestamp?: number;
+    isRead?: boolean;
   } | null>(null);
   const [messageActionPosition, setMessageActionPosition] = useState<{ x: number; y: number } | null>(null);
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
@@ -1159,7 +1163,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       text: msg.text,
       type: msg.type,
       isUploading: msg.isUploading,
-      reactions: msg.reactions || {}
+      reactions: msg.reactions || {},
+      replyTo: msg.replyTo,
+      is_forwarded: msg.is_forwarded,
+      timestamp: msg.timestamp,
+      isRead: msg.isRead
     });
     setMessageActionPosition({ x, y });
   };
@@ -2265,14 +2273,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {messageActionTarget && (
-              <div className="fixed inset-0 z-[80] bg-black/30 animate-fade-in flex items-center justify-center p-4" onClick={closeMessageActions}>
+              <div
+                className="fixed inset-0 z-[80] animate-fade-in flex items-center justify-center p-4 select-none"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  backdropFilter: 'blur(4px)',
+                  WebkitBackdropFilter: 'blur(4px)'
+                }}
+                onClick={closeMessageActions}
+              >
                 <div
                   ref={messageActionMenuRef}
-                  className="flex flex-col gap-3 items-center animate-scale-in max-w-xs w-full"
+                  className="flex flex-col gap-3 items-center animate-scale-in max-w-sm w-full"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Floating Emoji Reaction Bar */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-1 sm:gap-2">
+                  <div className="bg-[#F1F5F9] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-1 sm:gap-2">
                     {REACTION_EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
@@ -2285,8 +2301,95 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     ))}
                   </div>
 
+                  {/* Targeted Message Highlight Preview */}
+                  {(() => {
+                    const isMe = messageActionTarget.senderId === firebaseUser?.uid;
+                    const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
+                    let imageUrl = '';
+                    if (messageActionTarget.type === 'image') {
+                      const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
+                      if (markdownMatch) {
+                        imageUrl = markdownMatch[1];
+                      } else {
+                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+)/);
+                        if (urlMatch) {
+                          imageUrl = urlMatch[1];
+                        } else {
+                          imageUrl = rawText;
+                        }
+                      }
+                    }
+
+                    return (
+                      <div className={`w-full flex ${isMe ? 'justify-end' : 'justify-start'} px-2 max-w-[340px] sm:max-w-[380px]`}>
+                        <div className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} shadow-2xl border border-white/10`}>
+                          <div className="flex flex-col w-full">
+                            {messageActionTarget.is_forwarded && (
+                              <div className="flex items-center gap-1 mb-1 text-[10px] opacity-70 italic">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 21l9-9-9-9v6H3v6h9z" /></svg>
+                                Forwarded
+                              </div>
+                            )}
+                            {messageActionTarget.replyTo && (
+                              <div className={`mb-1.5 p-2 rounded bg-black/10 dark:bg-white/10 text-[12px] border-l-2 ${isMe ? 'border-white/50 text-white/90' : 'border-[#009EE2]/50 text-[#111B21]/80 dark:text-gray-200/90'}`}>
+                                <div className="font-bold">{messageActionTarget.replyTo.senderName}</div>
+                                <div className="truncate max-w-[200px] sm:max-w-[280px] opacity-80">{messageActionTarget.replyTo.text}</div>
+                              </div>
+                            )}
+                            <div className="message-content">
+                              {messageActionTarget.type === 'voice' ? (
+                                <VoiceNotePlayer
+                                  src={rawText.match(/\((.*?)\)/)?.[1] || rawText}
+                                  isMe={isMe}
+                                  isUploading={messageActionTarget.isUploading}
+                                />
+                              ) : messageActionTarget.type === 'image' ? (
+                                <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                                  {imageUrl && (
+                                    <img src={imageUrl} alt="Targeted Media" className="max-h-[220px] w-full object-cover" />
+                                  )}
+                                  {(() => {
+                                    const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                    if (!extractedCaption) return null;
+                                    return (
+                                      <div className="message-text">
+                                        <ReactMarkdown
+                                          components={{
+                                            p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                            a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                          }}
+                                        >
+                                          {extractedCaption}
+                                        </ReactMarkdown>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="message-text">
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                      a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
+                                    }}
+                                  >
+                                    {rawText}
+                                  </ReactMarkdown>
+                                </div>
+                              )}
+                              <div className="message-time">
+                                <span>{formatChatTimestamp(messageActionTarget.timestamp)}</span>
+                                {isMe && <DoubleCheckIcon color={messageActionTarget.isRead ? '#009EE2' : '#667'} />}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Floating Context Action Menu */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-56 p-1.5 flex flex-col gap-0.5">
+                  <div className="bg-[#F1F5F9] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl w-60 p-1.5 flex flex-col gap-0.5">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2294,10 +2397,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         setReplyingTo(messageActionTarget);
                         closeMessageActions();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
+                      <span>Reply</span>
                       <i className="bi bi-reply-fill text-lg text-[#009EE2]"></i>
-                      Reply
                     </button>
 
                     <button
@@ -2306,10 +2410,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         e.stopPropagation();
                         void copyMessageContent();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
-                      <i className="bi bi-copy text-base text-slate-500"></i>
-                      Copy
+                      <span>Copy</span>
+                      <i className="bi bi-copy text-base text-slate-500 dark:text-slate-400"></i>
                     </button>
 
                     <button
@@ -2321,10 +2426,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         setIsForwardModalOpen(true);
                         closeMessageActions();
                       }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
-                      <i className="bi bi-share-fill text-base text-slate-500"></i>
-                      Forward
+                      <span>Forward</span>
+                      <i className="bi bi-share-fill text-base text-slate-500 dark:text-slate-400"></i>
                     </button>
 
                     {messageActionTarget.senderId === firebaseUser?.uid && (
@@ -2334,10 +2440,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           e.stopPropagation();
                           void deleteSelectedMessage();
                         }}
-                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                       >
+                        <span>Delete</span>
                         <i className="bi bi-trash-fill text-base text-rose-500"></i>
-                        Delete
                       </button>
                     )}
                   </div>
