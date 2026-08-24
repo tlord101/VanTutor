@@ -1244,8 +1244,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       const file = fileItem as any;
       const localTimestamp = Date.now();
       const tempId = `temp_file_${localTimestamp}`;
-      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
-      const localUrl = URL.createObjectURL(file);
+      const isImg = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic|heif|gif)$/i.test(file.name || '');
+      const fileType = isImg ? 'image' : 'file';
+
+      let localUrl = '';
+      try {
+        localUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve((event.target?.result as string) || '');
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      } catch {
+        localUrl = URL.createObjectURL(file);
+      }
+
       const pendingMessage = {
         id: tempId,
         senderId: firebaseUser.uid,
@@ -1257,19 +1270,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       setOptimisticMessages(prev => [...prev, pendingMessage]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       try {
-        const ext = file.name ? file.name.split('.').pop() : 'jpg';
+        const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
         const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
         const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${safeFileName}`;
         const fileBucketRef = storageRef(storage, cloudPath);
-        const snapshot = await uploadBytes(fileBucketRef, file);
+
+        const mimeType = file.type || (isImg ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'application/octet-stream');
+        const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
         const fileDownloadUrl = await getDownloadURL(snapshot.ref);
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        if (file.type.startsWith('image/')) {
+        if (fileType === 'image') {
           await sendMsg(`![Image](${fileDownloadUrl})`, 'image');
         } else {
           await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
         }
       } catch (err) {
+        console.error("Upload error:", err);
         addToast(`Failed to upload asset: ${file.name}`, 'error');
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
       }
@@ -1281,12 +1297,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const localTimestamp = Date.now();
     const tempId = `temp_img_${localTimestamp}`;
-    const localBlobUrl = URL.createObjectURL(file);
 
-    // 1. Construct optimistic message using lightweight Blob URL
+    let localDataUrl = '';
+    try {
+      localDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve((event.target?.result as string) || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+    } catch {
+      localDataUrl = URL.createObjectURL(file);
+    }
+
     const fullText = caption
-      ? `![Captured Image](${localBlobUrl})\n\n${caption}`
-      : `![Captured Image](${localBlobUrl})`;
+      ? `![Captured Image](${localDataUrl})\n\n${caption}`
+      : `![Captured Image](${localDataUrl})`;
 
     const pendingMessage = {
       id: tempId,
@@ -1297,25 +1323,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       isUploading: true
     };
 
-    // 2. Add optimistic message to the chat stream immediately
     setOptimisticMessages(prev => [...prev, pendingMessage]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      // 3. Rename filename to a random number to prevent Firebase and markdown crashes
-      const ext = file.name ? file.name.split('.').pop() : 'jpg';
+      const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
       const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
       const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
       const fileBucketRef = storageRef(storage, cloudPath);
 
-      // 4. Use uploadBytes directly
-      const snapshot = await uploadBytes(fileBucketRef, file);
+      const mimeType = file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
       const fileDownloadUrl = await getDownloadURL(snapshot.ref);
 
-      // 5. Cleanup the local optimistic message
       setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
 
-      // 6. Send the final, real payload to the chat
       const finalFullText = caption
         ? `![Captured Image](${fileDownloadUrl})\n\n${caption}`
         : `![Captured Image](${fileDownloadUrl})`;
@@ -1598,6 +1620,23 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
+  const userOptionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showUserOptions) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (userOptionsRef.current && !userOptionsRef.current.contains(e.target as Node)) {
+        setShowUserOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showUserOptions]);
+
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
 
@@ -1652,10 +1691,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         ),
         rightActions: (
-          <div className="relative shrink-0 flex items-center">
+          <div ref={userOptionsRef} className="relative shrink-0 flex items-center">
             <button
               type="button"
-              onClick={() => setShowUserOptions(!showUserOptions)}
+              onClick={() => setShowUserOptions(prev => !prev)}
               className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
             >
               <i className="bi bi-three-dots-vertical text-lg" />
@@ -1868,7 +1907,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
                 return (
                   <div key={msg.id} className={`message-bubble-wrapper ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className="flex items-end space-x-2">
+                    <div className={`flex items-end space-x-2 max-w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {!isMe && (
                         <Avatar className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent mb-0.5" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}

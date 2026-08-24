@@ -1408,12 +1408,24 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     const userText = prompt || getHistoryFallbackTitle(prompt, primaryAttachment);
 
     // Create local optimistic attachments to render in the user's bubble immediately
-    const optimisticAttachments = filesToSend.map((file, index) => ({
-      id: `optimistic-${Date.now()}-${index}`,
-      name: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      url: URL.createObjectURL(file),
-      isImage: isImageMimeType(file.type, file.name),
+    const optimisticAttachments = await Promise.all(filesToSend.map(async (file, index) => {
+      let url = '';
+      try {
+        url = await fileToBase64(file).then(b64 => {
+          const isImg = isImageMimeType(file.type, file.name);
+          const mime = file.type || (isImg ? 'image/jpeg' : 'application/octet-stream');
+          return `data:${mime};base64,${b64}`;
+        });
+      } catch {
+        url = URL.createObjectURL(file);
+      }
+      return {
+        id: `optimistic-${Date.now()}-${index}`,
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        url,
+        isImage: isImageMimeType(file.type, file.name),
+      };
     }));
 
     const userMessage: AssistantMessage = {
@@ -1866,7 +1878,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         <aside
           className={`${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-50 w-[84vw] max-w-[310px] border-r border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#121212] flex flex-col shadow-2xl transition-transform duration-300 md:static md:z-auto md:w-76 md:translate-x-0 md:shadow-none`}
+          } fixed inset-y-0 left-0 z-[120] w-[84vw] max-w-[310px] border-r border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#121212] flex flex-col shadow-2xl transition-transform duration-300 md:static md:z-auto md:w-76 md:translate-x-0 md:shadow-none`}
         >
           {/* Drawer Top Header / New Chat */}
           <div className="p-4 pb-2 flex items-center justify-between">
@@ -2053,7 +2065,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         {isSidebarOpen && (
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
+            className="fixed inset-0 z-[115] bg-black/60 backdrop-blur-xs md:hidden"
             aria-label="Close menu overlay"
             onClick={() => setIsSidebarOpen(false)}
           />
