@@ -73,10 +73,10 @@ function initOTAEngine() {
                         version: data.version,
                     });
 
-                    localStorage.setItem('current_ota_version', data.version);
-                    await CapacitorUpdater.set({ id: versionInfo.id });
+                    localStorage.setItem('pending_ota_bundle_id', versionInfo.id);
+                    localStorage.setItem('pending_ota_version', data.version);
 
-                    console.log('[OTA] Update downloaded & ready. User can restart to apply.');
+                    console.log('[OTA] Update downloaded & ready in background.');
                     setGlobalState({ status: 'ready', newVersion: data.version, downloadProgress: 100 });
                 }
             } catch (error) {
@@ -111,25 +111,22 @@ export function useOTAUpdater() {
     }, []);
 
     const restartToUpdate = useCallback(async () => {
-        // Native: the new bundle is already staged via CapacitorUpdater.set(),
-        // so it activates on the NEXT app launch. We therefore close the app
-        // completely (process exits) — the user just taps the icon again and
-        // boots straight into the updated version.
         try {
             if (Capacitor.isNativePlatform()) {
-                const { App } = await import('@capacitor/app');
-                await App.exitApp();
+                const pendingBundleId = localStorage.getItem('pending_ota_bundle_id');
+                const pendingVersion = localStorage.getItem('pending_ota_version');
+                if (pendingBundleId) {
+                    await CapacitorUpdater.set({ id: pendingBundleId });
+                    if (pendingVersion) {
+                        localStorage.setItem('current_ota_version', pendingVersion);
+                    }
+                }
+                await CapacitorUpdater.reload();
                 return;
             }
             window.location.reload();
         } catch (e) {
-            console.warn('[OTA] Full close failed, falling back to in-place reload:', e);
-            try {
-                if (Capacitor.isNativePlatform()) {
-                    await CapacitorUpdater.reload();
-                    return;
-                }
-            } catch { /* ignore */ }
+            console.warn('[OTA] Reload failed, falling back to window.location.reload():', e);
             window.location.reload();
         }
     }, []);
