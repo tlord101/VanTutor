@@ -1828,7 +1828,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-3 pt-3 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               <div className="min-h-full flex flex-col justify-end">
               {combinedMessageStream.length === 0 ? (
                 <div className="my-auto flex flex-col items-center justify-center px-4 py-8">
