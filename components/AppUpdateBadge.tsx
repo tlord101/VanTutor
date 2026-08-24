@@ -27,10 +27,10 @@ export const AppUpdateBadge: React.FC<{ className?: string }> = ({ className = '
             <button
                 onClick={restartToUpdate}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0070F3] hover:bg-[#0060DF] active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 cursor-pointer animate-pulse transition-all ${className}`}
-                title="Update ready! Tap to close the app — reopen it to apply the new version."
+                title="Update ready! Tap to close the app completely."
             >
                 <i className="bi bi-power text-sm leading-none" aria-hidden="true" />
-                <span>Restart App</span>
+                <span>Close App</span>
             </button>
         );
     }

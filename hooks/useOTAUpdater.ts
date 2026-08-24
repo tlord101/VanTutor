@@ -158,14 +158,17 @@ export function useOTAUpdater() {
             localStorage.removeItem('pending_ota_version');
             setGlobalState({ status: 'idle', newVersion: null, downloadProgress: 0 });
 
-            if (Capacitor.isNativePlatform() && pendingBundleId) {
-                await CapacitorUpdater.set({ id: pendingBundleId });
-                await CapacitorUpdater.reload();
+            if (Capacitor.isNativePlatform()) {
+                if (pendingBundleId) {
+                    await CapacitorUpdater.set({ id: pendingBundleId }).catch(() => {});
+                }
+                const { App } = await import('@capacitor/app');
+                await App.exitApp();
                 return;
             }
             window.location.reload();
         } catch (e) {
-            console.warn('[OTA] Reload failed, falling back to window.location.reload():', e);
+            console.warn('[OTA] Exit/Reload failed, falling back to window.location.reload():', e);
             window.location.reload();
         }
     }, []);
