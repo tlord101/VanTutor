@@ -228,6 +228,7 @@ interface AvelutInputProps {
   onImageSendWithCaption?: (source: any, caption: string, mimeType?: string) => void;
   disabled?: boolean;
   onTyping?: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 const AvelutMessageInput: React.FC<AvelutInputProps> = ({
@@ -242,7 +243,8 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   onFileSelect,
   onImageSendWithCaption,
   disabled = false,
-  onTyping
+  onTyping,
+  inputRef
 }) => {
   const themeColor = '#0A101F'; // navy blue
 
@@ -401,6 +403,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
               </div>
               <div className="flex-1 h-full flex items-center min-w-0">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={message}
                   onChange={(e) => { setMessage(e.target.value); onTyping?.(); }}
@@ -567,6 +570,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       remove(typingRef).catch(console.error);
     }
   };
+
+  const textInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (replyingTo) {
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 50);
+    }
+  }, [replyingTo]);
 
   const messageActionMenuRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2026,6 +2039,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               setReplyingTo(msg);
                               e.currentTarget.style.transform = 'translateX(0px)';
                               swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                              setTimeout(() => {
+                                textInputRef.current?.focus();
+                              }, 50);
                               return;
                             }
                             e.currentTarget.style.transform = 'translateX(0px)';
@@ -2227,6 +2243,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 </div>
               ) : studyPartners[selectedChatUser.uid] === true || selectedChatUser.uid === firebaseUser?.uid ? (
                 <AvelutMessageInput
+                  inputRef={textInputRef}
                   onSend={(text) => sendMsg(text, 'text')}
                   startRecording={startRecording}
                   handleMove={handleMove}
