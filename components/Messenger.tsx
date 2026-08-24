@@ -57,6 +57,11 @@ const formatLastSeen = (value?: number) => {
   return `Last seen ${new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
 };
 
+const formatMessageTime = (ts?: number) => {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
 const getUnreadCount = (chat: any) => Number(chat?.unreadCount || 0);
 
 const getLastMessagePreview = (chat: any) => {
@@ -1824,11 +1829,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       </div>
 
       {/* Main Chat Viewport */}
-      <div className={`flex-1 flex flex-col h-full bg-[#EFEAE2] dark:bg-[#0B141A] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-[#F7F9FC] dark:bg-[#0B1220] relative ${!activeChat ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {activeChat ? (
           <div className="flex flex-col h-full w-full relative overflow-hidden">
             {/* 2. Messages List */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-[80px] md:py-6 bg-[#EFEAE2] dark:bg-[#0B141A] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 px-[clamp(10px,4vw,28px)] py-[clamp(5px,1.2vw,12px)] pb-[80px] bg-[#F7F9FC] dark:bg-[#0B1220] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
               <div className="min-h-full flex flex-col justify-end">
               {combinedMessageStream.length === 0 ? (
                 <div className="my-auto flex flex-col items-center justify-center px-4 py-8">
@@ -2020,9 +2025,15 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           {/* Meta Timestamp */}
                           <div className="message-time">
                             <span>
-                              {msg.isUploading ? 'Sending...' : '12:53 PM'}
+                              {msg.isUploading ? 'Sending...' : formatMessageTime(msg.timestamp)}
                             </span>
-                            {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
+                            {isMe && !msg.isUploading && (
+                              msg.isRead ? (
+                                <span className="text-[0.95em] tracking-[-2px] leading-none" aria-label="Read">✓✓</span>
+                              ) : (
+                                <DoubleCheckIcon color="currentColor" />
+                              )
+                            )}
                           </div>
                         </div>
                         <div className="clear-both"></div>
@@ -2066,7 +2077,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </div>
 
             {/* 3. Bottom Control Anchor Panel Bar */}
-            <div className="p-3 bg-[#EFEAE2] dark:bg-[#0B141A] z-10 shrink-0">
+            <div className="p-3 bg-[#F7F9FC] dark:bg-[#0B1220] z-10 shrink-0">
               {replyingTo && (
                 <div className="flex items-center justify-between mb-2 p-2 bg-neutral-100 dark:bg-[#1A1D21] rounded-lg border-l-4 border-[#009EE2]">
                   <div className="min-w-0">
