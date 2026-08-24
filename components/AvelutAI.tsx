@@ -1472,11 +1472,13 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           last_updated_at: now,
         });
 
-        await set(newConversationRef, {
+        // Fire-and-forget push to Firebase Realtime Database
+        set(newConversationRef, {
           title: 'New Chat',
           created_at: now,
           last_updated_at: now,
-        });
+        }).catch(err => console.warn('Cloud conversation creation sync note:', err));
+
         setActiveHistoryId(conversationId);
         // Award streak for starting a new AI chat
         void awardDailyStreak(userProfile.uid);
@@ -1575,7 +1577,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         timestamp: serverTimestamp(),
         attachments: cloudAttachments,
       };
-      await push(messagesRef, storedUserMessage);
+      // Fire-and-forget push to Firebase
+      push(messagesRef, storedUserMessage).catch(err => console.warn('Cloud message sync note:', err));
 
       const assistantMsgId = createMessageId();
       let responseText = '';
