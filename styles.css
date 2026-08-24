@@ -605,3 +605,17 @@
 
 
 
+
+/* Moved from inline <style> in index.html (Vite 6 html-proxy build bug) */
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+}

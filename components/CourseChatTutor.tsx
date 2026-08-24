@@ -392,7 +392,7 @@ ${textToSend || '(Student attached image)'}`;
       const finalMessages = [...nextMessages, aiMsg];
       setMessages(finalMessages);
       writeCachedJson(cacheKey, finalMessages, userProfile?.uid);
-      await deductAICredits(userProfile, cost, 'chat_interaction', appSettings);
+      await deductAICredits(userProfile?.uid, cost, 'Course Chat Tutor', appSettings);
     } catch (err: any) {
       console.error('[CourseChatTutor] Send error:', err);
       addToast(err?.message || 'Failed to get response. Please try again.', 'error');
