@@ -1695,6 +1695,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
             responseText += chunkText;
+            setStreamingBotText(responseText);
             setMessages((prev) =>
               prev.map((m) => (m.id === assistantMsgId ? { ...m, text: responseText } : m))
             );
@@ -1714,15 +1715,25 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       if (!aiResult.success) {
         console.error('Avelut assistant error:', aiResult.message);
         setStatusText('Unable to respond right now.');
-        setMessages([
-          ...nextMessages,
-          {
-            id: createMessageId(),
-            sender: 'assistant',
-            text: 'Sorry, I ran into a problem generating that reply. Please try again.',
-            timestamp: Date.now(),
-          },
-        ]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === assistantMsgId);
+          if (exists) {
+            return prev.map((m) =>
+              m.id === assistantMsgId
+                ? { ...m, text: 'Sorry, I ran into a problem generating that reply. Please try again.' }
+                : m
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: assistantMsgId,
+              sender: 'assistant',
+              text: 'Sorry, I ran into a problem generating that reply. Please try again.',
+              timestamp: Date.now(),
+            },
+          ];
+        });
         return;
       }
 
