@@ -287,10 +287,10 @@
 .message-bubble-wrapper {
   display: flex;
   width: 100%;
-  margin-top: clamp(5px, 1.2vw, 12px);
-  margin-bottom: clamp(5px, 1.2vw, 12px);
-  padding-left: clamp(10px, 4vw, 28px);
-  padding-right: clamp(10px, 4vw, 28px);
+  margin-top: clamp(4px, 1vw, 8px);
+  margin-bottom: clamp(4px, 1vw, 8px);
+  padding-left: clamp(8px, 2vw, 16px);
+  padding-right: clamp(8px, 2vw, 16px);
 }
 
 .message-bubble {
@@ -299,17 +299,17 @@
   width: fit-content;
   max-width: 85%;
 
-  padding-left: clamp(12px, 2.5vw, 20px);
-  padding-right: clamp(12px, 2.5vw, 20px);
-  padding-top: clamp(8px, 1.5vw, 12px);
-  padding-bottom: clamp(8px, 1.5vw, 12px);
+  padding-left: clamp(10px, 2vw, 18px);
+  padding-right: clamp(10px, 2vw, 18px);
+  padding-top: clamp(6px, 1.2vw, 10px);
+  padding-bottom: clamp(6px, 1.2vw, 10px);
 
-  font-size: clamp(15px, 2.8vw, 18px);
+  font-size: clamp(14px, 2.5vw, 17px);
   line-height: 1.35;
 
-  border-radius: clamp(15px, 1.8vw, 18px);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  border-radius: clamp(14px, 1.5vw, 18px);
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 @media (min-width: 640px) {
@@ -343,24 +343,27 @@
 .message-content {
   display: inline-flex;
   align-items: flex-end;
-  gap: clamp(7px, 1.5vw, 12px);
+  gap: clamp(6px, 1.2vw, 10px);
   width: 100%;
 }
 
 .message-text {
-  font-size: clamp(15px, 2.8vw, 18px);
+  font-size: clamp(14px, 2.5vw, 17px);
   line-height: 1.35;
+  flex: 1 1 auto;
   min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .message-time {
-  margin-left: clamp(7px, 1.5vw, 12px);
+  margin-left: clamp(6px, 1.2vw, 10px);
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 0.25rem;
   white-space: nowrap;
-  font-size: clamp(10px, 2vw, 12px);
+  font-size: clamp(10px, 1.8vw, 12px);
   line-height: 1;
 }
 
