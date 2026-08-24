@@ -1,0 +1,249 @@
+import { Capacitor } from '@capacitor/core';
+import { Filesystem } from '@capacitor/filesystem';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import type { FirebaseStorage } from 'firebase/storage';
+
+/**
+ * Shared, defensive media-upload helpers.
+ *
+ * Guarantees provided to callers:
+ *  - Any supported source (File / Blob / data: / blob: / http(s): / Capacitor content:// or file://)
+ *    is converted into a real Blob BEFORE any upload is attempted.
+ *  - Uploads are retried with backoff and hard per-attempt timeouts so a stalled
+ *    native network call can never hang a chat bubble on "Sending..." forever.
+ *  - The returned download URL is validated to be a permanent http(s) URL
+ *    (never a temporary/revoked blob: or data: URL).
+ */
+
+export class UploadTimeoutError extends Error {
+  constructor(label: string, timeoutMs: number) {
+    super(`${label} timed out after ${timeoutMs}ms`);
+    this.name = 'UploadTimeoutError';
+  }
+}
+
+export const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, label = 'Operation'): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new UploadTimeoutError(label, timeoutMs)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+
+const base64ToBlob = (base64OrDataUrl: string, mimeType = 'application/octet-stream'): Blob => {
+  const clean = base64OrDataUrl.includes(',')
+    ? base64OrDataUrl.slice(base64OrDataUrl.indexOf(',') + 1)
+    : base64OrDataUrl;
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType });
+};
+
+const guessMimeFromUri = (uri: string): string => {
+  const extMatch = /\.([a-z0-9]+)(?:[?#]|$)/i.exec(uri);
+  const ext = extMatch?.[1]?.toLowerCase();
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    case 'webm':
+      return 'audio/webm';
+    case 'mp4':
+      return 'video/mp4';
+    case 'pdf':
+      return 'application/pdf';
+    default:
+      return '';
+  }
+};
+
+export interface SourceBlob {
+  blob: Blob;
+  mimeType: string;
+}
+
+/**
+ * Converts anything that can represent an image/file into a real Blob that is safe
+ * to hand to Firebase Storage. Throws when the source cannot be read at all —
+ * callers should surface that as an error instead of uploading garbage.
+ */
+export const sourceToBlob = async (source: unknown): Promise<SourceBlob> => {
+  if (!source) throw new Error('No media source provided.');
+
+  // Real File/Blob coming from <input type="file"> or MediaRecorder — use directly.
+  if (typeof Blob !== 'undefined' && source instanceof Blob) {
+    if (source.size === 0) throw new Error('Selected media is empty.');
+    return { blob: source, mimeType: (source as File).type || source.type || '' };
+  }
+
+  if (typeof source !== 'string' || !source.trim()) throw new Error('Invalid media source.');
+  const uri = source.trim();
+
+  // data: URL (e.g. FileReader output) -> decode straight to bytes.
+  if (/^data:/i.test(uri)) {
+    const mimeType = /^data:([^;,]+)/i.exec(uri)?.[1] || '';
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    if (!blob.size) throw new Error('Media could not be decoded.');
+    return { blob, mimeType: mimeType || blob.type };
+  }
+
+  // Capacitor content:// URI (gallery/camera picker on Android).
+  if (/^content:\/\//i.test(uri)) {
+    const fallbackMime = guessMimeFromUri(uri);
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // The Android Filesystem plugin supports reading content:// URIs directly.
+        const fileData = await Filesystem.readFile({ path: uri });
+        const blob = base64ToBlob(String(fileData.data), fallbackMime);
+        if (!blob.size) throw new Error('Empty file');
+        return { blob, mimeType: blob.type || fallbackMime };
+      } catch (fsError) {
+        console.warn('[mediaUpload] Filesystem content:// read failed, trying convertFileSrc:', fsError);
+      }
+      try {
+        const res = await fetch(Capacitor.convertFileSrc(uri));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (!blob.size) throw new Error('Empty file');
+        return { blob, mimeType: blob.type || fallbackMime };
+      } catch (fetchError) {
+        console.error('[mediaUpload] Unable to read content:// URI:', fetchError);
+        throw new Error('Could not read the selected image. Please pick it again.');
+      }
+    }
+    throw new Error('content:// URIs can only be read inside the mobile app.');
+  }
+
+  // Capacitor file:// URI (or bare absolute path).
+  if (/^file:\/\//i.test(uri) || /^(\/|\\\\)/.test(uri)) {
+    const fallbackMime = guessMimeFromUri(uri);
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const res = await fetch(Capacitor.convertFileSrc(/^file:\/\//i.test(uri) ? uri : `file://${uri}`));
+        if (res.ok) {
+          const blob = await res.blob();
+          if (blob.size) return { blob, mimeType: blob.type || fallbackMime };
+        }
+      } catch (fetchError) {
+        console.warn('[mediaUpload] convertFileSrc fetch failed, falling back to Filesystem:', fetchError);
+      }
+      try {
+        const fileData = await Filesystem.readFile({ path: uri.replace(/^file:\/\//i, '') });
+        return { blob: base64ToBlob(String(fileData.data), fallbackMime), mimeType: fallbackMime };
+      } catch (fsError) {
+        console.error('[mediaUpload] Unable to read file:// path:', fsError);
+        throw new Error('Could not read the selected file. Please pick it again.');
+      }
+    }
+    throw new Error('Local file paths can only be read inside the mobile app.');
+  }
+
+  // blob: URLs and remote http(s) resources.
+  if (/^(blob|https?):/i.test(uri)) {
+    let res: Response;
+    try {
+      res = await fetch(uri);
+    } catch (fetchError) {
+      throw new Error(`Could not fetch media: ${(fetchError as Error)?.message || 'network error'}`);
+    }
+    if (!res.ok) throw new Error(`Could not fetch media (HTTP ${res.status}).`);
+    const blob = await res.blob();
+    if (!blob.size) throw new Error('Media could not be fetched.');
+    return { blob, mimeType: blob.type || guessMimeFromUri(uri) };
+  }
+
+  throw new Error(`Unsupported media source: ${uri.slice(0, 64)}`);
+};
+
+export interface UploadWithRetryOptions {
+  attempts?: number;
+  /** Hard cap per attempt covering both uploadBytes and getDownloadURL. */
+  timeoutMs?: number;
+  contentType?: string;
+}
+
+/**
+ * Uploads a Blob to Firebase Storage with retries + timeouts and returns a
+ * validated, PERMANENT https download URL. Rejects if every attempt fails or if
+ * the resolved URL is not a durable http(s) URL (e.g. someone accidentally
+ * returned a blob:/data: URL which would die after page unload).
+ */
+export const uploadBlobWithRetry = async (
+  storage: FirebaseStorage,
+  blob: Blob,
+  cloudPath: string,
+  options: UploadWithRetryOptions = {}
+): Promise<string> => {
+  const { attempts = 3, timeoutMs = 60000, contentType } = options;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const snapshot = await withTimeout(
+        uploadBytes(storageRef(storage, cloudPath), blob, contentType ? { contentType } : undefined),
+        timeoutMs,
+        `Upload attempt ${attempt}/${attempts}`
+      );
+      const url = await withTimeout(getDownloadURL(snapshot.ref), timeoutMs, 'Resolving download URL');
+      if (!url || !/^https?:\/\//i.test(url)) {
+        throw new Error(`Storage returned an invalid (non-permanent) URL: ${String(url).slice(0, 64)}`);
+      }
+      return url;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[mediaUpload] Attempt ${attempt}/${attempts} failed for ${cloudPath}:`, error);
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, Math.min(1200 * 2 ** (attempt - 1), 5000)));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Upload failed after multiple attempts.');
+};
+
+/**
+ * Resolves only once the given URL actually loads in an <img>. Used to verify
+ * that the persisted message image URL is accessible BEFORE marking a message sent.
+ */
+export const verifyImageUrl = (url: string, timeoutMs = 15000): Promise<void> =>
+  new Promise<void>((resolve, reject) => {
+    if (typeof window === 'undefined' || !url || !/^https?:\/\//i.test(url)) {
+      reject(new Error('Image URL is not a valid http(s) URL.'));
+      return;
+    }
+    const img = new Image();
+    const timer = setTimeout(() => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+      reject(new UploadTimeoutError('Verifying uploaded image', timeoutMs));
+    }, timeoutMs);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error('Uploaded image could not be loaded.'));
+    };
+    img.src = url;
+  });

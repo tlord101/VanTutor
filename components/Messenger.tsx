@@ -9,8 +9,8 @@ import { VerificationBadge } from './VerificationBadge';
 import { StreakBadge } from './StreakBadge';
 import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
-import { ref as storageRef, uploadBytes, uploadString, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
+import { sourceToBlob, uploadBlobWithRetry, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
 import { useTheme } from '../contexts/ThemeContext';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
@@ -55,6 +55,11 @@ const formatLastSeen = (value?: number) => {
   if (diffHours < 24) return `Last seen ${diffHours}h ago`;
   if (diffDays < 7) return `Last seen ${diffDays}d ago`;
   return `Last seen ${new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+};
+
+const formatChatTimestamp = (ts?: number) => {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 };
 
 const getUnreadCount = (chat: any) => Number(chat?.unreadCount || 0);
@@ -220,7 +225,7 @@ interface AvelutInputProps {
   setIsLocked: (locked: boolean) => void;
   recordDuration: number;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onImageSendWithCaption?: (file: File, caption: string) => void;
+  onImageSendWithCaption?: (source: any, caption: string, mimeType?: string) => void;
   disabled?: boolean;
   onTyping?: () => void;
 }
@@ -241,7 +246,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 }) => {
   const themeColor = '#0A101F'; // navy blue
 
-  const [attachedImage, setAttachedImage] = useState<{ file: File, previewUrl: string } | null>(null);
+  const [attachedImage, setAttachedImage] = useState<{ source: any; previewUrl: string; mimeType: string } | null>(null);
 
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
@@ -313,7 +318,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const executeTextSend = () => {
     if ((message.trim() || attachedImage) && !disabled) {
       if (attachedImage && onImageSendWithCaption) {
-        onImageSendWithCaption(attachedImage.file, message.trim());
+        onImageSendWithCaption(attachedImage.source, message.trim(), attachedImage.mimeType);
         setAttachedImage(null);
       } else if (message.trim()) {
         onSend(message);
@@ -339,7 +344,11 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          setAttachedImage({ file, previewUrl: e.target.result as string });
+          setAttachedImage({
+            source: file,
+            previewUrl: e.target.result as string,
+            mimeType: file.type || `image/${(file.name || '').split('.').pop() === 'png' ? 'png' : 'jpeg'}`
+          });
         }
       };
       reader.readAsDataURL(file);
@@ -1237,117 +1246,165 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
-  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
-    const selectedFiles = Array.from(e.target.files);
-    for (const fileItem of selectedFiles) {
-      const file = fileItem as any;
-      const localTimestamp = Date.now();
-      const tempId = `temp_file_${localTimestamp}`;
-      const isImg = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic|heif|gif)$/i.test(file.name || '');
-      const fileType = isImg ? 'image' : 'file';
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Could not read media preview.'));
+        reader.readAsDataURL(blob);
+      });
 
-      let localUrl = '';
-      try {
-        localUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (event) => resolve((event.target?.result as string) || '');
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(file);
-        });
-      } catch {
-        localUrl = URL.createObjectURL(file);
-      }
-
-      const pendingMessage = {
-        id: tempId,
-        senderId: firebaseUser.uid,
-        text: fileType === 'image' ? `![Image](${localUrl})` : `[📄 ${file.name}]()`,
-        type: fileType,
-        timestamp: localTimestamp,
-        isUploading: true
-      };
-      setOptimisticMessages(prev => [...prev, pendingMessage]);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-      try {
-        const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
-        const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
-        const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${safeFileName}`;
-        const fileBucketRef = storageRef(storage, cloudPath);
-
-        const mimeType = file.type || (isImg ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'application/octet-stream');
-        const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
-        const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        if (fileType === 'image') {
-          await sendMsg(`![Image](${fileDownloadUrl})`, 'image');
-        } else {
-          await sendMsg(`[📄 ${file.name}](${fileDownloadUrl})`, 'file');
-        }
-      } catch (err) {
-        console.error("Upload error:", err);
-        addToast(`Failed to upload asset: ${file.name}`, 'error');
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-      }
-    }
-  };
-
-  const handleImageSendWithCaption = async (file: File, caption: string) => {
+  /**
+   * Unified media-send pipeline:
+   *   1. Convert ANY source (File / Blob / data: / blob: / http(s): / Capacitor content:// or file://)
+   *      into a real Blob BEFORE anything else - a raw content:// or file:// URI is never
+   *      handed to Firebase Storage.
+   *   2. Show a local "Sending..." bubble (Blob is retained on the bubble for retry).
+   *   3. Upload with retries + hard timeout, then require a permanent http(s) download URL.
+   *   4. For images, verify the returned URL actually loads before marking the message sent.
+   *   5. ONLY after the URL is validated and loads do we create/send the chat message via sendMsg.
+   *      On failure the bubble stays with an explicit error state + retry - it never hangs on "Sending...".
+   */
+  const uploadAndSendMedia = async (
+    source: unknown,
+    caption: string,
+    opts: { preConfigureType?: 'image' | 'file'; fileName?: string } = {}
+  ) => {
     if (!activeChat || !firebaseUser) return;
 
-    const localTimestamp = Date.now();
-    const tempId = `temp_img_${localTimestamp}`;
-
-    let localDataUrl = '';
+    let sourceBlob: SourceBlob;
     try {
-      localDataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve((event.target?.result as string) || '');
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-    } catch {
-      localDataUrl = URL.createObjectURL(file);
+      sourceBlob = await sourceToBlob(source);
+    } catch (readErr) {
+      console.error('[Messenger] Could not read selected media:', readErr);
+      addToast((readErr as Error)?.message || 'Could not read the selected media.', 'error');
+      return;
     }
 
-    const fullText = caption
-      ? `![Captured Image](${localDataUrl})\n\n${caption}`
-      : `![Captured Image](${localDataUrl})`;
+    const fileName = (typeof File !== 'undefined' && source instanceof File && source.name)
+      ? source.name
+      : (opts.fileName || '');
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    const rawMime = sourceBlob.mimeType || '';
+    const isImg = opts.preConfigureType === 'image'
+      || rawMime.startsWith('image/')
+      || /\.(jpg|jpeg|png|webp|gif|heic|heif|bmp)$/i.test(fileName);
+    const isVoice = rawMime.startsWith('audio/');
+    const fileType = isImg ? 'image' : isVoice ? 'voice' : 'file';
 
-    const pendingMessage = {
+    const localTimestamp = Date.now();
+    const tempId = `temp_${fileType}_${localTimestamp}_${Math.round(Math.random() * 1e6)}`;
+    const displayName = fileName || (fileType === 'voice' ? 'Voice Note' : 'Media');
+
+    // Local-only preview for the optimistic bubble. Never persisted to the chat message.
+    let previewUrl = '';
+    try {
+      previewUrl = await blobToDataUrl(sourceBlob.blob);
+    } catch (previewErr) {
+      console.warn('[Messenger] Could not build local preview; sending without one.', previewErr);
+    }
+    const pendingText = fileType === 'image'
+      ? (previewUrl ? `![Image](${previewUrl})` : '![Image]()')
+      : fileType === 'voice'
+        ? `[Voice Note](${previewUrl})`
+        : `[📄 ${displayName}]()`;
+
+    const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
+
+    const pendingMessage: any = {
       id: tempId,
       senderId: firebaseUser.uid,
-      text: fullText,
-      type: 'image',
+      text: pendingText,
+      type: fileType,
       timestamp: localTimestamp,
-      isUploading: true
+      isUploading: true,
+      blob: sourceBlob.blob,
+      mimeType: rawMime,
+      fileName,
+      cloudPath,
     };
+    if (caption && fileType === 'image') pendingMessage.caption = caption;
 
     setOptimisticMessages(prev => [...prev, pendingMessage]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      const ext = file.name ? file.name.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
-      const safeFileName = `${Math.floor(Math.random() * 1000000000)}.${ext}`;
-      const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_camera_${safeFileName}`;
-      const fileBucketRef = storageRef(storage, cloudPath);
+      // Upload with retries + hard timeout; must yield a permanent https download URL.
+      const permanentUrl = await uploadBlobWithRetry(storage, sourceBlob.blob, cloudPath, {
+        contentType: rawMime || undefined,
+        attempts: 3,
+        timeoutMs: 60000,
+      });
 
-      const mimeType = file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-      const snapshot = await uploadBytes(fileBucketRef, file, { contentType: mimeType });
-      const fileDownloadUrl = await getDownloadURL(snapshot.ref);
+      if (fileType === 'image') {
+        // Verify the returned URL actually loads BEFORE creating/sending the chat message.
+        await verifyImageUrl(permanentUrl);
+        const verifiedText = caption
+          ? `![Image](${permanentUrl})\n\n${caption}`
+          : `![Image](${permanentUrl})`;
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(verifiedText, 'image');
+      } else if (fileType === 'voice') {
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
+      } else {
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
+      }
+    } catch (uploadErr) {
+      console.error('[Messenger] Media upload failed:', uploadErr);
+      const errMsg = (uploadErr as Error)?.message || 'Upload failed';
+      setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
+      addToast(`${errMsg}. Tap the message to retry.`, 'error');
+    }
+  };
 
-      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeChat || !e.target.files || e.target.files.length === 0 || !firebaseUser) return;
+    const selectedFiles = Array.from(e.target.files);
+    for (const file of selectedFiles) {
+      await uploadAndSendMedia(file as File, '');
+    }
+    e.target.value = '';
+  };
 
-      const finalFullText = caption
-        ? `![Captured Image](${fileDownloadUrl})\n\n${caption}`
-        : `![Captured Image](${fileDownloadUrl})`;
+  const handleImageSendWithCaption = async (source: any, caption: string = '', mimeType?: string) => {
+    if (!activeChat || !firebaseUser) return;
+    void mimeType;
+    await uploadAndSendMedia(source, caption || '', { preConfigureType: 'image' });
+  };
 
-      await sendMsg(finalFullText, 'image');
-
+  const retryFailedUpload = async (msg: any) => {
+    if (!activeChat || !firebaseUser || !msg?.blob || msg?.type === undefined) return;
+    const tempId = msg.id;
+    setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false } : m));
+    try {
+      const cloudPath = msg.cloudPath
+        || `chat_files/${activeChat.chatId}/${Date.now()}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
+      const permanentUrl = await uploadBlobWithRetry(storage, msg.blob, cloudPath, {
+        contentType: msg.mimeType || undefined,
+        attempts: 3,
+        timeoutMs: 60000,
+      });
+      if (msg.type === 'image') {
+        await verifyImageUrl(permanentUrl);
+        const finalText = msg.caption
+          ? `![Image](${permanentUrl})\n\n${msg.caption}`
+          : `![Image](${permanentUrl})`;
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(finalText, 'image');
+      } else if (msg.type === 'voice') {
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
+      } else {
+        const displayName = msg.fileName || 'Media';
+        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
+      }
     } catch (err) {
-      console.error("Image upload failed:", err);
-      addToast('Failed to start image upload.', 'error');
-      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      console.error('[Messenger] Retry upload failed:', err);
+      setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
+      addToast('Upload still failed. Please try again.', 'error');
     }
   };
 
@@ -1375,26 +1432,34 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             const tempId = `temp_vn_${localTimestamp}`;
             const blobLocalUrl = URL.createObjectURL(blob);
 
-            const pendingMessage = {
+            const pendingMessage: any = {
               id: tempId,
               senderId: firebaseUser.uid,
               text: `[Voice Note](${blobLocalUrl})`,
               type: 'voice',
               timestamp: localTimestamp,
-              isUploading: true
+              isUploading: true,
+              blob,
+              mimeType: 'audio/webm',
+              fileName: 'Voice Note.webm',
+              cloudPath: `voice_notes/${activeChat?.chatId}/${localTimestamp}.webm`,
             };
 
             setOptimisticMessages(prev => [...prev, pendingMessage]);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
             try {
-              const path = `voice_notes/${activeChat?.chatId}/${localTimestamp}.webm`;
-              const url = await getDownloadURL(await uploadBytes(storageRef(storage, path), blob).then(s => s.ref));
+              const url = await uploadBlobWithRetry(storage, blob, pendingMessage.cloudPath, {
+                contentType: 'audio/webm',
+                attempts: 3,
+                timeoutMs: 60000,
+              });
               setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
               await sendMsg(`[Voice Note](${url})`, 'voice');
             } catch (uploadError) {
               console.error("Voice Note storage syncing failure:", uploadError);
-              setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+              setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
+              addToast('Voice note upload failed. Tap the message to retry.', 'error');
             }
           }
         }
@@ -2057,12 +2122,26 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               </div>
                             )}
 
+                            {msg.isFailed && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); void retryFailedUpload(msg); }}
+                                className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-400 bg-black/10 dark:bg-white/10 rounded-full px-2 py-0.5"
+                              >
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M16 3h5l-1.8 3.7 1.8 3.3H16"></path>
+                                  <path d="M3 12l3.5 7V18h4V3h-1.5"></path>
+                                </svg>
+                                Upload failed — tap to retry
+                              </button>
+                            )}
+
                             {/* Meta Timestamp */}
                             <div className="message-time">
                               <span>
-                                {msg.isUploading ? 'Sending...' : '12:53 PM'}
+                                {msg.isUploading ? 'Sending...' : msg.isFailed ? 'Failed · tap to retry' : formatChatTimestamp(msg.timestamp)}
                               </span>
-                              {isMe && !msg.isUploading && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
+                              {isMe && !msg.isUploading && !msg.isFailed && <DoubleCheckIcon color={msg.isRead ? '#009EE2' : '#667'} />}
                             </div>
                           </div>
 
