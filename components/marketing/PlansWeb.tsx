@@ -355,7 +355,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                                 <i className="bi bi-lock-fill text-amber-500"></i>
                                 Live Voice Tutorial
                             </span>
-                            <p className="text-[#64748B]">Locked on Free Tier. Available via Plan or ₦450/topic pass.</p>
+                            <p className="text-[#64748B]">Locked on Free Tier. Available via Plan or ₦300/topic pass.</p>
                         </div>
                     </div>
                 </div>
@@ -368,14 +368,14 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                         </span>
                         <h4 className="text-lg sm:text-xl font-black">Don't need a weekly subscription?</h4>
                         <p className="text-xs text-slate-300 max-w-md">
-                            Buy single Live Tutorial topic passes at <strong className="text-white">₦450 per topic</strong> or flashcard packs at <strong className="text-white">₦50 per flashcard</strong>.
+                            Buy single Live Tutorial topic passes at <strong className="text-white">₦300 per topic</strong> or flashcard packs at <strong className="text-white">₦50 per flashcard</strong>.
                         </p>
                     </div>
                     <a
                         href="/refill-credits"
                         className="px-6 py-3 bg-white text-[#0F172A] hover:bg-[#F6F6F3] font-black text-xs sm:text-sm rounded-2xl shadow-sm active:scale-95 transition-all shrink-0 cursor-pointer"
                     >
-                        Buy Extra Credits (₦450) →
+                        Buy Extra Credits (₦300) →
                     </a>
                 </div>
             </main>

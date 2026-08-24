@@ -1,0 +1,15 @@
+LOG_LINES: 64
+> Task :capacitor-toast:preBuild UP-TO-DATE
+> Task :capacitor-toast:preReleaseBuild UP-TO-DATE
+> Task :capacitor-toast:processReleaseNavigationResources UP-TO-DATE
+> Task :capawesome-capacitor-app-update:preBuild UP-TO-DATE
+> Task :capawesome-capacitor-app-update:preReleaseBuild UP-TO-DATE
+> Task :capawesome-capacitor-app-update:processReleaseNavigationResources UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:preBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:preReleaseBuild UP-TO-DATE
+> Task :capawesome-team-capacitor-file-opener:processReleaseNavigationResources UP-TO-DATE
+> Task :capgo-capacitor-updater:preBuild UP-TO-DATE
+> Task :capgo-capacitor-updater:preReleaseBuild UP-TO-DATE
+> Task :capgo-capacitor-updater:processReleaseNavigationResources UP-TO-DATE
+JAVA_PROCS_RUNNING: 2
+AAB_NOT_YET

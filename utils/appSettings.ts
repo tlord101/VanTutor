@@ -120,14 +120,14 @@ export const DEFAULT_USAGE_SETTINGS = {
     },
   },
   feature_costs: {
-    live_tutorial: 450,           // ₦450 per full topic (pay-as-you-go)
+    live_tutorial: 300,           // ₦300 per full topic (pay-as-you-go)
     live_tutorial_question: 50,   // 50 credits per question asked during live tutorial
     flashcard_generation: 50,     // ₦50 per flashcard
     chat_interaction: 1,          // 1 credit per AI response (Notebook Chat & Study Guide Chat)
-    visual_solve: 1,
+    visual_solve: 5,              // 5 credits per scan (covers Gemini HIGH thinking cost)
     ai_quiz_generation: 50,
-    study_guide_lesson: 450,
-    study_guide_extraction: 0,
+    study_guide_lesson: 300,
+    study_guide_extraction: 10,   // 10 credits per extraction (no longer free)
   },
   feature_models: {
     visual_solve: 'gemini-3.1-flash-lite',
@@ -139,7 +139,7 @@ export const DEFAULT_USAGE_SETTINGS = {
     title_generation: 'gemini-3.1-flash-lite',
   },
   additional_prices: {
-    live_tutorial_pass: 450,
+    live_tutorial_pass: 300,
     flashcards_pack_10: 500,
     visual_messages_price: 200,
     visual_messages_count: 10,

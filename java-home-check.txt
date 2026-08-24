@@ -1,0 +1,1 @@
+USER_JAVA_HOME=C:\Users\Hp\android-dev-tools\jdk-21

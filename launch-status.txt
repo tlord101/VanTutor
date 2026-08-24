@@ -1,0 +1,1 @@
+LAUNCHED_PID=11888 JAVA_HOME=C:\Users\Hp\android-dev-tools\jdk-21

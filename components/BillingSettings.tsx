@@ -75,7 +75,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
               </span>
             </div>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-2 max-w-md font-medium">
-              Use credits for Live Voice Tutorials (₦450/topic), flashcards (₦50/card), or subscribe to Weekly/Monthly plans for unlimited access.
+              Use credits for Live Voice Tutorials (₦300/topic), flashcards (₦50/card), or subscribe to Weekly/Monthly plans for unlimited access.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 w-full md:w-auto">
@@ -94,7 +94,7 @@ export const BillingSettingsScreen: React.FC<BillingSettingsProps> = ({ userProf
               onClick={handleManageBilling}
               className="px-6 py-3 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#E3E9F1] text-[#0F172A] dark:text-white rounded-2xl text-xs font-bold transition-all w-full md:w-auto border border-[#E3E9F1] dark:border-slate-700 cursor-pointer active:scale-95 text-center"
             >
-              Refill Credits (₦450 Pass)
+              Refill Credits (₦300 Pass)
             </button>
           </div>
         </div>

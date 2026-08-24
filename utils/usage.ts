@@ -210,16 +210,16 @@ export const isPaidSubscriber = (userProfile?: UserProfile | null): boolean => {
 /**
  * Checks whether the user has access to Live Voice Tutorial:
  * - Paid subscribers (Weekly: 1/day, Monthly: 10/day, Semester: 10/day)
- * - Free users with at least 450 credits (pay-as-you-go topic cost)
+ * - Free users with at least 300 credits (pay-as-you-go topic cost)
  */
 export const hasLiveTutorialAccess = (userProfile?: UserProfile | null): { allowed: boolean; reason?: 'locked_free' | 'insufficient_credits' | 'allowed' } => {
   if (!userProfile) return { allowed: false, reason: 'locked_free' };
   if (isExempt(userProfile)) return { allowed: true, reason: 'allowed' };
   if (isPaidSubscriber(userProfile)) return { allowed: true, reason: 'allowed' };
 
-  // Pay-As-You-Go single topic pass requires 450 credits (₦450)
+  // Pay-As-You-Go single topic pass requires 300 credits (₦300)
   const balance = userProfile.ai_credits_balance ?? 0;
-  if (balance >= 450) {
+  if (balance >= 300) {
     return { allowed: true, reason: 'allowed' };
   }
 

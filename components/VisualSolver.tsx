@@ -987,8 +987,9 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         const targetImage = imageOverride || scannedImage;
         if (!targetImage) return;
 
-        // Perform limit check
-        const cost = getFeatureCost('visual_solve', appSettings);
+        // Use live_tutorial cost — this launches a full 10-board voice tutorial pipeline
+        // (Gemini × 2 + Grok TTS × 10 boards), NOT a simple visual_solve scan
+        const cost = getFeatureCost('live_tutorial', appSettings);
         const limitCheck = checkAICredits(userProfile, cost, appSettings);
         if (!limitCheck.allowed) {
             setLimitModalData({

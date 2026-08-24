@@ -22,14 +22,14 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
     const quickPacks = [
         {
             title: '1 Live Voice Tutorial Pass',
-            amount: 450,
+            amount: 300,
             description: 'Unlocks 1 full topic interactive live blackboard voice tutorial.',
             badge: 'Single Topic',
             icon: 'bi-broadcast',
         },
         {
             title: '3 Live Tutorials Bundle',
-            amount: 1350,
+            amount: 900,
             description: '3 full topic live tutorial passes for revision sessions.',
             badge: 'Save Time',
             icon: 'bi-collection-play',
@@ -155,7 +155,7 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                         Pay As You Learn
                     </h1>
                     <p className="text-sm sm:text-base text-[#64748B] font-medium leading-relaxed">
-                        Purchase single topic Live Voice Tutorial passes (₦450/topic) or extra flashcard credits (₦50/flashcard) without a recurring subscription.
+                        Purchase single topic Live Voice Tutorial passes (₦300/topic) or extra flashcard credits (₦50/flashcard) without a recurring subscription.
                     </p>
                 </div>
 
