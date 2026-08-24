@@ -518,6 +518,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [showUserOptions, setShowUserOptions] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('spam');
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{
+    id: string;
+    senderId?: string;
+  } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1197,22 +1201,32 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     closeMessageActions();
   };
 
-  const deleteSelectedMessage = async () => {
-    if (!messageActionTarget || !activeChat || !firebaseUser) return;
-    if (messageActionTarget.senderId !== firebaseUser.uid) {
-      addToast('You can only delete your own messages.', 'info');
-      closeMessageActions();
-      return;
-    }
+  const handleDeleteMessageAction = (forEveryone = true) => {
+    const target = deleteConfirmTarget || messageActionTarget;
+    if (!target || !activeChat || !firebaseUser) return;
 
-    try {
-      await remove(dbRef(db, `messages/${activeChat.chatId}/${messageActionTarget.id}`));
-      await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
-      addToast('Message deleted.', 'success');
-    } catch (error: any) {
-      console.error('Failed to delete message:', error);
-      addToast(error?.message || 'Failed to delete message.', 'error');
-    }
+    setDeleteConfirmTarget(null);
+    closeMessageActions();
+
+    // Instant deletion call
+    (async () => {
+      try {
+        await remove(dbRef(db, `messages/${activeChat.chatId}/${target.id}`));
+        await updateChatMetaFromLatestMessage(activeChat.chatId, activeChat.otherUser.uid);
+        addToast('Message deleted.', 'success');
+      } catch (error: any) {
+        console.error('Failed to delete message:', error);
+        addToast(error?.message || 'Failed to delete message.', 'error');
+      }
+    })();
+  };
+
+  const promptDeleteMessageModal = () => {
+    if (!messageActionTarget) return;
+    setDeleteConfirmTarget({
+      id: messageActionTarget.id,
+      senderId: messageActionTarget.senderId
+    });
     closeMessageActions();
   };
 
@@ -2438,7 +2452,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void deleteSelectedMessage();
+                          promptDeleteMessageModal();
                         }}
                         className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -2464,6 +2478,51 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         )}
       </div>
 
+
+      {/* Delete Message Confirmation Modal */}
+      {deleteConfirmTarget && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in select-none"
+          onClick={() => setDeleteConfirmTarget(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl max-w-xs sm:max-w-sm w-full p-6 border border-slate-100 dark:border-slate-800 animate-scale-in flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">
+              Delete message?
+            </h3>
+
+            <div className="flex flex-col items-end gap-3.5 mt-2">
+              {deleteConfirmTarget.senderId === firebaseUser?.uid && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMessageAction(true)}
+                  className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right"
+                >
+                  Delete for everyone
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleDeleteMessageAction(false)}
+                className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right"
+              >
+                Delete for me
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTarget(null)}
+                className="text-[15px] font-bold text-emerald-800 dark:text-emerald-400 hover:opacity-80 transition active:scale-95 text-right mt-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report User Modal */}
       {showReportModal && (
