@@ -1598,6 +1598,23 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
+  const userOptionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showUserOptions) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (userOptionsRef.current && !userOptionsRef.current.contains(e.target as Node)) {
+        setShowUserOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showUserOptions]);
+
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
 
@@ -1652,10 +1669,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           </div>
         ),
         rightActions: (
-          <div className="relative shrink-0 flex items-center">
+          <div ref={userOptionsRef} className="relative shrink-0 flex items-center">
             <button
               type="button"
-              onClick={() => setShowUserOptions(!showUserOptions)}
+              onClick={() => setShowUserOptions(prev => !prev)}
               className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
             >
               <i className="bi bi-three-dots-vertical text-lg" />
