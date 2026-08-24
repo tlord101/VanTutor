@@ -65,6 +65,7 @@ interface AvelutAIProps {
   userProfile: UserProfile;
   onNavigate?: (tab: string) => void;
   setCustomHeaderConfig?: (config: any) => void;
+  unreadMessagesCount?: number;
 }
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -650,7 +651,7 @@ const AnimatedMoonOrb: React.FC<AnimatedMoonOrbProps> = ({
   );
 };
 
-export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig }: AvelutAIProps) {
+export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig, unreadMessagesCount = 0 }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
@@ -1080,7 +1081,29 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       nextMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       if (isMounted) {
-        setMessages(deduplicateAssistantMessages(nextMessages));
+        setMessages(prev => {
+          // Build map of existing local/optimistic attachment URLs for fallback
+          const localAttachmentUrlMap = new Map<string, string>();
+          prev.forEach(pMsg => {
+            pMsg.attachments?.forEach(att => {
+              if (att.url) localAttachmentUrlMap.set(att.name || att.id, att.url);
+            });
+          });
+
+          const mergedMessages = nextMessages.map(nMsg => {
+            if (!nMsg.attachments || nMsg.attachments.length === 0) return nMsg;
+            const restoredAttachments = nMsg.attachments.map(att => {
+              if (!att.url || att.url === '') {
+                const fallback = localAttachmentUrlMap.get(att.name || att.id) || '';
+                return { ...att, url: fallback };
+              }
+              return att;
+            });
+            return { ...nMsg, attachments: restoredAttachments };
+          });
+
+          return deduplicateAssistantMessages(mergedMessages);
+        });
       }
     });
 
@@ -1974,12 +1997,19 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 onNavigate?.('messenger');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100/80 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-                <i className="bi bi-chat-dots-fill text-sm"></i>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100/80 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className="bi bi-chat-dots-fill text-sm"></i>
+                </div>
+                <span className="truncate">Messenger</span>
               </div>
-              <span className="truncate">Messenger</span>
+              {unreadMessagesCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white shadow-xs">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </button>
 
             {/* 5. Leaderboard */}
