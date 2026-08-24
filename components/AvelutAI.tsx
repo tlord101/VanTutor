@@ -229,40 +229,75 @@ const isImageMimeType = (mimeType?: string, fileName?: string) => (
 
 const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = typeof reader.result === 'string' ? reader.result : '';
-    resolve(result.includes(',') ? result.split(',')[1] : result);
-  };
-  reader.onerror = () => reject(new Error(`Failed to read attachment: ${reader.error?.message || 'Unknown error'}`));
-  reader.readAsDataURL(file);
-});
+const compressImageToDataUrl = (file: File, maxWidth = 1280, quality = 0.75): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(objectUrl);
+
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('Image compression failed'));
+  });
+};
 
 const prepareLocalChatAttachment = async (
   file: File,
   index: number
-): Promise<AssistantAttachment> => {
+): Promise<{ attachment: AssistantAttachment; base64Data: string; mimeType: string }> => {
   const attachmentToken = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
     : `${Date.now()}_${index}`;
   const isImage = isImageMimeType(file.type, file.name);
 
-  let localUrl = '';
-  try {
-    const b64 = await fileToBase64(file);
-    const mime = file.type || (isImage ? 'image/jpeg' : 'application/octet-stream');
-    localUrl = `data:${mime};base64,${b64}`;
-  } catch {
-    localUrl = URL.createObjectURL(file);
+  let dataUrl = '';
+  if (isImage) {
+    dataUrl = await compressImageToDataUrl(file);
+  } else {
+    dataUrl = await new Promise<string>((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
   }
 
+  const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  const mimeType = file.type || (isImage ? 'image/jpeg' : 'application/octet-stream');
+
   return {
-    id: attachmentToken,
-    name: file.name,
-    mimeType: file.type || 'application/octet-stream',
-    url: localUrl,
-    isImage,
+    attachment: {
+      id: attachmentToken,
+      name: file.name,
+      mimeType,
+      url: dataUrl, // Local Base64 URI saved directly on the client device
+      isImage,
+    },
+    base64Data,
+    mimeType,
   };
 };
 
@@ -1516,15 +1551,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         setUploadProgress(`Processing ${prefix}${file.name}...`);
         setStatusText(`Processing ${prefix}${file.name}...`);
 
-        const storedAttachment = await prepareLocalChatAttachment(file, index);
-        storedAttachments.push(storedAttachment);
+        const { attachment, base64Data } = await prepareLocalChatAttachment(file, index);
+        storedAttachments.push(attachment);
 
         if (isSupportedInlineMimeType(mimeType, file.name)) {
-          const data = await fileToBase64(file);
           attachmentParts.push({
             inlineData: {
-              data,
-              mimeType,
+              data: base64Data,
+              mimeType: attachment.mimeType,
             },
           });
         } else if (isTextFile(mimeType, file.name)) {
@@ -1536,9 +1570,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             });
           } catch (readErr) {
             console.error(`Failed to read text file ${file.name}:`, readErr);
-            const data = await fileToBase64(file);
             attachmentParts.push({
-              inlineData: { data, mimeType }
+              inlineData: { data: base64Data, mimeType }
             });
           }
         } else if (file.name.toLowerCase().endsWith('.docx')) {
@@ -1552,16 +1585,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             });
           } catch (docxErr) {
             console.error(`Failed to parse docx file ${file.name}:`, docxErr);
-            const data = await fileToBase64(file);
             attachmentParts.push({
-              inlineData: { data, mimeType }
+              inlineData: { data: base64Data, mimeType }
             });
           }
         } else {
-          const data = await fileToBase64(file);
           attachmentParts.push({
             inlineData: {
-              data,
+              data: base64Data,
               mimeType,
             },
           });
