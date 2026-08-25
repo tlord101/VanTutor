@@ -49,6 +49,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
 
     // Delete Course Modal state
     const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+    const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Batch Selection state
@@ -71,23 +72,63 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         }
     };
 
-    const handleBatchDeleteCourses = async () => {
+    const handleTriggerBatchDelete = () => {
         if (selectedCourseIds.size === 0) return;
-        if (!window.confirm(`Are you sure you want to permanently delete ${selectedCourseIds.size} selected course(s)?`)) return;
+        setIsBatchDeleteModalOpen(true);
+    };
+
+    const handleExecuteBatchSmartDeleteCourse = async ({ action }: { action: 'unlink' | 'hard_delete' }) => {
+        if (selectedCourseIds.size === 0) return;
 
         setIsDeleting(true);
         try {
-            const updatedCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
-            await update(dbRef(db, `departments_data/${deptId}`), {
-                course_list: updatedCourses,
-            });
+            const selectedCourses = courses.filter((c) => selectedCourseIds.has(c.course_id));
+            const updates: Record<string, any> = {};
 
-            setCourses(updatedCourses);
-            addToast(`Successfully deleted ${selectedCourseIds.size} course(s).`, 'success');
+            if (action === 'unlink') {
+                for (const c of selectedCourses) {
+                    const linked = c.linked_departments || [deptId];
+                    const remaining = linked.filter((id) => id !== deptId);
+                    updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                }
+
+                const remainingDeptCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
+                updates[`departments_data/${deptId}/course_list`] = remainingDeptCourses;
+
+                setCourses(remainingDeptCourses);
+                addToast(`Unlinked ${selectedCourses.length} course(s) from ${department.department_name || deptId}.`, 'success');
+            } else {
+                // Global Hard Delete Batch
+                for (const c of selectedCourses) {
+                    const courseId = c.course_id;
+                    const linkedDepts = c.linked_departments && c.linked_departments.length > 0
+                        ? c.linked_departments
+                        : [deptId];
+
+                    updates[`global_courses/${courseId}`] = null;
+
+                    for (const dId of linkedDepts) {
+                        const dSnap = await get(dbRef(db, `departments_data/${dId}`));
+                        if (dSnap.exists()) {
+                            const data = dSnap.val();
+                            const rawList = data?.course_list;
+                            let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                            const filtered = list.filter((item) => item.course_id !== courseId);
+                            updates[`departments_data/${dId}/course_list`] = filtered;
+                        }
+                    }
+                }
+
+                setCourses((prev) => prev.filter((c) => !selectedCourseIds.has(c.course_id)));
+                addToast(`Globally hard deleted ${selectedCourses.length} course(s) across all departments.`, 'success');
+            }
+
+            await update(dbRef(db), updates);
             setSelectedCourseIds(new Set());
+            setIsBatchDeleteModalOpen(false);
             await refreshData();
         } catch (error: any) {
-            console.error('Error batch deleting courses:', error);
+            console.error('Error executing batch course deletion:', error);
             addToast('Failed to delete selected courses: ' + error.message, 'error');
         } finally {
             setIsDeleting(false);
@@ -300,7 +341,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                     {selectedCourseIds.size > 0 && (
                         <button
                             type="button"
-                            onClick={handleBatchDeleteCourses}
+                            onClick={handleTriggerBatchDelete}
                             disabled={isDeleting}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition-colors border border-rose-500/30 cursor-pointer disabled:opacity-50"
                         >
@@ -585,7 +626,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                 }}
             />
 
-            {/* Smart Delete Course Modal */}
+            {/* Smart Delete Single Course Modal */}
             {deleteTarget && (
                 <SmartDeleteModal
                     isOpen={Boolean(deleteTarget)}
@@ -602,6 +643,24 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                     isDeleting={isDeleting}
                     onConfirmDelete={handleExecuteSmartDeleteCourse}
                     onClose={() => setDeleteTarget(null)}
+                />
+            )}
+
+            {/* Smart Delete Batch Courses Modal */}
+            {isBatchDeleteModalOpen && (
+                <SmartDeleteModal
+                    isOpen={isBatchDeleteModalOpen}
+                    targetType="course"
+                    targetItem={{
+                        id: 'batch_courses',
+                        name: `${selectedCourseIds.size} Selected Courses`,
+                        code: 'BATCH',
+                        count: selectedCourseIds.size,
+                    }}
+                    currentDeptId={department.department_name || deptId}
+                    isDeleting={isDeleting}
+                    onConfirmDelete={handleExecuteBatchSmartDeleteCourse}
+                    onClose={() => setIsBatchDeleteModalOpen(false)}
                 />
             )}
         </div>

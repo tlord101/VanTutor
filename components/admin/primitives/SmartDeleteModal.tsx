@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Trash2, Unlink, X, Loader2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Trash2, Unlink, Globe, Building2, CheckCircle2, X, Loader2, ShieldAlert } from 'lucide-react';
 
 export interface SmartDeleteModalProps {
     isOpen: boolean;
@@ -9,7 +9,7 @@ export interface SmartDeleteModalProps {
         name: string;
         code?: string;
         linkedDepartments?: string[];
-        childDepts?: any[];
+        count?: number;
     };
     currentDeptId?: string;
     isDeleting?: boolean;
@@ -26,17 +26,18 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
     onConfirmDelete,
     onClose,
 }) => {
+    const [selectedAction, setSelectedAction] = useState<'unlink' | 'hard_delete'>('unlink');
     const [typedCode, setTypedCode] = useState('');
     const [shakeInput, setShakeInput] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
-    const linkedCount = targetItem.linkedDepartments?.length || 1;
-    const isMultiDepartmentCourse = targetType === 'course' && linkedCount > 1;
-
+    const isCourseDelete = targetType === 'course';
+    const courseCount = targetItem.count || 1;
     const confirmationCode = (targetItem.code || targetItem.name || targetItem.id).trim();
 
     useEffect(() => {
         if (isOpen) {
+            setSelectedAction('unlink');
             setTypedCode('');
             setShakeInput(false);
             setErrorMsg('');
@@ -47,23 +48,19 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
 
     const isCodeMatch = typedCode.trim().toUpperCase() === confirmationCode.toUpperCase();
 
-    const handleUnlink = async () => {
-        await onConfirmDelete({ action: 'unlink', targetItem });
-    };
-
-    const handleHardDelete = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // If it requires typed confirmation code
-        if (!isCodeMatch) {
+        // Require typing confirmation if global hard delete is selected or for non-course hierarchy entities
+        if (selectedAction === 'hard_delete' && !isCodeMatch) {
             setShakeInput(true);
-            setErrorMsg(`Please type "${confirmationCode}" exactly as shown to confirm.`);
+            setErrorMsg(`Please type "${confirmationCode}" exactly as shown to confirm global deletion.`);
             setTimeout(() => setShakeInput(false), 500);
             return;
         }
 
         setErrorMsg('');
-        await onConfirmDelete({ action: 'hard_delete', targetItem });
+        await onConfirmDelete({ action: selectedAction, targetItem });
     };
 
     return (
@@ -71,12 +68,8 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
             <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
-                        isMultiDepartmentCourse
-                            ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-500 border-amber-200 dark:border-amber-800/40'
-                            : 'bg-rose-50 dark:bg-rose-950/50 text-rose-500 border-rose-200 dark:border-rose-800/40'
-                    }`}>
-                        {isMultiDepartmentCourse ? <Unlink className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                    <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 border border-rose-200 dark:border-rose-800/40 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-6 h-6" />
                     </div>
                     <button
                         type="button"
@@ -94,76 +87,88 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
                         Smart Deletion Engine ({targetType})
                     </span>
                     <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
-                        Delete "{targetItem.name}"?
+                        {courseCount > 1
+                            ? `Delete ${courseCount} Selected Courses?`
+                            : `Delete "${targetItem.name}"?`}
                     </h3>
-
-                    {isMultiDepartmentCourse ? (
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                            This course is cross-listed across <strong className="text-amber-500">{linkedCount} departments</strong>. Unlinking will remove it from the current department roster without destroying global data for other departments.
-                        </p>
-                    ) : (
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                            This action is <strong className="text-rose-500">permanent and irreversible</strong>. It will delete this {targetType} and clean up orphaned child assets.
-                        </p>
-                    )}
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Select whether to delete from all offering departments or remove only from the current department.
+                    </p>
                 </div>
 
-                {/* Multi-Department Unlink Option */}
-                {isMultiDepartmentCourse ? (
-                    <div className="space-y-4 pt-2">
-                        <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 space-y-2">
-                            <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                                <Unlink className="w-4 h-4 text-amber-500" />
-                                Recommended Action:
-                            </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-400">
-                                Unlinking will safely remove this course from <strong className="font-bold">{currentDeptId}</strong> while leaving syllabus topics and materials intact for the remaining {linkedCount - 1} department(s).
-                            </p>
-                        </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Course Scope Selection Cards */}
+                    {isCourseDelete ? (
+                        <div className="space-y-3">
+                            {/* Action Option A: Local Delete / Unlink */}
+                            <div
+                                onClick={() => !isDeleting && setSelectedAction('unlink')}
+                                className={`group relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                                    selectedAction === 'unlink'
+                                        ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 shadow-md'
+                                        : 'border-slate-200 dark:border-slate-800 hover:border-amber-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                                }`}
+                            >
+                                <div className={`p-2 rounded-xl transition-colors ${
+                                    selectedAction === 'unlink' ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}>
+                                    <Building2 className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 space-y-0.5">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white">
+                                            Remove from Current Department Only
+                                        </h4>
+                                        {selectedAction === 'unlink' && <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Unlinks {courseCount > 1 ? `these ${courseCount} courses` : 'this course'} from {currentDeptId || 'current department'}. Data remains intact for other departments.
+                                    </p>
+                                </div>
+                            </div>
 
-                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                disabled={isDeleting}
-                                className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+                            {/* Action Option B: Global Hard Delete */}
+                            <div
+                                onClick={() => !isDeleting && setSelectedAction('hard_delete')}
+                                className={`group relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                                    selectedAction === 'hard_delete'
+                                        ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/20 shadow-md'
+                                        : 'border-slate-200 dark:border-slate-800 hover:border-rose-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                                }`}
                             >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleUnlink}
-                                disabled={isDeleting}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 disabled:opacity-50"
-                            >
-                                {isDeleting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        <span>Unlinking...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Unlink className="w-4 h-4" />
-                                        <span>Unlink from Current Department</span>
-                                    </>
-                                )}
-                            </button>
+                                <div className={`p-2 rounded-xl transition-colors ${
+                                    selectedAction === 'hard_delete' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}>
+                                    <Globe className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 space-y-0.5">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400">
+                                            Delete Globally from ALL Departments
+                                        </h4>
+                                        {selectedAction === 'hard_delete' && <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0" />}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Permanently deletes {courseCount > 1 ? `these ${courseCount} courses` : 'this course'} across EVERY department offering it and purges global master entries.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    /* Global Hard Delete Form */
-                    <form onSubmit={handleHardDelete} className="space-y-4">
+                    ) : (
                         <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 space-y-2">
                             <p className="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
                                 <ShieldAlert className="w-4 h-4 text-rose-500" />
-                                Hard Delete Safeguard:
+                                Recursive Deletion:
                             </p>
                             <p className="text-xs text-rose-700 dark:text-rose-400">
-                                This is the sole remaining reference. Hard deleting will permanently purge all child entities, syllabus topics, and Cloud Storage files.
+                                Deleting this {targetType} will recursively remove nested child entities and clean up any orphaned courses.
                             </p>
                         </div>
+                    )}
 
-                        <div className="space-y-2">
+                    {/* Typed Confirmation for Global Delete */}
+                    {(selectedAction === 'hard_delete' || !isCourseDelete) && (
+                        <div className="space-y-2 pt-1 animate-in fade-in">
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                                 Type <span className="text-rose-600 dark:text-rose-400 font-mono font-black select-all">"{confirmationCode}"</span> to confirm:
                             </label>
@@ -183,36 +188,46 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
                             />
                             {errorMsg && <p className="text-xs font-bold text-rose-500 animate-in fade-in">{errorMsg}</p>}
                         </div>
+                    )}
 
-                        <div className="flex items-center gap-3 pt-2 justify-end">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                disabled={isDeleting}
-                                className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={!isCodeMatch || isDeleting}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider transition shadow-lg shadow-rose-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                {isDeleting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        <span>Deleting...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Trash2 className="w-4 h-4" />
-                                        <span>Global Hard Delete</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-3 pt-2 justify-end border-t border-slate-100 dark:border-slate-800">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isDeleting}
+                            className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isDeleting || (selectedAction === 'hard_delete' && !isCodeMatch && courseCount === 1)}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
+                                selectedAction === 'hard_delete'
+                                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20'
+                            }`}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Processing Deletion...</span>
+                                </>
+                            ) : selectedAction === 'hard_delete' ? (
+                                <>
+                                    <Trash2 className="w-4 h-4" />
+                                    <span>Delete Globally</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Unlink className="w-4 h-4" />
+                                    <span>Remove from Department</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
