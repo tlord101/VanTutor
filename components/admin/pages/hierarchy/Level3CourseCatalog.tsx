@@ -51,6 +51,49 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
     const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Batch Selection state
+    const [selectedCourseIds, setSelectedCourseIds] = useState<Set<string>>(new Set());
+
+    const toggleCourseSelection = (courseId: string) => {
+        setSelectedCourseIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(courseId)) next.delete(courseId);
+            else next.add(courseId);
+            return next;
+        });
+    };
+
+    const toggleSelectAllCourses = () => {
+        if (selectedCourseIds.size === courses.length && courses.length > 0) {
+            setSelectedCourseIds(new Set());
+        } else {
+            setSelectedCourseIds(new Set(courses.map((c) => c.course_id)));
+        }
+    };
+
+    const handleBatchDeleteCourses = async () => {
+        if (selectedCourseIds.size === 0) return;
+        if (!window.confirm(`Are you sure you want to permanently delete ${selectedCourseIds.size} selected course(s)?`)) return;
+
+        setIsDeleting(true);
+        try {
+            const updatedCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
+            await update(dbRef(db, `departments_data/${deptId}`), {
+                course_list: updatedCourses,
+            });
+
+            setCourses(updatedCourses);
+            addToast(`Successfully deleted ${selectedCourseIds.size} course(s).`, 'success');
+            setSelectedCourseIds(new Set());
+            await refreshData();
+        } catch (error: any) {
+            console.error('Error batch deleting courses:', error);
+            addToast('Failed to delete selected courses: ' + error.message, 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const loadDepartmentCourses = async () => {
         setIsLoadingCourses(true);
         try {
@@ -225,6 +268,18 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {selectedCourseIds.size > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleBatchDeleteCourses}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition-colors border border-rose-500/30 cursor-pointer disabled:opacity-50"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete Selected ({selectedCourseIds.size})</span>
+                        </button>
+                    )}
+
                     {/* View Switcher */}
                     <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
                         <button
@@ -300,7 +355,13 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                             >
                                 <div className="space-y-4">
                                     <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedCourseIds.has(course.course_id)}
+                                                onChange={() => toggleCourseSelection(course.course_id)}
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer mr-1"
+                                            />
                                             {course.course_code && (
                                                 <span className="px-3 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 font-black text-xs tracking-wider">
                                                     {course.course_code}
@@ -381,6 +442,14 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                    <th className="py-4 px-4 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={courses.length > 0 && selectedCourseIds.size === courses.length}
+                                            onChange={toggleSelectAllCourses}
+                                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                                        />
+                                    </th>
                                     <th className="py-4 px-6">Course Code</th>
                                     <th className="py-4 px-6">Title</th>
                                     <th className="py-4 px-6">Units</th>
@@ -404,6 +473,14 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                                             onClick={() => onNavigate(studioPath)}
                                             className="group hover:bg-amber-500/5 transition-colors cursor-pointer"
                                         >
+                                            <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedCourseIds.has(course.course_id)}
+                                                    onChange={() => toggleCourseSelection(course.course_id)}
+                                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="py-4 px-6 font-mono font-black text-amber-600 dark:text-amber-400">
                                                 {course.course_code || 'N/A'}
                                             </td>

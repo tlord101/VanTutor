@@ -392,5 +392,6 @@ export interface HeaderConfig {
   hideBottomNav?: boolean;
   hideTitle?: boolean;
   hideDefaultRightActions?: boolean;
+  hideProfileAvatar?: boolean;
   className?: string;
 }
