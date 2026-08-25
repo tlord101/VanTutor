@@ -13,7 +13,7 @@ interface MyNotebooksProps {
   setCustomHeaderConfig?: (config: any) => void;
 }
 
-const MAX_PDF_SIZE_BYTES = 15 * 1024 * 1024; // 15MB limit
+const MAX_PDF_SIZE_BYTES = 200 * 1024 * 1024; // 200MB limit
 
 export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   userProfile,
@@ -67,9 +67,9 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
     if (!file) return;
     e.target.value = '';
 
-    // Validate 15MB limit
+    // Validate 200MB limit
     if (file.size > MAX_PDF_SIZE_BYTES) {
-      addToast('File too large. Maximum PDF size is 15MB.', 'error');
+      addToast('File too large. Maximum PDF size is 200MB.', 'error');
       return;
     }
 
@@ -165,7 +165,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
               Personal Study Notebooks
             </h3>
             <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
-              Upload any textbook, handout, or lecture note PDF (up to 15MB). Extracted completely on your device with 0 AI cost.
+              Upload any textbook, handout, or lecture note PDF (up to 200MB). Extracted completely on your device with 0 AI cost.
             </p>
           </div>
 

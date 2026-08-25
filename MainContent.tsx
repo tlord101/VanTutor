@@ -63,6 +63,7 @@ interface MainContentProps {
     userProgress: UserProgress;
     dashboardData: DashboardData | null;
     initialMessengerChatId?: string | null;
+    unreadMessagesCount?: number;
     handleLogout: () => void;
     handleProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string; }>;
     handleDeleteAccount: () => Promise<{ success: boolean; error?: string; }>;
@@ -86,6 +87,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     userProgress,
     dashboardData,
     initialMessengerChatId,
+    unreadMessagesCount = 0,
     handleLogout,
     handleProfileUpdate,
     handleDeleteAccount,
@@ -152,7 +154,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                         );
                     case 'chat':
                         return (
-                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
+                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />
                         );
                     case 'admin':
                         return userProfile.is_admin

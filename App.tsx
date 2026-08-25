@@ -1836,6 +1836,7 @@ const App: React.FC = () => {
                             userProgress={userProgress}
                             dashboardData={dashboardData}
                                     initialMessengerChatId={pendingMessengerChatId}
+                            unreadMessagesCount={unreadMessagesCount}
                             handleLogout={handleLogout}
                             handleProfileUpdate={handleProfileUpdate}
                             handleDeleteAccount={handleAccountDeletion}

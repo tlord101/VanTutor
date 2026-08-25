@@ -65,6 +65,7 @@ interface AvelutAIProps {
   userProfile: UserProfile;
   onNavigate?: (tab: string) => void;
   setCustomHeaderConfig?: (config: any) => void;
+  unreadMessagesCount?: number;
 }
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -229,40 +230,75 @@ const isImageMimeType = (mimeType?: string, fileName?: string) => (
 
 const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = typeof reader.result === 'string' ? reader.result : '';
-    resolve(result.includes(',') ? result.split(',')[1] : result);
-  };
-  reader.onerror = () => reject(new Error(`Failed to read attachment: ${reader.error?.message || 'Unknown error'}`));
-  reader.readAsDataURL(file);
-});
+const compressImageToDataUrl = (file: File, maxWidth = 1280, quality = 0.75): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(objectUrl);
+
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('Image compression failed'));
+  });
+};
 
 const prepareLocalChatAttachment = async (
   file: File,
   index: number
-): Promise<AssistantAttachment> => {
+): Promise<{ attachment: AssistantAttachment; base64Data: string; mimeType: string }> => {
   const attachmentToken = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
     : `${Date.now()}_${index}`;
   const isImage = isImageMimeType(file.type, file.name);
 
-  let localUrl = '';
-  try {
-    const b64 = await fileToBase64(file);
-    const mime = file.type || (isImage ? 'image/jpeg' : 'application/octet-stream');
-    localUrl = `data:${mime};base64,${b64}`;
-  } catch {
-    localUrl = URL.createObjectURL(file);
+  let dataUrl = '';
+  if (isImage) {
+    dataUrl = await compressImageToDataUrl(file);
+  } else {
+    dataUrl = await new Promise<string>((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
   }
 
+  const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  const mimeType = isImage ? 'image/jpeg' : (file.type || 'application/octet-stream');
+
   return {
-    id: attachmentToken,
-    name: file.name,
-    mimeType: file.type || 'application/octet-stream',
-    url: localUrl,
-    isImage,
+    attachment: {
+      id: attachmentToken,
+      name: file.name,
+      mimeType,
+      url: dataUrl, // Local Base64 URI saved directly on the client device
+      isImage,
+    },
+    base64Data,
+    mimeType,
   };
 };
 
@@ -615,7 +651,7 @@ const AnimatedMoonOrb: React.FC<AnimatedMoonOrbProps> = ({
   );
 };
 
-export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig }: AvelutAIProps) {
+export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig, unreadMessagesCount = 0 }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
@@ -1045,7 +1081,29 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       nextMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       if (isMounted) {
-        setMessages(deduplicateAssistantMessages(nextMessages));
+        setMessages(prev => {
+          // Build map of existing local/optimistic attachment URLs for fallback
+          const localAttachmentUrlMap = new Map<string, string>();
+          prev.forEach(pMsg => {
+            pMsg.attachments?.forEach(att => {
+              if (att.url) localAttachmentUrlMap.set(att.name || att.id, att.url);
+            });
+          });
+
+          const mergedMessages = nextMessages.map(nMsg => {
+            if (!nMsg.attachments || nMsg.attachments.length === 0) return nMsg;
+            const restoredAttachments = nMsg.attachments.map(att => {
+              if (!att.url || att.url === '') {
+                const fallback = localAttachmentUrlMap.get(att.name || att.id) || '';
+                return { ...att, url: fallback };
+              }
+              return att;
+            });
+            return { ...nMsg, attachments: restoredAttachments };
+          });
+
+          return deduplicateAssistantMessages(mergedMessages);
+        });
       }
     });
 
@@ -1409,22 +1467,28 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
     // Create local optimistic attachments to render in the user's bubble immediately
     const optimisticAttachments = await Promise.all(filesToSend.map(async (file, index) => {
+      const isImg = isImageMimeType(file.type, file.name);
       let url = '';
       try {
-        url = await fileToBase64(file).then(b64 => {
-          const isImg = isImageMimeType(file.type, file.name);
-          const mime = file.type || (isImg ? 'image/jpeg' : 'application/octet-stream');
-          return `data:${mime};base64,${b64}`;
-        });
+        if (isImg) {
+          url = await compressImageToDataUrl(file);
+        } else {
+          url = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+        }
       } catch {
         url = URL.createObjectURL(file);
       }
       return {
         id: `optimistic-${Date.now()}-${index}`,
         name: file.name,
-        mimeType: file.type || 'application/octet-stream',
+        mimeType: isImg ? 'image/jpeg' : (file.type || 'application/octet-stream'),
         url,
-        isImage: isImageMimeType(file.type, file.name),
+        isImage: isImg,
       };
     }));
 
@@ -1516,15 +1580,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         setUploadProgress(`Processing ${prefix}${file.name}...`);
         setStatusText(`Processing ${prefix}${file.name}...`);
 
-        const storedAttachment = await prepareLocalChatAttachment(file, index);
-        storedAttachments.push(storedAttachment);
+        const { attachment, base64Data } = await prepareLocalChatAttachment(file, index);
+        storedAttachments.push(attachment);
 
         if (isSupportedInlineMimeType(mimeType, file.name)) {
-          const data = await fileToBase64(file);
           attachmentParts.push({
             inlineData: {
-              data,
-              mimeType,
+              data: base64Data,
+              mimeType: attachment.mimeType,
             },
           });
         } else if (isTextFile(mimeType, file.name)) {
@@ -1536,9 +1599,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             });
           } catch (readErr) {
             console.error(`Failed to read text file ${file.name}:`, readErr);
-            const data = await fileToBase64(file);
             attachmentParts.push({
-              inlineData: { data, mimeType }
+              inlineData: { data: base64Data, mimeType }
             });
           }
         } else if (file.name.toLowerCase().endsWith('.docx')) {
@@ -1552,16 +1614,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             });
           } catch (docxErr) {
             console.error(`Failed to parse docx file ${file.name}:`, docxErr);
-            const data = await fileToBase64(file);
             attachmentParts.push({
-              inlineData: { data, mimeType }
+              inlineData: { data: base64Data, mimeType }
             });
           }
         } else {
-          const data = await fileToBase64(file);
           attachmentParts.push({
             inlineData: {
-              data,
+              data: base64Data,
               mimeType,
             },
           });
@@ -1698,22 +1758,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
         ].filter(Boolean).join('\n');
 
-        const responseStream = await ai.models.generateContentStream({
-          model: geminiModel || 'gemini-3.1-flash-lite',
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: systemInstructions,
-                },
-                ...attachmentParts,
-              ],
-            },
-          ],
-        });
-
-        // Initialize empty assistant bubble in UI for live streaming
+        // Initialize empty assistant bubble in UI for live streaming / response
         setMessages([
           ...nextMessages,
           {
@@ -1725,6 +1770,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         ]);
 
         try {
+          const responseStream = await ai.models.generateContentStream({
+            model: geminiModel || 'gemini-3.1-flash-lite',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: systemInstructions,
+                  },
+                  ...attachmentParts,
+                ],
+              },
+            ],
+          });
+
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
             responseText += chunkText;
@@ -1734,8 +1794,26 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             );
           }
         } catch (streamError) {
-          console.error('Error during response streaming:', streamError);
-          throw streamError;
+          console.warn('Streaming failed, falling back to generateContent:', streamError);
+          const nonStreamResult = await ai.models.generateContent({
+            model: geminiModel || 'gemini-3.1-flash-lite',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: systemInstructions,
+                  },
+                  ...attachmentParts,
+                ],
+              },
+            ],
+          });
+          responseText = getResponseText(nonStreamResult);
+          setStreamingBotText(responseText);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantMsgId ? { ...m, text: responseText } : m))
+          );
         }
 
         if (!responseText) {
@@ -1943,12 +2021,19 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 onNavigate?.('messenger');
                 setIsSidebarOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-2xl text-[14px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition active:scale-98 text-left cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100/80 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-                <i className="bi bi-chat-dots-fill text-sm"></i>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100/80 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className="bi bi-chat-dots-fill text-sm"></i>
+                </div>
+                <span className="truncate">Messenger</span>
               </div>
-              <span className="truncate">Messenger</span>
+              {unreadMessagesCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white shadow-xs">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </button>
 
             {/* 5. Leaderboard */}
@@ -2377,15 +2462,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   })}
 
                   {isSending && streamingBotText === null && (
-                    <div className="flex justify-start mt-2 mb-2">
-                      {uploadProgress ? (
-                        <div className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-sm sm:max-w-[75%] rounded-tl-sm flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                          <span className="w-2 h-2 rounded-full bg-[#0066FF] shrink-0" />
-                          <span>{uploadProgress}</span>
-                        </div>
-                      ) : (
+                    <div className="flex justify-start mt-2 mb-2 animate-fade-in">
+                      <div className="max-w-[85%] rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-2xs sm:max-w-[75%] rounded-tl-sm flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200">
                         <TypingIndicator />
-                      )}
+                        <div className="flex items-center gap-1 font-semibold text-[#0066FF] dark:text-blue-400">
+                          <span>{uploadProgress || 'Thinking'}</span>
+                          <span className="inline-block animate-pulse">...</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
