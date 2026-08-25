@@ -621,7 +621,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
 
   const chatRowLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const swipeToReplyRef = useRef<{ id: string | null; startX: number; currentX: number }>({ id: null, startX: 0, currentX: 0 });
+  const swipeToReplyRef = useRef<{ id: string | null; startX: number; startY: number; currentX: number; currentY: number; moved: boolean }>({ id: null, startX: 0, startY: 0, currentX: 0, currentY: 0, moved: false });
   const suppressNextChatOpenRef = useRef(false);
   const unreadCountsRef = useRef<Record<string, number>>({});
   const lastNotificationTimestampRef = useRef<Record<string, number>>({});
@@ -2012,7 +2012,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                         <Avatar className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#E9ECEF] dark:border-transparent mb-0.5" photo_url={selectedChatUser.photo_url} display_name={selectedChatUser.display_name || 'User'} />
                       )}
 
-                      <div className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} relative ${messageActionTarget ? 'select-none' : 'select-text'} ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''}`.trim()}
+                      <div className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} relative select-none ${messageActionTarget?.id === msg.id ? 'ring-4 ring-[#25D366]/60 z-[60] !bg-[#25D366]/10' : ''}`.trim()}
                         onContextMenu={(event) => {
                           event.preventDefault();
                           openMessageActions(msg, event.clientX, event.clientY);
@@ -2021,11 +2021,20 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           if (!event.touches[0]) return;
                           if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
                           const touch = event.touches[0];
-                          swipeToReplyRef.current = { id: msg.id, startX: touch.clientX, currentX: touch.clientX };
+                          swipeToReplyRef.current = {
+                            id: msg.id,
+                            startX: touch.clientX,
+                            startY: touch.clientY,
+                            currentX: touch.clientX,
+                            currentY: touch.clientY,
+                            moved: false
+                          };
                           longPressTimerRef.current = setTimeout(() => {
-                            openMessageActions(msg, touch.clientX, touch.clientY);
-                            swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
-                          }, 800);
+                            if (swipeToReplyRef.current.id === msg.id && !swipeToReplyRef.current.moved) {
+                              openMessageActions(msg, touch.clientX, touch.clientY);
+                            }
+                            swipeToReplyRef.current = { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0, moved: false };
+                          }, 1000);
                         }}
                         onTouchEnd={(e) => {
                           if (longPressTimerRef.current) {
@@ -2038,7 +2047,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             if (diffX > 60) {
                               setReplyingTo(msg);
                               e.currentTarget.style.transform = 'translateX(0px)';
-                              swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                              swipeToReplyRef.current = { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0, moved: false };
                               setTimeout(() => {
                                 textInputRef.current?.focus();
                               }, 50);
@@ -2046,28 +2055,39 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             }
                             e.currentTarget.style.transform = 'translateX(0px)';
                           }
-                          swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                          const wasMoved = swipeToReplyRef.current.moved;
+                          swipeToReplyRef.current = { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0, moved: false };
 
-                          const now = Date.now();
-                          const lastTap = lastTapRef.current;
-                          const isDoubleTap = lastTap.id === msg.id && (now - lastTap.time) < 320;
-                          if (isDoubleTap) {
-                            void quickReactToMessage(msg, '❤️');
-                            lastTapRef.current = { id: null, time: 0 };
-                            return;
+                          if (!wasMoved) {
+                            const now = Date.now();
+                            const lastTap = lastTapRef.current;
+                            const isDoubleTap = lastTap.id === msg.id && (now - lastTap.time) < 320;
+                            if (isDoubleTap) {
+                              void quickReactToMessage(msg, '❤️');
+                              lastTapRef.current = { id: null, time: 0 };
+                              return;
+                            }
+
+                            lastTapRef.current = { id: msg.id, time: now };
                           }
-
-                          lastTapRef.current = { id: msg.id, time: now };
                         }}
                         onTouchMove={(e) => {
-                          if (longPressTimerRef.current) {
-                            clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
                           if (swipeToReplyRef.current.id === msg.id && e.touches[0]) {
-                            const currentX = e.touches[0].clientX;
-                            swipeToReplyRef.current.currentX = currentX;
-                            const diffX = currentX - swipeToReplyRef.current.startX;
+                            const touch = e.touches[0];
+                            swipeToReplyRef.current.currentX = touch.clientX;
+                            swipeToReplyRef.current.currentY = touch.clientY;
+                            const diffX = touch.clientX - swipeToReplyRef.current.startX;
+                            const diffY = touch.clientY - swipeToReplyRef.current.startY;
+
+                            // If touch moved more than 10px in any direction, consider it a move and cancel long press timer
+                            if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+                              swipeToReplyRef.current.moved = true;
+                              if (longPressTimerRef.current) {
+                                clearTimeout(longPressTimerRef.current);
+                                longPressTimerRef.current = null;
+                              }
+                            }
+
                             if (diffX > 0 && diffX < 100) {
                               e.currentTarget.style.transform = `translateX(${diffX}px)`;
                             }
@@ -2081,7 +2101,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                           if (swipeToReplyRef.current.id === msg.id) {
                             e.currentTarget.style.transform = 'translateX(0px)';
                           }
-                          swipeToReplyRef.current = { id: null, startX: 0, currentX: 0 };
+                          swipeToReplyRef.current = { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0, moved: false };
                         }}
                         style={{ transition: 'transform 0.1s ease-out' }}
                       >
