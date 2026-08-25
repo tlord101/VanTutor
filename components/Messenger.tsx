@@ -926,6 +926,8 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [isLoading, setIsLoading] = useState(() => chats.length === 0 && allUsers.length === 0);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
+  const [showDeleteChatConfirmDialog, setShowDeleteChatConfirmDialog] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [partnerModalTab, setPartnerModalTab] = useState<'mates' | 'find_requests'>('mates');
   const [partnerModalSubView, setPartnerModalSubView] = useState<'all' | 'incoming' | 'sent'>('all');
@@ -1515,21 +1517,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   }, [chats, userMap, fetchedUserProfiles, userProfile.uid]);
 
   useEffect(() => {
-    if (!chats.length) return;
-    setChats(prevChats => prevChats.map(chat => {
-      const otherUserId = chat.otherUserId || chat.otherUser?.uid;
-      const resolvedUser = otherUserId ? (userMap.get(otherUserId) || fetchedUserProfiles[otherUserId]) : undefined;
-      return resolvedUser ? { ...chat, otherUser: resolvedUser } : chat;
-    }));
-  }, [chats, userMap, fetchedUserProfiles]);
-
-  useEffect(() => {
     if (!initialChatId || !chats.length) return;
     const nextChat = chats.find(chat => chat.id === initialChatId);
     if (!nextChat) return;
-    setActiveChat({ chatId: nextChat.id, otherUser: nextChat.otherUser });
-    setTab('chats');
-  }, [initialChatId, chats]);
+    const resolvedUser = userMap.get(nextChat.otherUserId) || fetchedUserProfiles[nextChat.otherUserId] || nextChat.otherUser;
+    if (activeChat?.chatId !== nextChat.id || activeChat.otherUser?.uid !== resolvedUser?.uid) {
+      setActiveChat({ chatId: nextChat.id, otherUser: resolvedUser });
+    }
+  }, [initialChatId, chats, activeChat, userMap, fetchedUserProfiles]);
 
   useEffect(() => {
     if (!activeChat) {
@@ -2228,6 +2223,70 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
 
+    if (selectedChatIds.length > 0) {
+      setCustomHeaderConfig({
+        title: (
+          <div className="flex items-center gap-3 w-full">
+            <button
+              type="button"
+              onClick={() => setSelectedChatIds([])}
+              className="w-9 h-9 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">
+              {selectedChatIds.length}
+            </span>
+          </div>
+        ),
+        leftActions: null,
+        rightActions: (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => addToast('Chat pinned.', 'info')}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+              title="Pin chat"
+            >
+              <i className="bi bi-[#009EE2] bi-pin-angle-fill text-lg"></i>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteChatConfirmDialog(true)}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 rounded-full transition-colors cursor-pointer"
+              title="Delete chat"
+            >
+              <i className="bi bi-trash text-lg"></i>
+            </button>
+            <button
+              type="button"
+              onClick={() => addToast('Notifications muted.', 'info')}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+              title="Mute notifications"
+            >
+              <i className="bi bi-bell-slash text-lg"></i>
+            </button>
+            <button
+              type="button"
+              onClick={() => addToast('Options', 'info')}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+              title="More options"
+            >
+              <i className="bi bi-three-dots-vertical text-lg"></i>
+            </button>
+          </div>
+        ),
+        className: 'bg-white dark:bg-[#1F2C34] shadow-md h-16 border-b border-slate-200 dark:border-slate-800',
+        hideDefaultRightActions: true,
+        hideProfileAvatar: true,
+        hideBottomNav: false
+      });
+      return;
+    }
+
     if (activeChat?.otherUser) {
       setCustomHeaderConfig({
         title: (
@@ -2366,26 +2425,50 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               </p>
             </div>
           ) : (
-            activeChats.map(c => (
-              <div
-                key={c.id}
-                onClick={() => {
-                  if (suppressNextChatOpenRef.current) {
-                    suppressNextChatOpenRef.current = false;
-                    return;
-                  }
-                  setActiveChat({ chatId: c.id, otherUser: c.otherUser });
-                }}
-                onTouchStart={() => startChatRowLongPress(c)}
-                onTouchEnd={clearChatRowLongPress}
-                onTouchCancel={clearChatRowLongPress}
-                onTouchMove={clearChatRowLongPress}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  void handleDeleteChatThread(c);
-                }}
-                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:hover:bg-slate-900/60 cursor-pointer border-b border-[#E9ECEF] dark:border-slate-800/60 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-slate-900/80' : ''}`}
-              >
+            activeChats.map(c => {
+              const isSelected = selectedChatIds.includes(c.id);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    if (suppressNextChatOpenRef.current) {
+                      suppressNextChatOpenRef.current = false;
+                      return;
+                    }
+                    if (selectedChatIds.length > 0) {
+                      setSelectedChatIds(prev =>
+                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                      );
+                      return;
+                    }
+                    setActiveChat({ chatId: c.id, otherUser: c.otherUser });
+                  }}
+                  onTouchStart={() => {
+                    if (chatRowLongPressTimerRef.current) clearTimeout(chatRowLongPressTimerRef.current);
+                    chatRowLongPressTimerRef.current = setTimeout(() => {
+                      suppressNextChatOpenRef.current = true;
+                      setSelectedChatIds(prev =>
+                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                      );
+                    }, 600);
+                  }}
+                  onTouchEnd={clearChatRowLongPress}
+                  onTouchCancel={clearChatRowLongPress}
+                  onTouchMove={clearChatRowLongPress}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setSelectedChatIds(prev =>
+                      prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                    );
+                  }}
+                  className={`flex items-center gap-3 p-4 cursor-pointer border-b border-[#E9ECEF] dark:border-slate-800/60 transition ${
+                    isSelected
+                      ? 'bg-[#00a884]/10 dark:bg-[#103629]'
+                      : activeChat?.chatId === c.id
+                        ? 'bg-[#F8F9FA] dark:bg-slate-900/80'
+                        : 'hover:bg-[#F8F9FA] dark:hover:bg-slate-900/60'
+                  }`}
+                >
                 <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-slate-800" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
@@ -2421,8 +2504,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     {c.otherUser?.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(c.otherUser?.last_seen)}
                   </p>
                 </div>
-              </div>
-            ))
+                </div>
+              );
+            })
           )}
         </div>
 
@@ -3001,6 +3085,68 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         )}
       </div>
 
+
+      {/* Delete Chat Confirmation Dialog */}
+      {showDeleteChatConfirmDialog && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in select-none"
+          onClick={() => setShowDeleteChatConfirmDialog(false)}
+        >
+          <div
+            className="bg-white dark:bg-[#1F2C34] rounded-[28px] shadow-2xl max-w-sm w-full p-6 border border-slate-100 dark:border-slate-800 animate-scale-in flex flex-col gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-normal text-[#111B21] dark:text-gray-100">
+              Delete {selectedChatIds.length > 1 ? `these ${selectedChatIds.length} chats?` : 'this chat?'}
+            </h3>
+
+            <div className="flex items-center justify-end gap-6 pt-6">
+              <button
+                type="button"
+                onClick={() => setShowDeleteChatConfirmDialog(false)}
+                className="text-[#008069] dark:text-[#25D366] font-medium text-sm hover:opacity-80 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!firebaseUser) return;
+                  try {
+                    const updates: any = {};
+                    for (const chatId of selectedChatIds) {
+                      const chat = chats.find(c => c.id === chatId);
+                      const otherUserId = chat?.otherUserId || chat?.otherUser?.uid;
+                      updates[`user_chats/${firebaseUser.uid}/${chatId}`] = null;
+                      if (otherUserId) {
+                        updates[`user_chats/${otherUserId}/${chatId}`] = null;
+                      }
+                      updates[`messages/${chatId}`] = null;
+                    }
+                    await update(dbRef(db), updates);
+                    if (activeChat && selectedChatIds.includes(activeChat.chatId)) {
+                      setActiveChat(null);
+                      setMessages([]);
+                      setOptimisticMessages([]);
+                    }
+                    addToast(`${selectedChatIds.length} ${selectedChatIds.length > 1 ? 'chats' : 'chat'} deleted.`, 'success');
+                  } catch (err: any) {
+                    console.error('Failed to delete selected chats:', err);
+                    addToast('Failed to delete chats.', 'error');
+                  } finally {
+                    setSelectedChatIds([]);
+                    setShowDeleteChatConfirmDialog(false);
+                  }
+                }}
+                className="text-[#008069] dark:text-[#25D366] font-medium text-sm hover:opacity-80 transition cursor-pointer"
+              >
+                Delete chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Message Confirmation Modal */}
       {deleteConfirmTarget && (
