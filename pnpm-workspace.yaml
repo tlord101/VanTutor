@@ -1,6 +1,14 @@
+packages:
+  - '.'
+  - 'vbox/server'
+  - 'vbox/client'
+
 allowBuilds:
   '@firebase/util': true
   '@google/genai': true
   esbuild: true
   protobufjs: true
   puppeteer: true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
