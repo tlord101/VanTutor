@@ -1306,7 +1306,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
     setActiveChat({ chatId, otherUser });
-    setTab('chats');
 
     void ensureChatThreadRecord(otherUser);
   }, [ensureChatThreadRecord, firebaseUser]);
