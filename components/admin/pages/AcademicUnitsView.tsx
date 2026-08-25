@@ -1,39 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
-import { ref as dbRef, get, set, update, remove } from 'firebase/database';
+import { ref as dbRef, get } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
+import { parseSchoolHierarchyRoute } from '../utils/routeUtils';
+import { Level1SchoolsHub } from './hierarchy/Level1SchoolsHub';
+import { Level2DepartmentManager } from './hierarchy/Level2DepartmentManager';
+import { Level3CourseCatalog } from './hierarchy/Level3CourseCatalog';
+import { Level4CourseStudio } from './hierarchy/Level4CourseStudio';
 
-const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
+interface AcademicUnitsViewProps {
+    pathname?: string;
+    onNavigate?: (path: string) => void;
+}
 
-export const AcademicUnitsView: React.FC = () => {
+export const AcademicUnitsView: React.FC<AcademicUnitsViewProps> = ({
+    pathname = '/admin/schools',
+    onNavigate = () => {},
+}) => {
     const { addToast } = useToast();
 
     // Data State
-    const [schoolsData, setSchoolsData] = useState<any>({});
+    const [schoolsData, setSchoolsData] = useState<Record<string, any>>({});
     const [allDepartments, setAllDepartments] = useState<any[]>([]);
-    
-    // Create State
-    const [newSchoolName, setNewSchoolName] = useState('');
-    const [newCollegeName, setNewCollegeName] = useState('');
-    const [newDeptName, setNewDeptName] = useState('');
-    const [selectedSchoolId, setSelectedSchoolId] = useState('');
-    const [selectedCollegeId, setSelectedCollegeId] = useState('');
 
-    // Migration State
-    const [oldDepartments, setOldDepartments] = useState<any[]>([]);
-    const [migrateTargetDeptId, setMigrateTargetDeptId] = useState<string>('all');
-    const [migrateDestSchoolId, setMigrateDestSchoolId] = useState<string>('');
-    const [migrateDestCollegeId, setMigrateDestCollegeId] = useState<string>('');
-    const [migrateNewSchoolName, setMigrateNewSchoolName] = useState<string>('');
-    const [migrateNewCollegeName, setMigrateNewCollegeName] = useState<string>('');
-
-    // Merge Schools State
-    const [mergeSourceSchoolId, setMergeSourceSchoolId] = useState('');
-    const [mergeDestSchoolId, setMergeDestSchoolId] = useState('');
-    const [mergeKeepName, setMergeKeepName] = useState<'source'|'dest'>('dest');
-
-    // UI State
-    const [activeTab, setActiveTab] = useState<'manage' | 'migrate' | 'mergeSchools'>('manage');
+    const route = parseSchoolHierarchyRoute(pathname);
 
     const fetchDepartments = async () => {
         try {
@@ -42,13 +32,13 @@ export const AcademicUnitsView: React.FC = () => {
                 const data = snap.val();
                 setSchoolsData(data);
                 const flatDepts: any[] = [];
-                Object.keys(data).forEach(sId => {
+                Object.keys(data).forEach((sId) => {
                     const school = data[sId];
                     if (school.colleges) {
-                        Object.keys(school.colleges).forEach(cId => {
+                        Object.keys(school.colleges).forEach((cId) => {
                             const college = school.colleges[cId];
                             if (college.departments) {
-                                Object.keys(college.departments).forEach(dId => {
+                                Object.keys(college.departments).forEach((dId) => {
                                     const dept = college.departments[dId];
                                     flatDepts.push({
                                         id: dId,
@@ -57,30 +47,32 @@ export const AcademicUnitsView: React.FC = () => {
                                         collegeId: cId,
                                         collegeName: college.name || cId,
                                         department_name: dept.name,
-                                        levels: Array.isArray(dept.levels) ? dept.levels : Object.keys(dept.levels || {})
+                                        levels: Array.isArray(dept.levels) ? dept.levels : Object.keys(dept.levels || {}),
                                     });
                                 });
                             }
                         });
                     }
                 });
+
+                const oldSnap = await get(dbRef(db, 'departments_data'));
+                if (oldSnap.exists()) {
+                    const oldData = oldSnap.val();
+                    flatDepts.forEach((dept) => {
+                        if (oldData[dept.id] && oldData[dept.id].course_list) {
+                            dept.course_list = oldData[dept.id].course_list;
+                        }
+                    });
+                }
+
                 setAllDepartments(flatDepts);
             } else {
                 setSchoolsData({});
                 setAllDepartments([]);
             }
-
-            const oldSnap = await get(dbRef(db, 'departments_data'));
-            if (oldSnap.exists()) {
-                const data = oldSnap.val();
-                const oldDepts = Object.keys(data).map(id => ({ id, ...data[id] }));
-                setOldDepartments(oldDepts);
-            } else {
-                setOldDepartments([]);
-            }
         } catch (error) {
-            console.error("Error fetching schools data:", error);
-            addToast("Failed to load data.", "error");
+            console.error('Error fetching schools data:', error);
+            addToast('Failed to load hierarchy data.', 'error');
         }
     };
 
@@ -89,520 +81,49 @@ export const AcademicUnitsView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleAddSchool = async () => {
-        if (!newSchoolName) return;
-        const id = newSchoolName.toLowerCase().replace(/\s+/g, '_');
-        try {
-            await set(dbRef(db, `schools_data/${id}`), { name: newSchoolName });
-            setNewSchoolName('');
-            fetchDepartments();
-            addToast("School added successfully!", "success");
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleRenameSchool = async (schoolId: string, oldName: string) => {
-        const newName = window.prompt(`Enter new name for school '${oldName}':`, oldName);
-        if (!newName || newName.trim() === '' || newName === oldName) return;
-        try {
-            await update(dbRef(db, `schools_data/${schoolId}`), { name: newName.trim() });
-            addToast("School renamed successfully!", "success");
-            fetchDepartments();
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleDeleteSchool = async (schoolId: string, schoolName: string) => {
-        const confirmed = window.confirm(`WARNING: Are you sure you want to completely delete the school '${schoolName}'?\nThis will permanently delete all colleges, departments, and structure inside it.`);
-        if (!confirmed) return;
-        try {
-            await remove(dbRef(db, `schools_data/${schoolId}`));
-            addToast("School deleted successfully!", "success");
-            fetchDepartments();
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleAddCollege = async () => {
-        if (!newCollegeName || !selectedSchoolId) return;
-        const id = newCollegeName.toLowerCase().replace(/\s+/g, '_');
-        try {
-            await set(dbRef(db, `schools_data/${selectedSchoolId}/colleges/${id}`), { name: newCollegeName });
-            setNewCollegeName('');
-            fetchDepartments();
-            addToast("College added successfully!", "success");
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleAddDepartment = async () => {
-        if (!newDeptName || !selectedSchoolId || !selectedCollegeId) return;
-        const id = newDeptName.toLowerCase().replace(/\s+/g, '_');
-        try {
-            await set(dbRef(db, `schools_data/${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${id}`), {
-                name: newDeptName,
-                levels: Object.fromEntries(LEVELS.map(lvl => [lvl, { courses: {} }]))
-            });
-            setNewDeptName('');
-            fetchDepartments();
-            addToast("Department added successfully!", "success");
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleRenameDepartment = async (schoolId: string, collegeId: string, deptId: string, oldName: string) => {
-        const newName = window.prompt(`Enter new name for department '${oldName}':`, oldName);
-        if (!newName || newName.trim() === '' || newName === oldName) return;
-        try {
-            await update(dbRef(db, `schools_data/${schoolId}/colleges/${collegeId}/departments/${deptId}`), { name: newName.trim() });
-            addToast("Department renamed successfully!", "success");
-            fetchDepartments();
-        } catch (error: any) {
-            addToast(error.message, "error");
-        }
-    };
-
-    const handleMigrateOldDepartments = async () => {
-        if (!migrateDestSchoolId && !migrateNewSchoolName) {
-            return addToast("Please select or create a destination school.", "error");
-        }
-        if (!migrateDestCollegeId && !migrateNewCollegeName) {
-            return addToast("Please select or create a destination college.", "error");
-        }
-
-        const schoolId = migrateDestSchoolId === 'new' ? migrateNewSchoolName.toLowerCase().replace(/\s+/g, '_') : migrateDestSchoolId;
-        const collegeId = migrateDestCollegeId === 'new' ? migrateNewCollegeName.toLowerCase().replace(/\s+/g, '_') : migrateDestCollegeId;
-
-        if (!window.confirm(`This will migrate ${migrateTargetDeptId === 'all' ? 'all old departments' : 'the selected department'} into School '${schoolId}' > College '${collegeId}'. Proceed?`)) return;
-
-        try {
-            if (migrateDestSchoolId === 'new') {
-                await update(dbRef(db, `schools_data/${schoolId}`), { name: migrateNewSchoolName });
-            }
-            if (migrateDestCollegeId === 'new') {
-                await update(dbRef(db, `schools_data/${schoolId}/colleges/${collegeId}`), { name: migrateNewCollegeName });
-            }
-
-            const updates: Record<string, any> = {};
-            
-            const migrateDept = (deptId: string, deptData: any) => {
-                const name = deptData.department_name || deptData.name || deptId;
-                const levels = deptData.levels || Object.fromEntries(LEVELS.map(lvl => [lvl, { courses: {} }]));
-                updates[`schools_data/${schoolId}/colleges/${collegeId}/departments/${deptId}`] = { name, levels };
-            }
-
-            if (migrateTargetDeptId === 'all') {
-                oldDepartments.forEach(dept => migrateDept(dept.id, dept));
-            } else {
-                const dept = oldDepartments.find(d => d.id === migrateTargetDeptId);
-                if (dept) migrateDept(dept.id, dept);
-            }
-            
-            if (Object.keys(updates).length > 0) {
-                await update(dbRef(db), updates);
-                addToast("Migration complete!", "success");
-                
-                setMigrateTargetDeptId('all');
-                setMigrateDestSchoolId('');
-                setMigrateDestCollegeId('');
-                setMigrateNewSchoolName('');
-                setMigrateNewCollegeName('');
-                
-                fetchDepartments();
-            }
-        } catch (error: any) {
-            addToast("Migration failed: " + error.message, "error");
-        }
-    };
-
-    const handleMergeSchools = async () => {
-        if (!mergeSourceSchoolId || !mergeDestSchoolId || mergeSourceSchoolId === mergeDestSchoolId) {
-            return addToast("Please select two different schools to merge.", "error");
-        }
-        
-        const sourceName = schoolsData[mergeSourceSchoolId]?.name;
-        const destName = schoolsData[mergeDestSchoolId]?.name;
-        if (!sourceName || !destName) return;
-        
-        if (!window.confirm(`WARNING: You are about to merge '${sourceName}' into '${destName}'.\nThis will deeply merge all colleges, departments, and courses. '${sourceName}' will be DELETED.\nAre you sure you want to proceed?`)) return;
-
-        try {
-            const updates: Record<string, any> = {};
-            const sourceColleges = schoolsData[mergeSourceSchoolId].colleges || {};
-            const destColleges = schoolsData[mergeDestSchoolId].colleges || {};
-
-            // If user wants to keep the source name, update the dest school name
-            if (mergeKeepName === 'source') {
-                updates[`schools_data/${mergeDestSchoolId}/name`] = sourceName;
-            }
-
-            Object.keys(sourceColleges).forEach(cId => {
-                const sourceCollege = sourceColleges[cId];
-                if (!destColleges[cId]) {
-                    // Dest doesn't have this college at all, copy it whole
-                    updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}`] = sourceCollege;
-                } else {
-                    // Dest has this college, merge departments
-                    const sourceDepts = sourceCollege.departments || {};
-                    const destDepts = destColleges[cId].departments || {};
-                    
-                    Object.keys(sourceDepts).forEach(dId => {
-                        const sourceDept = sourceDepts[dId];
-                        if (!destDepts[dId]) {
-                            // Dest doesn't have this department, copy it
-                            updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}/departments/${dId}`] = sourceDept;
-                        } else {
-                            // Dest HAS this department, merge levels/courses
-                            const sourceLevels = sourceDept.levels || {};
-                            const destLevels = destDepts[dId].levels || {};
-                            LEVELS.forEach(lvl => {
-                                const sCourses = sourceLevels[lvl]?.courses || {};
-                                const dCourses = destLevels[lvl]?.courses || {};
-                                // we just merge the course objects together
-                                if (Object.keys(sCourses).length > 0) {
-                                    updates[`schools_data/${mergeDestSchoolId}/colleges/${cId}/departments/${dId}/levels/${lvl}/courses`] = { ...dCourses, ...sCourses };
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-
-            if (Object.keys(updates).length > 0) {
-                await update(dbRef(db), updates);
-            }
-            
-            await remove(dbRef(db, `schools_data/${mergeSourceSchoolId}`));
-            
-            addToast("Schools merged successfully!", "success");
-            setMergeSourceSchoolId('');
-            setMergeDestSchoolId('');
-            fetchDepartments();
-        } catch (error: any) {
-            addToast("Merge failed: " + error.message, "error");
-        }
-    };
-
     return (
         <div className="space-y-8">
-            {/* Header Tabs */}
-            <div className="flex gap-4 border-b border-slate-200">
-                <button 
-                    onClick={() => setActiveTab('manage')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'manage' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                    <FolderTree className="w-4 h-4" />
-                    Manage Hierarchy
-                </button>
-                <button 
-                    onClick={() => setActiveTab('migrate')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'migrate' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                    <Database className="w-4 h-4" />
-                    Data Migration
-                    {oldDepartments.length > 0 && (
-                        <span className="ml-1.5 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] uppercase font-black">{oldDepartments.length}</span>
-                    )}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('mergeSchools')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'mergeSchools' ? 'border-lime-500  dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                    <GitMerge className="w-4 h-4" />
-                    Merge Schools
-                </button>
-            </div>
-
-            {activeTab === 'manage' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    {/* Build Form */}
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
-                        <div>
-                            <h3 className="font-black text-xl  dark:text-white mb-1">Create Academic Units</h3>
-                            <p className="text-sm text-slate-500">Build your institution's hierarchy step-by-step.</p>
-                        </div>
-                        
-                        <div className="space-y-6">
-                            {/* School */}
-                            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">1. Create & Manage Schools</label>
-                                </div>
-                                <div className="flex gap-3">
-                                    <input 
-                                        type="text" placeholder="e.g. School of Science" 
-                                        value={newSchoolName} onChange={e => setNewSchoolName(e.target.value)}
-                                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100 transition-all"
-                                    />
-                                    <button onClick={handleAddSchool} disabled={!newSchoolName} className="px-5 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md">Add</button>
-                                </div>
-                                
-                                {Object.keys(schoolsData || {}).length > 0 && (
-                                    <div className="mt-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                                        {Object.keys(schoolsData).map(id => (
-                                            <div key={id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                <span className="text-sm font-medium text-slate-700">{schoolsData[id].name}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={() => handleRenameSchool(id, schoolsData[id].name)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors" title="Rename School">
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button onClick={() => handleDeleteSchool(id, schoolsData[id].name)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete School">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* College */}
-                            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">2. Create College</label>
-                                </div>
-                                <div className="space-y-3">
-                                    <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100 transition-all">
-                                        <option value="">Select Parent School...</option>
-                                        {Object.keys(schoolsData || {}).map(id => (
-                                            <option key={id} value={id}>{schoolsData[id].name}</option>
-                                        ))}
-                                    </select>
-                                    <div className="flex gap-3">
-                                        <input 
-                                            type="text" placeholder="e.g. College of Computing" 
-                                            value={newCollegeName} onChange={e => setNewCollegeName(e.target.value)}
-                                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100 transition-all"
-                                        />
-                                        <button onClick={handleAddCollege} disabled={!newCollegeName || !selectedSchoolId} className="px-5 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md">Add</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Department */}
-                            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">3. Create Department</label>
-                                </div>
-                                <div className="space-y-3">
-                                    <select value={selectedCollegeId} onChange={e => setSelectedCollegeId(e.target.value)} disabled={!selectedSchoolId} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100 transition-all disabled:opacity-50">
-                                        <option value="">Select Parent College...</option>
-                                        {selectedSchoolId && schoolsData[selectedSchoolId]?.colleges && Object.keys(schoolsData[selectedSchoolId].colleges).map(id => (
-                                            <option key={id} value={id}>{schoolsData[selectedSchoolId].colleges[id].name}</option>
-                                        ))}
-                                    </select>
-                                    <div className="flex gap-3">
-                                        <input 
-                                            type="text" placeholder="e.g. Computer Science" 
-                                            value={newDeptName} onChange={e => setNewDeptName(e.target.value)}
-                                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-lime-500 focus:ring-4 focus:ring-lime-100 transition-all"
-                                        />
-                                        <button onClick={handleAddDepartment} disabled={!newDeptName || !selectedCollegeId} className="px-5 py-3 bg-lime-600 text-white rounded-xl font-bold hover:bg-lime-700 disabled:opacity-50 transition-all shadow-md shadow-lime-600/20">Add Dept</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Preview List */}
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6 sticky top-24">
-                        <div>
-                            <h3 className="font-black text-xl  dark:text-white mb-1">Active Departments</h3>
-                            <p className="text-sm text-slate-500">Currently mapped in the system.</p>
-                        </div>
-                        
-                        {allDepartments.length === 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-                                <Building className="w-8 h-8 mb-3 text-slate-300" />
-                                <p className="font-bold">No departments found.</p>
-                                <p className="text-xs">Start by creating your first school.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                {allDepartments.map(dept => (
-                                    <div key={dept.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col gap-2">
-                                        <div className="flex justify-between items-start">
-                                            <h4 className="font-bold  dark:text-white flex items-center gap-2">
-                                                {dept.department_name}
-                                                <button onClick={() => handleRenameDepartment(dept.schoolId, dept.collegeId, dept.id, dept.department_name)} className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors" title="Rename Department">
-                                                    <Edit2 className="w-3 h-3" />
-                                                </button>
-                                            </h4>
-                                            <span className="px-2.5 py-1 bg-lime-50 text-lime-700 text-[10px] font-black uppercase tracking-widest rounded-md">
-                                                {dept.levels?.length || 0} Levels
-                                            </span>
-                                        </div>
-                                        <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 flex-wrap">
-                                            <span>{dept.schoolName || dept.schoolId}</span>
-                                            <ArrowRightLeft className="w-3 h-3 text-slate-300" />
-                                            <span>{dept.collegeName || dept.collegeId}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
+            {/* Level Specific Hierarchy Views */}
+            {route.level === 1 && (
+                <Level1SchoolsHub
+                    schoolsData={schoolsData}
+                    allDepartments={allDepartments}
+                    onNavigate={onNavigate}
+                    refreshData={fetchDepartments}
+                />
             )}
 
-            {/* Tab: Migrate Old Departments */}
-            {activeTab === 'migrate' && (
-                <div className="space-y-8 animate-in fade-in duration-300">
-                    {oldDepartments.length === 0 ? (
-                        <div className="bg-white  rounded-3xl p-12 text-center border border-slate-200  shadow-sm">
-                            <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                            <h3 className="font-black text-xl  dark:text-white mb-2">No Legacy Data Found</h3>
-                            <p className="text-slate-500 text-sm max-w-sm">
-                                Your system is clean! There are no legacy departments to migrate. You can manage your academic units normally.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-3xl p-6 sm:p-10 border border-blue-200/60 shadow-sm space-y-8 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
-                            
-                            <div className="relative z-10">
-                                <h3 className="font-black text-2xl text-blue-950 mb-2">Migrate Legacy Data</h3>
-                                <p className="text-sm text-blue-800/80 max-w-xl leading-relaxed">
-                                    Move old department structures into the new hierarchy. You can migrate everything into a single School/College, or map them individually.
-                                </p>
-                            </div>
-
-                            <div className="space-y-6 relative z-10">
-                                {/* Target */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Source Department</label>
-                                    <select value={migrateTargetDeptId} onChange={e => setMigrateTargetDeptId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
-                                        <option value="all">Migrate All Old Departments ({oldDepartments.length} remaining)</option>
-                                        <optgroup label="Specific Departments">
-                                            {oldDepartments.map(d => (
-                                                 <option key={d.id} value={d.id}>{d.department_name || d.name}</option>
-                                            ))}
-                                        </optgroup>
-                                    </select>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {/* Destination School */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination School</label>
-                                        <select value={migrateDestSchoolId} onChange={e => { setMigrateDestSchoolId(e.target.value); setMigrateDestCollegeId(''); }} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
-                                            <option value="">Select School...</option>
-                                            <option value="new">+ Create New School</option>
-                                            {Object.keys(schoolsData || {}).map(id => (
-                                                <option key={id} value={id}>{schoolsData[id].name}</option>
-                                            ))}
-                                        </select>
-                                        {migrateDestSchoolId === 'new' && (
-                                            <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                                                <input type="text" placeholder="New School Name" value={migrateNewSchoolName} onChange={e => setMigrateNewSchoolName(e.target.value)} className="w-full p-4 border border-blue-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-blue-500/20 shadow-inner" />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Destination College */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination College</label>
-                                        <select value={migrateDestCollegeId} onChange={e => setMigrateDestCollegeId(e.target.value)} disabled={!migrateDestSchoolId} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm disabled:opacity-50">
-                                            <option value="">Select College...</option>
-                                            {migrateDestSchoolId && <option value="new">+ Create New College</option>}
-                                            {migrateDestSchoolId && migrateDestSchoolId !== 'new' && schoolsData[migrateDestSchoolId]?.colleges && Object.keys(schoolsData[migrateDestSchoolId].colleges).map(id => (
-                                                <option key={id} value={id}>{schoolsData[migrateDestSchoolId].colleges[id].name}</option>
-                                            ))}
-                                        </select>
-                                        {migrateDestCollegeId === 'new' && (
-                                            <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                                                <input type="text" placeholder="New College Name" value={migrateNewCollegeName} onChange={e => setMigrateNewCollegeName(e.target.value)} className="w-full p-4 border border-blue-300 rounded-2xl bg-white text-sm outline-none focus:ring-4 focus:ring-blue-500/20 shadow-inner" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                <div className="pt-6 border-t border-blue-200/50 flex justify-end">
-                                    <button 
-                                        onClick={handleMigrateOldDepartments} 
-                                        disabled={!migrateDestSchoolId || !migrateDestCollegeId} 
-                                        className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none w-full sm:w-auto"
-                                    >
-                                        Execute Migration
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
+            {route.level === 2 && route.schoolId && (
+                <Level2DepartmentManager
+                    schoolId={route.schoolId}
+                    schoolsData={schoolsData}
+                    allDepartments={allDepartments}
+                    onNavigate={onNavigate}
+                    refreshData={fetchDepartments}
+                />
             )}
-            
-            {activeTab === 'mergeSchools' && (
-                <div className="max-w-3xl">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-3xl p-6 sm:p-10 border border-blue-200/60 shadow-sm space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
-                        
-                        <div className="relative z-10">
-                            <h3 className="font-black text-2xl text-blue-950 mb-2">Merge Schools</h3>
-                            <p className="text-sm text-blue-800/80 max-w-xl leading-relaxed">
-                                Merge a duplicate school into another. All colleges, departments, and courses from the source school will be deeply merged into the destination school. The source school will then be permanently deleted.
-                            </p>
-                        </div>
 
-                        <div className="space-y-6 relative z-10">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                {/* Source School */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Source (Will be deleted)</label>
-                                    <select value={mergeSourceSchoolId} onChange={e => setMergeSourceSchoolId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
-                                        <option value="">Select School to merge...</option>
-                                        {Object.keys(schoolsData || {}).map(id => (
-                                            <option key={id} value={id}>{schoolsData[id].name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+            {route.level === 3 && route.schoolId && route.deptId && (
+                <Level3CourseCatalog
+                    schoolId={route.schoolId}
+                    deptId={route.deptId}
+                    schoolsData={schoolsData}
+                    allDepartments={allDepartments}
+                    onNavigate={onNavigate}
+                    refreshData={fetchDepartments}
+                />
+            )}
 
-                                {/* Destination School */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Destination (Will be kept)</label>
-                                    <select value={mergeDestSchoolId} onChange={e => setMergeDestSchoolId(e.target.value)} className="w-full p-4 border border-blue-200 rounded-2xl bg-white text-sm font-semibold outline-none focus:ring-4 focus:ring-blue-500/20 shadow-sm">
-                                        <option value="">Select Destination...</option>
-                                        {Object.keys(schoolsData || {}).map(id => (
-                                            <option key={id} value={id}>{schoolsData[id].name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Name Selection */}
-                            {mergeSourceSchoolId && mergeDestSchoolId && mergeSourceSchoolId !== mergeDestSchoolId && (
-                                <div className="space-y-3 p-5 rounded-2xl bg-white/60 border border-blue-200/50">
-                                    <label className="text-xs font-black text-blue-900 uppercase tracking-widest">Which name should be kept?</label>
-                                    <div className="flex flex-col gap-3">
-                                        <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="radio" name="keepName" value="dest" checked={mergeKeepName === 'dest'} onChange={() => setMergeKeepName('dest')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                                            <span className="text-sm font-medium text-slate-700">{schoolsData[mergeDestSchoolId]?.name} (Destination)</span>
-                                        </label>
-                                        <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="radio" name="keepName" value="source" checked={mergeKeepName === 'source'} onChange={() => setMergeKeepName('source')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                                            <span className="text-sm font-medium text-slate-700">{schoolsData[mergeSourceSchoolId]?.name} (Source)</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            <div className="pt-6 border-t border-blue-200/50 flex justify-end">
-                                <button 
-                                    onClick={handleMergeSchools} 
-                                    disabled={!mergeSourceSchoolId || !mergeDestSchoolId || mergeSourceSchoolId === mergeDestSchoolId} 
-                                    className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none w-full sm:w-auto"
-                                >
-                                    Merge Schools
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {route.level === 4 && route.schoolId && route.deptId && route.courseId && (
+                <Level4CourseStudio
+                    schoolId={route.schoolId}
+                    deptId={route.deptId}
+                    courseId={route.courseId}
+                    schoolsData={schoolsData}
+                    allDepartments={allDepartments}
+                    onNavigate={onNavigate}
+                    refreshData={fetchDepartments}
+                />
             )}
         </div>
     );

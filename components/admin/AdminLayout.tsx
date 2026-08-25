@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
+import { Menu, Bell } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type AdminTab = 'dashboard' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
+export type AdminTab = 'dashboard' | 'schools' | 'departments' | 'courses' | 'questions' | 'users' | 'firebase-users' | 'payments' | 'usage-analytics' | 'app' | 'app-updates' | 'email-configs' | 'notifications' | 'emails' | 'usage-settings' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
     activeTab: AdminTab;
-    onNavigate: (tab: AdminTab) => void;
+    onNavigate: (tab: string) => void;
     userProfile: UserProfile;
 }
 
 const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', iconClass: 'bi bi-house-door-fill' },
-    { id: 'departments', label: 'Academic Units', iconClass: 'bi bi-buildings-fill' },
+    { id: 'schools', label: 'Schools & Hierarchy', iconClass: 'bi bi-buildings-fill' },
     { id: 'courses', label: 'Course Catalog', iconClass: 'bi bi-book-fill' },
     { id: 'questions', label: 'Past Questions', iconClass: 'bi bi-question-circle-fill' },
     { id: 'users', label: 'User Control', iconClass: 'bi bi-people-fill' },
