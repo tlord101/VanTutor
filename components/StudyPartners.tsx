@@ -250,7 +250,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                         </div>
                                         <div className="shrink-0" onClick={e => e.stopPropagation()}>
                                             {isPartner ? (
-                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl">✓ Connected</span>
+                                                <button onClick={() => onNavigate('messenger')} className="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 px-4 py-2 rounded-xl transition cursor-pointer">Message</button>
                                             ) : req?.status === 'sent' ? (
                                                 <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl">Pending</span>
                                             ) : (
