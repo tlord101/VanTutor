@@ -2450,11 +2450,26 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       setSelectedChatIds(prev =>
                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                       );
-                    }, 600);
+                    }, 500);
                   }}
-                  onTouchEnd={clearChatRowLongPress}
-                  onTouchCancel={clearChatRowLongPress}
-                  onTouchMove={clearChatRowLongPress}
+                  onTouchEnd={() => {
+                    if (chatRowLongPressTimerRef.current) {
+                      clearTimeout(chatRowLongPressTimerRef.current);
+                      chatRowLongPressTimerRef.current = null;
+                    }
+                  }}
+                  onTouchCancel={() => {
+                    if (chatRowLongPressTimerRef.current) {
+                      clearTimeout(chatRowLongPressTimerRef.current);
+                      chatRowLongPressTimerRef.current = null;
+                    }
+                  }}
+                  onTouchMove={() => {
+                    if (chatRowLongPressTimerRef.current) {
+                      clearTimeout(chatRowLongPressTimerRef.current);
+                      chatRowLongPressTimerRef.current = null;
+                    }
+                  }}
                   onContextMenu={(event) => {
                     event.preventDefault();
                     setSelectedChatIds(prev =>
@@ -2463,7 +2478,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   }}
                   className={`flex items-center gap-3 p-4 cursor-pointer border-b border-[#E9ECEF] dark:border-slate-800/60 transition ${
                     isSelected
-                      ? 'bg-[#00a884]/10 dark:bg-[#103629]'
+                      ? 'bg-[#00a884]/15 dark:bg-[#103629]/70'
                       : activeChat?.chatId === c.id
                         ? 'bg-[#F8F9FA] dark:bg-slate-900/80'
                         : 'hover:bg-[#F8F9FA] dark:hover:bg-slate-900/60'
