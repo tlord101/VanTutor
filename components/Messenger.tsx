@@ -211,6 +211,436 @@ const VoiceNotePlayer: React.FC<{ src: string; isMe: boolean; isUploading?: bool
   );
 };
 
+// Standalone Partner Management Modal Component
+interface PartnerManagementModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activeTab: 'mates' | 'find_requests';
+  setActiveTab: (tab: 'mates' | 'find_requests') => void;
+  subView: 'all' | 'incoming' | 'sent';
+  setSubView: (subView: 'all' | 'incoming' | 'sent') => void;
+  allUsers: UserProfile[];
+  studyPartners: Record<string, boolean>;
+  partnerRequests: Record<string, any>;
+  onOpenChat: (user: UserProfile) => void;
+  sendPartnerRequest: (user: UserProfile) => Promise<void>;
+  acceptPartnerRequest: (user: UserProfile) => Promise<void>;
+  declinePartnerRequest: (user: UserProfile) => Promise<void>;
+  cancelPartnerRequest: (user: UserProfile) => Promise<void>;
+  onNavigate?: (route: string) => void;
+}
+
+const PartnerManagementModal: React.FC<PartnerManagementModalProps> = ({
+  isOpen,
+  onClose,
+  activeTab,
+  setActiveTab,
+  subView,
+  setSubView,
+  allUsers,
+  studyPartners,
+  partnerRequests,
+  onOpenChat,
+  sendPartnerRequest,
+  acceptPartnerRequest,
+  declinePartnerRequest,
+  cancelPartnerRequest,
+  onNavigate,
+}) => {
+  const [matesSearch, setMatesSearch] = useState('');
+  const [discoverySearch, setDiscoverySearch] = useState('');
+
+  const currentUserId = auth.currentUser?.uid || '';
+
+  const studyMatesList = useMemo(() => {
+    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    if (!matesSearch.trim()) return list;
+    const q = matesSearch.toLowerCase();
+    return list.filter(u =>
+      (u.display_name || '').toLowerCase().includes(q) ||
+      (u.department_id || '').toLowerCase().includes(q)
+    );
+  }, [allUsers, studyPartners, matesSearch]);
+
+  const receivedRequests = useMemo(() => {
+    return Object.values(partnerRequests).filter((req: any) => req.status === 'received');
+  }, [partnerRequests]);
+
+  const sentRequests = useMemo(() => {
+    return Object.values(partnerRequests).filter((req: any) => req.status === 'sent');
+  }, [partnerRequests]);
+
+  const discoveryUsers = useMemo(() => {
+    let list = allUsers.filter(u => u.uid !== currentUserId);
+    if (discoverySearch.trim()) {
+      const q = discoverySearch.toLowerCase();
+      list = list.filter(u =>
+        (u.display_name || '').toLowerCase().includes(q) ||
+        (u.department_id || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allUsers, currentUserId, discoverySearch]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6 animate-fade-in select-none">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col h-[85vh] max-h-[720px] animate-scale-in">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Study Partner Hub</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Manage your network and connections</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 text-sm font-bold transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Main Tab Switcher */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-2 shrink-0 gap-2">
+          <button
+            onClick={() => setActiveTab('mates')}
+            className={`flex-1 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === 'mates'
+                ? 'bg-white dark:bg-slate-800 text-[#009EE2] dark:text-white shadow-sm border border-slate-200/60 dark:border-slate-700'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <i className="bi bi-people-fill text-base"></i>
+            <span>Study Mates</span>
+            <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 font-semibold">
+              {Object.keys(studyPartners).filter(k => studyPartners[k] === true).length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('find_requests')}
+            className={`flex-1 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer relative ${
+              activeTab === 'find_requests'
+                ? 'bg-white dark:bg-slate-800 text-[#009EE2] dark:text-white shadow-sm border border-slate-200/60 dark:border-slate-700'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <i className="bi bi-[#009EE2] bi-person-plus-fill text-base"></i>
+            <span>Find & Requests</span>
+            {receivedRequests.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse">
+                {receivedRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white dark:bg-slate-900 min-h-0">
+          {activeTab === 'mates' ? (
+            <div className="flex flex-col h-full gap-4">
+              {/* Quick Search Bar for Mates */}
+              <div className="relative shrink-0">
+                <input
+                  type="text"
+                  placeholder="Filter study mates by name or department..."
+                  value={matesSearch}
+                  onChange={(e) => setMatesSearch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 pl-10 pr-9 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/30 focus:border-[#009EE2] transition shadow-sm"
+                />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
+                {matesSearch && (
+                  <button
+                    onClick={() => setMatesSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs w-5 h-5 flex items-center justify-center rounded-full"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Study Mates List */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {studyMatesList.length === 0 ? (
+                  <div className="text-center py-12 px-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <span className="text-3xl block mb-2">🎓</span>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {matesSearch ? 'No study mates match your search' : 'No study mates added yet'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      {matesSearch ? 'Try adjusting your search terms.' : 'Switch to "Find & Requests" tab to search and connect with peers!'}
+                    </p>
+                  </div>
+                ) : (
+                  studyMatesList.map(u => (
+                    <div
+                      key={u.uid}
+                      onClick={() => onOpenChat(u)}
+                      className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 hover:bg-[#009EE2]/5 dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl transition cursor-pointer group"
+                    >
+                      <Avatar
+                        className="w-11 h-11 rounded-full shrink-0 object-cover border border-slate-200 dark:border-slate-700"
+                        photo_url={u.photo_url}
+                        display_name={u.display_name || 'User'}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                          <span>{u.display_name}</span>
+                          <VerificationBadge status={u.subscription_status} />
+                          <StreakBadge userProfile={u} size="sm" />
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                          {u.department_id ? u.department_id.replace(/_/g, ' ') : 'Student'}
+                        </p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#009EE2] dark:text-[#F8F9FA] bg-[#009EE2]/10 dark:bg-[#009EE2]/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5 group-hover:bg-[#009EE2] group-hover:text-white transition-colors">
+                          <span>Message</span>
+                          <i className="bi bi-chat-fill text-xs"></i>
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col h-full gap-5">
+              {/* Top Action Pills / Badges */}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setSubView(subView === 'incoming' ? 'all' : 'incoming')}
+                  className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer ${
+                    subView === 'incoming'
+                      ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>Incoming Requests</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subView === 'incoming' ? 'bg-white text-rose-600' : 'bg-rose-500 text-white'}`}>
+                    {receivedRequests.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSubView(subView === 'sent' ? 'all' : 'sent')}
+                  className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer ${
+                    subView === 'sent'
+                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>Sent Requests</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subView === 'sent' ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'}`}>
+                    {sentRequests.length}
+                  </span>
+                </button>
+
+                {subView !== 'all' && (
+                  <button
+                    onClick={() => setSubView('all')}
+                    className="px-3 py-2 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline cursor-pointer"
+                  >
+                    Show All
+                  </button>
+                )}
+              </div>
+
+              {/* Sub-view Lists or Discovery Section */}
+              {subView === 'incoming' ? (
+                <div className="flex-1 overflow-y-auto space-y-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Incoming Partner Requests ({receivedRequests.length})
+                  </h3>
+                  {receivedRequests.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No incoming partner requests right now.</p>
+                    </div>
+                  ) : (
+                    receivedRequests.map((req: any) => {
+                      const sender = discoveryUsers.find(u => u.uid === req.senderId) || createFallbackChatUser(req.senderId);
+                      return (
+                        <div key={req.senderId} className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                          <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover" photo_url={sender.photo_url} display_name={req.senderName || sender.display_name || 'User'} />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{req.senderName || sender.display_name || 'User'}</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">Wants to be study partners with you</p>
+                          </div>
+                          <div className="shrink-0 flex gap-2">
+                            <button
+                              onClick={() => void acceptPartnerRequest(sender)}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition shadow-sm cursor-pointer"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => void declinePartnerRequest(sender)}
+                              className="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl transition cursor-pointer"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : subView === 'sent' ? (
+                <div className="flex-1 overflow-y-auto space-y-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Sent Requests ({sentRequests.length})
+                  </h3>
+                  {sentRequests.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No pending sent requests.</p>
+                    </div>
+                  ) : (
+                    sentRequests.map((req: any) => {
+                      const receiver = discoveryUsers.find(u => u.uid === req.receiverId) || createFallbackChatUser(req.receiverId);
+                      return (
+                        <div key={req.receiverId} className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                          <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover" photo_url={receiver.photo_url} display_name={receiver.display_name || 'User'} />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{receiver.display_name || 'User'}</h4>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold truncate mt-0.5">Pending approval...</p>
+                          </div>
+                          <div className="shrink-0">
+                            <button
+                              onClick={() => void cancelPartnerRequest(receiver)}
+                              className="px-3.5 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 hover:bg-amber-100 border border-amber-200 dark:border-amber-800/50 text-xs font-bold rounded-xl transition cursor-pointer"
+                            >
+                              Cancel Request
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                /* Search & Discovery Section */
+                <div className="flex flex-col flex-1 min-h-0 gap-4">
+                  <div className="relative shrink-0">
+                    <input
+                      type="text"
+                      placeholder="Search users by name or department..."
+                      value={discoverySearch}
+                      onChange={(e) => setDiscoverySearch(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 pl-10 pr-9 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/30 focus:border-[#009EE2] transition shadow-sm"
+                    />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                    </div>
+                    {discoverySearch && (
+                      <button
+                        onClick={() => setDiscoverySearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs w-5 h-5 flex items-center justify-center rounded-full"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {discoveryUsers.length === 0 ? (
+                      <div className="text-center py-10 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No users found matching "{discoverySearch}".</p>
+                      </div>
+                    ) : (
+                      discoveryUsers.map((u) => {
+                        const isPartner = studyPartners[u.uid] === true;
+                        const req = partnerRequests[u.uid];
+
+                        return (
+                          <div
+                            key={u.uid}
+                            className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/40 transition"
+                          >
+                            <Avatar
+                              className="w-11 h-11 rounded-full shrink-0 object-cover border border-slate-200 dark:border-slate-700"
+                              photo_url={u.photo_url}
+                              display_name={u.display_name || 'User'}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                                <span>{u.display_name}</span>
+                                <VerificationBadge status={u.subscription_status} />
+                              </h4>
+                              {u.department_id && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                                  {u.department_id.replace(/_/g, ' ')}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              {isPartner ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenChat(u)}
+                                  className="px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 text-xs font-bold rounded-xl transition hover:bg-emerald-100 cursor-pointer"
+                                >
+                                  Connected (Message)
+                                </button>
+                              ) : req?.status === 'sent' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void cancelPartnerRequest(u)}
+                                  className="px-3.5 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 text-xs font-bold rounded-xl transition hover:bg-amber-100 cursor-pointer"
+                                >
+                                  Pending (Cancel)
+                                </button>
+                              ) : req?.status === 'received' ? (
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => void acceptPartnerRequest(u)}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void declinePartnerRequest(u)}
+                                    className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void sendPartnerRequest(u)}
+                                  className="px-3.5 py-1.5 bg-[#009EE2] hover:bg-[#0070B8] text-white text-xs font-black uppercase tracking-wider rounded-xl transition shadow-sm cursor-pointer"
+                                >
+                                  Add Study Mate
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // =======================================================
 // FLOATING ZOLA THEME INPUT COMPONENT
 // =======================================================
@@ -495,8 +925,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
   const [isLoading, setIsLoading] = useState(() => chats.length === 0 && allUsers.length === 0);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
-  const [tab, setTab] = useState<'chats' | 'people'>('chats');
-  const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [partnerModalTab, setPartnerModalTab] = useState<'mates' | 'find_requests'>('mates');
+  const [partnerModalSubView, setPartnerModalSubView] = useState<'all' | 'incoming' | 'sent'>('all');
+  const [partnerMatesSearchQuery, setPartnerMatesSearchQuery] = useState("");
+  const [discoverySearchQuery, setDiscoverySearchQuery] = useState("");
   const [isAppActive, setIsAppActive] = useState(() => typeof document === 'undefined' ? true : document.visibilityState === 'visible');
   const [isRecording, setIsRecording] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -729,25 +1163,79 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     };
   }, [messageActionTarget]);
 
-  const filteredPeople = useMemo(() => {
-    const partnersOnly = allUsers.filter(u => studyPartners[u.uid] === true);
-    if (!peopleSearchQuery.trim()) return partnersOnly;
-    const normalizedQuery = peopleSearchQuery.toLowerCase();
-    return allUsers
-      .filter(u => u.uid !== firebaseUser?.uid)
-      .filter(u => {
-        const name = (u.display_name || "").toLowerCase();
-        const dept = (u.department_id || "").toLowerCase();
-        return name.includes(normalizedQuery) || dept.includes(normalizedQuery);
-      });
-  }, [allUsers, studyPartners, peopleSearchQuery, firebaseUser]);
+  // Fetch all users for discovery search
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const usersRef = dbRef(db, 'users');
+    const unsub = onValue(usersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list = Object.keys(data).map(uid => ({
+          uid,
+          display_name: data[uid].displayName || data[uid].display_name || 'User',
+          photo_url: data[uid].photoURL || data[uid].photo_url || '',
+          is_online: !!data[uid].is_online,
+          last_seen: data[uid].last_seen || 0,
+          department_id: data[uid].department_id || '',
+          level: data[uid].level || '',
+          current_streak: data[uid].current_streak || 0,
+          last_activity_date: data[uid].last_activity_date || Date.now(),
+          notifications_enabled: !!data[uid].notifications_enabled,
+          subscription_status: data[uid].subscription_status || 'free',
+          blocked_users: data[uid].blocked_users || {}
+        })) as UserProfile[];
+        setAllUsers(list);
+      }
+    });
+    return () => unsub();
+  }, [firebaseUser]);
 
   const activeChats = useMemo(() => {
-    return chats.filter(c => {
+    const list = chats.filter(c => {
       const partnerId = c.otherUserId || c.otherUser?.uid;
       return studyPartners[partnerId] === true;
     });
-  }, [chats, studyPartners]);
+    if (!chatSearchQuery.trim()) return list;
+    const queryLower = chatSearchQuery.toLowerCase();
+    return list.filter(c => {
+      const name = (c.otherUser?.display_name || '').toLowerCase();
+      const dept = (c.otherUser?.department_id || '').toLowerCase();
+      const lastMsg = (getLastMessagePreview(c)).toLowerCase();
+      return name.includes(queryLower) || dept.includes(queryLower) || lastMsg.includes(queryLower);
+    });
+  }, [chats, studyPartners, chatSearchQuery]);
+
+  const confirmedStudyPartnersList = useMemo(() => {
+    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    if (!partnerMatesSearchQuery.trim()) return list;
+    const q = partnerMatesSearchQuery.toLowerCase();
+    return list.filter(u =>
+      (u.display_name || '').toLowerCase().includes(q) ||
+      (u.department_id || '').toLowerCase().includes(q)
+    );
+  }, [allUsers, studyPartners, partnerMatesSearchQuery]);
+
+  const receivedRequestsList = useMemo(() => {
+    return Object.values(partnerRequests).filter((req: any) => req.status === 'received');
+  }, [partnerRequests]);
+
+  const sentRequestsList = useMemo(() => {
+    return Object.values(partnerRequests).filter((req: any) => req.status === 'sent');
+  }, [partnerRequests]);
+
+  const pendingIncomingCount = receivedRequestsList.length;
+
+  const discoveryUsersList = useMemo(() => {
+    let list = allUsers.filter(u => u.uid !== firebaseUser?.uid);
+    if (discoverySearchQuery.trim()) {
+      const q = discoverySearchQuery.toLowerCase();
+      list = list.filter(u =>
+        (u.display_name || '').toLowerCase().includes(q) ||
+        (u.department_id || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allUsers, discoverySearchQuery, firebaseUser]);
 
   const userMap = useMemo(() => new Map(allUsers.map(user => [user.uid, user])), [allUsers]);
 
@@ -1834,34 +2322,50 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#F8F9FA] dark:bg-black font-sans antialiased text-[#212529] dark:text-white">
       {/* Sidebar Pane */}
-      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-transparent flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
-        <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-transparent shrink-0">
-          <div className="flex gap-1 bg-[#E9ECEF] dark:bg-gray-900 p-1 rounded-xl text-sm shrink-0 mb-4">
-            <button onClick={() => setTab('chats')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'chats' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Chats</button>
-            <button onClick={() => setTab('people')} className={`flex-1 px-4 py-1.5 rounded-lg font-bold transition-all ${tab === 'people' ? 'bg-white dark:bg-black text-[#212529] dark:text-white shadow-sm' : 'text-[#6C757D] dark:text-gray-400 hover:text-[#212529] dark:text-white'}`}>Study Mates</button>
-          </div>
-
-          {/* Search Bar */}
-          {tab === 'people' && (
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search study mates..."
-                value={peopleSearchQuery}
-                onChange={(e) => setPeopleSearchQuery(e.target.value)}
-                className="w-full bg-white dark:bg-black text-sm text-[#212529] dark:text-white placeholder-[#80868B] px-4 py-2 rounded-full border border-[#E9ECEF] dark:border-transparent focus:outline-none focus:ring-2 focus:ring-[#009EE2]/20 focus:border-[#009EE2] transition-all shadow-sm"
-              />
-              {peopleSearchQuery && (
-                <button onClick={() => setPeopleSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6C757D] dark:text-gray-400 text-xs hover:text-[#212529] dark:text-white">✕</button>
-              )}
+      <div className={`w-full lg:w-[380px] border-r border-[#E9ECEF] dark:border-slate-800 flex flex-col ${activeChat ? 'hidden lg:flex' : 'flex'} h-full bg-white dark:bg-black relative`}>
+        {/* Sidebar Header with clean search */}
+        <div className="p-4 bg-[#F8F9FA] dark:bg-black border-b border-[#E9ECEF] dark:border-slate-800 shrink-0">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search chats..."
+              value={chatSearchQuery}
+              onChange={(e) => setChatSearchQuery(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 text-sm text-[#212529] dark:text-white placeholder-slate-400 pl-10 pr-9 py-2.5 rounded-2xl border border-[#E9ECEF] dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/30 focus:border-[#009EE2] transition-all shadow-sm"
+            />
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
             </div>
-          )}
+            {chatSearchQuery && (
+              <button
+                onClick={() => setChatSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs w-5 h-5 flex items-center justify-center rounded-full"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-white dark:bg-black">
           {isLoading ? (
             <div className="p-4"><MessengerSkeleton /></div>
-          ) : tab === 'chats' ?
+          ) : activeChats.length === 0 ? (
+            <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-slate-900/40 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-slate-800">
+              <span className="text-3xl block mb-2">💬</span>
+              <p className="text-sm font-bold text-[#212529] dark:text-white">
+                {chatSearchQuery ? "No matching chats found" : "No active chats"}
+              </p>
+              <p className="text-xs text-[#6C757D] dark:text-gray-400 mt-1">
+                {chatSearchQuery
+                  ? "Try searching for a different name or message."
+                  : "Tap the + button below to find study mates and start chatting!"}
+              </p>
+            </div>
+          ) : (
             activeChats.map(c => (
               <div
                 key={c.id}
@@ -1880,9 +2384,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   event.preventDefault();
                   void handleDeleteChatThread(c);
                 }}
-                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-transparent transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-black' : ''}`}
+                className={`flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:hover:bg-slate-900/60 cursor-pointer border-b border-[#E9ECEF] dark:border-slate-800/60 transition ${activeChat?.chatId === c.id ? 'bg-[#F8F9FA] dark:bg-slate-900/80' : ''}`}
               >
-                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
+                <Avatar className="w-11 h-11 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-slate-800" photo_url={c.otherUser?.photo_url} display_name={c.otherUser?.display_name || 'User'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
                     <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${getUnreadCount(c) > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
@@ -1890,7 +2394,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       <VerificationBadge status={c.otherUser?.subscription_status} />
                       {c.otherUser && <StreakBadge userProfile={c.otherUser} size="sm" />}
                     </h3>
-                    <span className="text-[12px] text-[#6C757D] dark:text-gray-400">10:16 AM</span>
+                    <span className="text-[12px] text-[#6C757D] dark:text-gray-400">{formatChatTimestamp(c.timestamp)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -1918,47 +2422,29 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   </p>
                 </div>
               </div>
-            )) : filteredPeople.length === 0 ? (
-              <div className="text-center py-12 px-6 bg-[#F8F9FA] dark:bg-black/30 m-4 rounded-2xl border border-dashed border-[#E9ECEF] dark:border-transparent">
-                <span className="text-2xl block mb-2 font-black text-[#6C757D] dark:text-gray-400">👥</span>
-                <p className="text-sm font-bold text-[#212529] dark:text-white">No study mates found</p>
-                <p className="text-xs text-[#6C757D] dark:text-gray-400 mt-1">
-                  {peopleSearchQuery ? "No matches for your search." : "Build your network to collaborate and share chats."}
-                </p>
-              </div>
-            ) : filteredPeople.map(u => {
-              const unreadCount = getUnreadCountForUser(u.uid);
-              return (
-                <div key={u.uid} onClick={() => openChatWithUser(u)} className="flex items-center gap-3 p-4 hover:bg-[#F8F9FA] dark:bg-black cursor-pointer border-b border-[#E9ECEF] dark:border-transparent transition">
-                  <Avatar className="w-10 h-10 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-transparent" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className={`text-[15px] truncate flex items-center gap-1.5 ${unreadCount > 0 ? 'font-bold text-[#212529] dark:text-white' : 'font-medium text-[#212529] dark:text-white'}`}>
-                      <span>{u.display_name}</span>
-                      <VerificationBadge status={u.subscription_status} />
-                      <StreakBadge userProfile={u} size="sm" />
-                    </h3>
-                    <p className="text-[11px] text-[#6C757D] dark:text-gray-400 font-normal">{u.is_online ? <span className="text-[#28A745]">online</span> : formatLastSeen(u.last_seen)}</p>
-                  </div>
-                  {unreadCount > 0 && (
-                    <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            ))
+          )}
         </div>
 
-        {/* FAB: Add Study Partner */}
+        {/* FAB: Partner Management Modal Trigger with Pending Incoming Requests Badge */}
         <button
-          onClick={() => onNavigate?.('study_partners')}
-          className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40"
-          title="Add Study Partner"
+          onClick={() => {
+            setPartnerModalTab('mates');
+            setPartnerModalSubView('all');
+            setIsPartnerModalOpen(true);
+          }}
+          className="fixed md:absolute bottom-24 md:bottom-6 right-6 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#009EE2] to-[#0070B8] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 z-40 cursor-pointer"
+          title="Partner Management"
         >
           <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
+          {pendingIncomingCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-black text-[11px] min-w-[22px] h-[22px] px-1 rounded-full border-2 border-white dark:border-black flex items-center justify-center shadow-md animate-pulse">
+              {pendingIncomingCount > 99 ? '99+' : pendingIncomingCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -2624,6 +3110,30 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             />
           </div>
         </div>
+      )}
+
+      {/* Dedicated Partner Management Modal */}
+      {isPartnerModalOpen && (
+        <PartnerManagementModal
+          isOpen={isPartnerModalOpen}
+          onClose={() => setIsPartnerModalOpen(false)}
+          activeTab={partnerModalTab}
+          setActiveTab={setPartnerModalTab}
+          subView={partnerModalSubView}
+          setSubView={setPartnerModalSubView}
+          allUsers={allUsers}
+          studyPartners={studyPartners}
+          partnerRequests={partnerRequests}
+          onOpenChat={(user) => {
+            openChatWithUser(user);
+            setIsPartnerModalOpen(false);
+          }}
+          sendPartnerRequest={sendPartnerRequest}
+          acceptPartnerRequest={acceptPartnerRequest}
+          declinePartnerRequest={declinePartnerRequest}
+          cancelPartnerRequest={cancelPartnerRequest}
+          onNavigate={onNavigate}
+        />
       )}
     </div>
   );
