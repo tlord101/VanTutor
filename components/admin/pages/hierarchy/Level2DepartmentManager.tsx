@@ -3,8 +3,9 @@ import { db } from '../../../../firebase';
 import { ref as dbRef, update, set } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
-import { ConfirmDeleteModal } from '../../primitives/ConfirmDeleteModal';
+import { SmartDeleteModal } from '../../primitives/SmartDeleteModal';
 import { SlideOverDrawer } from '../../primitives/SlideOverDrawer';
+import { get } from 'firebase/database';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
 import { Building2, GraduationCap, Plus, Trash2, ArrowRight, BookOpen, ArrowUpDown, Search, Loader2 } from 'lucide-react';
 
@@ -191,8 +192,31 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         try {
             const deptId = deleteTarget.id;
             const targetColId = deleteTarget.collegeId || collegeId || 'default_college';
-
             const updates: Record<string, any> = {};
+
+            // 1. Fetch courses in this department to check orphaned status
+            const deptSnap = await get(dbRef(db, `departments_data/${deptId}`));
+            if (deptSnap.exists()) {
+                const data = deptSnap.val();
+                const rawList = data?.course_list;
+                let coursesList: any[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+
+                for (const c of coursesList) {
+                    if (!c.course_id) continue;
+                    const linked = c.linked_departments || [deptId];
+                    const remaining = linked.filter((id: string) => id !== deptId);
+
+                    if (remaining.length === 0) {
+                        // Orphaned course -> hard delete from global_courses
+                        updates[`global_courses/${c.course_id}`] = null;
+                    } else {
+                        // Update remaining linked departments
+                        updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                    }
+                }
+            }
+
+            // 2. Unlink department data
             updates[`schools_data/${schoolId}/colleges/${targetColId}/departments/${deptId}`] = null;
             updates[`departments_data/${deptId}`] = null;
             updates[`past_questions/${deptId}`] = null;
@@ -200,7 +224,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
 
             await update(dbRef(db), updates);
 
-            addToast(`Department "${deleteTarget.department_name}" and all associated courses deleted.`, 'success');
+            addToast(`Department "${deleteTarget.department_name}" deleted & orphaned courses cleaned up.`, 'success');
             setDeleteTarget(null);
             await refreshData();
         } catch (error: any) {
@@ -498,19 +522,18 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                 </form>
             </SlideOverDrawer>
 
-            {/* Confirm Delete Department Modal */}
+            {/* Smart Delete Department Modal */}
             {deleteTarget && (
-                <ConfirmDeleteModal
+                <SmartDeleteModal
                     isOpen={Boolean(deleteTarget)}
-                    title={`Delete "${deleteTarget.department_name}"?`}
-                    description="This will permanently delete the department and remove all active course rosters and materials inside it."
-                    itemName={deleteTarget.department_name}
-                    warningDetails={[
-                        `All courses associated with ${deleteTarget.department_name}`,
-                        `Past question records and textbook contexts`,
-                    ]}
+                    targetType="department"
+                    targetItem={{
+                        id: deleteTarget.id,
+                        name: deleteTarget.department_name || deleteTarget.id,
+                        code: deleteTarget.id,
+                    }}
                     isDeleting={isDeleting}
-                    onConfirm={handleExecuteDeleteDepartment}
+                    onConfirmDelete={handleExecuteDeleteDepartment}
                     onClose={() => setDeleteTarget(null)}
                 />
             )}
