@@ -96,6 +96,7 @@ export const Level1SchoolsHub: React.FC<Level1SchoolsHubProps> = ({
 
             // 2. Check and clean up orphaned courses for all child departments
             const schoolDepts = allDepartments.filter((d) => d.schoolId === schoolId);
+            const deletedDeptIds = new Set(schoolDepts.map((d) => d.id));
 
             for (const dept of schoolDepts) {
                 const deptSnap = await get(dbRef(db, `departments_data/${dept.id}`));
@@ -106,13 +107,24 @@ export const Level1SchoolsHub: React.FC<Level1SchoolsHubProps> = ({
 
                     for (const c of coursesList) {
                         if (!c.course_id) continue;
-                        const linked = c.linked_departments || [dept.id];
-                        const remaining = linked.filter((id: string) => id !== dept.id);
+                        const courseId = c.course_id;
+
+                        const globalSnap = await get(dbRef(db, `global_courses/${courseId}`));
+                        let linkedDepts: string[] = [];
+                        if (globalSnap.exists() && Array.isArray(globalSnap.val()?.linked_departments)) {
+                            linkedDepts = globalSnap.val().linked_departments;
+                        } else if (c.linked_departments && Array.isArray(c.linked_departments)) {
+                            linkedDepts = c.linked_departments;
+                        } else {
+                            linkedDepts = [dept.id];
+                        }
+
+                        const remaining = linkedDepts.filter((id: string) => !deletedDeptIds.has(id));
 
                         if (remaining.length === 0) {
-                            updates[`global_courses/${c.course_id}`] = null;
+                            updates[`global_courses/${courseId}`] = null;
                         } else {
-                            updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                            updates[`global_courses/${courseId}/linked_departments`] = remaining;
                         }
                     }
                 }

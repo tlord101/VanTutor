@@ -203,15 +203,26 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
 
                 for (const c of coursesList) {
                     if (!c.course_id) continue;
-                    const linked = c.linked_departments || [deptId];
-                    const remaining = linked.filter((id: string) => id !== deptId);
+                    const courseId = c.course_id;
+
+                    const globalSnap = await get(dbRef(db, `global_courses/${courseId}`));
+                    let linkedDepts: string[] = [];
+                    if (globalSnap.exists() && Array.isArray(globalSnap.val()?.linked_departments)) {
+                        linkedDepts = globalSnap.val().linked_departments;
+                    } else if (c.linked_departments && Array.isArray(c.linked_departments)) {
+                        linkedDepts = c.linked_departments;
+                    } else {
+                        linkedDepts = [deptId];
+                    }
+
+                    const remaining = linkedDepts.filter((id: string) => id !== deptId);
 
                     if (remaining.length === 0) {
                         // Orphaned course -> hard delete from global_courses
-                        updates[`global_courses/${c.course_id}`] = null;
+                        updates[`global_courses/${courseId}`] = null;
                     } else {
                         // Update remaining linked departments
-                        updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                        updates[`global_courses/${courseId}/linked_departments`] = remaining;
                     }
                 }
             }

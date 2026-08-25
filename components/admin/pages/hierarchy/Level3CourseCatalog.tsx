@@ -77,6 +77,45 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         setIsBatchDeleteModalOpen(true);
     };
 
+    const resolveLinkedDepartments = async (courseId: string, fallbackLinked?: string[]): Promise<string[]> => {
+        try {
+            const globalSnap = await get(dbRef(db, `global_courses/${courseId}`));
+            if (globalSnap.exists()) {
+                const val = globalSnap.val();
+                if (Array.isArray(val?.linked_departments) && val.linked_departments.length > 0) {
+                    return val.linked_departments;
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching global course info:', e);
+        }
+
+        if (fallbackLinked && fallbackLinked.length > 0) {
+            return fallbackLinked;
+        }
+
+        // Deep Fallback: scan departments_data for any course_list entry matching course_id
+        try {
+            const allDeptsSnap = await get(dbRef(db, 'departments_data'));
+            if (allDeptsSnap.exists()) {
+                const allDeptsData = allDeptsSnap.val();
+                const foundDeptIds: string[] = [];
+                for (const dId of Object.keys(allDeptsData)) {
+                    const rawList = allDeptsData[dId]?.course_list;
+                    const list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                    if (list.some((item) => item?.course_id === courseId)) {
+                        foundDeptIds.push(dId);
+                    }
+                }
+                if (foundDeptIds.length > 0) return foundDeptIds;
+            }
+        } catch (e) {
+            console.error('Error scanning departments_data:', e);
+        }
+
+        return [deptId];
+    };
+
     const handleExecuteBatchSmartDeleteCourse = async ({ action }: { action: 'unlink' | 'hard_delete' }) => {
         if (selectedCourseIds.size === 0) return;
 
@@ -87,9 +126,13 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
 
             if (action === 'unlink') {
                 for (const c of selectedCourses) {
-                    const linked = c.linked_departments || [deptId];
+                    const linked = await resolveLinkedDepartments(c.course_id, c.linked_departments);
                     const remaining = linked.filter((id) => id !== deptId);
-                    updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                    if (remaining.length === 0) {
+                        updates[`global_courses/${c.course_id}`] = null;
+                    } else {
+                        updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                    }
                 }
 
                 const remainingDeptCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
@@ -99,23 +142,22 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                 addToast(`Unlinked ${selectedCourses.length} course(s) from ${department.department_name || deptId}.`, 'success');
             } else {
                 // Global Hard Delete Batch
+                const deptIdsToTouch = new Set<string>();
+
                 for (const c of selectedCourses) {
                     const courseId = c.course_id;
-                    const linkedDepts = c.linked_departments && c.linked_departments.length > 0
-                        ? c.linked_departments
-                        : [deptId];
-
+                    const linked = await resolveLinkedDepartments(courseId, c.linked_departments);
+                    linked.forEach((id) => deptIdsToTouch.add(id));
+                    deptIdsToTouch.add(deptId);
                     updates[`global_courses/${courseId}`] = null;
+                }
 
-                    for (const dId of linkedDepts) {
-                        const dSnap = await get(dbRef(db, `departments_data/${dId}`));
-                        if (dSnap.exists()) {
-                            const data = dSnap.val();
-                            const rawList = data?.course_list;
-                            let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
-                            const filtered = list.filter((item) => item.course_id !== courseId);
-                            updates[`departments_data/${dId}/course_list`] = filtered;
-                        }
+                for (const dId of deptIdsToTouch) {
+                    const dSnap = await get(dbRef(db, `departments_data/${dId}`));
+                    if (dSnap.exists()) {
+                        const rawList = dSnap.val()?.course_list;
+                        const list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                        updates[`departments_data/${dId}/course_list`] = list.filter((item) => !selectedCourseIds.has(item.course_id));
                     }
                 }
 
@@ -246,15 +288,16 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         setIsDeleting(true);
         try {
             const courseId = deleteTarget.course_id;
-            const linkedDepts = deleteTarget.linked_departments && deleteTarget.linked_departments.length > 0
-                ? deleteTarget.linked_departments
-                : [deptId];
-
+            const linkedDepts = await resolveLinkedDepartments(courseId, deleteTarget.linked_departments);
             const updates: Record<string, any> = {};
 
             if (action === 'unlink') {
                 const remainingLinkedDepts = linkedDepts.filter((id) => id !== deptId);
-                updates[`global_courses/${courseId}/linked_departments`] = remainingLinkedDepts;
+                if (remainingLinkedDepts.length === 0) {
+                    updates[`global_courses/${courseId}`] = null;
+                } else {
+                    updates[`global_courses/${courseId}/linked_departments`] = remainingLinkedDepts;
+                }
 
                 const nextDeptCourses = courses.filter((c) => c.course_id !== courseId);
                 updates[`departments_data/${deptId}/course_list`] = nextDeptCourses;
@@ -265,14 +308,15 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                 // Global Hard Delete
                 updates[`global_courses/${courseId}`] = null;
 
-                for (const dId of linkedDepts) {
+                const deptIdsToTouch = new Set<string>(linkedDepts);
+                deptIdsToTouch.add(deptId);
+
+                for (const dId of deptIdsToTouch) {
                     const dSnap = await get(dbRef(db, `departments_data/${dId}`));
                     if (dSnap.exists()) {
-                        const data = dSnap.val();
-                        const rawList = data?.course_list;
-                        let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
-                        const filtered = list.filter((c) => c.course_id !== courseId);
-                        updates[`departments_data/${dId}/course_list`] = filtered;
+                        const rawList = dSnap.val()?.course_list;
+                        const list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                        updates[`departments_data/${dId}/course_list`] = list.filter((c) => c.course_id !== courseId);
                     }
                 }
 
