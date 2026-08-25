@@ -52,9 +52,9 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
         e.preventDefault();
 
         // Require typing confirmation if global hard delete is selected or for non-course hierarchy entities
-        if (selectedAction === 'hard_delete' && !isCodeMatch) {
+        if ((selectedAction === 'hard_delete' || !isCourseDelete) && !isCodeMatch) {
             setShakeInput(true);
-            setErrorMsg(`Please type "${confirmationCode}" exactly as shown to confirm global deletion.`);
+            setErrorMsg(`Please type "${confirmationCode}" exactly as shown to confirm deletion.`);
             setTimeout(() => setShakeInput(false), 500);
             return;
         }
@@ -166,7 +166,7 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
                         </div>
                     )}
 
-                    {/* Typed Confirmation for Global Delete */}
+                    {/* Typed Confirmation for Global Delete or non-course entities */}
                     {(selectedAction === 'hard_delete' || !isCourseDelete) && (
                         <div className="space-y-2 pt-1 animate-in fade-in">
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -202,9 +202,9 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
                         </button>
                         <button
                             type="submit"
-                            disabled={isDeleting || (selectedAction === 'hard_delete' && !isCodeMatch && courseCount === 1)}
+                            disabled={isDeleting || ((selectedAction === 'hard_delete' || !isCourseDelete) && !isCodeMatch)}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
-                                selectedAction === 'hard_delete'
+                                selectedAction === 'hard_delete' || !isCourseDelete
                                     ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
                                     : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20'
                             }`}
@@ -214,10 +214,10 @@ export const SmartDeleteModal: React.FC<SmartDeleteModalProps> = ({
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                     <span>Processing Deletion...</span>
                                 </>
-                            ) : selectedAction === 'hard_delete' ? (
+                            ) : selectedAction === 'hard_delete' || !isCourseDelete ? (
                                 <>
                                     <Trash2 className="w-4 h-4" />
-                                    <span>Delete Globally</span>
+                                    <span>Delete {isCourseDelete ? 'Globally' : targetType}</span>
                                 </>
                             ) : (
                                 <>

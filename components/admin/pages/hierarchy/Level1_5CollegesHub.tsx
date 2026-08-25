@@ -96,15 +96,47 @@ export const Level1_5CollegesHub: React.FC<Level1_5CollegesHubProps> = ({
             // 1. Delete college node
             updates[`schools_data/${schoolId}/colleges/${collegeId}`] = null;
 
-            // 2. Delete nested departments under this college
+            // 2. Clean up departments and orphaned courses
             const collegeDepts = allDepartments.filter(
                 (d) => d.schoolId === schoolId && d.collegeId === collegeId
             );
-            collegeDepts.forEach((dept) => {
+            const deletedDeptIds = new Set(collegeDepts.map((d) => d.id));
+
+            for (const dept of collegeDepts) {
+                const deptSnap = await get(dbRef(db, `departments_data/${dept.id}`));
+                if (deptSnap.exists()) {
+                    const data = deptSnap.val();
+                    const rawList = data?.course_list;
+                    let coursesList: any[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+
+                    for (const c of coursesList) {
+                        if (!c.course_id) continue;
+                        const courseId = c.course_id;
+
+                        const globalSnap = await get(dbRef(db, `global_courses/${courseId}`));
+                        let linkedDepts: string[] = [];
+                        if (globalSnap.exists() && Array.isArray(globalSnap.val()?.linked_departments)) {
+                            linkedDepts = globalSnap.val().linked_departments;
+                        } else if (c.linked_departments && Array.isArray(c.linked_departments)) {
+                            linkedDepts = c.linked_departments;
+                        } else {
+                            linkedDepts = [dept.id];
+                        }
+
+                        const remaining = linkedDepts.filter((id: string) => !deletedDeptIds.has(id));
+
+                        if (remaining.length === 0) {
+                            updates[`global_courses/${courseId}`] = null;
+                        } else {
+                            updates[`global_courses/${courseId}/linked_departments`] = remaining;
+                        }
+                    }
+                }
+
                 updates[`departments_data/${dept.id}`] = null;
                 updates[`past_questions/${dept.id}`] = null;
                 updates[`textbook_contexts/${dept.id}`] = null;
-            });
+            }
 
             await update(dbRef(db), updates);
 
