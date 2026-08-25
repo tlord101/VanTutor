@@ -27,7 +27,6 @@ import { SystemSettingsView } from './admin/pages/SystemSettingsView';
 import { PaymentsAndUsageView } from './admin/pages/PaymentsAndUsageView';
 import { PastQuestionsView } from './admin/pages/PastQuestionsView';
 import { AdminUpdates } from './admin/AdminUpdates';
-import { CourseCatalogView } from './admin/pages/CourseCatalogView';
 import { NotificationsView } from './admin/pages/NotificationsView';
 import { EmailsView } from './admin/pages/EmailsView';
 import { TicketsView } from './admin/pages/TicketsView';
@@ -74,7 +73,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'questions' | 'courses' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
+type AdminTab = 'dashboard' | 'schools' | 'questions' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -85,7 +84,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'departments', 'courses', 'questions', 'users', 'firebase-users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo', 'github-integration'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'schools', 'departments', 'questions', 'users', 'firebase-users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo', 'github-integration'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -468,11 +467,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
         try {
             const [aiSnap, paySnap, refundSnap, complaintSnap, codesSnap] = await Promise.all([
-                get(query(dbRef(db, 'usage_logs/ai_requests'), limitToLast(1000))),
-                get(query(dbRef(db, 'usage_logs/payments'), limitToLast(500))),
-                get(query(dbRef(db, 'usage_logs/refunds'), limitToLast(200))),
-                get(query(dbRef(db, 'usage_logs/complaints'), limitToLast(200))),
-                get(query(dbRef(db, 'activation_codes'), limitToLast(500)))
+                get(query(dbRef(db, 'usage_logs/ai_requests'), limitToLast(50000))),
+                get(query(dbRef(db, 'usage_logs/payments'), limitToLast(50000))),
+                get(query(dbRef(db, 'usage_logs/refunds'), limitToLast(2000))),
+                get(query(dbRef(db, 'usage_logs/complaints'), limitToLast(2000))),
+                get(query(dbRef(db, 'activation_codes'), limitToLast(5000)))
             ]);
 
             if (aiSnap.exists()) {
@@ -2799,63 +2798,10 @@ FORMAT:
                 />
             )}
             
-            {activeTab === 'departments' && (
-                <AcademicUnitsView />
+            {(activeTab === 'schools' || activeTab === 'departments') && (
+                <AcademicUnitsView pathname={resolvedPathname} onNavigate={handleCourseTabNavigate} />
             )}
 
-            {activeTab === 'courses' && (
-                <CourseCatalogView 
-                    courseAdminView={courseAdminView}
-                    handleCourseTabNavigate={handleCourseTabNavigate}
-                    globalSearchQuery={globalSearchQuery}
-                    setGlobalSearchQuery={setGlobalSearchQuery}
-                    courseCatalog={courseCatalog}
-                    allDepartments={scopedDepartments}
-                    LEVELS={LEVELS as any}
-                    filteredGlobalCourses={filteredGlobalCourses}
-                    buildCourseManagerPath={buildCourseManagerPath}
-                    buildCourseGlobalPath={buildCourseGlobalPath}
-                    globalLevelCourses={globalLevelCourses}
-                    selectedGlobalCourseEntry={selectedGlobalCourseEntry}
-                    managerSelectionDepartmentId={managerSelectionDepartmentId}
-                    setManagerSelectionDepartmentId={setManagerSelectionDepartmentId}
-                    managerSelectionLevel={managerSelectionLevel}
-                    setManagerSelectionLevel={setManagerSelectionLevel}
-                    buildCourseAddPath={buildCourseAddPath}
-                    handleMergeDuplicateCoursesAcrossDepartments={handleMergeDuplicateCoursesAcrossDepartments}
-                    courseImportTargetMode={courseImportTargetMode}
-                    setCourseImportTargetMode={setCourseImportTargetMode as any}
-                    courseImportLevelOverride={courseImportLevelOverride}
-                    setCourseImportLevelOverride={setCourseImportLevelOverride}
-                    courseImportDepartmentIds={courseImportDepartmentIds}
-                    toggleCourseImportDepartment={toggleCourseImportDepartment}
-                    courseImportSessionOverride={courseImportSessionOverride}
-                    setCourseImportSessionOverride={setCourseImportSessionOverride}
-                    setCourseRegistrationFiles={setCourseRegistrationFiles as any}
-                    handleGoogleDrivePick={handleGoogleDrivePick}
-                    handleCourseRegistrationImport={handleCourseRegistrationImport}
-                    handleCourseCSVImport={handleCourseCSVImport}
-                    isCourseImportDisabled={isCourseImportDisabled}
-                    isCourseImporting={isCourseImporting}
-                    courseImportProgress={courseImportProgress}
-                    managerCoursesForLevel={managerCoursesForLevel}
-                    getCourseRouteKey={getCourseRouteKey}
-                    normalizeTextbookUrls={normalizeTextbookUrls}
-                    handleDeleteCourseFromDepartment={handleDeleteCourseFromDepartment as any}
-                    handleBatchDeleteCourses={handleBatchDeleteCourses as any}
-                    handleDeleteCourseTopics={handleDeleteCourseTopics as any}
-                    handleRemoveDuplicateTopicsForCourse={handleRemoveDuplicateTopicsForCourse as any}
-                    selectedManagerDepartment={selectedManagerDepartment}
-                    selectedManagerCourse={selectedManagerCourse}
-                    setCourseDetailFiles={setCourseDetailFiles as any}
-                    courseDetailFiles={courseDetailFiles as any}
-                    autoSyncToOfferingDepartments={autoSyncToOfferingDepartments}
-                    setAutoSyncToOfferingDepartments={setAutoSyncToOfferingDepartments}
-                    isUploading={isUploading}
-                    extractionProgress={extractionProgress}
-                    handleTextbookUpload={handleTextbookUpload as any}
-                />
-            )}
 
             {activeTab === 'questions' && (
                 <PastQuestionsView 

@@ -12,13 +12,17 @@ export const PaymentsAndUsageView: React.FC<PaymentsAndUsageViewProps> = ({ paym
     const [activeTab, setActiveTab] = useState<'payments' | 'usage'>('payments');
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredPayments = paymentLogs.filter(log => 
-        log.reference?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        log.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPayments = paymentLogs.filter(log => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (log.reference || log.id || '').toLowerCase().includes(query) ||
+            (log.user_email || log.email || '').toLowerCase().includes(query) ||
+            (log.user_name || log.metadata?.user_name || '').toLowerCase().includes(query)
+        );
+    });
 
     const totalRevenue = paymentLogs.reduce((acc, log) => {
-        const isSuccess = log.status === 'success' || log.status === 'successful' || !log.status;
+        const isSuccess = log.status === 'success' || log.status === 'successful';
         return isSuccess ? acc + (Number(log.amount) || 0) : acc;
     }, 0);
 

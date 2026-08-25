@@ -19,6 +19,8 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
     const [statusFilter, setStatusFilter] = useState<'all' | 'premium' | 'suspended'>('all');
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 10;
 
     // Edit State
     const [editXp, setEditXp] = useState<number>(0);
@@ -36,6 +38,10 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
         if (statusFilter === 'suspended') return matchesSearch && user.status === 'suspended';
         return matchesSearch;
     });
+
+    const totalPages = Math.ceil(filteredUsers.length / usersPerPage) || 1;
+    const startIndex = (currentPage - 1) * usersPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
 
     const handleEditStart = (user: UserProfile) => {
         setEditingUserId(user.uid);
@@ -149,13 +155,19 @@ export const UserControlView: React.FC<UserControlViewProps> = ({ allUsersList, 
                             type="text" 
                             placeholder="Search name or email..." 
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
                             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 dark:text-white transition-all"
                         />
                     </div>
                     <select 
                         value={statusFilter}
-                        onChange={(e: any) => setStatusFilter(e.target.value)}
+                        onChange={(e: any) => {
+                            setStatusFilter(e.target.value);
+                            setCurrentPage(1);
+                        }}
                         className="py-2.5 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all cursor-pointer"
                     >
                         <option value="all">All Users</option>
