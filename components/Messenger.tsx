@@ -9,6 +9,7 @@ import { VerificationBadge } from './VerificationBadge';
 import { StreakBadge } from './StreakBadge';
 import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
+import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { sourceToBlob, uploadBlobWithRetry, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
 import { useTheme } from '../contexts/ThemeContext';
@@ -86,6 +87,14 @@ const createFallbackChatUser = (uid = ''): UserProfile => ({
 const MESSENGER_CACHE_VERSION = 'v1';
 
 const getMessengerCacheKey = (uid: string, suffix: string) => `avelut_messenger_${MESSENGER_CACHE_VERSION}_${uid}_${suffix}`;
+
+const resolveDisplayImageUrl = (url: string): string => {
+  if (!url) return '';
+  if (/^(content|file):\/\//i.test(url) && Capacitor.isNativePlatform()) {
+    return Capacitor.convertFileSrc(url);
+  }
+  return url;
+};
 
 // =======================================================
 // FUNCTIONAL VOICE NOTE PLAYER COMPONENT
@@ -678,7 +687,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 }) => {
   const themeColor = '#0A101F'; // navy blue
 
-  const [attachedImage, setAttachedImage] = useState<{ source: any; previewUrl: string; mimeType: string } | null>(null);
+  const [attachedImages, setAttachedImages] = useState<Array<{ source: any; previewUrl: string; mimeType: string }>>([]);
 
   const [message, setMessage] = useState("");
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
@@ -748,10 +757,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   };
 
   const executeTextSend = () => {
-    if ((message.trim() || attachedImage) && !disabled) {
-      if (attachedImage && onImageSendWithCaption) {
-        onImageSendWithCaption(attachedImage.source, message.trim(), attachedImage.mimeType);
-        setAttachedImage(null);
+    if ((message.trim() || attachedImages.length > 0) && !disabled) {
+      if (attachedImages.length > 0 && onImageSendWithCaption) {
+        attachedImages.forEach((img, idx) => {
+          const caption = idx === 0 ? message.trim() : '';
+          onImageSendWithCaption(img.source, caption, img.mimeType);
+        });
+        setAttachedImages([]);
       } else if (message.trim()) {
         onSend(message);
       }
@@ -771,26 +783,31 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
   const swipeDeltaX = isSwiping ? Math.min(0, Math.max(-110, currentX - startX)) : 0;
 
   const handleInternalImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setAttachedImage({
-            source: file,
-            previewUrl: e.target.result as string,
-            mimeType: file.type || `image/${(file.name || '').split('.').pop() === 'png' ? 'png' : 'jpeg'}`
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 0) {
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setAttachedImages(prev => [
+              ...prev,
+              {
+                source: file,
+                previewUrl: event.target!.result as string,
+                mimeType: file.type || `image/${(file.name || '').split('.').pop() === 'png' ? 'png' : 'jpeg'}`
+              }
+            ]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
   return (
     <div className={`w-full relative select-none z-40 bg-transparent pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <input type="file" ref={fileInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
-      <input type="file" ref={imageInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={handleInternalImageSelect} className="hidden" accept="image/*" />
+      <input type="file" ref={imageInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={handleInternalImageSelect} className="hidden" accept="image/*" multiple />
 
       {isRecording && !isLocked && (
         <div
@@ -807,14 +824,20 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
       )}
 
       <div className="w-full flex flex-col gap-2 relative">
-        {attachedImage && (
-          <div className="mx-2 mb-1 bg-white dark:bg-[#202C33] rounded-2xl p-2 flex items-start justify-between shadow-sm border border-slate-100 dark:border-white/5 relative">
-            <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/5 relative">
-              <img src={attachedImage.previewUrl} alt="Attachment" className="w-full h-full object-cover" />
-            </div>
-            <button onClick={() => setAttachedImage(null)} className="absolute top-1 right-1 w-7 h-7 bg-white dark:bg-slate-800 text-slate-500 rounded-full flex items-center justify-center shadow-md hover:bg-slate-100 z-10 transition">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+        {attachedImages.length > 0 && (
+          <div className="mx-2 mb-1 bg-white dark:bg-[#202C33] rounded-2xl p-2 flex items-center gap-2 overflow-x-auto shadow-sm border border-slate-100 dark:border-white/5 relative [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {attachedImages.map((img, idx) => (
+              <div key={idx} className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-black/5 relative shrink-0">
+                <img src={img.previewUrl} alt={`Attachment ${idx + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImages(prev => prev.filter((_, i) => i !== idx))}
+                  className="absolute top-1 right-1 w-6 h-6 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center shadow-md z-10 transition cursor-pointer"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            ))}
           </div>
         )}
         <div className="w-full flex items-end gap-2 relative">
@@ -889,7 +912,7 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
           )}
 
           <div className={`shrink-0 ${isLocked ? 'hidden' : ''}`} style={{ transform: isSwiping ? `translate(${swipeDeltaX * 0.2}px, ${swipeDeltaY * 0.5}px)` : 'none', transition: isSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
-            {hasText || attachedImage ? (
+            {hasText || attachedImages.length > 0 ? (
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); executeTextSend(); }} className="w-[50px] h-[50px] text-white dark:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all hover:brightness-95 active:scale-95 duration-100 bg-slate-900 dark:bg-amber-500 cursor-pointer">
                 <i className="bi bi-send-fill text-lg"></i>
               </button>
@@ -1306,7 +1329,6 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     const chatId = [firebaseUser.uid, otherUser.uid].sort().join('_');
     setActiveChat({ chatId, otherUser });
-    setTab('chats');
 
     void ensureChatThreadRecord(otherUser);
   }, [ensureChatThreadRecord, firebaseUser]);
@@ -2575,13 +2597,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                   if (markdownMatch) {
                     imageUrl = markdownMatch[1];
                   } else {
-                    const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+)/);
+                    const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
                     if (urlMatch) {
                       imageUrl = urlMatch[1];
                     } else {
                       imageUrl = rawText;
                     }
                   }
+                  imageUrl = resolveDisplayImageUrl(imageUrl);
                 }
                 const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
                 const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
@@ -2947,13 +2970,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                       if (markdownMatch) {
                         imageUrl = markdownMatch[1];
                       } else {
-                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+)/);
+                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
                         if (urlMatch) {
                           imageUrl = urlMatch[1];
                         } else {
                           imageUrl = rawText;
                         }
                       }
+                      imageUrl = resolveDisplayImageUrl(imageUrl);
                     }
 
                     return (

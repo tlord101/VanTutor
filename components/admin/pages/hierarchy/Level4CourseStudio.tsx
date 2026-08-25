@@ -79,6 +79,37 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
     const [deletedTopicBackup, setDeletedTopicBackup] = useState<{ topic: ExtendedTopic; index: number } | null>(null);
     const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Batch Selection state
+    const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(new Set());
+
+    const toggleTopicSelection = (topicId: string) => {
+        setSelectedTopicIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(topicId)) next.delete(topicId);
+            else next.add(topicId);
+            return next;
+        });
+    };
+
+    const toggleSelectAllTopics = () => {
+        if (selectedTopicIds.size === topics.length && topics.length > 0) {
+            setSelectedTopicIds(new Set());
+        } else {
+            setSelectedTopicIds(new Set(topics.map((t) => t.topic_id)));
+        }
+    };
+
+    const handleBatchDeleteTopics = async () => {
+        if (selectedTopicIds.size === 0) return;
+        if (!window.confirm(`Are you sure you want to permanently delete ${selectedTopicIds.size} selected topic(s)?`)) return;
+
+        const nextTopics = topics.filter((t) => !selectedTopicIds.has(t.topic_id));
+        setTopics(nextTopics);
+        setSelectedTopicIds(new Set());
+        await saveTopicsToDatabase(nextTopics);
+        addToast(`Successfully deleted ${selectedTopicIds.size} topic(s).`, 'success');
+    };
+
     const geminiApiKey = appSettings.gemini_api_key.trim();
     const aiClient = useRef<GoogleGenAI | null>(null);
     useEffect(() => {
@@ -557,6 +588,28 @@ RULES:
                                 {topics.length} topic{topics.length !== 1 ? 's' : ''} in syllabus tree.
                             </p>
                         </div>
+
+                        {topics.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                {selectedTopicIds.size > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleBatchDeleteTopics}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition-colors border border-rose-500/30"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Delete ({selectedTopicIds.size})</span>
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={toggleSelectAllTopics}
+                                    className="text-xs font-bold text-slate-500 hover:text-amber-500 px-2 py-1 rounded-lg transition-colors"
+                                >
+                                    {selectedTopicIds.size === topics.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Manual Add Topic Creator */}
@@ -618,6 +671,12 @@ RULES:
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-2 flex-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTopicIds.has(t.topic_id)}
+                                                onChange={() => toggleTopicSelection(t.topic_id)}
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer shrink-0"
+                                            />
                                             <span className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 font-black text-xs flex items-center justify-center shrink-0">
                                                 {idx + 1}
                                             </span>
