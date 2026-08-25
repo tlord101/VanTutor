@@ -137,6 +137,7 @@ export interface Course {
   textbook_url?: string;
   textbook_urls?: string[];
   textbook_shared_key?: string;
+  linked_departments?: string[];
   progress?: {
     last_context?: string;
     completed?: boolean;

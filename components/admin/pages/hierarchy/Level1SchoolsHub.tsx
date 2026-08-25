@@ -3,7 +3,7 @@ import { db } from '../../../../firebase';
 import { ref as dbRef, update, set, get } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
-import { ConfirmDeleteModal } from '../../primitives/ConfirmDeleteModal';
+import { SmartDeleteModal } from '../../primitives/SmartDeleteModal';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
 import { Building2, Plus, Trash2, ArrowRight, Layers, GraduationCap, X, Loader2, Database, GitMerge } from 'lucide-react';
 
@@ -94,17 +94,37 @@ export const Level1SchoolsHub: React.FC<Level1SchoolsHubProps> = ({
             // 1. Delete school node
             updates[`schools_data/${schoolId}`] = null;
 
-            // 2. Delete all nested departments under this school from departments_data and associated nodes
+            // 2. Check and clean up orphaned courses for all child departments
             const schoolDepts = allDepartments.filter((d) => d.schoolId === schoolId);
-            schoolDepts.forEach((dept) => {
+
+            for (const dept of schoolDepts) {
+                const deptSnap = await get(dbRef(db, `departments_data/${dept.id}`));
+                if (deptSnap.exists()) {
+                    const data = deptSnap.val();
+                    const rawList = data?.course_list;
+                    let coursesList: any[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+
+                    for (const c of coursesList) {
+                        if (!c.course_id) continue;
+                        const linked = c.linked_departments || [dept.id];
+                        const remaining = linked.filter((id: string) => id !== dept.id);
+
+                        if (remaining.length === 0) {
+                            updates[`global_courses/${c.course_id}`] = null;
+                        } else {
+                            updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                        }
+                    }
+                }
+
                 updates[`departments_data/${dept.id}`] = null;
                 updates[`past_questions/${dept.id}`] = null;
                 updates[`textbook_contexts/${dept.id}`] = null;
-            });
+            }
 
             await update(dbRef(db), updates);
 
-            addToast(`School "${deleteTarget.name}" and all associated child entities deleted.`, 'success');
+            addToast(`School "${deleteTarget.name}" & associated child entities deleted.`, 'success');
             setDeleteTarget(null);
             await refreshData();
         } catch (error: any) {
@@ -331,20 +351,18 @@ export const Level1SchoolsHub: React.FC<Level1SchoolsHubProps> = ({
                 </div>
             )}
 
-            {/* Delete School Modal */}
+            {/* Smart Delete School Modal */}
             {deleteTarget && (
-                <ConfirmDeleteModal
+                <SmartDeleteModal
                     isOpen={Boolean(deleteTarget)}
-                    title={`Delete "${deleteTarget.name}"?`}
-                    description="This action is destructive and cannot be undone. All nested colleges, departments, courses, topics, and materials will be permanently removed."
-                    itemName={deleteTarget.name}
-                    warningDetails={[
-                        `Colleges inside ${deleteTarget.name}`,
-                        `All departments mapped under ${deleteTarget.name}`,
-                        `All course rosters, syllabi, past questions, and textbook storage files`,
-                    ]}
+                    targetType="school"
+                    targetItem={{
+                        id: deleteTarget.id,
+                        name: deleteTarget.name,
+                        code: deleteTarget.id,
+                    }}
                     isDeleting={isDeleting}
-                    onConfirm={handleExecuteDeleteSchool}
+                    onConfirmDelete={handleExecuteDeleteSchool}
                     onClose={() => setDeleteTarget(null)}
                 />
             )}

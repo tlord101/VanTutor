@@ -7,6 +7,8 @@ import { useToast } from '../../../../hooks/useToast';
 import { useAppSettings } from '../../../../hooks/useAppSettings';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
+import { TopicPurgeManager } from '../../primitives/TopicPurgeManager';
+import { ScopeSelectionModal } from '../../primitives/ScopeSelectionModal';
 import {
     Building2,
     GraduationCap,
@@ -68,6 +70,10 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
     const [extractionProgress, setExtractionProgress] = useState<number>(0);
     const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Scope selection for material upload
+    const [isUploadScopeModalOpen, setIsUploadScopeModalOpen] = useState(false);
+    const [pendingExtractedTopics, setPendingExtractedTopics] = useState<ExtendedTopic[] | null>(null);
 
     // Manual Topic Creator state
     const [newTopicTitle, setNewCourseTopicTitle] = useState('');
@@ -156,24 +162,49 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
         void loadCourseData();
     }, [deptId, courseId]);
 
-    const saveTopicsToDatabase = async (updatedTopics: ExtendedTopic[]) => {
+    const saveTopicsToDatabase = async (updatedTopics: ExtendedTopic[], isGlobalSync = false) => {
         try {
-            const snap = await get(dbRef(db, `departments_data/${deptId}`));
-            if (!snap.exists()) return;
-            const data = snap.val();
-            const rawList = data?.course_list;
-            let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+            const updates: Record<string, any> = {};
+            const linkedDepts = course?.linked_departments && course.linked_departments.length > 0
+                ? course.linked_departments
+                : [deptId];
 
-            const nextList = list.map((c) => {
-                if (c.course_id === courseId || c.course_code === courseId) {
-                    return { ...c, topics: updatedTopics };
+            if (isGlobalSync) {
+                for (const dId of linkedDepts) {
+                    const snap = await get(dbRef(db, `departments_data/${dId}`));
+                    if (snap.exists()) {
+                        const data = snap.val();
+                        const rawList = data?.course_list;
+                        let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+
+                        const nextList = list.map((c) => {
+                            if (c.course_id === courseId || c.course_code === courseId) {
+                                return { ...c, topics: updatedTopics };
+                            }
+                            return c;
+                        });
+                        updates[`departments_data/${dId}/course_list`] = nextList;
+                    }
                 }
-                return c;
-            });
+                updates[`global_courses/${courseId}/topics`] = updatedTopics;
+            } else {
+                const snap = await get(dbRef(db, `departments_data/${deptId}`));
+                if (snap.exists()) {
+                    const data = snap.val();
+                    const rawList = data?.course_list;
+                    let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
 
-            await update(dbRef(db, `departments_data/${deptId}`), {
-                course_list: nextList,
-            });
+                    const nextList = list.map((c) => {
+                        if (c.course_id === courseId || c.course_code === courseId) {
+                            return { ...c, topics: updatedTopics };
+                        }
+                        return c;
+                    });
+                    updates[`departments_data/${deptId}/course_list`] = nextList;
+                }
+            }
+
+            await update(dbRef(db), updates);
             await refreshData();
         } catch (error: any) {
             console.error('Error saving topics:', error);
@@ -299,7 +330,6 @@ RULES:
 
             const mergedTopics = [...topics, ...formattedExtractedTopics];
             setTopics(mergedTopics);
-            await saveTopicsToDatabase(mergedTopics);
 
             setUploadedFiles((prev) => [
                 ...prev,
@@ -308,8 +338,15 @@ RULES:
 
             setExtractionStage('complete');
             setExtractionProgress(100);
-            addToast(`Successfully extracted ${formattedExtractedTopics.length} topics from "${file.name}"!`, 'success');
 
+            if (course?.linked_departments && course.linked_departments.length > 1) {
+                setPendingExtractedTopics(mergedTopics);
+                setIsUploadScopeModalOpen(true);
+            } else {
+                await saveTopicsToDatabase(mergedTopics, false);
+            }
+
+            addToast(`Successfully extracted ${formattedExtractedTopics.length} topics from "${file.name}"!`, 'success');
             setTimeout(() => setExtractionStage('idle'), 3000);
         } catch (error: any) {
             console.error('Error during AI extraction:', error);
@@ -472,6 +509,27 @@ RULES:
                 </p>
             </div>
 
+            {/* Scope Selection Modal for Material Upload */}
+            {isUploadScopeModalOpen && pendingExtractedTopics && (
+                <ScopeSelectionModal
+                    isOpen={isUploadScopeModalOpen}
+                    title="Select Scope for Material Upload"
+                    description={`Choose whether extracted topics and materials should be synced globally across all ${course?.linked_departments?.length} departments offering ${course?.course_code || course?.course_name} or isolated locally.`}
+                    courseCode={course?.course_code}
+                    linkedDeptsCount={course?.linked_departments?.length || 1}
+                    onSelectScope={async (isGlobalSync) => {
+                        await saveTopicsToDatabase(pendingExtractedTopics, isGlobalSync);
+                        setIsUploadScopeModalOpen(false);
+                        setPendingExtractedTopics(null);
+                        addToast(`Upload scope synced (${isGlobalSync ? 'Global Sync' : 'Local Override'}).`, 'success');
+                    }}
+                    onClose={() => {
+                        setIsUploadScopeModalOpen(false);
+                        setPendingExtractedTopics(null);
+                    }}
+                />
+            )}
+
             {/* Dual Panel Workspace */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                 {/* PANEL A: Materials & AI Upload */}
@@ -578,7 +636,7 @@ RULES:
 
                 {/* PANEL B: Topic Tree & Syllabus */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h3 className="font-black text-xl text-slate-900 dark:text-white flex items-center gap-2">
                                 <ListTree className="w-5 h-5 text-amber-500" />
@@ -590,7 +648,15 @@ RULES:
                         </div>
 
                         {topics.length > 0 && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {course && (
+                                    <TopicPurgeManager
+                                        course={course}
+                                        deptId={deptId}
+                                        topics={topics}
+                                        onTopicsUpdated={(newTopics) => setTopics(newTopics)}
+                                    />
+                                )}
                                 {selectedTopicIds.size > 0 && (
                                     <button
                                         type="button"

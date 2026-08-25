@@ -3,10 +3,10 @@ import { db } from '../../../../firebase';
 import { ref as dbRef, get, update } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
-import { ConfirmDeleteModal } from '../../primitives/ConfirmDeleteModal';
-import { SlideOverDrawer } from '../../primitives/SlideOverDrawer';
+import { SmartDeleteModal } from '../../primitives/SmartDeleteModal';
+import { HybridCourseDrawer } from '../../primitives/HybridCourseDrawer';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
-import { Building2, GraduationCap, BookOpen, Plus, Trash2, LayoutGrid, List, ArrowRight, Layers, FileText, Archive } from 'lucide-react';
+import { Building2, GraduationCap, BookOpen, Plus, Trash2, LayoutGrid, List, ArrowRight, Layers, FileText, Archive, Share2 } from 'lucide-react';
 import type { Course } from '../../../../types';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
@@ -49,6 +49,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
 
     // Delete Course Modal state
     const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+    const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Batch Selection state
@@ -71,23 +72,63 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         }
     };
 
-    const handleBatchDeleteCourses = async () => {
+    const handleTriggerBatchDelete = () => {
         if (selectedCourseIds.size === 0) return;
-        if (!window.confirm(`Are you sure you want to permanently delete ${selectedCourseIds.size} selected course(s)?`)) return;
+        setIsBatchDeleteModalOpen(true);
+    };
+
+    const handleExecuteBatchSmartDeleteCourse = async ({ action }: { action: 'unlink' | 'hard_delete' }) => {
+        if (selectedCourseIds.size === 0) return;
 
         setIsDeleting(true);
         try {
-            const updatedCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
-            await update(dbRef(db, `departments_data/${deptId}`), {
-                course_list: updatedCourses,
-            });
+            const selectedCourses = courses.filter((c) => selectedCourseIds.has(c.course_id));
+            const updates: Record<string, any> = {};
 
-            setCourses(updatedCourses);
-            addToast(`Successfully deleted ${selectedCourseIds.size} course(s).`, 'success');
+            if (action === 'unlink') {
+                for (const c of selectedCourses) {
+                    const linked = c.linked_departments || [deptId];
+                    const remaining = linked.filter((id) => id !== deptId);
+                    updates[`global_courses/${c.course_id}/linked_departments`] = remaining;
+                }
+
+                const remainingDeptCourses = courses.filter((c) => !selectedCourseIds.has(c.course_id));
+                updates[`departments_data/${deptId}/course_list`] = remainingDeptCourses;
+
+                setCourses(remainingDeptCourses);
+                addToast(`Unlinked ${selectedCourses.length} course(s) from ${department.department_name || deptId}.`, 'success');
+            } else {
+                // Global Hard Delete Batch
+                for (const c of selectedCourses) {
+                    const courseId = c.course_id;
+                    const linkedDepts = c.linked_departments && c.linked_departments.length > 0
+                        ? c.linked_departments
+                        : [deptId];
+
+                    updates[`global_courses/${courseId}`] = null;
+
+                    for (const dId of linkedDepts) {
+                        const dSnap = await get(dbRef(db, `departments_data/${dId}`));
+                        if (dSnap.exists()) {
+                            const data = dSnap.val();
+                            const rawList = data?.course_list;
+                            let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                            const filtered = list.filter((item) => item.course_id !== courseId);
+                            updates[`departments_data/${dId}/course_list`] = filtered;
+                        }
+                    }
+                }
+
+                setCourses((prev) => prev.filter((c) => !selectedCourseIds.has(c.course_id)));
+                addToast(`Globally hard deleted ${selectedCourses.length} course(s) across all departments.`, 'success');
+            }
+
+            await update(dbRef(db), updates);
             setSelectedCourseIds(new Set());
+            setIsBatchDeleteModalOpen(false);
             await refreshData();
         } catch (error: any) {
-            console.error('Error batch deleting courses:', error);
+            console.error('Error executing batch course deletion:', error);
             addToast('Failed to delete selected courses: ' + error.message, 'error');
         } finally {
             setIsDeleting(false);
@@ -199,22 +240,51 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         }
     };
 
-    const handleExecuteDeleteCourse = async () => {
+    const handleExecuteSmartDeleteCourse = async ({ action, targetItem }: { action: 'unlink' | 'hard_delete'; targetItem: any }) => {
         if (!deleteTarget) return;
 
         setIsDeleting(true);
         try {
-            const updatedCourses = courses.filter((c) => c.course_id !== deleteTarget.course_id);
-            await update(dbRef(db, `departments_data/${deptId}`), {
-                course_list: updatedCourses,
-            });
+            const courseId = deleteTarget.course_id;
+            const linkedDepts = deleteTarget.linked_departments && deleteTarget.linked_departments.length > 0
+                ? deleteTarget.linked_departments
+                : [deptId];
 
-            setCourses(updatedCourses);
-            addToast(`Course "${deleteTarget.course_name}" deleted.`, 'success');
+            const updates: Record<string, any> = {};
+
+            if (action === 'unlink') {
+                const remainingLinkedDepts = linkedDepts.filter((id) => id !== deptId);
+                updates[`global_courses/${courseId}/linked_departments`] = remainingLinkedDepts;
+
+                const nextDeptCourses = courses.filter((c) => c.course_id !== courseId);
+                updates[`departments_data/${deptId}/course_list`] = nextDeptCourses;
+
+                setCourses(nextDeptCourses);
+                addToast(`Course "${deleteTarget.course_name}" unlinked from ${department.department_name || deptId}.`, 'success');
+            } else {
+                // Global Hard Delete
+                updates[`global_courses/${courseId}`] = null;
+
+                for (const dId of linkedDepts) {
+                    const dSnap = await get(dbRef(db, `departments_data/${dId}`));
+                    if (dSnap.exists()) {
+                        const data = dSnap.val();
+                        const rawList = data?.course_list;
+                        let list: Course[] = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+                        const filtered = list.filter((c) => c.course_id !== courseId);
+                        updates[`departments_data/${dId}/course_list`] = filtered;
+                    }
+                }
+
+                setCourses((prev) => prev.filter((c) => c.course_id !== courseId));
+                addToast(`Course "${deleteTarget.course_name}" globally hard deleted.`, 'success');
+            }
+
+            await update(dbRef(db), updates);
             setDeleteTarget(null);
             await refreshData();
         } catch (error: any) {
-            console.error('Error deleting course:', error);
+            console.error('Error in smart course deletion:', error);
             addToast('Failed to delete course: ' + error.message, 'error');
         } finally {
             setIsDeleting(false);
@@ -271,7 +341,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                     {selectedCourseIds.size > 0 && (
                         <button
                             type="button"
-                            onClick={handleBatchDeleteCourses}
+                            onClick={handleTriggerBatchDelete}
                             disabled={isDeleting}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition-colors border border-rose-500/30 cursor-pointer disabled:opacity-50"
                         >
@@ -355,7 +425,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                             >
                                 <div className="space-y-4">
                                     <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                             <input
                                                 type="checkbox"
                                                 checked={selectedCourseIds.has(course.course_id)}
@@ -370,6 +440,12 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                                             {course.course_unit && (
                                                 <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10px] uppercase">
                                                     {course.course_unit} Units
+                                                </span>
+                                            )}
+                                            {course.linked_departments && course.linked_departments.length > 1 && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 font-black text-[10px] uppercase tracking-wider border border-sky-500/20" title={`Cross-listed across ${course.linked_departments.length} departments`}>
+                                                    <Share2 className="w-3 h-3 text-sky-500" />
+                                                    <span>Shared ({course.linked_departments.length})</span>
                                                 </span>
                                             )}
                                         </div>
@@ -482,7 +558,14 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                                                 />
                                             </td>
                                             <td className="py-4 px-6 font-mono font-black text-amber-600 dark:text-amber-400">
-                                                {course.course_code || 'N/A'}
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>{course.course_code || 'N/A'}</span>
+                                                    {course.linked_departments && course.linked_departments.length > 1 && (
+                                                        <span className="p-1 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-500" title={`Cross-listed across ${course.linked_departments.length} departments`}>
+                                                            <Share2 className="w-3 h-3" />
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="py-4 px-6 font-bold text-slate-900 dark:text-white">
                                                 <div onClick={(e) => e.stopPropagation()}>
@@ -531,122 +614,53 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                 </div>
             )}
 
-            {/* Slide-over Add Course Drawer */}
-            <SlideOverDrawer
+            {/* Hybrid Course Creation Drawer */}
+            <HybridCourseDrawer
                 isOpen={isAddDrawerOpen}
                 onClose={() => setIsAddDrawerOpen(false)}
-                title="Add New Course"
-                description={`Register a new course under ${department.department_name || deptId}.`}
-            >
-                <form onSubmit={handleCreateCourse} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Course Code *
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={newCourseCode}
-                            onChange={(e) => setNewCourseCode(e.target.value)}
-                            placeholder="e.g. GET 208"
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all uppercase"
-                        />
-                    </div>
+                currentDeptId={deptId}
+                allDepartments={allDepartments}
+                onCourseCreated={async () => {
+                    await loadDepartmentCourses();
+                    await refreshData();
+                }}
+            />
 
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Course Title *
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={newCourseTitle}
-                            onChange={(e) => setNewCourseTitle(e.target.value)}
-                            placeholder="e.g. Fundamentals of Engineering Thermodynamics"
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                                Credit Units
-                            </label>
-                            <input
-                                type="number"
-                                min={1}
-                                max={12}
-                                value={newCreditUnits}
-                                onChange={(e) => setNewCreditUnits(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                                Level
-                            </label>
-                            <select
-                                value={newLevel}
-                                onChange={(e) => setNewLevel(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                            >
-                                {LEVELS.map((lvl) => (
-                                    <option key={lvl} value={lvl}>
-                                        {lvl}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Semester
-                        </label>
-                        <select
-                            value={newSemester}
-                            onChange={(e) => setNewSemester(e.target.value as any)}
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                        >
-                            <option value="first">First Semester</option>
-                            <option value="second">Second Semester</option>
-                        </select>
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setIsAddDrawerOpen(false)}
-                            className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isCreating || !newCourseTitle.trim()}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 disabled:opacity-40"
-                        >
-                            {isCreating ? 'Saving...' : 'Save Course'}
-                        </button>
-                    </div>
-                </form>
-            </SlideOverDrawer>
-
-            {/* Confirm Delete Course Modal */}
+            {/* Smart Delete Single Course Modal */}
             {deleteTarget && (
-                <ConfirmDeleteModal
+                <SmartDeleteModal
                     isOpen={Boolean(deleteTarget)}
-                    title={`Delete "${deleteTarget.course_name}"?`}
-                    description="This will remove the course from this department's roster along with all attached syllabus topics and material references."
-                    itemName={deleteTarget.course_name}
-                    warningDetails={[
-                        `Course Code: ${deleteTarget.course_code || 'N/A'}`,
-                        `All syllabus topics and study material associations`,
-                    ]}
+                    targetType="course"
+                    targetItem={{
+                        id: deleteTarget.course_id,
+                        name: deleteTarget.course_name,
+                        code: deleteTarget.course_code || deleteTarget.course_id,
+                        linkedDepartments: deleteTarget.linked_departments && deleteTarget.linked_departments.length > 0
+                            ? deleteTarget.linked_departments
+                            : [deptId],
+                    }}
+                    currentDeptId={department.department_name || deptId}
                     isDeleting={isDeleting}
-                    onConfirm={handleExecuteDeleteCourse}
+                    onConfirmDelete={handleExecuteSmartDeleteCourse}
                     onClose={() => setDeleteTarget(null)}
+                />
+            )}
+
+            {/* Smart Delete Batch Courses Modal */}
+            {isBatchDeleteModalOpen && (
+                <SmartDeleteModal
+                    isOpen={isBatchDeleteModalOpen}
+                    targetType="course"
+                    targetItem={{
+                        id: 'batch_courses',
+                        name: `${selectedCourseIds.size} Selected Courses`,
+                        code: 'BATCH',
+                        count: selectedCourseIds.size,
+                    }}
+                    currentDeptId={department.department_name || deptId}
+                    isDeleting={isDeleting}
+                    onConfirmDelete={handleExecuteBatchSmartDeleteCourse}
+                    onClose={() => setIsBatchDeleteModalOpen(false)}
                 />
             )}
         </div>
