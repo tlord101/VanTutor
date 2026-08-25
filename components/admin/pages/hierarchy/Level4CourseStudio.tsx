@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../../../../firebase';
-import { ref as dbRef, get, update, set } from 'firebase/database';
+import { ref as dbRef, get, update } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, Type } from '@google/genai';
 import { useToast } from '../../../../hooks/useToast';
@@ -9,22 +9,18 @@ import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
 import {
     Building2,
+    GraduationCap,
     BookOpen,
     UploadCloud,
     FileText,
-    CheckCircle2,
     Plus,
     Trash2,
     MoveUp,
     MoveDown,
     Undo2,
     Sparkles,
-    Loader2,
     ChevronRight,
-    ListTree,
-    Clock,
-    File,
-    Image as ImageIcon
+    ListTree
 } from 'lucide-react';
 import type { Course, Topic } from '../../../../types';
 
@@ -59,6 +55,8 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
 
     const school = schoolsData[schoolId] || { name: schoolId };
     const department = allDepartments.find((d) => d.id === deptId) || { department_name: deptId };
+    const collegeId = department.collegeId;
+    const college = collegeId ? school.colleges?.[collegeId] || { name: collegeId } : null;
 
     const [course, setCourse] = useState<Course | null>(null);
     const [topics, setTopics] = useState<ExtendedTopic[]>([]);
@@ -344,10 +342,7 @@ RULES:
     };
 
     const handleDeleteTopicOptimistic = (topic: ExtendedTopic, index: number) => {
-        // Backup for Undo
         setDeletedTopicBackup({ topic, index });
-
-        // Optimistically remove from state
         const nextTopics = topics.filter((_, idx) => idx !== index);
         setTopics(nextTopics);
 
@@ -394,29 +389,42 @@ RULES:
         return <div className="py-16 text-center text-sm font-bold text-slate-400">Loading Course Studio...</div>;
     }
 
+    const breadcrumbItems = [
+        {
+            label: school.name || schoolId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}`,
+            icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
+        },
+    ];
+
+    if (collegeId) {
+        breadcrumbItems.push({
+            label: college?.name || collegeId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}`,
+            icon: <GraduationCap className="w-3.5 h-3.5 text-amber-500" />,
+        });
+    }
+
+    const deptPath = collegeId
+        ? `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}/${encodeURIComponent(deptId)}`
+        : `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}`;
+
+    breadcrumbItems.push({
+        label: department.department_name || deptId,
+        path: deptPath,
+        icon: <BookOpen className="w-3.5 h-3.5 text-amber-500" />,
+    });
+
+    breadcrumbItems.push({
+        label: course?.course_code || course?.course_name || courseId,
+        path: `${deptPath}/${encodeURIComponent(courseId)}`,
+        icon: <ListTree className="w-3.5 h-3.5 text-amber-500" />,
+    });
+
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
             {/* Breadcrumb Navigation */}
-            <BreadcrumbNavigation
-                items={[
-                    {
-                        label: school.name || schoolId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}`,
-                        icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                    {
-                        label: department.department_name || deptId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}`,
-                        icon: <BookOpen className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                    {
-                        label: course?.course_code || course?.course_name || courseId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(courseId)}`,
-                        icon: <ListTree className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                ]}
-                onNavigate={onNavigate}
-            />
+            <BreadcrumbNavigation items={breadcrumbItems} onNavigate={onNavigate} />
 
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">

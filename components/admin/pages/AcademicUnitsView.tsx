@@ -4,6 +4,7 @@ import { ref as dbRef, get } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import { parseSchoolHierarchyRoute } from '../utils/routeUtils';
 import { Level1SchoolsHub } from './hierarchy/Level1SchoolsHub';
+import { Level1_5CollegesHub } from './hierarchy/Level1_5CollegesHub';
 import { Level2DepartmentManager } from './hierarchy/Level2DepartmentManager';
 import { Level3CourseCatalog } from './hierarchy/Level3CourseCatalog';
 import { Level4CourseStudio } from './hierarchy/Level4CourseStudio';
@@ -93,9 +94,20 @@ export const AcademicUnitsView: React.FC<AcademicUnitsViewProps> = ({
                 />
             )}
 
+            {route.level === 1.5 && route.schoolId && (
+                <Level1_5CollegesHub
+                    schoolId={route.schoolId}
+                    schoolsData={schoolsData}
+                    allDepartments={allDepartments}
+                    onNavigate={onNavigate}
+                    refreshData={fetchDepartments}
+                />
+            )}
+
             {route.level === 2 && route.schoolId && (
                 <Level2DepartmentManager
                     schoolId={route.schoolId}
+                    collegeId={route.collegeId}
                     schoolsData={schoolsData}
                     allDepartments={allDepartments}
                     onNavigate={onNavigate}

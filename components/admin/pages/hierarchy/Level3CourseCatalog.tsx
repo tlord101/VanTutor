@@ -6,11 +6,10 @@ import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { ConfirmDeleteModal } from '../../primitives/ConfirmDeleteModal';
 import { SlideOverDrawer } from '../../primitives/SlideOverDrawer';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
-import { Building2, BookOpen, Plus, Trash2, LayoutGrid, List, ArrowRight, Layers, FileText, CheckCircle, Archive, Edit2, Loader2 } from 'lucide-react';
+import { Building2, GraduationCap, BookOpen, Plus, Trash2, LayoutGrid, List, ArrowRight, Layers, FileText, Archive } from 'lucide-react';
 import type { Course } from '../../../../types';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
-const SEMESTERS = ['first', 'second'];
 
 interface Level3CourseCatalogProps {
     schoolId: string;
@@ -32,6 +31,8 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
     const { addToast } = useToast();
     const school = schoolsData[schoolId] || { name: schoolId };
     const department = allDepartments.find((d) => d.id === deptId) || { department_name: deptId };
+    const collegeId = department.collegeId;
+    const college = collegeId ? school.colleges?.[collegeId] || { name: collegeId } : null;
 
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [courses, setCourses] = useState<Course[]>([]);
@@ -177,24 +178,36 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
         }
     };
 
+    const breadcrumbItems = [
+        {
+            label: school.name || schoolId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}`,
+            icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
+        },
+    ];
+
+    if (collegeId) {
+        breadcrumbItems.push({
+            label: college?.name || collegeId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}`,
+            icon: <GraduationCap className="w-3.5 h-3.5 text-amber-500" />,
+        });
+    }
+
+    const currentDeptPath = collegeId
+        ? `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}/${encodeURIComponent(deptId)}`
+        : `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}`;
+
+    breadcrumbItems.push({
+        label: department.department_name || deptId,
+        path: currentDeptPath,
+        icon: <BookOpen className="w-3.5 h-3.5 text-amber-500" />,
+    });
+
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
             {/* Breadcrumb Navigation */}
-            <BreadcrumbNavigation
-                items={[
-                    {
-                        label: school.name || schoolId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}`,
-                        icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                    {
-                        label: department.department_name || deptId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}`,
-                        icon: <BookOpen className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                ]}
-                onNavigate={onNavigate}
-            />
+            <BreadcrumbNavigation items={breadcrumbItems} onNavigate={onNavigate} />
 
             {/* Header & Actions Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -273,17 +286,14 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                         const topicCount = course.topics?.length || 0;
                         const materialCount = course.textbook_urls?.length || (course.textbook_url ? 1 : 0);
                         const isArchived = course.course_status === 'ARCHIVED';
+                        const studioPath = collegeId
+                            ? `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(course.course_id)}`
+                            : `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(course.course_id)}`;
 
                         return (
                             <div
                                 key={course.course_id}
-                                onClick={() =>
-                                    onNavigate(
-                                        `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(
-                                            course.course_id
-                                        )}`
-                                    )
-                                }
+                                onClick={() => onNavigate(studioPath)}
                                 className={`group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer flex flex-col justify-between gap-6 ${
                                     isArchived ? 'opacity-60 border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-800 hover:border-amber-500/50'
                                 }`}
@@ -384,17 +394,14 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                                 {courses.map((course) => {
                                     const topicCount = course.topics?.length || 0;
                                     const materialCount = course.textbook_urls?.length || (course.textbook_url ? 1 : 0);
+                                    const studioPath = collegeId
+                                        ? `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(course.course_id)}`
+                                        : `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(course.course_id)}`;
 
                                     return (
                                         <tr
                                             key={course.course_id}
-                                            onClick={() =>
-                                                onNavigate(
-                                                    `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(
-                                                        course.course_id
-                                                    )}`
-                                                )
-                                            }
+                                            onClick={() => onNavigate(studioPath)}
                                             className="group hover:bg-amber-500/5 transition-colors cursor-pointer"
                                         >
                                             <td className="py-4 px-6 font-mono font-black text-amber-600 dark:text-amber-400">
@@ -431,13 +438,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() =>
-                                                            onNavigate(
-                                                                `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(deptId)}/${encodeURIComponent(
-                                                                    course.course_id
-                                                                )}`
-                                                            )
-                                                        }
+                                                        onClick={() => onNavigate(studioPath)}
                                                         className="p-2 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all"
                                                     >
                                                         <ArrowRight className="w-4 h-4" />
@@ -549,14 +550,7 @@ export const Level3CourseCatalog: React.FC<Level3CourseCatalogProps> = ({
                             disabled={isCreating || !newCourseTitle.trim()}
                             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 disabled:opacity-40"
                         >
-                            {isCreating ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>Saving...</span>
-                                </>
-                            ) : (
-                                <span>Save Course</span>
-                            )}
+                            {isCreating ? 'Saving...' : 'Save Course'}
                         </button>
                     </div>
                 </form>

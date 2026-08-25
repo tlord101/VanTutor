@@ -1,17 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { db } from '../../../../firebase';
-import { ref as dbRef, update, set, remove } from 'firebase/database';
+import { ref as dbRef, update, set } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { ConfirmDeleteModal } from '../../primitives/ConfirmDeleteModal';
 import { SlideOverDrawer } from '../../primitives/SlideOverDrawer';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
-import { Building2, Plus, Trash2, ArrowRight, BookOpen, UserCheck, ArrowUpDown, Search, Loader2 } from 'lucide-react';
+import { Building2, GraduationCap, Plus, Trash2, ArrowRight, BookOpen, ArrowUpDown, Search, Loader2 } from 'lucide-react';
 
 const LEVELS = ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
 
 interface Level2DepartmentManagerProps {
     schoolId: string;
+    collegeId?: string;
     schoolsData: Record<string, any>;
     allDepartments: any[];
     onNavigate: (path: string) => void;
@@ -20,6 +21,7 @@ interface Level2DepartmentManagerProps {
 
 export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = ({
     schoolId,
+    collegeId,
     schoolsData,
     allDepartments,
     onNavigate,
@@ -27,13 +29,14 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
 }) => {
     const { addToast } = useToast();
     const school = schoolsData[schoolId] || { name: schoolId, colleges: {} };
+    const college = collegeId ? school.colleges?.[collegeId] || { name: collegeId } : null;
 
     // Slide-Over Drawer state
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [newDeptName, setNewDeptName] = useState('');
     const [newDeptCode, setNewDeptCode] = useState('');
     const [newContactPerson, setNewContactPerson] = useState('');
-    const [selectedCollegeId, setSelectedCollegeId] = useState('');
+    const [selectedCollegeId, setSelectedCollegeId] = useState(collegeId || '');
     const [newCollegeName, setNewCollegeName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
@@ -46,10 +49,14 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
     const [sortColumn, setSortColumn] = useState<'name' | 'code' | 'courses'>('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    // Filter departments for current school
+    // Filter departments for current school & college
     const schoolDepts = useMemo(() => {
-        return allDepartments.filter((dept) => dept.schoolId === schoolId);
-    }, [allDepartments, schoolId]);
+        return allDepartments.filter((dept) => {
+            if (dept.schoolId !== schoolId) return false;
+            if (collegeId && dept.collegeId !== collegeId) return false;
+            return true;
+        });
+    }, [allDepartments, schoolId, collegeId]);
 
     const collegesObj = school.colleges || {};
     const collegeKeys = Object.keys(collegesObj);
@@ -105,7 +112,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
             return;
         }
 
-        let targetCollegeId = selectedCollegeId;
+        let targetCollegeId = selectedCollegeId || collegeId;
         if (selectedCollegeId === 'new') {
             const trimmedCollege = newCollegeName.trim();
             if (!trimmedCollege) {
@@ -119,7 +126,6 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         }
 
         if (!targetCollegeId) {
-            // Default college if none selected
             targetCollegeId = 'default_college';
             await set(dbRef(db, `schools_data/${schoolId}/colleges/${targetCollegeId}`), {
                 name: 'Main College',
@@ -133,7 +139,6 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         try {
             const updates: Record<string, any> = {};
 
-            // 1. Write in schools_data hierarchy
             updates[`schools_data/${schoolId}/colleges/${targetCollegeId}/departments/${deptId}`] = {
                 name: trimmedName,
                 code: deptCode,
@@ -141,7 +146,6 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                 levels: Object.fromEntries(LEVELS.map((lvl) => [lvl, { courses: {} }])),
             };
 
-            // 2. Initialize departments_data record
             updates[`departments_data/${deptId}`] = {
                 department_name: trimmedName,
                 code: deptCode,
@@ -154,8 +158,6 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
             setNewDeptName('');
             setNewDeptCode('');
             setNewContactPerson('');
-            setSelectedCollegeId('');
-            setNewCollegeName('');
             setIsDrawerOpen(false);
             await refreshData();
         } catch (error: any) {
@@ -169,7 +171,8 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
     const handleRenameDepartment = async (dept: any, newName: string) => {
         try {
             const updates: Record<string, any> = {};
-            updates[`schools_data/${schoolId}/colleges/${dept.collegeId}/departments/${dept.id}/name`] = newName;
+            const targetColId = dept.collegeId || collegeId || 'default_college';
+            updates[`schools_data/${schoolId}/colleges/${targetColId}/departments/${dept.id}/name`] = newName;
             updates[`departments_data/${dept.id}/department_name`] = newName;
 
             await update(dbRef(db), updates);
@@ -187,10 +190,10 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         setIsDeleting(true);
         try {
             const deptId = deleteTarget.id;
-            const collegeId = deleteTarget.collegeId;
+            const targetColId = deleteTarget.collegeId || collegeId || 'default_college';
 
             const updates: Record<string, any> = {};
-            updates[`schools_data/${schoolId}/colleges/${collegeId}/departments/${deptId}`] = null;
+            updates[`schools_data/${schoolId}/colleges/${targetColId}/departments/${deptId}`] = null;
             updates[`departments_data/${deptId}`] = null;
             updates[`past_questions/${deptId}`] = null;
             updates[`textbook_contexts/${deptId}`] = null;
@@ -208,19 +211,26 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         }
     };
 
+    const breadcrumbItems = [
+        {
+            label: school.name || schoolId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}`,
+            icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
+        },
+    ];
+
+    if (collegeId) {
+        breadcrumbItems.push({
+            label: college?.name || collegeId,
+            path: `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(collegeId)}`,
+            icon: <GraduationCap className="w-3.5 h-3.5 text-amber-500" />,
+        });
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
             {/* Breadcrumb Navigation */}
-            <BreadcrumbNavigation
-                items={[
-                    {
-                        label: school.name || schoolId,
-                        path: `/admin/schools/${encodeURIComponent(schoolId)}`,
-                        icon: <Building2 className="w-3.5 h-3.5 text-amber-500" />,
-                    },
-                ]}
-                onNavigate={onNavigate}
-            />
+            <BreadcrumbNavigation items={breadcrumbItems} onNavigate={onNavigate} />
 
             {/* Header & Slide-over Trigger */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -230,7 +240,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                         <span>Level 2 Department Management</span>
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                        {school.name || schoolId}
+                        {college ? `${college.name} (${school.name})` : school.name || schoolId}
                     </h2>
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                         Manage academic departments, assign HOD contacts, and review active courses.
@@ -292,7 +302,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                     <div className="space-y-1 max-w-sm">
                         <h3 className="font-black text-lg text-slate-900 dark:text-white">No Departments Found</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {searchQuery ? 'No departments match your search filter.' : 'Add your first department under this school.'}
+                            {searchQuery ? 'No departments match your search filter.' : 'Add your first department under this college/school.'}
                         </p>
                     </div>
                 </div>
@@ -312,11 +322,15 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                                 {filteredAndSortedDepts.map((dept) => {
                                     const courseCount = Array.isArray(dept.course_list) ? dept.course_list.length : 0;
+                                    const targetCollegeId = dept.collegeId || collegeId;
+                                    const nextPath = targetCollegeId
+                                        ? `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(targetCollegeId)}/${encodeURIComponent(dept.id)}`
+                                        : `/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(dept.id)}`;
 
                                     return (
                                         <tr
                                             key={dept.id}
-                                            onClick={() => onNavigate(`/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(dept.id)}`)}
+                                            onClick={() => onNavigate(nextPath)}
                                             className="group hover:bg-amber-500/5 transition-colors cursor-pointer"
                                         >
                                             <td className="py-4 px-6 font-bold text-slate-900 dark:text-white">
@@ -357,7 +371,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => onNavigate(`/admin/schools/${encodeURIComponent(schoolId)}/${encodeURIComponent(dept.id)}`)}
+                                                        onClick={() => onNavigate(nextPath)}
                                                         className="p-2 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all"
                                                         title="Open Department Roster"
                                                     >
@@ -379,27 +393,29 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
                 isOpen={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
                 title="Add Department"
-                description={`Create an academic department under ${school.name || schoolId}.`}
+                description={`Create an academic department under ${college?.name || school.name || schoolId}.`}
             >
                 <form onSubmit={handleCreateDepartment} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Parent College *
-                        </label>
-                        <select
-                            value={selectedCollegeId}
-                            onChange={(e) => setSelectedCollegeId(e.target.value)}
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                        >
-                            <option value="">Select Existing College...</option>
-                            {collegeKeys.map((cId) => (
-                                <option key={cId} value={cId}>
-                                    {collegesObj[cId]?.name || cId}
-                                </option>
-                            ))}
-                            <option value="new">+ Create New College</option>
-                        </select>
-                    </div>
+                    {!collegeId && (
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                                Parent College *
+                            </label>
+                            <select
+                                value={selectedCollegeId}
+                                onChange={(e) => setSelectedCollegeId(e.target.value)}
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
+                            >
+                                <option value="">Select Existing College...</option>
+                                {collegeKeys.map((cId) => (
+                                    <option key={cId} value={cId}>
+                                        {collegesObj[cId]?.name || cId}
+                                    </option>
+                                ))}
+                                <option value="new">+ Create New College</option>
+                            </select>
+                        </div>
+                    )}
 
                     {selectedCollegeId === 'new' && (
                         <div className="space-y-2 animate-in fade-in">
