@@ -287,7 +287,7 @@ const prepareLocalChatAttachment = async (
   }
 
   const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-  const mimeType = file.type || (isImage ? 'image/jpeg' : 'application/octet-stream');
+  const mimeType = isImage ? 'image/jpeg' : (file.type || 'application/octet-stream');
 
   return {
     attachment: {
@@ -1467,22 +1467,28 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
     // Create local optimistic attachments to render in the user's bubble immediately
     const optimisticAttachments = await Promise.all(filesToSend.map(async (file, index) => {
+      const isImg = isImageMimeType(file.type, file.name);
       let url = '';
       try {
-        url = await fileToBase64(file).then(b64 => {
-          const isImg = isImageMimeType(file.type, file.name);
-          const mime = file.type || (isImg ? 'image/jpeg' : 'application/octet-stream');
-          return `data:${mime};base64,${b64}`;
-        });
+        if (isImg) {
+          url = await compressImageToDataUrl(file);
+        } else {
+          url = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+        }
       } catch {
         url = URL.createObjectURL(file);
       }
       return {
         id: `optimistic-${Date.now()}-${index}`,
         name: file.name,
-        mimeType: file.type || 'application/octet-stream',
+        mimeType: isImg ? 'image/jpeg' : (file.type || 'application/octet-stream'),
         url,
-        isImage: isImageMimeType(file.type, file.name),
+        isImage: isImg,
       };
     }));
 
@@ -1752,22 +1758,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           `Conversation history:\n${contextMessages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n\n')}`,
         ].filter(Boolean).join('\n');
 
-        const responseStream = await ai.models.generateContentStream({
-          model: geminiModel || 'gemini-3.1-flash-lite',
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: systemInstructions,
-                },
-                ...attachmentParts,
-              ],
-            },
-          ],
-        });
-
-        // Initialize empty assistant bubble in UI for live streaming
+        // Initialize empty assistant bubble in UI for live streaming / response
         setMessages([
           ...nextMessages,
           {
@@ -1779,6 +1770,21 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         ]);
 
         try {
+          const responseStream = await ai.models.generateContentStream({
+            model: geminiModel || 'gemini-3.1-flash-lite',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: systemInstructions,
+                  },
+                  ...attachmentParts,
+                ],
+              },
+            ],
+          });
+
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
             responseText += chunkText;
@@ -1788,8 +1794,26 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             );
           }
         } catch (streamError) {
-          console.error('Error during response streaming:', streamError);
-          throw streamError;
+          console.warn('Streaming failed, falling back to generateContent:', streamError);
+          const nonStreamResult = await ai.models.generateContent({
+            model: geminiModel || 'gemini-3.1-flash-lite',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: systemInstructions,
+                  },
+                  ...attachmentParts,
+                ],
+              },
+            ],
+          });
+          responseText = getResponseText(nonStreamResult);
+          setStreamingBotText(responseText);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantMsgId ? { ...m, text: responseText } : m))
+          );
         }
 
         if (!responseText) {
@@ -2438,15 +2462,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                   })}
 
                   {isSending && streamingBotText === null && (
-                    <div className="flex justify-start mt-2 mb-2">
-                      {uploadProgress ? (
-                        <div className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-sm sm:max-w-[75%] rounded-tl-sm flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-                          <span className="w-2 h-2 rounded-full bg-[#0066FF] shrink-0" />
-                          <span>{uploadProgress}</span>
-                        </div>
-                      ) : (
+                    <div className="flex justify-start mt-2 mb-2 animate-fade-in">
+                      <div className="max-w-[85%] rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-black px-4 py-3 shadow-2xs sm:max-w-[75%] rounded-tl-sm flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200">
                         <TypingIndicator />
-                      )}
+                        <div className="flex items-center gap-1 font-semibold text-[#0066FF] dark:text-blue-400">
+                          <span>{uploadProgress || 'Thinking'}</span>
+                          <span className="inline-block animate-pulse">...</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
