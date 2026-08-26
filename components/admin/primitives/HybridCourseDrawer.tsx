@@ -18,7 +18,8 @@ import {
     Search,
     ChevronDown,
     Loader2,
-    Layers
+    Layers,
+    Globe
 } from 'lucide-react';
 import type { Course } from '../../../types';
 
@@ -71,6 +72,7 @@ export const HybridCourseDrawer: React.FC<HybridCourseDrawerProps> = ({
     const [isExtracting, setIsExtracting] = useState(false);
     const [extractedCourses, setExtractedCourses] = useState<ExtractedCourseItem[]>([]);
     const [isSavingBulk, setIsSavingBulk] = useState(false);
+    const [bulkScope, setBulkScope] = useState<'current' | 'all'>('current');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -313,21 +315,42 @@ OUTPUT ONLY A VALID JSON OBJECT:
         try {
             const updates: Record<string, any> = {};
 
-            // Fetch current department courses
-            const deptSnap = await get(dbRef(db, `departments_data/${currentDeptId}`));
-            let deptCourses: Course[] = [];
-            if (deptSnap.exists()) {
-                const data = deptSnap.val();
-                const rawList = data?.course_list;
-                if (Array.isArray(rawList)) deptCourses = rawList;
-                else if (rawList && typeof rawList === 'object') deptCourses = Object.values(rawList);
+            // Determine target departments based on selected bulk scope
+            const allDeptIds = allDepartments.map((d) => d.id).filter(Boolean);
+            const targetDeptIdsToUpdate = new Set<string>();
+
+            if (bulkScope === 'all') {
+                allDeptIds.forEach((id) => targetDeptIdsToUpdate.add(id));
+                targetDeptIdsToUpdate.add(currentDeptId);
+            } else {
+                targetDeptIdsToUpdate.add(currentDeptId);
             }
 
-            const updatedDeptCourseMap = new Map<string, Course>();
-            deptCourses.forEach((c) => updatedDeptCourseMap.set(c.course_id, c));
+            // Map to hold updated course list for each target department
+            const deptCourseMaps = new Map<string, Map<string, Course>>();
+
+            // Fetch current course lists for all target departments
+            for (const dId of Array.from(targetDeptIdsToUpdate)) {
+                const dSnap = await get(dbRef(db, `departments_data/${dId}`));
+                let dCourses: Course[] = [];
+                if (dSnap.exists()) {
+                    const data = dSnap.val();
+                    const rawList = data?.course_list;
+                    if (Array.isArray(rawList)) dCourses = rawList;
+                    else if (rawList && typeof rawList === 'object') dCourses = Object.values(rawList);
+                }
+                const cMap = new Map<string, Course>();
+                dCourses.forEach((c) => cMap.set(c.course_id, c));
+                deptCourseMaps.set(dId, cMap);
+            }
 
             for (const item of extractedCourses) {
-                const linkedDepts = Array.from(new Set([...(item.existingLinkedDepts || []), currentDeptId]));
+                const linkedDepts = Array.from(
+                    new Set([
+                        ...(item.existingLinkedDepts || []),
+                        ...(bulkScope === 'all' ? allDeptIds : [currentDeptId]),
+                    ])
+                );
 
                 const courseObj: Course = {
                     course_id: item.course_id,
@@ -342,18 +365,34 @@ OUTPUT ONLY A VALID JSON OBJECT:
                     linked_departments: linkedDepts,
                 };
 
-                // Update in department map
-                updatedDeptCourseMap.set(item.course_id, courseObj);
+                // Update in all target department maps
+                for (const dId of targetDeptIdsToUpdate) {
+                    const cMap = deptCourseMaps.get(dId);
+                    if (cMap) {
+                        cMap.set(item.course_id, courseObj);
+                    }
+                }
 
                 // Update global_courses master entry
                 updates[`global_courses/${item.course_id}`] = courseObj;
             }
 
-            updates[`departments_data/${currentDeptId}/course_list`] = Array.from(updatedDeptCourseMap.values());
+            // Add department course_list updates to database multi-location update object
+            for (const dId of Array.from(targetDeptIdsToUpdate)) {
+                const cMap = deptCourseMaps.get(dId);
+                if (cMap) {
+                    updates[`departments_data/${dId}/course_list`] = Array.from(cMap.values());
+                }
+            }
 
             await update(dbRef(db), updates);
 
-            addToast(`Successfully saved ${extractedCourses.length} course(s)!`, 'success');
+            addToast(
+                `Successfully saved ${extractedCourses.length} course(s) ${
+                    bulkScope === 'all' ? 'across all departments' : 'to current department'
+                }!`,
+                'success'
+            );
             setExtractedCourses([]);
             onClose();
             await onCourseCreated();
@@ -587,6 +626,45 @@ OUTPUT ONLY A VALID JSON OBJECT:
                 {/* TAB 2: Bulk Upload */}
                 {activeTab === 'bulk' && (
                     <div className="space-y-6 animate-in fade-in duration-200">
+                        {/* Target Department Link Scope Selector */}
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <Link2 className="w-3.5 h-3.5 text-amber-500" />
+                                Link Bulk Courses To
+                            </label>
+                            <div className="grid grid-cols-2 gap-3 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkScope('current')}
+                                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                                        bulkScope === 'current'
+                                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-md font-black'
+                                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <Building2 className="w-4 h-4 text-amber-500 shrink-0" />
+                                    <span className="truncate">Current Dept Only</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkScope('all')}
+                                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                                        bulkScope === 'all'
+                                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-md font-black'
+                                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <Globe className="w-4 h-4 text-amber-500 shrink-0" />
+                                    <span className="truncate">All Departments ({allDepartments.length})</span>
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                                {bulkScope === 'current'
+                                    ? 'Uploaded courses will be linked to this department only.'
+                                    : `Uploaded courses will be cross-listed to all ${allDepartments.length} department(s) in the system.`}
+                            </p>
+                        </div>
+
                         {/* Dropzone */}
                         <div
                             onDragOver={(e) => {

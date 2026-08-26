@@ -272,6 +272,8 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         if (!userProfile?.uid) return {};
         return readCachedJson<Record<string, number>>(`avelut_topic_visits_${userProfile.uid}`, {});
     });
+    const [isNotebookNestedOpen, setIsNotebookNestedOpen] = useState(false);
+    const isNestedViewOpen = isNotebookNestedOpen || !!selectedCourse || !!topicPickerCourse || !!isVoiceTutorialActive || !!activeExternalSession;
 
     const getTopicLastVisited = useCallback((courseId: string, topicId: string): number | null => {
         const directKey = `${courseId}::${topicId}`;
@@ -298,14 +300,21 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     const touchEndX = useRef<number | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent) => {
+        if (isNestedViewOpen) return;
         touchStartX.current = e.targetTouches[0].clientX;
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
+        if (isNestedViewOpen) return;
         touchEndX.current = e.targetTouches[0].clientX;
     };
 
     const handleTouchEnd = () => {
+        if (isNestedViewOpen) {
+            touchStartX.current = null;
+            touchEndX.current = null;
+            return;
+        }
         if (touchStartX.current === null || touchEndX.current === null) return;
         const distance = touchStartX.current - touchEndX.current;
         const isLeftSwipe = distance > 45;
@@ -1002,9 +1011,9 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             {/* Dual-Pane Tab Container with Smooth Horizontal Slide Transition */}
             <div
                 className="flex-1 min-h-0 w-full overflow-hidden relative"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
+                onTouchStart={!isNestedViewOpen ? handleTouchStart : undefined}
+                onTouchMove={!isNestedViewOpen ? handleTouchMove : undefined}
+                onTouchEnd={!isNestedViewOpen ? handleTouchEnd : undefined}
             >
                 {/* Pane 1: Academic Courses */}
                 <div className={`absolute inset-0 w-full h-full flex flex-col overflow-hidden transition-all duration-300 ease-out will-change-transform ${
@@ -1174,6 +1183,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         userProfile={userProfile}
                         onNavigate={onNavigate}
                         setCustomHeaderConfig={setCustomHeaderConfig}
+                        onNestedViewChange={setIsNotebookNestedOpen}
                     />
                 </div>
             </div>

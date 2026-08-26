@@ -11,7 +11,7 @@ import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../fir
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
-import { sourceToBlob, uploadBlobWithRetry, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
+import { sourceToBlob, uploadBlobWithRetry, uploadToTempStorage, promoteTempToPermanent, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
 import { useTheme } from '../contexts/ThemeContext';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
@@ -94,6 +94,43 @@ const resolveDisplayImageUrl = (url: string): string => {
     return Capacitor.convertFileSrc(url);
   }
   return url;
+};
+
+const resolveImageDisplayUrl = (msg: any): string => {
+  if (!msg) return '';
+  const rawText = typeof msg.text === 'string' ? msg.text : '';
+
+  // 1. Valid http(s) URL from markdown: ![alt](https?://...)
+  const httpMarkdownMatch = rawText.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/i);
+  if (httpMarkdownMatch && httpMarkdownMatch[1]) {
+    const matchedUrl = httpMarkdownMatch[1].trim();
+    if (matchedUrl) return resolveDisplayImageUrl(matchedUrl);
+  }
+
+  // 2. Local preview URL on the optimistic message object
+  if (msg.localPreviewUrl) {
+    return resolveDisplayImageUrl(msg.localPreviewUrl);
+  }
+
+  // 3. Any blob / data / local URI from markdown: ![alt](blob:... or data:...)
+  const anyMarkdownMatch = rawText.match(/!\[.*?\]\(([^)]+)\)/i);
+  if (anyMarkdownMatch && anyMarkdownMatch[1]) {
+    const matchedUrl = anyMarkdownMatch[1].trim();
+    if (matchedUrl) return resolveDisplayImageUrl(matchedUrl);
+  }
+
+  // 4. Standalone URL fallback
+  const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
+  if (urlMatch && urlMatch[1]) {
+    return resolveDisplayImageUrl(urlMatch[1]);
+  }
+
+  return '';
+};
+
+const extractImageCaption = (rawText: string): string => {
+  if (!rawText) return '';
+  return rawText.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim();
 };
 
 // =======================================================
@@ -1836,18 +1873,31 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const tempId = `temp_${fileType}_${localTimestamp}_${Math.round(Math.random() * 1e6)}`;
     const displayName = fileName || (fileType === 'voice' ? 'Voice Note' : 'Media');
 
-    // Local-only preview for the optimistic bubble. Never persisted to the chat message.
-    let previewUrl = '';
+    // Always attach a local preview
+    let localPreviewUrl = '';
     try {
-      previewUrl = await blobToDataUrl(sourceBlob.blob);
-    } catch (previewErr) {
-      console.warn('[Messenger] Could not build local preview; sending without one.', previewErr);
+      localPreviewUrl = URL.createObjectURL(sourceBlob.blob);
+    } catch (e) {
+      try {
+        localPreviewUrl = await blobToDataUrl(sourceBlob.blob);
+      } catch (e2) {
+        console.warn('[Messenger] Could not build local preview:', e2);
+      }
     }
-    const pendingText = fileType === 'image'
-      ? (previewUrl ? `![Image](${previewUrl})` : '![Image]()')
-      : fileType === 'voice'
-        ? `[Voice Note](${previewUrl})`
-        : `[📄 ${displayName}]()`;
+
+    let pendingText = '';
+    if (fileType === 'image') {
+      const imgMarkdown = localPreviewUrl ? `![Image](${localPreviewUrl})` : '';
+      if (caption) {
+        pendingText = imgMarkdown ? `${imgMarkdown}\n\n${caption}` : caption;
+      } else {
+        pendingText = imgMarkdown || (displayName ? `[${displayName}]` : 'Photo');
+      }
+    } else if (fileType === 'voice') {
+      pendingText = `[Voice Note](${localPreviewUrl})`;
+    } else {
+      pendingText = `[📄 ${displayName}](${localPreviewUrl})`;
+    }
 
     const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
 
@@ -1858,6 +1908,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       type: fileType,
       timestamp: localTimestamp,
       isUploading: true,
+      localPreviewUrl,
       blob: sourceBlob.blob,
       mimeType: rawMime,
       fileName,
@@ -1868,27 +1919,50 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     setOptimisticMessages(prev => [...prev, pendingMessage]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
+    const cleanupPreview = () => {
+      if (localPreviewUrl && localPreviewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(localPreviewUrl); } catch (e) {}
+      }
+    };
+
     try {
-      // Upload with retries + hard timeout; must yield a permanent https download URL.
-      const permanentUrl = await uploadBlobWithRetry(storage, sourceBlob.blob, cloudPath, {
-        contentType: rawMime || undefined,
-        attempts: 3,
-        timeoutMs: 60000,
-      });
+      // 1. Upload to TEMPORARY storage first (user-scoped)
+      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+        storage,
+        sourceBlob.blob,
+        firebaseUser.uid,
+        { contentType: rawMime || undefined, attempts: 3, timeoutMs: 60000 }
+      );
+
+      // 2. Optional verification for images
+      if (fileType === 'image') {
+        await verifyImageUrl(tempUrl);
+      }
+
+      // 3. Promote to permanent path
+      const permanentPath = fileType === 'voice'
+        ? `voice_notes/${activeChat.chatId}/${localTimestamp}.webm`
+        : `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || 'bin'}`;
+
+      const permanentUrl = await promoteTempToPermanent(
+        storage,
+        tempPath,
+        permanentPath,
+        { contentType: rawMime || undefined }
+      );
+
+      // 4. Only NOW create the real chat message
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      cleanupPreview();
 
       if (fileType === 'image') {
-        // Verify the returned URL actually loads BEFORE creating/sending the chat message.
-        await verifyImageUrl(permanentUrl);
         const verifiedText = caption
           ? `![Image](${permanentUrl})\n\n${caption}`
           : `![Image](${permanentUrl})`;
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(verifiedText, 'image');
       } else if (fileType === 'voice') {
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (uploadErr) {
@@ -1917,28 +1991,59 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const retryFailedUpload = async (msg: any) => {
     if (!activeChat || !firebaseUser || !msg?.blob || msg?.type === undefined) return;
     const tempId = msg.id;
-    setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false } : m));
+    let localPreviewUrl = msg.localPreviewUrl;
+    if (!localPreviewUrl && msg.blob) {
+      try {
+        localPreviewUrl = URL.createObjectURL(msg.blob);
+      } catch (e) {}
+    }
+    setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false, localPreviewUrl } : m));
+
+    const cleanupPreview = () => {
+      if (localPreviewUrl && localPreviewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(localPreviewUrl); } catch (e) {}
+      }
+    };
+
     try {
-      const cloudPath = msg.cloudPath
-        || `chat_files/${activeChat.chatId}/${Date.now()}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
-      const permanentUrl = await uploadBlobWithRetry(storage, msg.blob, cloudPath, {
-        contentType: msg.mimeType || undefined,
-        attempts: 3,
-        timeoutMs: 60000,
-      });
+      const rawMime = msg.mimeType || undefined;
+      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+        storage,
+        msg.blob,
+        firebaseUser.uid,
+        { contentType: rawMime, attempts: 3, timeoutMs: 60000 }
+      );
+
       if (msg.type === 'image') {
-        await verifyImageUrl(permanentUrl);
+        await verifyImageUrl(tempUrl);
+      }
+
+      const permanentPath = msg.type === 'voice'
+        ? `voice_notes/${activeChat.chatId}/${Date.now()}.webm`
+        : msg.cloudPath || `chat_files/${activeChat.chatId}/${Date.now()}_${Math.round(Math.random() * 1e9)}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
+
+      const permanentUrl = await promoteTempToPermanent(
+        storage,
+        tempPath,
+        permanentPath,
+        { contentType: rawMime }
+      );
+
+      if (msg.type === 'image') {
         const finalText = msg.caption
           ? `![Image](${permanentUrl})\n\n${msg.caption}`
           : `![Image](${permanentUrl})`;
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(finalText, 'image');
       } else if (msg.type === 'voice') {
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
         const displayName = msg.fileName || 'Media';
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (err) {
@@ -1979,6 +2084,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               type: 'voice',
               timestamp: localTimestamp,
               isUploading: true,
+              localPreviewUrl: blobLocalUrl,
               blob,
               mimeType: 'audio/webm',
               fileName: 'Voice Note.webm',
@@ -1989,13 +2095,24 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
             try {
-              const url = await uploadBlobWithRetry(storage, blob, pendingMessage.cloudPath, {
-                contentType: 'audio/webm',
-                attempts: 3,
-                timeoutMs: 60000,
-              });
+              const { url: tempUrl, tempPath } = await uploadToTempStorage(
+                storage,
+                blob,
+                firebaseUser.uid,
+                { contentType: 'audio/webm', attempts: 3, timeoutMs: 60000 }
+              );
+              void tempUrl;
+              const permanentUrl = await promoteTempToPermanent(
+                storage,
+                tempPath,
+                pendingMessage.cloudPath,
+                { contentType: 'audio/webm' }
+              );
               setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
-              await sendMsg(`[Voice Note](${url})`, 'voice');
+              if (blobLocalUrl && blobLocalUrl.startsWith('blob:')) {
+                try { URL.revokeObjectURL(blobLocalUrl); } catch (e) {}
+              }
+              await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
             } catch (uploadError) {
               console.error("Voice Note storage syncing failure:", uploadError);
               setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
@@ -2593,18 +2710,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const rawText = typeof msg.text === 'string' ? msg.text : '';
                 let imageUrl = '';
                 if (msg.type === 'image') {
-                  const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
-                  if (markdownMatch) {
-                    imageUrl = markdownMatch[1];
-                  } else {
-                    const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
-                    if (urlMatch) {
-                      imageUrl = urlMatch[1];
-                    } else {
-                      imageUrl = rawText;
-                    }
-                  }
-                  imageUrl = resolveDisplayImageUrl(imageUrl);
+                  imageUrl = resolveImageDisplayUrl(msg);
                 }
                 const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
                 const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
@@ -2738,28 +2844,33 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             ) : msg.type === 'image' ? (
                               <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
                                 <div className="relative">
-                                  {msg.isUploading && (
-                                    <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
-                                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                      </svg>
-                                    </div>
-                                  )}
                                   {imageUrl ? (
-                                    <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                    <>
+                                      <img src={imageUrl} alt="" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                      {msg.isUploading && (
+                                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-10">
+                                          <div className="flex items-center gap-2 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>Sending...</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
                                   ) : (
-                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium bg-black/5 dark:bg-white/5 rounded-xl">
                                       <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                       </svg>
-                                      Processing Media...
+                                      <span>Processing Media...</span>
                                     </div>
                                   )}
                                 </div>
                                 {(() => {
-                                  const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                  const extractedCaption = extractImageCaption(rawText);
                                   if (!extractedCaption) return null;
                                   return (
                                     <div className="message-text">
@@ -2966,18 +3077,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
                     let imageUrl = '';
                     if (messageActionTarget.type === 'image') {
-                      const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
-                      if (markdownMatch) {
-                        imageUrl = markdownMatch[1];
-                      } else {
-                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
-                        if (urlMatch) {
-                          imageUrl = urlMatch[1];
-                        } else {
-                          imageUrl = rawText;
-                        }
-                      }
-                      imageUrl = resolveDisplayImageUrl(imageUrl);
+                      imageUrl = resolveImageDisplayUrl(messageActionTarget);
                     }
 
                     return (
@@ -3006,10 +3106,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               ) : messageActionTarget.type === 'image' ? (
                                 <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
                                   {imageUrl && (
-                                    <img src={imageUrl} alt="Targeted Media" className="max-h-[220px] w-full object-cover" />
+                                    <img src={imageUrl} alt="" className="max-h-[220px] w-full object-cover" />
                                   )}
                                   {(() => {
-                                    const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                    const extractedCaption = extractImageCaption(rawText);
                                     if (!extractedCaption) return null;
                                     return (
                                       <div className="message-text">
