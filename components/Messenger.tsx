@@ -11,7 +11,7 @@ import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../fir
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
-import { sourceToBlob, uploadBlobWithRetry, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
+import { sourceToBlob, uploadBlobWithRetry, uploadToTempStorage, promoteTempToPermanent, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
 import { useTheme } from '../contexts/ThemeContext';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
@@ -1869,26 +1869,42 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      // Upload with retries + hard timeout; must yield a permanent https download URL.
-      const permanentUrl = await uploadBlobWithRetry(storage, sourceBlob.blob, cloudPath, {
-        contentType: rawMime || undefined,
-        attempts: 3,
-        timeoutMs: 60000,
-      });
+      // 1. Upload to TEMPORARY storage first (user-scoped)
+      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+        storage,
+        sourceBlob.blob,
+        firebaseUser.uid,
+        { contentType: rawMime || undefined, attempts: 3, timeoutMs: 60000 }
+      );
+
+      // 2. Optional verification for images
+      if (fileType === 'image') {
+        await verifyImageUrl(tempUrl);
+      }
+
+      // 3. Promote to permanent path
+      const permanentPath = fileType === 'voice'
+        ? `voice_notes/${activeChat.chatId}/${localTimestamp}.webm`
+        : `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || 'bin'}`;
+
+      const permanentUrl = await promoteTempToPermanent(
+        storage,
+        tempPath,
+        permanentPath,
+        { contentType: rawMime || undefined }
+      );
+
+      // 4. Only NOW create the real chat message
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
 
       if (fileType === 'image') {
-        // Verify the returned URL actually loads BEFORE creating/sending the chat message.
-        await verifyImageUrl(permanentUrl);
         const verifiedText = caption
           ? `![Image](${permanentUrl})\n\n${caption}`
           : `![Image](${permanentUrl})`;
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(verifiedText, 'image');
       } else if (fileType === 'voice') {
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (uploadErr) {
@@ -1919,15 +1935,30 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const tempId = msg.id;
     setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false } : m));
     try {
-      const cloudPath = msg.cloudPath
-        || `chat_files/${activeChat.chatId}/${Date.now()}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
-      const permanentUrl = await uploadBlobWithRetry(storage, msg.blob, cloudPath, {
-        contentType: msg.mimeType || undefined,
-        attempts: 3,
-        timeoutMs: 60000,
-      });
+      const rawMime = msg.mimeType || undefined;
+      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+        storage,
+        msg.blob,
+        firebaseUser.uid,
+        { contentType: rawMime, attempts: 3, timeoutMs: 60000 }
+      );
+
       if (msg.type === 'image') {
-        await verifyImageUrl(permanentUrl);
+        await verifyImageUrl(tempUrl);
+      }
+
+      const permanentPath = msg.type === 'voice'
+        ? `voice_notes/${activeChat.chatId}/${Date.now()}.webm`
+        : msg.cloudPath || `chat_files/${activeChat.chatId}/${Date.now()}_${Math.round(Math.random() * 1e9)}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
+
+      const permanentUrl = await promoteTempToPermanent(
+        storage,
+        tempPath,
+        permanentPath,
+        { contentType: rawMime }
+      );
+
+      if (msg.type === 'image') {
         const finalText = msg.caption
           ? `![Image](${permanentUrl})\n\n${msg.caption}`
           : `![Image](${permanentUrl})`;
@@ -1989,13 +2020,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
             try {
-              const url = await uploadBlobWithRetry(storage, blob, pendingMessage.cloudPath, {
-                contentType: 'audio/webm',
-                attempts: 3,
-                timeoutMs: 60000,
-              });
+              const { url: tempUrl, tempPath } = await uploadToTempStorage(
+                storage,
+                blob,
+                firebaseUser.uid,
+                { contentType: 'audio/webm', attempts: 3, timeoutMs: 60000 }
+              );
+              void tempUrl;
+              const permanentUrl = await promoteTempToPermanent(
+                storage,
+                tempPath,
+                pendingMessage.cloudPath,
+                { contentType: 'audio/webm' }
+              );
               setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
-              await sendMsg(`[Voice Note](${url})`, 'voice');
+              await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
             } catch (uploadError) {
               console.error("Voice Note storage syncing failure:", uploadError);
               setOptimisticMessages(prev => prev.map(m => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
