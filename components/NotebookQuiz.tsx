@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
-import { getChapterGeneration, saveChapterGeneration } from '../services/notebookStorageService';
+import { getChapterGeneration, saveChapterGeneration, getChapterContent } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -41,6 +41,23 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
+
+  const [activeContent, setActiveContent] = useState<string>(chapterContent || '');
+
+  // Self-load chapter content if missing
+  useEffect(() => {
+    if (chapterContent && chapterContent.trim().length > 0) {
+      setActiveContent(chapterContent);
+    } else {
+      getChapterContent(notebook.id, chapter.id, { startPage: chapter.startPage, endPage: chapter.endPage })
+        .then((content) => {
+          if (content && content.trim().length > 0) {
+            setActiveContent(content);
+          }
+        })
+        .catch((err) => console.warn('[NotebookQuiz] Error loading chapter content:', err));
+    }
+  }, [notebook.id, chapter.id, chapter.startPage, chapter.endPage, chapterContent]);
 
   // Configuration State
   const [isConfiguring, setIsConfiguring] = useState(true);
@@ -167,12 +184,24 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
     try {
       const ai = createAvelutAI(appSettings, userProfile);
       if (!ai) throw new Error('AI is not configured. Please check App Controls.');
-      const prompt = `You are an expert academic examiner. Based ONLY on the following textbook chapter excerpt, generate exactly ${questionCount} high-quality, professional multiple-choice questions.
+
+      let excerptToUse = (activeContent || chapterContent || '').trim();
+      if (!excerptToUse) {
+        try {
+          excerptToUse = await getChapterContent(notebook.id, chapter.id, {
+            startPage: chapter.startPage,
+            endPage: chapter.endPage,
+          });
+          if (excerptToUse) setActiveContent(excerptToUse);
+        } catch {}
+      }
+
+      const prompt = `You are an expert academic examiner. Based strictly on the following textbook chapter excerpt, generate exactly ${questionCount} high-quality, professional multiple-choice questions.
 
 CHAPTER TITLE: ${chapter.title}
 BOOK: ${notebook.title}
-CONTENT EXCERPT:
-${chapterContent.slice(0, 7000)}
+CONTENT EXCERPT (PAGES ${chapter.startPage}-${chapter.endPage}):
+${excerptToUse ? excerptToUse.slice(0, 16000) : `Topic: ${chapter.title} from ${notebook.title}`}
 
 RULES:
 1. Ensure all mathematical expressions and formulas are formatted in valid LaTeX with $...$ for inline or $$...$$ for blocks.

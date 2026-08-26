@@ -256,7 +256,11 @@ export async function getNotebooks(userId: string): Promise<Notebook[]> {
 /**
  * Get full text content for a specific chapter in a notebook.
  */
-export async function getChapterContent(notebookId: string, chapterId: string): Promise<string> {
+export async function getChapterContent(
+  notebookId: string,
+  chapterId: string,
+  pageRange?: { startPage?: number; endPage?: number }
+): Promise<string> {
   // 1. Try memory / localStorage cache
   const cachedMap = readCachedJson<Record<string, { title: string; content: string }>>(
     getLocalChunksCacheKey(notebookId),
@@ -266,14 +270,54 @@ export async function getChapterContent(notebookId: string, chapterId: string): 
     return cachedMap[chapterId].content;
   }
 
-  // 2. Try SQLite
+  // 2. Try SQLite with accurate chapter page range filtering
   try {
-    const rows = await runQuery<{ content: string }>(
-      `SELECT content FROM notebook_chunks WHERE notebook_id = ? ORDER BY page_number ASC;`,
-      [notebookId]
-    );
+    let start = pageRange?.startPage;
+    let end = pageRange?.endPage;
+
+    if (!start || !end) {
+      const nbRows = await runQuery<{ chapters_json: string }>(
+        `SELECT chapters_json FROM notebooks WHERE id = ? LIMIT 1;`,
+        [notebookId]
+      );
+      if (nbRows && nbRows.length > 0 && nbRows[0].chapters_json) {
+        try {
+          const chapters: NotebookChapter[] = JSON.parse(nbRows[0].chapters_json);
+          const found = chapters.find((c) => c.id === chapterId);
+          if (found) {
+            start = found.startPage;
+            end = found.endPage;
+          }
+        } catch {}
+      }
+    }
+
+    let rows: Array<{ content: string }> = [];
+    if (start !== undefined && end !== undefined) {
+      rows = await runQuery<{ content: string }>(
+        `SELECT content FROM notebook_chunks WHERE notebook_id = ? AND page_number >= ? AND page_number <= ? ORDER BY page_number ASC;`,
+        [notebookId, start, end]
+      );
+    }
+
+    if (!rows || rows.length === 0) {
+      rows = await runQuery<{ content: string }>(
+        `SELECT content FROM notebook_chunks WHERE notebook_id = ? ORDER BY page_number ASC;`,
+        [notebookId]
+      );
+    }
+
     if (rows && rows.length > 0) {
-      return rows.map((r) => r.content).join('\n\n');
+      const content = rows.map((r) => r.content).join('\n\n');
+      if (content.trim()) {
+        // Backfill cache
+        cachedMap[chapterId] = {
+          title: cachedMap[chapterId]?.title || chapterId,
+          content,
+        };
+        writeCachedJson(getLocalChunksCacheKey(notebookId), cachedMap);
+        return content;
+      }
     }
   } catch (err) {
     console.warn('[NotebookStorage] SQLite chapter read error:', err);

@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
-import { getChapterGeneration, saveChapterGeneration } from '../services/notebookStorageService';
+import { getChapterGeneration, saveChapterGeneration, getChapterContent } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -41,6 +41,7 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
+  const [activeContent, setActiveContent] = useState<string>(chapterContent || '');
   const [cards, setCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -48,6 +49,21 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
   const [isGenerating, setIsGenerating] = useState(true);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
+
+  // Self-load chapter content if missing
+  useEffect(() => {
+    if (chapterContent && chapterContent.trim().length > 0) {
+      setActiveContent(chapterContent);
+    } else {
+      getChapterContent(notebook.id, chapter.id, { startPage: chapter.startPage, endPage: chapter.endPage })
+        .then((content) => {
+          if (content && content.trim().length > 0) {
+            setActiveContent(content);
+          }
+        })
+        .catch((err) => console.warn('[NotebookFlashcards] Error loading chapter content:', err));
+    }
+  }, [notebook.id, chapter.id, chapter.startPage, chapter.endPage, chapterContent]);
 
   // ── Configure Main App Header for Flashcards ──
   useEffect(() => {
@@ -125,12 +141,25 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
     try {
       const ai = createAvelutAI(appSettings, userProfile);
       if (!ai) throw new Error('AI is not configured. Please check App Controls.');
+
+      let excerptToUse = (activeContent || chapterContent || '').trim();
+      if (!excerptToUse) {
+        try {
+          excerptToUse = await getChapterContent(notebook.id, chapter.id, {
+            startPage: chapter.startPage,
+            endPage: chapter.endPage,
+          });
+          if (excerptToUse) setActiveContent(excerptToUse);
+        } catch {}
+      }
+
       const prompt = `You are a master educator creating high-retention flashcards.
-Based on the following textbook chapter excerpt, generate exactly 10 high-value flashcards covering key definitions, formulas, concepts, and principles.
+Based strictly on the following textbook chapter excerpt, generate exactly 10 high-value flashcards covering key definitions, formulas, concepts, and principles.
 
 CHAPTER: ${chapter.title}
-CONTENT:
-${chapterContent.slice(0, 7000)}
+BOOK: ${notebook.title}
+CONTENT (PAGES ${chapter.startPage}-${chapter.endPage}):
+${excerptToUse ? excerptToUse.slice(0, 16000) : `Topic: ${chapter.title} from ${notebook.title}`}
 
 RULES:
 1. "front": Clear prompt, concept query, or equation setup.

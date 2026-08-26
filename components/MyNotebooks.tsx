@@ -6,6 +6,7 @@ import { extractTextFromPdf } from '../services/pdfExtractorService';
 import { readCachedJson } from '../utils/cache';
 import { NotebookDetail } from './NotebookDetail';
 import { useToast } from '../hooks/useToast';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface MyNotebooksProps {
   userProfile: UserProfile;
@@ -22,6 +23,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   setCustomHeaderConfig,
   onNestedViewChange,
 }) => {
+  const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +38,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
     return !cached || cached.length === 0;
   });
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractProgress, setExtractProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
+  const [extractProgress, setExtractProgress] = useState<{ current: number; total: number; percent: number; message?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadUserNotebooks = useCallback(async () => {
@@ -99,14 +101,16 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
       // Slice a copy for PDF.js so the original buffer isn't detached by WebWorker transfer
       const bufferForPdf = arrayBuffer.slice(0);
 
-      // Extract text client-side (no AI cost)
-      const extraction = await extractTextFromPdf(bufferForPdf, file.name, (p) => {
-        setExtractProgress(p);
+      // Extract text client-side with automatic visual AI OCR on scanned pages
+      const extraction = await extractTextFromPdf(bufferForPdf, file.name, {
+        onProgress: (p) => setExtractProgress(p),
+        appSettings,
+        userProfile,
       });
 
       if (extraction.isScannedImageOnly) {
         addToast(
-          'Warning: This PDF contains scanned images with minimal extractable text. Some features may have limited content.',
+          'Warning: This PDF contains scanned images with minimal text. Visual OCR attempted extraction.',
           'info'
         );
       }
@@ -169,13 +173,17 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   );
 
   return (
-    <div className="flex-1 flex flex-col w-full overflow-y-auto px-4 sm:px-8 py-6 pb-[calc(76px+env(safe-area-inset-bottom)+20px)] max-w-4xl mx-auto animate-fade-in text-slate-900 dark:text-slate-100">
-      {/* Upload Action Card */}
-      <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-7 mb-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h3 className="text-lg font-black text-[#0F172A] dark:text-white tracking-tight">
-              Personal Study Notebooks
+    <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6 animate-fade-in pb-28">
+      {/* Top Banner Card */}
+      <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0066FF]/10 text-[#0066FF] dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide uppercase">
+              <i className="bi bi-book"></i>
+              <span>Study Notes & Textbooks</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-[#0F172A] dark:text-white tracking-tight">
+              My Notebooks & Offline Materials
             </h3>
             <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
               Upload any textbook, handout, or lecture note PDF (up to 200MB). Extracted completely on your device with 0 AI cost.
@@ -204,7 +212,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
         {isExtracting && extractProgress && (
           <div className="mt-4 pt-4 border-t border-[#E3E9F1] dark:border-slate-800 space-y-2 animate-fade-in">
             <div className="flex items-center justify-between text-xs font-bold text-[#0F172A] dark:text-white">
-              <span>Extracting text & segmenting chapters...</span>
+              <span>{extractProgress.message || 'Extracting text & segmenting chapters...'}</span>
               <span>
                 {extractProgress.current} / {extractProgress.total} Pages ({extractProgress.percent}%)
               </span>

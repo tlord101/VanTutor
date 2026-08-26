@@ -1,6 +1,10 @@
+import { createAvelutAI, getResponseText } from '../utils/inference';
+import type { AppSettings, UserProfile } from '../types';
+
 /**
  * Client-Side PDF Text Extraction & Chapter Segmentation Service
- * Uses Mozilla pdf.js directly in the browser/client with 0 AI API cost.
+ * Uses Mozilla pdf.js directly in the browser/client with 0 AI API cost,
+ * with automatic fallback to Gemini OCR for scanned images/diagrams.
  */
 
 export interface ExtractedChapter {
@@ -91,14 +95,32 @@ const CHAPTER_REGEX_PATTERNS = [
   /^([A-Z\s]{4,50})$/,
 ];
 
+export interface PDFExtractionOptions {
+  onProgress?: (progress: { current: number; total: number; percent: number; message?: string }) => void;
+  appSettings?: AppSettings;
+  userProfile?: UserProfile | null;
+  enableOCR?: boolean;
+}
+
 /**
- * Extracts clean text from an ArrayBuffer or Uint8Array of a PDF file.
+ * Extracts clean text from an ArrayBuffer or Uint8Array of a PDF file,
+ * with automatic image rendering & AI OCR fallback for scanned pages.
  */
 export async function extractTextFromPdf(
   fileData: ArrayBuffer | Uint8Array,
   fileName: string,
-  onProgress?: (progress: { current: number; total: number; percent: number }) => void
+  progressOrOptions?: ((progress: { current: number; total: number; percent: number; message?: string }) => void) | PDFExtractionOptions
 ): Promise<PDFExtractionResult> {
+  const options: PDFExtractionOptions =
+    typeof progressOrOptions === 'function'
+      ? { onProgress: progressOrOptions }
+      : (progressOrOptions || {});
+
+  const onProgress = options.onProgress;
+  const ai = (options.appSettings || options.userProfile)
+    ? createAvelutAI(options.appSettings!, options.userProfile || null)
+    : null;
+
   const pdfjs = await getPdfJs();
   const loadingTask = pdfjs.getDocument({
     data: fileData,
@@ -137,8 +159,59 @@ export async function extractTextFromPdf(
       pageLines.push(currentLine.trim());
     }
 
-    const pageText = pageLines.join('\n');
-    const words = pageText.trim().split(/\s+/).filter(Boolean).length;
+    let pageText = pageLines.join('\n');
+    let words = pageText.trim().split(/\s+/).filter(Boolean).length;
+
+    // If page has minimal or no selectable text (scanned image page / diagram page), run visual OCR
+    if (words < 15 && ai) {
+      if (onProgress) {
+        onProgress({
+          current: pageNum,
+          total: totalPages,
+          percent: Math.round((pageNum / totalPages) * 100),
+          message: `Extracting text from image on page ${pageNum}...`,
+        });
+      }
+      try {
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          if (base64Data) {
+            const ocrRes = await ai.models.generateContent({
+              model: 'gemini-3.1-flash-lite',
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    {
+                      text: 'Transcribe all visible academic text, headings, chapter titles, formulas, equations, bullet points, and explanatory paragraphs on this scanned textbook/document page image into clear, structured Markdown. Do not include any conversational filler, intro, or remarks; output only the transcribed text.',
+                    },
+                    {
+                      inlineData: {
+                        mimeType: 'image/jpeg',
+                        data: base64Data,
+                      },
+                    },
+                  ],
+                },
+              ],
+            });
+            const ocrText = getResponseText(ocrRes).trim();
+            if (ocrText.length > 0) {
+              pageText = ocrText;
+              words = pageText.split(/\s+/).filter(Boolean).length;
+            }
+          }
+        }
+      } catch (ocrErr) {
+        console.warn(`[PDFExtractor] OCR fallback failed for page ${pageNum}:`, ocrErr);
+      }
+    }
 
     pages.push({
       pageNumber: pageNum,
@@ -153,6 +226,7 @@ export async function extractTextFromPdf(
         current: pageNum,
         total: totalPages,
         percent: Math.round((pageNum / totalPages) * 100),
+        message: `Processed page ${pageNum} of ${totalPages}`,
       });
     }
   }

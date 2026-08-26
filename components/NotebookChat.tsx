@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { formatLatexMath } from '../utils/latexFormatter';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
-import { getChapterGeneration, saveChapterGeneration, deleteChapterGeneration } from '../services/notebookStorageService';
+import { getChapterGeneration, saveChapterGeneration, deleteChapterGeneration, getChapterContent } from '../services/notebookStorageService';
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
@@ -41,6 +41,7 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
+  const [activeContent, setActiveContent] = useState<string>(chapterContent || '');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +49,21 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
   const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(new Set());
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitCost, setLimitCost] = useState(1);
+
+  // Self-load chapter content if missing or passed empty due to race condition
+  useEffect(() => {
+    if (chapterContent && chapterContent.trim().length > 0) {
+      setActiveContent(chapterContent);
+    } else {
+      getChapterContent(notebook.id, chapter.id, { startPage: chapter.startPage, endPage: chapter.endPage })
+        .then((content) => {
+          if (content && content.trim().length > 0) {
+            setActiveContent(content);
+          }
+        })
+        .catch((err) => console.warn('[NotebookChat] Error loading chapter content:', err));
+    }
+  }, [notebook.id, chapter.id, chapter.startPage, chapter.endPage, chapterContent]);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -175,20 +191,39 @@ export const NotebookChat: React.FC<NotebookChatProps> = ({
     try {
       const ai = createAvelutAI(appSettings, userProfile);
       if (!ai) throw new Error('AI is not configured. Please check App Controls.');
-      const prompt = `You are an expert, precise, and encouraging academic tutor helping a student understand their material: "${chapter.title}" from "${notebook.title}".
 
-CRITICAL TUTORING RULES:
-- BE DIRECT & CONCISE: Answer the student's question accurately without unnecessary fluff, filler, or repeating their question back to them.
-- If the student sends a casual greeting (like "hi" or "hello"), reply warmly, simply, and naturally (e.g. "Hello! What can I help you with in this chapter?").
-- EXPLAIN CLEARLY: Break down complex concepts simply. Use relatable examples and intuitive steps only when explaining or solving a problem.
-- COLOR & MATH FORMATTING: Format all math, formulas, and variables with LaTeX ($...$ inline or $$...$$ block). Use clean markdown formatting without tables or step badge prefixes.
+      let excerptToUse = (activeContent || chapterContent || '').trim();
+      if (!excerptToUse) {
+        try {
+          excerptToUse = await getChapterContent(notebook.id, chapter.id, {
+            startPage: chapter.startPage,
+            endPage: chapter.endPage,
+          });
+          if (excerptToUse) setActiveContent(excerptToUse);
+        } catch {}
+      }
+
+      const isGroundingAvailable = excerptToUse.length > 0;
+
+      const prompt = `You are an expert, precise, and encouraging academic tutor helping a student understand their textbook material: "${chapter.title}" from "${notebook.title}".
+
+CRITICAL TUTORING & MATERIAL GROUNDING RULES:
+${isGroundingAvailable
+  ? `- STRICT GROUNDING: You MUST base your explanations, definitions, key formulas, examples, and answers directly on the provided TEXTBOOK EXCERPT below.
+- ACCURACY & FIDELITY: Stick closely to the author's terms, equations, notations, and explanations in the excerpt. Do not contradict or hallucinate beyond what is taught in this chapter.
+- DIRECT CITATION: When explaining concepts, reference and cite the specific points, figures, or rules mentioned in the excerpt.
+- EXTENDING WITH CONTEXT: If the student asks a question not explicitly covered in the excerpt, clearly explain what the chapter states first, then briefly bridge the gap using standard academic principles of "${chapter.title}".`
+  : `- SUBJECT CONTEXT: You are teaching the material of "${chapter.title}" from "${notebook.title}". Explain concepts clearly, accurately, and step-by-step.`
+}
+- BE DIRECT & CONCISE: Answer the student's question directly without unnecessary filler, boilerplate, or repeating the question back to them.
+- GREETINGS: If the student sends a casual greeting (like "hi" or "hello"), reply warmly, simply, and naturally (e.g. "Hello! What can I help you understand in ${chapter.title}?").
+- COLOR & MATH FORMATTING: Format all math, formulas, and variables with LaTeX ($...$ inline or $$...$$ block). Use clean markdown formatting without table structures or step badge prefixes.
 
 BOOK: ${notebook.title}
 CHAPTER: ${chapter.title}
 PAGES: ${chapter.startPage} to ${chapter.endPage}
 
-TEXTBOOK EXCERPT:
-${chapterContent.slice(0, 8000)}
+${isGroundingAvailable ? `TEXTBOOK EXCERPT (EXTRACTED FROM PAGES ${chapter.startPage}-${chapter.endPage}):\n${excerptToUse.slice(0, 16000)}` : `(No raw text excerpt available for this chapter)`}
 
 CONVERSATION HISTORY:
 ${nextMessagesWithUser.map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`).join('\n')}
