@@ -11,6 +11,7 @@ interface MyNotebooksProps {
   userProfile: UserProfile;
   onNavigate?: (tab: string) => void;
   setCustomHeaderConfig?: (config: any) => void;
+  onNestedViewChange?: (open: boolean) => void;
 }
 
 const MAX_PDF_SIZE_BYTES = 200 * 1024 * 1024; // 200MB limit
@@ -19,6 +20,7 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   userProfile,
   onNavigate,
   setCustomHeaderConfig,
+  onNestedViewChange,
 }) => {
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +63,17 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   useEffect(() => {
     void loadUserNotebooks();
   }, [loadUserNotebooks]);
+
+  useEffect(() => {
+    if (onNestedViewChange) {
+      onNestedViewChange(!!selectedNotebook);
+    }
+    return () => {
+      if (onNestedViewChange) {
+        onNestedViewChange(false);
+      }
+    };
+  }, [selectedNotebook, onNestedViewChange]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
