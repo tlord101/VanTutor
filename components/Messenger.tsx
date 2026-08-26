@@ -100,26 +100,22 @@ const resolveImageDisplayUrl = (msg: any): string => {
   if (!msg) return '';
   const rawText = typeof msg.text === 'string' ? msg.text : '';
 
-  // 1. Permanent/https URL extracted from markdown text
-  const httpsMatch = rawText.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/i) || rawText.match(/(https?:\/\/[^\s)]+)/i);
-  if (httpsMatch && httpsMatch[1]) {
-    return resolveDisplayImageUrl(httpsMatch[1]);
+  // 1. Markdown image match: ![alt](url)
+  const markdownUrlMatch = rawText.match(/!\[.*?\]\(([^)]+)\)/i);
+  if (markdownUrlMatch && markdownUrlMatch[1]) {
+    const matchedUrl = markdownUrlMatch[1].trim();
+    if (matchedUrl) return resolveDisplayImageUrl(matchedUrl);
   }
 
-  // 2. else msg.localPreviewUrl
+  // 2. Local preview URL on the optimistic message object
   if (msg.localPreviewUrl) {
     return resolveDisplayImageUrl(msg.localPreviewUrl);
   }
 
-  // 3. else data/blob URL extracted from markdown if present
-  const dataBlobMatch = rawText.match(/!\[.*?\]\(((?:blob|data|file|content):[^)]+)\)/i) || rawText.match(/((?:blob|data|file|content):[^\s)]+)/i);
-  if (dataBlobMatch && dataBlobMatch[1]) {
-    return resolveDisplayImageUrl(dataBlobMatch[1]);
-  }
-
-  // Fallback
-  if (/^(https?|blob|data|file|content):/i.test(rawText.trim())) {
-    return resolveDisplayImageUrl(rawText.trim());
+  // 3. Standalone URL fallback
+  const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
+  if (urlMatch && urlMatch[1]) {
+    return resolveDisplayImageUrl(urlMatch[1]);
   }
 
   return '';
