@@ -180,6 +180,30 @@ export type { FirebaseUser };
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // Temporary uploads – any authenticated user can write their own temp files
+    match /temp_uploads/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 25 * 1024 * 1024;
+      // Optional: auto-delete after 24h via Storage lifecycle rule
+    }
+
+    // Permanent chat media
+    match /chat_files/{chatId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    match /voice_notes/{chatId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('audio/.*');
+    }
+
     match /profile-pictures/{userId}/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
@@ -194,18 +218,8 @@ service firebase.storage {
     match /messenger-media/{chatId}/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
-  }
-}
-    // The chat ID is the first folder in the path.
     match /private_chats/{chatId}/{allPaths=**} {
-      allow read, write: if request.auth != null && 
-                          root.child('user_chats').child(request.auth.uid).child(chatId).exists();
-    }
-    
-    // Allow users to manage their own profile pictures (publicly readable).
-    match /profile-pictures/{userId} {
-      allow read;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null;
     }
   }
 }

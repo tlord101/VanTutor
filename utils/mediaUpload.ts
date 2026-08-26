@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem } from '@capacitor/filesystem';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, getBytes, deleteObject } from 'firebase/storage';
 import type { FirebaseStorage } from 'firebase/storage';
 
 /**
@@ -218,6 +218,35 @@ export const uploadBlobWithRetry = async (
   }
 
   throw lastError instanceof Error ? lastError : new Error('Upload failed after multiple attempts.');
+};
+
+/** Upload to a user-scoped temporary path and return a permanent https URL. */
+export const uploadToTempStorage = async (
+  storage: FirebaseStorage,
+  blob: Blob,
+  userId: string,
+  options: UploadWithRetryOptions = {}
+): Promise<{ url: string; tempPath: string }> => {
+  const ext = (blob.type.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '');
+  const tempPath = `temp_uploads/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const url = await uploadBlobWithRetry(storage, blob, tempPath, options);
+  return { url, tempPath };
+};
+
+/** Move (copy + delete) a temp object into a permanent chat path. */
+export const promoteTempToPermanent = async (
+  storage: FirebaseStorage,
+  tempPath: string,
+  permanentPath: string,
+  options: UploadWithRetryOptions = {}
+): Promise<string> => {
+  // Simple & reliable approach: re-upload the bytes (Firebase JS SDK has no native move)
+  const bytes = await getBytes(storageRef(storage, tempPath));
+  const blob = new Blob([bytes], { type: options.contentType });
+  const permanentUrl = await uploadBlobWithRetry(storage, blob, permanentPath, options);
+  // Fire-and-forget cleanup
+  deleteObject(storageRef(storage, tempPath)).catch(() => {});
+  return permanentUrl;
 };
 
 /**
