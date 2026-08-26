@@ -39,6 +39,7 @@
     "@base-ui/react": "^1.5.0",
     "@capacitor-community/sqlite": "^8.1.1",
     "@capacitor-firebase/authentication": "^8.3.0",
+    "@capacitor-mlkit/text-recognition": "^8.2.0",
     "@capacitor/android": "^8.4.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",

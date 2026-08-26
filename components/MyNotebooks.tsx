@@ -6,7 +6,6 @@ import { extractTextFromPdf } from '../services/pdfExtractorService';
 import { readCachedJson } from '../utils/cache';
 import { NotebookDetail } from './NotebookDetail';
 import { useToast } from '../hooks/useToast';
-import { useAppSettings } from '../hooks/useAppSettings';
 
 interface MyNotebooksProps {
   userProfile: UserProfile;
@@ -23,7 +22,6 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
   setCustomHeaderConfig,
   onNestedViewChange,
 }) => {
-  const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,16 +99,14 @@ export const MyNotebooks: React.FC<MyNotebooksProps> = ({
       // Slice a copy for PDF.js so the original buffer isn't detached by WebWorker transfer
       const bufferForPdf = arrayBuffer.slice(0);
 
-      // Extract text client-side with automatic visual AI OCR on scanned pages
-      const extraction = await extractTextFromPdf(bufferForPdf, file.name, {
-        onProgress: (p) => setExtractProgress(p),
-        appSettings,
-        userProfile,
+      // Extract text client-side with on-device ML Kit OCR on scanned pages (100% offline, 0 AI cost)
+      const extraction = await extractTextFromPdf(bufferForPdf, file.name, (p) => {
+        setExtractProgress(p);
       });
 
       if (extraction.isScannedImageOnly) {
         addToast(
-          'Warning: This PDF contains scanned images with minimal text. Visual OCR attempted extraction.',
+          'Note: This document contains mostly scanned images. Extracted text may be limited.',
           'info'
         );
       }

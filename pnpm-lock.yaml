@@ -23,6 +23,9 @@ importers:
       '@capacitor-firebase/authentication':
         specifier: ^8.3.0
         version: 8.3.0(@capacitor/core@8.4.1)(firebase@12.15.0)
+      '@capacitor-mlkit/text-recognition':
+        specifier: ^8.2.0
+        version: 8.2.0(@capacitor/core@8.4.1)
       '@capacitor/android':
         specifier: ^8.4.0
         version: 8.4.1(@capacitor/core@8.4.1)
@@ -455,6 +458,11 @@ packages:
     peerDependenciesMeta:
       firebase:
         optional: true
+
+  '@capacitor-mlkit/text-recognition@8.2.0':
+    resolution: {integrity: sha512-JFrL8R0Ku3HAxPoEfdg1uNqL0WIdsqfMBrfC6CzKA5MIRZy736zxQkKd79x35T/h9JInPzBxI6Fnno0G4LAfSw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/android@8.4.1':
     resolution: {integrity: sha512-igtDCJ7QQn0P2qHFD9p4KXaa6V1b2PRNt+MxjVwtjTm/BJvqmiazOJq6rPjwFSZnfHm6iFoZk8TfzHd44pyBGw==}
@@ -2430,6 +2438,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -4946,6 +4955,10 @@ snapshots:
       '@capacitor/core': 8.4.1
     optionalDependencies:
       firebase: 12.15.0
+
+  '@capacitor-mlkit/text-recognition@8.2.0(@capacitor/core@8.4.1)':
+    dependencies:
+      '@capacitor/core': 8.4.1
 
   '@capacitor/android@8.4.1(@capacitor/core@8.4.1)':
     dependencies:

@@ -1,10 +1,11 @@
-import { createAvelutAI, getResponseText } from '../utils/inference';
-import type { AppSettings, UserProfile } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { TextRecognition } from '@capacitor-mlkit/text-recognition';
 
 /**
  * Client-Side PDF Text Extraction & Chapter Segmentation Service
  * Uses Mozilla pdf.js directly in the browser/client with 0 AI API cost,
- * with automatic fallback to Gemini OCR for scanned images/diagrams.
+ * with automatic on-device Google ML Kit OCR for scanned images/diagrams.
  */
 
 export interface ExtractedChapter {
@@ -97,14 +98,11 @@ const CHAPTER_REGEX_PATTERNS = [
 
 export interface PDFExtractionOptions {
   onProgress?: (progress: { current: number; total: number; percent: number; message?: string }) => void;
-  appSettings?: AppSettings;
-  userProfile?: UserProfile | null;
-  enableOCR?: boolean;
 }
 
 /**
  * Extracts clean text from an ArrayBuffer or Uint8Array of a PDF file,
- * with automatic image rendering & AI OCR fallback for scanned pages.
+ * with automatic on-device Google ML Kit OCR for scanned pages (100% offline, 0 AI cost).
  */
 export async function extractTextFromPdf(
   fileData: ArrayBuffer | Uint8Array,
@@ -117,9 +115,6 @@ export async function extractTextFromPdf(
       : (progressOrOptions || {});
 
   const onProgress = options.onProgress;
-  const ai = (options.appSettings || options.userProfile)
-    ? createAvelutAI(options.appSettings!, options.userProfile || null)
-    : null;
 
   const pdfjs = await getPdfJs();
   const loadingTask = pdfjs.getDocument({
@@ -162,14 +157,14 @@ export async function extractTextFromPdf(
     let pageText = pageLines.join('\n');
     let words = pageText.trim().split(/\s+/).filter(Boolean).length;
 
-    // If page has minimal or no selectable text (scanned image page / diagram page), run visual OCR
-    if (words < 15 && ai) {
+    // If page has minimal or no selectable text (scanned image page / diagram page), run on-device ML Kit OCR
+    if (words < 15) {
       if (onProgress) {
         onProgress({
           current: pageNum,
           total: totalPages,
           percent: Math.round((pageNum / totalPages) * 100),
-          message: `Extracting text from image on page ${pageNum}...`,
+          message: `On-device OCR extracting page ${pageNum}...`,
         });
       }
       try {
@@ -180,36 +175,33 @@ export async function extractTextFromPdf(
         const ctx = canvas.getContext('2d');
         if (ctx) {
           await page.render({ canvasContext: ctx, viewport }).promise;
-          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-          if (base64Data) {
-            const ocrRes = await ai.models.generateContent({
-              model: 'gemini-3.1-flash-lite',
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    {
-                      text: 'Transcribe all visible academic text, headings, chapter titles, formulas, equations, bullet points, and explanatory paragraphs on this scanned textbook/document page image into clear, structured Markdown. Do not include any conversational filler, intro, or remarks; output only the transcribed text.',
-                    },
-                    {
-                      inlineData: {
-                        mimeType: 'image/jpeg',
-                        data: base64Data,
-                      },
-                    },
-                  ],
-                },
-              ],
+          const base64Data = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+          if (base64Data && Capacitor.isNativePlatform()) {
+            const tempFileName = `ocr_page_${Date.now()}_${pageNum}.jpg`;
+            const writtenFile = await Filesystem.writeFile({
+              path: tempFileName,
+              data: base64Data,
+              directory: Directory.Cache,
             });
-            const ocrText = getResponseText(ocrRes).trim();
-            if (ocrText.length > 0) {
-              pageText = ocrText;
+
+            const ocrResult = await TextRecognition.processImage({
+              path: writtenFile.uri,
+            });
+
+            // Clean up temporary image from cache asynchronously
+            Filesystem.deleteFile({
+              path: tempFileName,
+              directory: Directory.Cache,
+            }).catch(() => {});
+
+            if (ocrResult && ocrResult.text && ocrResult.text.trim().length > 0) {
+              pageText = ocrResult.text.trim();
               words = pageText.split(/\s+/).filter(Boolean).length;
             }
           }
         }
       } catch (ocrErr) {
-        console.warn(`[PDFExtractor] OCR fallback failed for page ${pageNum}:`, ocrErr);
+        console.warn(`[PDFExtractor] On-device ML Kit OCR failed for page ${pageNum}:`, ocrErr);
       }
     }
 
