@@ -96,6 +96,40 @@ const resolveDisplayImageUrl = (url: string): string => {
   return url;
 };
 
+const resolveImageDisplayUrl = (msg: any): string => {
+  if (!msg) return '';
+  const rawText = typeof msg.text === 'string' ? msg.text : '';
+
+  // 1. Permanent/https URL extracted from markdown text
+  const httpsMatch = rawText.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/i) || rawText.match(/(https?:\/\/[^\s)]+)/i);
+  if (httpsMatch && httpsMatch[1]) {
+    return resolveDisplayImageUrl(httpsMatch[1]);
+  }
+
+  // 2. else msg.localPreviewUrl
+  if (msg.localPreviewUrl) {
+    return resolveDisplayImageUrl(msg.localPreviewUrl);
+  }
+
+  // 3. else data/blob URL extracted from markdown if present
+  const dataBlobMatch = rawText.match(/!\[.*?\]\(((?:blob|data|file|content):[^)]+)\)/i) || rawText.match(/((?:blob|data|file|content):[^\s)]+)/i);
+  if (dataBlobMatch && dataBlobMatch[1]) {
+    return resolveDisplayImageUrl(dataBlobMatch[1]);
+  }
+
+  // Fallback
+  if (/^(https?|blob|data|file|content):/i.test(rawText.trim())) {
+    return resolveDisplayImageUrl(rawText.trim());
+  }
+
+  return '';
+};
+
+const extractImageCaption = (rawText: string): string => {
+  if (!rawText) return '';
+  return rawText.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim();
+};
+
 // =======================================================
 // FUNCTIONAL VOICE NOTE PLAYER COMPONENT
 // =======================================================
@@ -1836,17 +1870,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const tempId = `temp_${fileType}_${localTimestamp}_${Math.round(Math.random() * 1e6)}`;
     const displayName = fileName || (fileType === 'voice' ? 'Voice Note' : 'Media');
 
-    // Local-only preview for the optimistic bubble. Never persisted to the chat message.
-    let previewUrl = '';
+    // Always attach a local preview
+    let localPreviewUrl = '';
     try {
-      previewUrl = await blobToDataUrl(sourceBlob.blob);
-    } catch (previewErr) {
-      console.warn('[Messenger] Could not build local preview; sending without one.', previewErr);
+      localPreviewUrl = URL.createObjectURL(sourceBlob.blob);
+    } catch (e) {
+      try {
+        localPreviewUrl = await blobToDataUrl(sourceBlob.blob);
+      } catch (e2) {
+        console.warn('[Messenger] Could not build local preview:', e2);
+      }
     }
+
     const pendingText = fileType === 'image'
-      ? (previewUrl ? `![Image](${previewUrl})` : '![Image]()')
+      ? (localPreviewUrl ? `![Image](${localPreviewUrl})` : '![Image]()')
       : fileType === 'voice'
-        ? `[Voice Note](${previewUrl})`
+        ? `[Voice Note](${localPreviewUrl})`
         : `[📄 ${displayName}]()`;
 
     const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
@@ -1858,6 +1897,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       type: fileType,
       timestamp: localTimestamp,
       isUploading: true,
+      localPreviewUrl,
       blob: sourceBlob.blob,
       mimeType: rawMime,
       fileName,
@@ -1867,6 +1907,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     setOptimisticMessages(prev => [...prev, pendingMessage]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    const cleanupPreview = () => {
+      if (localPreviewUrl && localPreviewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(localPreviewUrl); } catch (e) {}
+      }
+    };
 
     try {
       // 1. Upload to TEMPORARY storage first (user-scoped)
@@ -1896,6 +1942,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
       // 4. Only NOW create the real chat message
       setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      cleanupPreview();
 
       if (fileType === 'image') {
         const verifiedText = caption
@@ -1933,7 +1980,20 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const retryFailedUpload = async (msg: any) => {
     if (!activeChat || !firebaseUser || !msg?.blob || msg?.type === undefined) return;
     const tempId = msg.id;
-    setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false } : m));
+    let localPreviewUrl = msg.localPreviewUrl;
+    if (!localPreviewUrl && msg.blob) {
+      try {
+        localPreviewUrl = URL.createObjectURL(msg.blob);
+      } catch (e) {}
+    }
+    setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: true, isFailed: false, localPreviewUrl } : m));
+
+    const cleanupPreview = () => {
+      if (localPreviewUrl && localPreviewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(localPreviewUrl); } catch (e) {}
+      }
+    };
+
     try {
       const rawMime = msg.mimeType || undefined;
       const { url: tempUrl, tempPath } = await uploadToTempStorage(
@@ -1963,13 +2023,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           ? `![Image](${permanentUrl})\n\n${msg.caption}`
           : `![Image](${permanentUrl})`;
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(finalText, 'image');
       } else if (msg.type === 'voice') {
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
         const displayName = msg.fileName || 'Media';
         setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+        cleanupPreview();
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (err) {
@@ -2010,6 +2073,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
               type: 'voice',
               timestamp: localTimestamp,
               isUploading: true,
+              localPreviewUrl: blobLocalUrl,
               blob,
               mimeType: 'audio/webm',
               fileName: 'Voice Note.webm',
@@ -2034,6 +2098,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 { contentType: 'audio/webm' }
               );
               setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+              if (blobLocalUrl && blobLocalUrl.startsWith('blob:')) {
+                try { URL.revokeObjectURL(blobLocalUrl); } catch (e) {}
+              }
               await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
             } catch (uploadError) {
               console.error("Voice Note storage syncing failure:", uploadError);
@@ -2632,18 +2699,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                 const rawText = typeof msg.text === 'string' ? msg.text : '';
                 let imageUrl = '';
                 if (msg.type === 'image') {
-                  const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
-                  if (markdownMatch) {
-                    imageUrl = markdownMatch[1];
-                  } else {
-                    const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
-                    if (urlMatch) {
-                      imageUrl = urlMatch[1];
-                    } else {
-                      imageUrl = rawText;
-                    }
-                  }
-                  imageUrl = resolveDisplayImageUrl(imageUrl);
+                  imageUrl = resolveImageDisplayUrl(msg);
                 }
                 const reactionMap = (msg.reactions && typeof msg.reactions === 'object') ? msg.reactions as Record<string, string> : {};
                 const reactionCounts = Object.values(reactionMap).reduce((acc: Record<string, number>, reactionEmoji: string) => {
@@ -2798,7 +2854,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                   )}
                                 </div>
                                 {(() => {
-                                  const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                  const extractedCaption = extractImageCaption(rawText);
                                   if (!extractedCaption) return null;
                                   return (
                                     <div className="message-text">
@@ -3005,18 +3061,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                     const rawText = typeof messageActionTarget.text === 'string' ? messageActionTarget.text : '';
                     let imageUrl = '';
                     if (messageActionTarget.type === 'image') {
-                      const markdownMatch = rawText.match(/!\[.*?\]\((.*?)\)/);
-                      if (markdownMatch) {
-                        imageUrl = markdownMatch[1];
-                      } else {
-                        const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
-                        if (urlMatch) {
-                          imageUrl = urlMatch[1];
-                        } else {
-                          imageUrl = rawText;
-                        }
-                      }
-                      imageUrl = resolveDisplayImageUrl(imageUrl);
+                      imageUrl = resolveImageDisplayUrl(messageActionTarget);
                     }
 
                     return (
@@ -3048,7 +3093,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                     <img src={imageUrl} alt="Targeted Media" className="max-h-[220px] w-full object-cover" />
                                   )}
                                   {(() => {
-                                    const extractedCaption = rawText.replace(/!\[.*?\]\([^\s]+\)/, '').trim();
+                                    const extractedCaption = extractImageCaption(rawText);
                                     if (!extractedCaption) return null;
                                     return (
                                       <div className="message-text">

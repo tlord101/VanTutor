@@ -272,7 +272,8 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         if (!userProfile?.uid) return {};
         return readCachedJson<Record<string, number>>(`avelut_topic_visits_${userProfile.uid}`, {});
     });
-    const [isNestedViewOpen, setIsNestedViewOpen] = useState(false);
+    const [isNotebookNestedOpen, setIsNotebookNestedOpen] = useState(false);
+    const isNestedViewOpen = isNotebookNestedOpen || !!selectedCourse || !!topicPickerCourse || !!isVoiceTutorialActive || !!activeExternalSession;
 
     const getTopicLastVisited = useCallback((courseId: string, topicId: string): number | null => {
         const directKey = `${courseId}::${topicId}`;
@@ -1182,7 +1183,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                         userProfile={userProfile}
                         onNavigate={onNavigate}
                         setCustomHeaderConfig={setCustomHeaderConfig}
-                        onNestedViewChange={setIsNestedViewOpen}
+                        onNestedViewChange={setIsNotebookNestedOpen}
                     />
                 </div>
             </div>
