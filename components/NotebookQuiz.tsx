@@ -71,23 +71,23 @@ export const NotebookQuiz: React.FC<NotebookQuizProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
             <button
               onClick={onBack}
-              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
               aria-label="Back to chapters"
               title="Back"
             >
-              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF] dark:text-blue-400"></i>
             </button>
             <div className="min-w-0 flex flex-col justify-center">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+              <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block truncate">
                 {notebook.title}
               </span>
-              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
                 {chapter.title} — Quiz
               </h2>
             </div>
           </div>
         ),
-        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+        className: 'bg-[#F6F6F3]/95 dark:bg-slate-950/95 border-b border-[#E3E9F1] dark:border-slate-800 backdrop-blur-md',
       });
     }
 
@@ -246,20 +246,20 @@ RULES:
   if (isConfiguring) {
     return (
       <div className="flex-1 w-full max-w-2xl mx-auto p-4 sm:p-6 flex flex-col justify-center pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
-        <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
 
             {/* Saved Quiz Quick Start Banner */}
             {savedQuiz && savedQuiz.length > 0 && (
-              <div className="p-4 mb-6 bg-[#F1F5F9] border border-[#0066FF]/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="p-4 mb-6 bg-[#F1F5F9] dark:bg-slate-800 border border-[#0066FF]/30 dark:border-blue-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[#002D62] text-white flex items-center justify-center text-base shrink-0">
-                    <i className="bi bi-bookmark-check-fill text-[#0066FF]"></i>
+                    <i className="bi bi-bookmark-check-fill text-[#0066FF] dark:text-blue-400"></i>
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-[#0F172A] truncate">
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-white truncate">
                       Saved Chapter Quiz Available
                     </h4>
-                    <p className="text-[11px] text-[#64748B]">
+                    <p className="text-[11px] text-[#64748B] dark:text-slate-400">
                       {savedQuiz.length} questions saved locally on your device (0 credits)
                     </p>
                   </div>
@@ -280,8 +280,8 @@ RULES:
             <div className="space-y-6">
               {/* Time Limit Setting */}
               <div>
-                <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
-                  <i className="bi bi-clock mr-1.5 text-[#0066FF]"></i> Global Quiz Timer
+                <label className="block text-xs font-bold text-[#0F172A] dark:text-white uppercase tracking-wider mb-2.5">
+                  <i className="bi bi-clock mr-1.5 text-[#0066FF] dark:text-blue-400"></i> Global Quiz Timer
                 </label>
               <div className="grid grid-cols-4 gap-2">
                 {[5, 10, 15, 30].map((mins) => (
@@ -291,8 +291,8 @@ RULES:
                     onClick={() => setSelectedMinutes(mins)}
                     className={`py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                       selectedMinutes === mins
-                        ? 'bg-[#002D62] text-white border-2 border-[#0066FF]'
-                        : 'bg-[#F6F6F3] text-[#0F172A] border border-[#E3E9F1] hover:bg-[#F1F5F9]'
+                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >
                     {mins} Mins
@@ -303,8 +303,8 @@ RULES:
 
             {/* Question Count Setting */}
             <div>
-              <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
-                <i className="bi bi-list-ol mr-1.5 text-[#0066FF]"></i> Question Count
+              <label className="block text-xs font-bold text-[#0F172A] dark:text-white uppercase tracking-wider mb-2.5">
+                <i className="bi bi-list-ol mr-1.5 text-[#0066FF] dark:text-blue-400"></i> Question Count
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[5, 10, 15].map((cnt) => (
@@ -314,8 +314,8 @@ RULES:
                     onClick={() => setQuestionCount(cnt)}
                     className={`py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                       questionCount === cnt
-                        ? 'bg-[#002D62] text-white border-2 border-[#0066FF]'
-                        : 'bg-[#F6F6F3] text-[#0F172A] border border-[#E3E9F1] hover:bg-[#F1F5F9]'
+                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >
                     {cnt} Questions
@@ -326,8 +326,8 @@ RULES:
 
             {/* Difficulty Setting */}
             <div>
-              <label className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-2.5">
-                <i className="bi bi-sliders mr-1.5 text-[#0066FF]"></i> Difficulty Level
+              <label className="block text-xs font-bold text-[#0F172A] dark:text-white uppercase tracking-wider mb-2.5">
+                <i className="bi bi-sliders mr-1.5 text-[#0066FF] dark:text-blue-400"></i> Difficulty Level
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(['standard', 'challenging'] as const).map((diff) => (
@@ -337,8 +337,8 @@ RULES:
                     onClick={() => setDifficulty(diff)}
                     className={`py-3 rounded-2xl text-xs font-bold capitalize transition-all cursor-pointer ${
                       difficulty === diff
-                        ? 'bg-[#002D62] text-white border-2 border-[#0066FF]'
-                        : 'bg-[#F6F6F3] text-[#0F172A] border border-[#E3E9F1] hover:bg-[#F1F5F9]'
+                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >
                     {diff}
@@ -375,11 +375,11 @@ RULES:
   if (isGenerating) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto">
-        <div className="w-14 h-14 rounded-full border-3 border-[#E3E9F1] border-t-[#0066FF] animate-spin mb-4" />
-        <h3 className="text-lg font-black text-[#0F172A] tracking-tight">
+        <div className="w-14 h-14 rounded-full border-3 border-[#E3E9F1] dark:border-slate-800 border-t-[#0066FF] dark:border-t-blue-400 animate-spin mb-4" />
+        <h3 className="text-lg font-black text-[#0F172A] dark:text-white tracking-tight">
           Formulating Academic Quiz...
         </h3>
-        <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+        <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 leading-relaxed">
           Extracting key principles, theorems, and worked problems from "{chapter.title}".
         </p>
       </div>
@@ -398,15 +398,15 @@ RULES:
     return (
       <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 overflow-y-auto space-y-6 pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
         {/* Score Summary Banner */}
-        <div className="bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 text-center">
-          <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Quiz Completed</span>
-          <h2 className="text-3xl font-black text-[#0F172A] mt-1">
+        <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-8 text-center">
+          <span className="text-xs font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">Quiz Completed</span>
+          <h2 className="text-3xl font-black text-[#0F172A] dark:text-white mt-1">
             {percent >= 70 ? 'Excellent Mastery!' : percent >= 50 ? 'Good Effort' : 'Needs Review'}
           </h2>
-          <div className="inline-flex items-baseline gap-1 mt-3 px-6 py-2.5 bg-[#F1F5F9] rounded-2xl border border-[#E3E9F1]">
-            <span className="text-4xl font-black text-[#0066FF]">{finalScore}</span>
-            <span className="text-lg font-bold text-[#64748B]">/ {totalQuestions}</span>
-            <span className="text-sm font-semibold text-[#64748B] ml-2">({percent}%)</span>
+          <div className="inline-flex items-baseline gap-1 mt-3 px-6 py-2.5 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl border border-[#E3E9F1] dark:border-slate-700">
+            <span className="text-4xl font-black text-[#0066FF] dark:text-blue-400">{finalScore}</span>
+            <span className="text-lg font-bold text-[#64748B] dark:text-slate-400">/ {totalQuestions}</span>
+            <span className="text-sm font-semibold text-[#64748B] dark:text-slate-400 ml-2">({percent}%)</span>
           </div>
 
           <div className="flex items-center justify-center gap-3 mt-6">
@@ -423,7 +423,7 @@ RULES:
             </button>
             <button
               onClick={onBack}
-              className="px-6 py-3 rounded-2xl bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] font-bold text-xs transition-all cursor-pointer"
+              className="px-6 py-3 rounded-2xl bg-[#F6F6F3] dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-white font-bold text-xs transition-all cursor-pointer"
             >
               Back to Chapters
             </button>
@@ -432,7 +432,7 @@ RULES:
 
         {/* Detailed Solutions Review */}
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider px-1">
+          <h3 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider px-1">
             Question Review & Solutions
           </h3>
 
@@ -443,26 +443,26 @@ RULES:
             return (
               <div
                 key={q.id || idx}
-                className={`bg-white border rounded-2xl p-5 sm:p-6 transition-all ${
-                  isCorrect ? 'border-emerald-200' : 'border-rose-200'
+                className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 sm:p-6 transition-all ${
+                  isCorrect ? 'border-emerald-200 dark:border-emerald-800' : 'border-rose-200 dark:border-rose-800'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <span className="text-xs font-bold text-[#64748B] uppercase">
+                  <span className="text-xs font-bold text-[#64748B] dark:text-slate-400 uppercase">
                     Question {idx + 1}
                   </span>
                   <span
                     className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                       isCorrect
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                     }`}
                   >
                     {isCorrect ? 'Correct' : 'Incorrect'}
                   </span>
                 </div>
 
-                <div className="text-sm font-medium text-[#0F172A] leading-relaxed mb-4">
+                <div className="text-sm font-medium text-[#0F172A] dark:text-slate-100 leading-relaxed mb-4">
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {formatLatexMath(q.question)}
                   </ReactMarkdown>
@@ -473,11 +473,11 @@ RULES:
                     const isSelected = userAns === optIdx;
                     const isRightAnswer = optIdx === q.correctIndex;
 
-                    let btnClass = 'bg-[#F6F6F3] border-[#E3E9F1] text-[#0F172A]';
+                    let btnClass = 'bg-[#F6F6F3] dark:bg-slate-800 border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-slate-200';
                     if (isRightAnswer) {
-                      btnClass = 'bg-emerald-50 border-emerald-400 text-emerald-900 font-bold';
+                      btnClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 text-emerald-900 dark:text-emerald-300 font-bold';
                     } else if (isSelected && !isRightAnswer) {
-                      btnClass = 'bg-rose-50 border-rose-400 text-rose-900 line-through';
+                      btnClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-600 text-rose-900 dark:text-rose-300 line-through';
                     }
 
                     return (
@@ -499,9 +499,9 @@ RULES:
                 </div>
 
                 {/* Explanation */}
-                <div className="p-3.5 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs text-[#334155] leading-relaxed">
-                  <span className="font-bold text-[#0F172A] block mb-1">
-                    <i className="bi bi-info-circle mr-1 text-[#0066FF]"></i> Solution Explanation:
+                <div className="p-3.5 bg-[#F8FAFC] dark:bg-slate-800/80 rounded-xl border border-[#E2E8F0] dark:border-slate-700 text-xs text-[#334155] dark:text-slate-300 leading-relaxed">
+                  <span className="font-bold text-[#0F172A] dark:text-white block mb-1">
+                    <i className="bi bi-info-circle mr-1 text-[#0066FF] dark:text-blue-400"></i> Solution Explanation:
                   </span>
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {formatLatexMath(q.explanation)}
@@ -519,17 +519,17 @@ RULES:
   return (
     <div className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 flex flex-col justify-between overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
       {/* Top Bar with Timer and Progress */}
-      <div className="bg-white border border-[#E3E9F1] rounded-2xl p-4 flex items-center justify-between mb-4">
+      <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between mb-4">
         {/* Global Timer Top-Left */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F6F6F3] border border-[#E3E9F1] rounded-xl">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F6F6F3] dark:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 rounded-xl">
           <i
             className={`bi bi-stopwatch text-sm ${
-              timeLeftSeconds < 120 ? 'text-rose-600 animate-pulse' : 'text-[#0066FF]'
+              timeLeftSeconds < 120 ? 'text-rose-600 animate-pulse' : 'text-[#0066FF] dark:text-blue-400'
             }`}
           ></i>
           <span
             className={`font-mono text-sm font-bold ${
-              timeLeftSeconds < 120 ? 'text-rose-600 font-black' : 'text-[#0F172A]'
+              timeLeftSeconds < 120 ? 'text-rose-600 font-black' : 'text-[#0F172A] dark:text-white'
             }`}
           >
             {formatTimer(timeLeftSeconds)}
@@ -537,8 +537,8 @@ RULES:
         </div>
 
         {/* Question Counter */}
-        <div className="text-xs font-bold text-[#64748B]">
-          Question <span className="text-[#0F172A] font-black">{currentIndex + 1}</span> of {totalQuestions}
+        <div className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+          Question <span className="text-[#0F172A] dark:text-white font-black">{currentIndex + 1}</span> of {totalQuestions}
         </div>
 
         {/* End / Submit Early Button */}
@@ -548,7 +548,7 @@ RULES:
               setIsSubmitted(true);
             }
           }}
-          className="px-3.5 py-1.5 rounded-xl border border-[#E3E9F1] bg-[#F6F6F3] hover:bg-white text-xs font-bold text-[#0F172A] transition-all cursor-pointer"
+          className="px-3.5 py-1.5 rounded-xl border border-[#E3E9F1] dark:border-slate-700 bg-[#F6F6F3] dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 text-xs font-bold text-[#0F172A] dark:text-white transition-all cursor-pointer"
         >
           Submit Quiz
         </button>
@@ -556,12 +556,12 @@ RULES:
 
       {/* Main Question Card */}
       {currentQ && (
-        <div className="flex-1 bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xs mb-4">
+        <div className="flex-1 bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xs mb-4">
           <div>
-            <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">
               {chapter.title}
             </span>
-            <div className="text-base sm:text-lg font-bold text-[#0F172A] leading-relaxed mt-2 mb-6">
+            <div className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-white leading-relaxed mt-2 mb-6">
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {formatLatexMath(currentQ.question)}
               </ReactMarkdown>
@@ -579,15 +579,15 @@ RULES:
                     onClick={() => handleSelectOption(idx)}
                     className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
                       isSelected
-                        ? 'bg-[#F1F5F9] border-[#0066FF] text-[#0066FF] font-bold'
-                        : 'bg-[#F6F6F3] border-[#E3E9F1] text-[#0F172A] hover:bg-white'
+                        ? 'bg-[#F1F5F9] dark:bg-slate-800 border-[#0066FF] dark:border-blue-500 text-[#0066FF] dark:text-blue-400 font-bold'
+                        : 'bg-[#F6F6F3] dark:bg-slate-800/60 border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
                     }`}
                   >
                     <span
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
                         isSelected
                           ? 'bg-[#0066FF] text-white'
-                          : 'bg-white border border-[#E3E9F1] text-[#64748B]'
+                          : 'bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-700 text-[#64748B] dark:text-slate-400'
                       }`}
                     >
                       {String.fromCharCode(65 + idx)}
@@ -608,23 +608,23 @@ RULES:
           </div>
 
           {/* Nav Buttons Inside Question Card */}
-          <div className="flex items-center justify-between pt-6 border-t border-[#E3E9F1] mt-6">
+          <div className="flex items-center justify-between pt-6 border-t border-[#E3E9F1] dark:border-slate-800 mt-6">
             <button
               onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
               disabled={currentIndex === 0}
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-white disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
             >
               <i className="bi bi-arrow-left text-sm"></i>
             </button>
 
-            <span className="text-xs font-semibold text-[#64748B]">
+            <span className="text-xs font-semibold text-[#64748B] dark:text-slate-400">
               {answeredCount} of {totalQuestions} answered
             </span>
 
             {currentIndex < totalQuestions - 1 ? (
               <button
                 onClick={() => setCurrentIndex((prev) => Math.min(totalQuestions - 1, prev + 1))}
-                className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] hover:bg-white border border-[#E3E9F1] text-[#0F172A] transition-all cursor-pointer"
+                className="flex items-center justify-center w-11 h-11 rounded-full bg-[#F6F6F3] dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-white transition-all cursor-pointer"
               >
                 <i className="bi bi-arrow-right text-sm"></i>
               </button>

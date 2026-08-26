@@ -58,17 +58,17 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none">
             <button
               onClick={onBack}
-              className="w-10 h-10 rounded-full bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#0F172A] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+              className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#0F172A] dark:text-white transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
               aria-label="Back to chapters"
               title="Back"
             >
-              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF]"></i>
+              <i className="bi bi-arrow-left text-base font-bold text-[#0066FF] dark:text-blue-400"></i>
             </button>
             <div className="min-w-0 flex flex-col justify-center">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block truncate">
+              <span className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block truncate">
                 {notebook.title}
               </span>
-              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
+              <h2 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white truncate max-w-[140px] sm:max-w-[280px] md:max-w-[400px]">
                 {chapter.title} — Flashcards
               </h2>
             </div>
@@ -78,14 +78,14 @@ export const NotebookFlashcards: React.FC<NotebookFlashcardsProps> = ({
           <button
             type="button"
             onClick={() => void generateCards(true)}
-            className="w-9 h-9 rounded-xl bg-white hover:bg-slate-50 border border-[#E3E9F1] flex items-center justify-center text-[#64748B] hover:text-[#0066FF] transition-all cursor-pointer shadow-2xs"
+            className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-[#E3E9F1] dark:border-slate-700 flex items-center justify-center text-[#64748B] dark:text-slate-300 hover:text-[#0066FF] dark:hover:text-blue-400 transition-all cursor-pointer shadow-2xs"
             title="Regenerate Flashcards"
             aria-label="Regenerate Flashcards"
           >
             <i className="bi bi-arrow-clockwise text-sm"></i>
           </button>
         ),
-        className: 'bg-[#F6F6F3]/95 border-b border-[#E3E9F1] backdrop-blur-md',
+        className: 'bg-[#F6F6F3]/95 dark:bg-slate-950/95 border-b border-[#E3E9F1] dark:border-slate-800 backdrop-blur-md',
       });
     }
 
@@ -185,11 +185,11 @@ RULES:
   if (isGenerating) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto my-auto">
-        <div className="w-14 h-14 rounded-full border-3 border-[#E3E9F1] border-t-[#0066FF] animate-spin mb-4" />
-        <h3 className="text-lg font-black text-[#0F172A] tracking-tight">
+        <div className="w-14 h-14 rounded-full border-3 border-[#E3E9F1] dark:border-slate-800 border-t-[#0066FF] dark:border-t-blue-400 animate-spin mb-4" />
+        <h3 className="text-lg font-black text-[#0F172A] dark:text-white tracking-tight">
           Generating Flashcards...
         </h3>
-        <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+        <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 leading-relaxed">
           Distilling essential concepts from "{chapter.title}".
         </p>
       </div>
@@ -199,11 +199,11 @@ RULES:
   if (cards.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in max-w-md mx-auto my-auto space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-white border border-[#E3E9F1] flex items-center justify-center text-[#0066FF] text-2xl shadow-xs">
+        <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 flex items-center justify-center text-[#0066FF] dark:text-blue-400 text-2xl shadow-xs">
           <i className="bi bi-card-text"></i>
         </div>
-        <h3 className="text-base font-black text-[#0F172A]">No Flashcards Yet</h3>
-        <p className="text-xs text-[#64748B]">Could not extract or generate flashcards for this chapter.</p>
+        <h3 className="text-base font-black text-[#0F172A] dark:text-white">No Flashcards Yet</h3>
+        <p className="text-xs text-[#64748B] dark:text-slate-400">Could not extract or generate flashcards for this chapter.</p>
         <button
           onClick={() => void generateCards()}
           className="px-5 py-2.5 bg-[#0066FF] hover:bg-[#0052cc] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -220,10 +220,10 @@ RULES:
     <div className="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 flex flex-col h-full min-h-0 justify-between overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom)+14px)] animate-fade-in">
       {/* Flashcard Progress Badge */}
       <div className="flex items-center justify-between px-1 mb-2">
-        <span className="text-xs font-bold text-[#64748B]">
-          Card <span className="text-[#0066FF] font-black">{currentIndex + 1}</span> of {cards.length}
+        <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+          Card <span className="text-[#0066FF] dark:text-blue-400 font-black">{currentIndex + 1}</span> of {cards.length}
         </span>
-        <span className="text-[11px] text-[#64748B] font-medium">
+        <span className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">
           Tap card to reveal answer
         </span>
       </div>
@@ -232,14 +232,14 @@ RULES:
       {currentCard && (
         <div
           onClick={() => setIsFlipped(!isFlipped)}
-          className="flex-1 min-h-[300px] sm:min-h-[360px] bg-white border border-[#E3E9F1] rounded-3xl p-6 sm:p-8 flex flex-col justify-between cursor-pointer transition-all hover:border-[#0066FF]/40 mb-3 select-none shadow-xs"
+          className="flex-1 min-h-[300px] sm:min-h-[360px] bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between cursor-pointer transition-all hover:border-[#0066FF]/40 dark:hover:border-blue-500/40 mb-3 select-none shadow-xs"
         >
           {/* Card Label */}
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">
               {isFlipped ? 'Answer / Explanation' : 'Question / Concept'}
             </span>
-            <span className="text-[11px] font-bold text-[#0066FF] flex items-center gap-1">
+            <span className="text-[11px] font-bold text-[#0066FF] dark:text-blue-400 flex items-center gap-1">
               <i className="bi bi-arrow-repeat text-xs"></i>
               <span>Tap to flip</span>
             </span>
@@ -247,14 +247,14 @@ RULES:
 
           {/* Card Text Content */}
           <div className="my-auto py-4 text-center">
-            <div className="text-base sm:text-xl font-bold text-[#0F172A] leading-relaxed">
+            <div className="text-base sm:text-xl font-bold text-[#0F172A] dark:text-white leading-relaxed">
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {formatLatexMath(isFlipped ? currentCard.back : currentCard.front)}
               </ReactMarkdown>
             </div>
 
             {showHint && currentCard.hint && !isFlipped && (
-              <div className="mt-4 p-3 bg-[#F1F5F9] rounded-2xl border border-[#E3E9F1] text-xs text-[#64748B] inline-block animate-fade-in">
+              <div className="mt-4 p-3 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl border border-[#E3E9F1] dark:border-slate-700 text-xs text-[#64748B] dark:text-slate-300 inline-block animate-fade-in">
                 <i className="bi bi-lightbulb mr-1 text-amber-500"></i>
                 {currentCard.hint}
               </div>
@@ -262,7 +262,7 @@ RULES:
           </div>
 
           {/* Bottom Hint Toggle */}
-          <div className="flex items-center justify-between pt-4 border-t border-[#E3E9F1]/60">
+          <div className="flex items-center justify-between pt-4 border-t border-[#E3E9F1]/60 dark:border-slate-800">
             {currentCard.hint && !isFlipped ? (
               <button
                 type="button"
@@ -270,14 +270,14 @@ RULES:
                   e.stopPropagation();
                   setShowHint(!showHint);
                 }}
-                className="text-xs font-bold text-[#64748B] hover:text-[#0066FF] flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="text-xs font-bold text-[#64748B] dark:text-slate-400 hover:text-[#0066FF] dark:hover:text-blue-400 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <i className="bi bi-lightbulb"></i>
                 <span>{showHint ? 'Hide Hint' : 'Show Hint'}</span>
               </button>
             ) : <div />}
 
-            <span className="text-[11px] font-semibold text-[#64748B]">
+            <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400">
               {isFlipped ? 'Tap card to flip back' : 'Tap card to reveal answer'}
             </span>
           </div>
@@ -285,7 +285,7 @@ RULES:
       )}
 
       {/* Prominent Large Bottom Navigation Bar */}
-      <div className="bg-white border border-[#E3E9F1] rounded-3xl p-3 sm:p-4 flex items-center justify-between gap-3 shrink-0 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 rounded-3xl p-3 sm:p-4 flex items-center justify-between gap-3 shrink-0 shadow-xs">
         <button
           type="button"
           onClick={() => {
@@ -294,13 +294,13 @@ RULES:
             setCurrentIndex((prev) => Math.max(0, prev - 1));
           }}
           disabled={currentIndex === 0}
-          className="flex-1 py-3.5 sm:py-4 px-4 rounded-2xl bg-[#F6F6F3] hover:bg-[#E3E9F1] border border-[#E3E9F1] text-[#0F172A] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs sm:text-sm active:scale-98 shadow-2xs"
+          className="flex-1 py-3.5 sm:py-4 px-4 rounded-2xl bg-[#F6F6F3] dark:bg-slate-800 hover:bg-[#E3E9F1] dark:hover:bg-slate-700 border border-[#E3E9F1] dark:border-slate-700 text-[#0F172A] dark:text-white disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs sm:text-sm active:scale-98 shadow-2xs"
         >
           <i className="bi bi-arrow-left text-base font-black"></i>
           <span>Previous</span>
         </button>
 
-        <div className="px-3 py-1.5 bg-[#F1F5F9] rounded-xl text-xs font-black text-[#0F172A] shrink-0 border border-[#E3E9F1]">
+        <div className="px-3 py-1.5 bg-[#F1F5F9] dark:bg-slate-800 rounded-xl text-xs font-black text-[#0F172A] dark:text-white shrink-0 border border-[#E3E9F1] dark:border-slate-700">
           {currentIndex + 1} / {cards.length}
         </div>
 

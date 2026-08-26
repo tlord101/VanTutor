@@ -100,10 +100,10 @@ const resolveImageDisplayUrl = (msg: any): string => {
   if (!msg) return '';
   const rawText = typeof msg.text === 'string' ? msg.text : '';
 
-  // 1. Markdown image match: ![alt](url)
-  const markdownUrlMatch = rawText.match(/!\[.*?\]\(([^)]+)\)/i);
-  if (markdownUrlMatch && markdownUrlMatch[1]) {
-    const matchedUrl = markdownUrlMatch[1].trim();
+  // 1. Valid http(s) URL from markdown: ![alt](https?://...)
+  const httpMarkdownMatch = rawText.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/i);
+  if (httpMarkdownMatch && httpMarkdownMatch[1]) {
+    const matchedUrl = httpMarkdownMatch[1].trim();
     if (matchedUrl) return resolveDisplayImageUrl(matchedUrl);
   }
 
@@ -112,7 +112,14 @@ const resolveImageDisplayUrl = (msg: any): string => {
     return resolveDisplayImageUrl(msg.localPreviewUrl);
   }
 
-  // 3. Standalone URL fallback
+  // 3. Any blob / data / local URI from markdown: ![alt](blob:... or data:...)
+  const anyMarkdownMatch = rawText.match(/!\[.*?\]\(([^)]+)\)/i);
+  if (anyMarkdownMatch && anyMarkdownMatch[1]) {
+    const matchedUrl = anyMarkdownMatch[1].trim();
+    if (matchedUrl) return resolveDisplayImageUrl(matchedUrl);
+  }
+
+  // 4. Standalone URL fallback
   const urlMatch = rawText.match(/(https?:\/\/[^\s)]+|blob:[^\s)]+|data:image\/[^\s)]+|file:\/\/[^\s)]+|content:\/\/[^\s)]+)/i);
   if (urlMatch && urlMatch[1]) {
     return resolveDisplayImageUrl(urlMatch[1]);
@@ -1878,11 +1885,19 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       }
     }
 
-    const pendingText = fileType === 'image'
-      ? (localPreviewUrl ? `![Image](${localPreviewUrl})` : '![Image]()')
-      : fileType === 'voice'
-        ? `[Voice Note](${localPreviewUrl})`
-        : `[📄 ${displayName}]()`;
+    let pendingText = '';
+    if (fileType === 'image') {
+      const imgMarkdown = localPreviewUrl ? `![Image](${localPreviewUrl})` : '';
+      if (caption) {
+        pendingText = imgMarkdown ? `${imgMarkdown}\n\n${caption}` : caption;
+      } else {
+        pendingText = imgMarkdown || (displayName ? `[${displayName}]` : 'Photo');
+      }
+    } else if (fileType === 'voice') {
+      pendingText = `[Voice Note](${localPreviewUrl})`;
+    } else {
+      pendingText = `[📄 ${displayName}](${localPreviewUrl})`;
+    }
 
     const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
 
@@ -2829,23 +2844,28 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                             ) : msg.type === 'image' ? (
                               <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
                                 <div className="relative">
-                                  {msg.isUploading && (
-                                    <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center bg-black/60 rounded-full p-1.5 backdrop-blur-sm">
-                                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                      </svg>
-                                    </div>
-                                  )}
                                   {imageUrl ? (
-                                    <img src={imageUrl} alt="Shared Layout Media" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                    <>
+                                      <img src={imageUrl} alt="" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
+                                      {msg.isUploading && (
+                                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-10">
+                                          <div className="flex items-center gap-2 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>Sending...</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
                                   ) : (
-                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium bg-black/5 dark:bg-white/5 rounded-xl">
                                       <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                       </svg>
-                                      Processing Media...
+                                      <span>Processing Media...</span>
                                     </div>
                                   )}
                                 </div>
@@ -3086,7 +3106,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               ) : messageActionTarget.type === 'image' ? (
                                 <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
                                   {imageUrl && (
-                                    <img src={imageUrl} alt="Targeted Media" className="max-h-[220px] w-full object-cover" />
+                                    <img src={imageUrl} alt="" className="max-h-[220px] w-full object-cover" />
                                   )}
                                   {(() => {
                                     const extractedCaption = extractImageCaption(rawText);
