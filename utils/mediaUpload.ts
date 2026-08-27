@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem } from '@capacitor/filesystem';
-import { ref as storageRef, uploadBytes, getDownloadURL, getBytes, deleteObject } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { FirebaseStorage } from 'firebase/storage';
 
 /**
@@ -240,9 +240,10 @@ export const promoteTempToPermanent = async (
   permanentPath: string,
   options: UploadWithRetryOptions = {}
 ): Promise<string> => {
-  // Simple & reliable approach: re-upload the bytes (Firebase JS SDK has no native move)
-  const bytes = await getBytes(storageRef(storage, tempPath));
-  const blob = new Blob([bytes], { type: options.contentType });
+  // Direct fetch via download URL to avoid Firebase Storage SDK XMLHttpRequest CORS restriction
+  const downloadUrl = await getDownloadURL(storageRef(storage, tempPath));
+  const res = await fetch(downloadUrl);
+  const blob = await res.blob();
   const permanentUrl = await uploadBlobWithRetry(storage, blob, permanentPath, options);
   // Fire-and-forget cleanup
   deleteObject(storageRef(storage, tempPath)).catch(() => {});

@@ -11,7 +11,7 @@ import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../fir
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
-import { sourceToBlob, uploadBlobWithRetry, uploadToTempStorage, promoteTempToPermanent, verifyImageUrl, type SourceBlob } from '../utils/mediaUpload';
+import { sourceToBlob, uploadBlobWithRetry, type SourceBlob } from '../utils/mediaUpload';
 import { useTheme } from '../contexts/ThemeContext';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
@@ -2183,18 +2183,11 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
             try {
-              const { url: tempUrl, tempPath } = await uploadToTempStorage(
+              const permanentUrl = await uploadBlobWithRetry(
                 storage,
                 blob,
-                firebaseUser.uid,
-                { contentType: 'audio/webm', attempts: 3, timeoutMs: 60000 }
-              );
-              void tempUrl;
-              const permanentUrl = await promoteTempToPermanent(
-                storage,
-                tempPath,
                 pendingMessage.cloudPath,
-                { contentType: 'audio/webm' }
+                { contentType: 'audio/webm', attempts: 2, timeoutMs: 30000 }
               );
               setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
               if (blobLocalUrl && blobLocalUrl.startsWith('blob:')) {
