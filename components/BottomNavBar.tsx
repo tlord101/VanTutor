@@ -62,7 +62,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
   const renderTab = (itemId: string, iconComponent: React.ReactElement, label: string) => {
     const isActive = activeItem === itemId;
-    const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-gray-400';
+    const activeColorClass = isActive ? 'text-[#0066FF] dark:text-[#0066FF]' : 'text-[#002D62] dark:text-slate-400';
 
     return (
       <button
@@ -87,10 +87,10 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   if (navItems.length !== 5) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up pb-[env(safe-area-inset-bottom,0px)] bg-transparent">
-        <div className="relative w-full max-w-md h-16 bg-white dark:bg-black/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50 dark:border-border px-6 flex items-center justify-around">
+        <div className="relative w-full max-w-md h-16 bg-white/90 dark:bg-[#111C24]/90 backdrop-blur-xl rounded-full border border-slate-200/80 dark:border-white/10 px-6 flex items-center justify-around">
           {navItems.map((item) => {
             const isActive = activeItem === item.id;
-            const activeColorClass = isActive ? 'text-[#0052FF] dark:text-white' : 'text-[#002D62] dark:text-gray-400';
+            const activeColorClass = isActive ? 'text-[#0066FF] dark:text-[#0066FF]' : 'text-[#002D62] dark:text-slate-400';
             return (
               <button
                 key={item.id}
@@ -155,7 +155,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
       >
         {/* Glassmorphic Background clipped to the custom notch shape */}
         <div 
-          className="absolute inset-0 shadow-[0_-8px_30px_rgba(0,45,98,0.08)] dark:shadow-none z-0 transform-gpu"
+          className="absolute inset-0 z-0 transform-gpu"
           style={{ 
             clipPath: `url(#${clipId})`, 
             WebkitClipPath: `url(#${clipId})`,
@@ -164,7 +164,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
             willChange: 'transform'
           }}
         >
-           <div className="absolute inset-0 bg-white dark:bg-black/80 backdrop-blur-xl translate-z-0 border-t border-slate-200 dark:border-white/10 dark:border-gray-800"></div>
+           <div className="absolute inset-0 bg-white/95 dark:bg-[#111C24]/95 backdrop-blur-xl translate-z-0 border-t border-slate-200/80 dark:border-white/10"></div>
         </div>
 
         {/* Premium highlight border tracing the notch shape */}
@@ -174,17 +174,17 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path d={pathD} stroke="rgba(255, 255, 255, 0.45)" strokeWidth="1.8" fill="none" />
+          <path d={pathD} stroke="rgba(255, 255, 255, 0.12)" strokeWidth="1.5" fill="none" />
         </svg>
 
         <button
           onClick={() => onCenterActionClick ? onCenterActionClick() : onItemClick(navItems[2].id)}
-          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-black border-[5px] border-[#002D62] dark:border-black flex items-center justify-center shadow-[0_8px_24px_rgba(0,45,98,0.18)] hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#002D62]/20 dark:ring-white/20' : ''}`}
+          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-[#111C24] border-[4px] border-[#002D62] dark:border-white/15 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#0066FF]/30 dark:ring-white/20' : ''}`}
         >
           {activeItem === 'visual_solver' ? (
-            <ShutterIcon className="w-8 h-8 text-[#002D62] dark:text-gray-400" />
+            <ShutterIcon className="w-8 h-8 text-[#0066FF] dark:text-white" />
           ) : (
-            <CameraIcon className="w-8 h-8 text-[#002D62] dark:text-gray-400" />
+            <CameraIcon className="w-8 h-8 text-[#002D62] dark:text-white" />
           )}
         </button>
 
