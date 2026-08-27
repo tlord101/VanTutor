@@ -133,6 +133,116 @@ const extractImageCaption = (rawText: string): string => {
   return rawText.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim();
 };
 
+/**
+ * WhatsApp-style Micro Thumbnail generator (< 400 bytes, 32px JPEG)
+ * Embeds instantly inside chat signal payload for 0ms blur placeholder rendering.
+ */
+const generateMicroThumbnail = (blob: Blob): Promise<string> => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      resolve('');
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const maxDim = 32;
+        let w = img.width || 32;
+        let h = img.height || 32;
+        if (w > h) {
+          h = Math.max(1, Math.round((h * maxDim) / w));
+          w = maxDim;
+        } else {
+          w = Math.max(1, Math.round((w * maxDim) / h));
+          h = maxDim;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.35));
+        } else {
+          resolve('');
+        }
+      } catch (e) {
+        resolve('');
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve('');
+    };
+    img.src = url;
+  });
+};
+
+/**
+ * WhatsApp-style Progressive Image Bubble:
+ * Displays microThumbnail instantly with blur, then smoothly fades in the full CDN image.
+ */
+const ProgressiveImageBubble: React.FC<{
+  src: string;
+  microThumbnail?: string;
+  isUploading?: boolean;
+  onPreview: (url: string) => void;
+}> = ({ src, microThumbnail, isUploading = false, onPreview }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[16px] max-w-[280px] sm:max-w-[340px] w-full min-h-[160px] max-h-[260px] bg-black/5 dark:bg-white/5 cursor-pointer select-none flex items-center justify-center"
+      onClick={() => onPreview(src || microThumbnail || '')}
+    >
+      {/* 1. Micro Thumbnail (Instant 0ms blur placeholder from chat payload) */}
+      {microThumbnail && !isLoaded && (
+        <img
+          src={microThumbnail}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 pointer-events-none transition-opacity duration-300"
+        />
+      )}
+
+      {/* 2. Full High-Res CDN image */}
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          onLoad={() => setIsLoaded(true)}
+          className={`w-full max-h-[260px] object-cover transition-opacity duration-300 ${
+            isLoaded ? 'opacity-100' : microThumbnail ? 'opacity-0' : 'opacity-100'
+          }`}
+        />
+      ) : !microThumbnail ? (
+        <div className="h-[180px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+          <svg className="animate-spin h-5 w-5 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Loading image...</span>
+        </div>
+      ) : null}
+
+      {/* 3. WhatsApp-style sending badge */}
+      {isUploading && (
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-10">
+          <div className="flex items-center gap-2 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Sending...</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // =======================================================
 // FUNCTIONAL VOICE NOTE PLAYER COMPONENT
 // =======================================================
@@ -1873,10 +1983,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const tempId = `temp_${fileType}_${localTimestamp}_${Math.round(Math.random() * 1e6)}`;
     const displayName = fileName || (fileType === 'voice' ? 'Voice Note' : 'Media');
 
-    // Always attach a local preview
+    // WhatsApp-style: Instant micro-thumbnail + local preview URL for 0ms rendering
     let localPreviewUrl = '';
+    let microThumbnail = '';
     try {
       localPreviewUrl = URL.createObjectURL(sourceBlob.blob);
+      if (isImg) {
+        microThumbnail = await generateMicroThumbnail(sourceBlob.blob);
+      }
     } catch (e) {
       try {
         localPreviewUrl = await blobToDataUrl(sourceBlob.blob);
@@ -1899,7 +2013,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       pendingText = `[📄 ${displayName}](${localPreviewUrl})`;
     }
 
-    const cloudPath = `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
+    const cloudPath = fileType === 'voice'
+      ? `voice_notes/${activeChat.chatId}/${localTimestamp}.webm`
+      : `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || (rawMime.split('/')[1] || 'bin')}`;
 
     const pendingMessage: any = {
       id: tempId,
@@ -1909,6 +2025,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       timestamp: localTimestamp,
       isUploading: true,
       localPreviewUrl,
+      microThumbnail,
       blob: sourceBlob.blob,
       mimeType: rawMime,
       fileName,
@@ -1916,8 +2033,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     };
     if (caption && fileType === 'image') pendingMessage.caption = caption;
 
+    // Instant UI Render & audio feedback
     setOptimisticMessages(prev => [...prev, pendingMessage]);
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    playBubbleSound();
+    setTimeout(() => scrollToBottom('smooth'), 40);
 
     const cleanupPreview = () => {
       if (localPreviewUrl && localPreviewUrl.startsWith('blob:')) {
@@ -1926,32 +2045,15 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     };
 
     try {
-      // 1. Upload to TEMPORARY storage first (user-scoped)
-      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+      // Fast direct single-step upload to destination path (bypasses redundant temp download/re-upload)
+      const permanentUrl = await uploadBlobWithRetry(
         storage,
         sourceBlob.blob,
-        firebaseUser.uid,
-        { contentType: rawMime || undefined, attempts: 3, timeoutMs: 60000 }
+        cloudPath,
+        { contentType: rawMime || undefined, attempts: 2, timeoutMs: 30000 }
       );
 
-      // 2. Optional verification for images
-      if (fileType === 'image') {
-        await verifyImageUrl(tempUrl);
-      }
-
-      // 3. Promote to permanent path
-      const permanentPath = fileType === 'voice'
-        ? `voice_notes/${activeChat.chatId}/${localTimestamp}.webm`
-        : `chat_files/${activeChat.chatId}/${localTimestamp}_${Math.round(Math.random() * 1e9)}.${ext || 'bin'}`;
-
-      const permanentUrl = await promoteTempToPermanent(
-        storage,
-        tempPath,
-        permanentPath,
-        { contentType: rawMime || undefined }
-      );
-
-      // 4. Only NOW create the real chat message
+      // Clean up optimistic state and broadcast real message to chat thread
       setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
       cleanupPreview();
 
@@ -1959,14 +2061,14 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         const verifiedText = caption
           ? `![Image](${permanentUrl})\n\n${caption}`
           : `![Image](${permanentUrl})`;
-        await sendMsg(verifiedText, 'image');
+        await sendMsg(verifiedText, 'image', { microThumbnail });
       } else if (fileType === 'voice') {
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (uploadErr) {
-      console.error('[Messenger] Media upload failed:', uploadErr);
+      console.error('[Messenger] Fast direct upload failed:', uploadErr);
       const errMsg = (uploadErr as Error)?.message || 'Upload failed';
       setOptimisticMessages(prev => prev.map((m: any) => m.id === tempId ? { ...m, isUploading: false, isFailed: true } : m));
       addToast(`${errMsg}. Tap the message to retry.`, 'error');
@@ -2007,43 +2109,29 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
     try {
       const rawMime = msg.mimeType || undefined;
-      const { url: tempUrl, tempPath } = await uploadToTempStorage(
+      const cloudPath = msg.cloudPath || (msg.type === 'voice'
+        ? `voice_notes/${activeChat.chatId}/${Date.now()}.webm`
+        : `chat_files/${activeChat.chatId}/${Date.now()}_${Math.round(Math.random() * 1e9)}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`);
+
+      const permanentUrl = await uploadBlobWithRetry(
         storage,
         msg.blob,
-        firebaseUser.uid,
-        { contentType: rawMime, attempts: 3, timeoutMs: 60000 }
+        cloudPath,
+        { contentType: rawMime, attempts: 2, timeoutMs: 30000 }
       );
 
-      if (msg.type === 'image') {
-        await verifyImageUrl(tempUrl);
-      }
-
-      const permanentPath = msg.type === 'voice'
-        ? `voice_notes/${activeChat.chatId}/${Date.now()}.webm`
-        : msg.cloudPath || `chat_files/${activeChat.chatId}/${Date.now()}_${Math.round(Math.random() * 1e9)}.${String(msg.fileName || 'file').split('.').pop() || 'bin'}`;
-
-      const permanentUrl = await promoteTempToPermanent(
-        storage,
-        tempPath,
-        permanentPath,
-        { contentType: rawMime }
-      );
+      setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
+      cleanupPreview();
 
       if (msg.type === 'image') {
         const finalText = msg.caption
           ? `![Image](${permanentUrl})\n\n${msg.caption}`
           : `![Image](${permanentUrl})`;
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        cleanupPreview();
         await sendMsg(finalText, 'image');
       } else if (msg.type === 'voice') {
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        cleanupPreview();
         await sendMsg(`[Voice Note](${permanentUrl})`, 'voice');
       } else {
         const displayName = msg.fileName || 'Media';
-        setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
-        cleanupPreview();
         await sendMsg(`[📄 ${displayName}](${permanentUrl})`, 'file');
       }
     } catch (err) {
@@ -2151,7 +2239,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
   };
 
-  const sendMsg = async (text: string, type = 'text') => {
+  const sendMsg = async (text: string, type = 'text', extraData: Record<string, any> = {}) => {
     if ((!text.trim() && type === 'text') || !activeChat || !firebaseUser) {
       addToast('Open a chat first, then send a message.', 'info');
       return;
@@ -2160,7 +2248,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     const msgRef = push(dbRef(db, `messages/${activeChat.chatId}`));
     const clientTimestamp = Date.now();
     const optimisticId = msgRef.key || `${clientTimestamp}`;
-    const data: any = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp() };
+    const data: any = { senderId: firebaseUser.uid, text, type, timestamp: firebaseServerTimestamp(), ...extraData };
 
     if (replyingTo) {
       data.replyTo = {
@@ -2843,32 +2931,12 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                               />
                             ) : msg.type === 'image' ? (
                               <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
-                                <div className="relative">
-                                  {imageUrl ? (
-                                    <>
-                                      <img src={imageUrl} alt="" onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl); }} className="max-h-[260px] w-full object-cover hover:opacity-95 cursor-pointer transition-opacity" />
-                                      {msg.isUploading && (
-                                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-10">
-                                          <div className="flex items-center gap-2 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
-                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Sending...</span>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium bg-black/5 dark:bg-white/5 rounded-xl">
-                                      <svg className="animate-spin h-6 w-6 text-[#009EE2] dark:text-[#F8F9FA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                      </svg>
-                                      <span>Processing Media...</span>
-                                    </div>
-                                  )}
-                                </div>
+                                <ProgressiveImageBubble
+                                  src={imageUrl}
+                                  microThumbnail={msg.microThumbnail}
+                                  isUploading={msg.isUploading}
+                                  onPreview={(url) => setPreviewImageUrl(url)}
+                                />
                                 {(() => {
                                   const extractedCaption = extractImageCaption(rawText);
                                   if (!extractedCaption) return null;

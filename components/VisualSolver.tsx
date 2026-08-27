@@ -347,7 +347,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
         try {
             const canvas = await html2canvas(containerRef.current, {
                 useCORS: true,
-                scale: 2,
+                scale: 1.5,
                 backgroundColor: '#ffffff',
                 windowWidth: containerRef.current.scrollWidth,
                 windowHeight: containerRef.current.scrollHeight
@@ -379,9 +379,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
 
             if (Capacitor.isNativePlatform()) {
                 try {
-                    const savedFiles = [] as { uri: string }[];
-                    for (let index = 0; index < blobs.length; index++) {
-                        const blob = blobs[index];
+                    const savedFiles = await Promise.all(blobs.map(async (blob, index) => {
                         const base64Data = await new Promise<string>((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onloadend = () => {
@@ -398,8 +396,8 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                             data: base64Data,
                             directory: Directory.Cache
                         });
-                        savedFiles.push({ uri: savedFile.uri });
-                    }
+                        return { uri: savedFile.uri };
+                    }));
 
                     try {
                         await Share.share({
@@ -453,28 +451,37 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
 
     const handleForwardToPartner = async () => {
         if (selectedIds.length === 0) return;
+        const targetRecipientIds = [...selectedIds];
+        setShowForwardModal(false);
+        setSelectedIds([]);
         setIsSending(true);
-        const blobs = await captureImages();
-        if (!blobs.length) {
-            addToast('Failed to generate image for forwarding.', 'error');
-            setIsSending(false);
-            return;
-        }
+        addToast('Forwarding solution to study partners...', 'info');
 
         try {
-            for (const recipientId of selectedIds) {
+            const blobs = await captureImages();
+            if (!blobs.length) {
+                addToast('Failed to generate image for forwarding.', 'error');
+                setIsSending(false);
+                return;
+            }
+
+            // WhatsApp-style: upload each slice once in parallel, then broadcast to all recipient threads
+            const uploadedUrls = await Promise.all(blobs.map(async (blob, sliceIndex) => {
+                const cloudPath = `solution_shares/${userProfile.uid}/${Date.now()}_slice_${sliceIndex + 1}.png`;
+                const fileBucketRef = storageRef(storage, cloudPath);
+                const snapshot = await uploadBytes(fileBucketRef, blob);
+                return await getDownloadURL(snapshot.ref);
+            }));
+
+            // Sync concurrently to all recipient chats
+            await Promise.all(targetRecipientIds.map(async (recipientId) => {
                 const chatId = [userProfile.uid, recipientId].sort().join('_');
                 const participantIds = [userProfile.uid, recipientId];
                 const updates: any = {};
 
-                for (let sliceIndex = 0; sliceIndex < blobs.length; sliceIndex++) {
-                    const blob = blobs[sliceIndex];
+                for (let sliceIndex = 0; sliceIndex < uploadedUrls.length; sliceIndex++) {
+                    const fileDownloadUrl = uploadedUrls[sliceIndex];
                     const localTimestamp = Date.now() + sliceIndex;
-                    const cloudPath = `chat_files/${chatId}/${localTimestamp}_solution_${sliceIndex + 1}.png`;
-                    const fileBucketRef = storageRef(storage, cloudPath);
-                    const snapshot = await uploadBytes(fileBucketRef, blob);
-                    const fileDownloadUrl = await getDownloadURL(snapshot.ref);
-
                     const text = `![Avelut Solution ${sliceIndex + 1}](${fileDownloadUrl})`;
                     const msgRef = push(dbRef(db, `messages/${chatId}`));
                     const data = {
@@ -484,13 +491,13 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                         timestamp: localTimestamp,
                         is_forwarded: true,
                         partIndex: sliceIndex + 1,
-                        totalParts: blobs.length,
+                        totalParts: uploadedUrls.length,
                     };
                     await set(msgRef, data);
 
                     participantIds.forEach((participantId) => {
                         updates[`user_chats/${participantId}/${chatId}/last_message`] = {
-                            text: blobs.length > 1 ? `📷 Solution Image (${sliceIndex + 1}/${blobs.length})` : '📷 Solution Image',
+                            text: uploadedUrls.length > 1 ? `📷 Solution Image (${sliceIndex + 1}/${uploadedUrls.length})` : '📷 Solution Image',
                             senderId: userProfile.uid,
                             timestamp: localTimestamp,
                             type: 'image',
@@ -505,10 +512,9 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 }
 
                 await update(dbRef(db), updates);
-            }
+            }));
+
             addToast('Forwarded successfully to study partners!', 'success');
-            setShowForwardModal(false);
-            setSelectedIds([]);
         } catch (err: any) {
             console.error('Failed to forward', err);
             addToast('Failed to forward solution.', 'error');
