@@ -6,6 +6,8 @@
  */
 
 import { readCachedJson, writeCachedJson } from '../../utils/cache';
+import { getAlibabaApiKey } from '../../utils/appSettings';
+import type { AppSettings } from '../../types';
 
 export interface AlibabaAudioResponsePayload {
   audio: string; // base64-encoded audio
@@ -14,10 +16,11 @@ export interface AlibabaAudioResponsePayload {
 }
 
 export interface AlibabaSpeechOptions {
-  voice?: string;        // e.g. 'longxiaochun', 'longwan', 'longhua', 'cosyvoice-v1'
-  model?: string;        // e.g. 'cosyvoice-v1', 'speech-synthesis'
+  appSettings?: AppSettings | null;
+  voice?: string;
+  model?: string;
   language?: string;
-  speed?: number;        // e.g. 1.0 - 2.0
+  speed?: number;
   apiKey?: string;
   cacheKey?: string;
   isPrivate?: boolean;
@@ -97,26 +100,16 @@ class AlibabaVoiceEngine {
     cacheKey: string | null
   ): Promise<AlibabaAudioResponsePayload | null> {
     try {
-      const apiKey = options.apiKey?.trim();
-      const model = options.model || 'cosyvoice-v1';
-      const voice = options.voice || 'longxiaochun';
+      const apiKey = options.apiKey?.trim() || getAlibabaApiKey(options.appSettings);
+      const model = 'cosyvoice-v3-flash';
+      const voice = 'Catherine';
 
-      // Call DashScope TTS endpoint or fallback proxy
-      const isNative = typeof window !== 'undefined' && (
-        (window as any).Capacitor?.isNativePlatform?.() ||
-        window.location.protocol === 'file:'
-      );
-
-      const endpoint = isNative
-        ? 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/generation'
-        : '/api/alibaba-speech';
+      const endpoint = 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer';
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       };
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-      }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -125,12 +118,11 @@ class AlibabaVoiceEngine {
           model,
           input: {
             text: text.trim(),
+            voice,
           },
           parameters: {
-            voice,
             format: 'mp3',
             sample_rate: 24000,
-            rate: options.speed || 1.0,
           },
         }),
       });

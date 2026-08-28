@@ -153,13 +153,13 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   gemini_api_key: '',
   primary_ai_provider: 'gemini',
   alibaba_api_key: '',
-  alibaba_base_url: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-  alibaba_model: 'qwen-plus',
+  alibaba_base_url: 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
+  alibaba_model: 'qwen3.7-flash',
   active_voice_provider: 'grok',
   studyguide_voice_provider: 'grok',
   notebook_voice_provider: 'grok',
-  alibaba_voice_model: 'cosyvoice-v1',
-  alibaba_voice_name: 'longxiaochun',
+  alibaba_voice_model: 'cosyvoice-v3-flash',
+  alibaba_voice_name: 'Catherine',
   grok_api_key: '',
   grok_voice_id: 'altair',
   upload_center_uploads_enabled: true,
@@ -177,6 +177,38 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   pinecone_index_name: '',
   revenuecat_api_key_android: '',
   kittenml_api_key: '',
+};
+
+/**
+ * Central resolution helper for Alibaba Cloud (DashScope / Model Studio) API Key.
+ * Order of resolution:
+ * 1. Non-empty Firebase app settings `alibaba_api_key`
+ * 2. Client / environment variables (VITE_ALIBABA_API_KEY / ALIBABA_API_KEY)
+ */
+export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings> | null): string => {
+  const fromSettings = appSettings?.alibaba_api_key?.trim();
+  if (fromSettings) {
+    return fromSettings;
+  }
+
+  let fromEnv = '';
+  try {
+    const metaEnv = (import.meta as any)?.env;
+    if (metaEnv) {
+      fromEnv = metaEnv.VITE_ALIBABA_API_KEY || metaEnv.ALIBABA_API_KEY || '';
+    }
+  } catch (_) {}
+
+  if (!fromEnv && typeof process !== 'undefined' && process?.env) {
+    fromEnv = process.env.VITE_ALIBABA_API_KEY || process.env.ALIBABA_API_KEY || '';
+  }
+
+  const key = fromEnv.trim();
+  if (!key) {
+    throw new Error('Alibaba Cloud DashScope API Key is not configured. Please set it in Admin System Settings or environment variables.');
+  }
+
+  return key;
 };
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({

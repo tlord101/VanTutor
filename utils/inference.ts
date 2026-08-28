@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { AppSettings, UserProfile } from '../types';
+import { getAlibabaApiKey } from './appSettings';
 import { db } from '../firebase';
 import { ref as dbRef, push } from 'firebase/database';
 
@@ -225,13 +226,10 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
  * Call Alibaba DashScope / OpenAI compatible endpoint
  */
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
-  const apiKey = appSettings?.alibaba_api_key?.trim();
-  if (!apiKey) {
-    throw new Error('Alibaba Cloud DashScope API Key is not configured. Please set it in Admin System Settings.');
-  }
+  const apiKey = getAlibabaApiKey(appSettings);
 
-  const baseUrl = (appSettings?.alibaba_base_url?.trim() || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/+$/, '');
-  const model = params.model || appSettings?.alibaba_model || 'qwen-plus';
+  const baseUrl = 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
+  const model = 'qwen3.7-flash';
   const { messages } = geminiParamsToChatMessages(params);
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -294,7 +292,12 @@ export const createAvelutAI = (
 
   // 1. Alibaba Cloud Qwen Route
   if (provider === 'alibaba_qwen') {
-    const apiKey = appSettings?.alibaba_api_key?.trim();
+    let apiKey = '';
+    try {
+      apiKey = getAlibabaApiKey(appSettings);
+    } catch (_) {
+      apiKey = '';
+    }
     if (!apiKey) return null;
 
     return {

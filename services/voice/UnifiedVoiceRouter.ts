@@ -67,8 +67,7 @@ class UnifiedVoiceRouter {
 
     if (provider === 'alibaba') {
       return alibabaVoiceEngine.playSpeech(text, {
-        voice: options.voice || options.appSettings?.alibaba_voice_name || 'longxiaochun',
-        model: options.appSettings?.alibaba_voice_model || 'cosyvoice-v1',
+        appSettings: options.appSettings,
         speed: options.speed,
         apiKey: options.appSettings?.alibaba_api_key,
         cacheKey: options.cacheKey,
@@ -124,8 +123,7 @@ class UnifiedVoiceRouter {
 
     if (provider === 'alibaba') {
       void alibabaVoiceEngine.fetchAlibabaSpeech(text, {
-        voice: options.voice || options.appSettings?.alibaba_voice_name || 'longxiaochun',
-        model: options.appSettings?.alibaba_voice_model || 'cosyvoice-v1',
+        appSettings: options.appSettings,
         apiKey: options.appSettings?.alibaba_api_key,
         cacheKey,
         isPrivate: options.isPrivate,
@@ -155,8 +153,7 @@ class UnifiedVoiceRouter {
 
     if (provider === 'alibaba') {
       return await alibabaVoiceEngine.fetchAlibabaSpeech(text, {
-        voice: options.voice || options.appSettings?.alibaba_voice_name || 'longxiaochun',
-        model: options.appSettings?.alibaba_voice_model || 'cosyvoice-v1',
+        appSettings: options.appSettings,
         apiKey: options.appSettings?.alibaba_api_key,
         cacheKey: options.cacheKey,
         isPrivate: options.isPrivate,
