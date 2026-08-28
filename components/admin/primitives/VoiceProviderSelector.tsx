@@ -125,7 +125,7 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
           <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 mb-1">
             <i className="bi bi-cloud-arrow-up text-[#0066FF]"></i> Alibaba CosyVoice
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">DashScope CosyVoice & Qwen-TTS multi-lingual high-speed synthesis.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">CosyVoice Flash (cosyvoice-v3-flash, Catherine) TTS synthesis.</p>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handlePlayPreview('alibaba'); }}
@@ -202,8 +202,8 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
         <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Provider Credentials & Parameters</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Alibaba API Key */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba Cloud DashScope API Key</label>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba Cloud DashScope / Model Studio API Key</label>
             <input
               type="password"
               placeholder="sk-..."
@@ -211,18 +211,7 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
               onChange={(e) => onChange({ ...appSettings, alibaba_api_key: e.target.value })}
               className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs outline-none focus:border-[#0066FF]"
             />
-          </div>
-
-          {/* Alibaba Voice Name */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba Voice Model & Speaker Name</label>
-            <input
-              type="text"
-              placeholder="e.g. cosyvoice-v1 / longxiaochun"
-              value={appSettings.alibaba_voice_name || ''}
-              onChange={(e) => onChange({ ...appSettings, alibaba_voice_name: e.target.value })}
-              className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs outline-none focus:border-[#0066FF]"
-            />
+            <p className="text-[11px] text-slate-400">Can also be supplied via VITE_ALIBABA_API_KEY environment variable.</p>
           </div>
 
           {/* Grok API Key */}

@@ -126,16 +126,16 @@ export const AIModelProviderSelector: React.FC<AIModelProviderSelectorProps> = (
           <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 mb-1">
             <i className="bi bi-cloud-check-fill text-[#0066FF]"></i> Alibaba Qwen Engine
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">High-speed STEM inference with Qwen-Plus, Qwen-Turbo, Qwen3.7-Flash & Qwen2.5.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">High-speed reasoning with Qwen3.7-Flash model studio instance.</p>
           <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0A0A0A] p-2 rounded-lg border border-slate-200 dark:border-white/10">
-            Model: {appSettings.alibaba_model || 'qwen-plus'}
+            Model: qwen3.7-flash (Hardcoded)
           </div>
         </div>
       </div>
 
       {/* Provider Credentials & Parameters */}
       <div className="space-y-4 pt-2">
-        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Provider API Keys & Endpoints</h4>
+        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Provider API Keys</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Gemini API Key */}
           <div className="space-y-1.5">
@@ -162,8 +162,8 @@ export const AIModelProviderSelector: React.FC<AIModelProviderSelectorProps> = (
           </div>
 
           {/* Alibaba API Key */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba DashScope API Key</label>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba DashScope / Model Studio API Key</label>
             <input
               type="password"
               placeholder="sk-..."
@@ -171,18 +171,7 @@ export const AIModelProviderSelector: React.FC<AIModelProviderSelectorProps> = (
               onChange={(e) => onChange({ ...appSettings, alibaba_api_key: e.target.value })}
               className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs outline-none focus:border-[#0066FF]"
             />
-          </div>
-
-          {/* Alibaba Model & Base URL */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alibaba Qwen Default Model</label>
-            <input
-              type="text"
-              placeholder="qwen-plus"
-              value={appSettings.alibaba_model || 'qwen-plus'}
-              onChange={(e) => onChange({ ...appSettings, alibaba_model: e.target.value })}
-              className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs outline-none focus:border-[#0066FF]"
-            />
+            <p className="text-[11px] text-slate-400">Can also be supplied via VITE_ALIBABA_API_KEY environment variable.</p>
           </div>
         </div>
       </div>

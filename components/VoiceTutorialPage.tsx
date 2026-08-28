@@ -466,7 +466,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
       const player = unifiedVoiceRouter.playSpeech(seg.script, {
         appSettings,
         context: isNotebook ? 'notebook' : 'study_guide',
-        voice: isNotebook ? appSettings?.notebook_voice_provider === 'alibaba' ? (appSettings?.alibaba_voice_name || 'longxiaochun') : 'altair' : 'altair',
+          voice: 'altair',
         withTimestamps: true,
         cacheKey: seg.key,
         isPrivate: isNotebook,
