@@ -28,7 +28,7 @@ interface HeaderProps {
   hideProfileAvatar?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header = React.memo<HeaderProps>(({
     currentPageLabel, 
     title,
     onNotificationsClick, 
@@ -215,4 +215,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
         </header>
     );
-};
+});
+
+Header.displayName = 'Header';
