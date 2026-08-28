@@ -99,76 +99,125 @@ class AlibabaVoiceEngine {
     options: AlibabaSpeechOptions,
     cacheKey: string | null
   ): Promise<AlibabaAudioResponsePayload | null> {
+    const isNative = typeof window !== 'undefined' && (
+      (window as any).Capacitor?.isNativePlatform?.() ||
+      window.location.protocol === 'file:'
+    );
+
+    const proxyEndpoint = isNative ? 'https://www.avelut.xyz/api/alibaba-speech' : '/api/alibaba-speech';
+    const directEndpoint = 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+
+    let apiKey = '';
     try {
-      const apiKey = options.apiKey?.trim() || getAlibabaApiKey(options.appSettings);
-      const model = 'cosyvoice-v3-flash';
-      const voice = 'Catherine';
+      apiKey = options.apiKey?.trim() || getAlibabaApiKey(options.appSettings);
+    } catch (_) {
+      apiKey = options.apiKey?.trim() || '';
+    }
 
-      const endpoint = 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer';
+    const model = 'qwen3-tts-flash';
+    const voice = 'Cherry';
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      };
+    let lastErr: Error | null = null;
 
-      const response = await fetch(endpoint, {
+    // 1. Try server proxy endpoint first
+    try {
+      const response = await fetch(proxyEndpoint, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          voice,
+          model,
+        }),
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload?.audio) {
+          const result: AlibabaAudioResponsePayload = {
+            audio: payload.audio,
+            content_type: payload.content_type || 'audio/wav',
+          };
+          if (cacheKey) {
+            this.memoryCache.set(cacheKey, result);
+            try { writeCachedJson(cacheKey, result); } catch {}
+          }
+          return result;
+        }
+      } else {
+        const errText = await response.text();
+        lastErr = new Error(`Proxy TTS HTTP ${response.status}: ${errText}`);
+      }
+    } catch (e: any) {
+      lastErr = e;
+    }
+
+    // 2. Direct client call fallback if proxy is unreachable / 404
+    if (!apiKey) {
+      console.warn('[AlibabaVoiceEngine] TTS fetch error:', lastErr);
+      throw lastErr || new Error('Alibaba API key is not configured');
+    }
+
+    try {
+      const response = await fetch(directEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
           model,
           input: {
             text: text.trim(),
             voice,
-          },
-          parameters: {
-            format: 'mp3',
-            sample_rate: 24000,
+            language_type: 'English',
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Alibaba TTS HTTP ${response.status}: ${response.statusText}`);
+        const errText = await response.text();
+        throw new Error(`Direct Alibaba TTS HTTP ${response.status}: ${errText}`);
       }
 
-      const contentType = response.headers.get('content-type') || '';
-      let base64Audio = '';
+      const json = await response.json();
+      const audioUrl = json?.output?.audio?.url || json?.output?.audio || '';
 
-      if (contentType.includes('application/json')) {
-        const json = await response.json();
-        base64Audio = json.output?.audio || json.audio || '';
-      } else {
-        // Direct audio buffer
-        const arrayBuffer = await response.arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        base64Audio = window.btoa(binary);
+      if (!audioUrl) {
+        throw new Error(`Alibaba TTS returned no audio URL. Response: ${JSON.stringify(json)}`);
       }
 
-      if (!base64Audio) {
-        throw new Error('Alibaba TTS returned empty audio payload');
+      const audioRes = await fetch(audioUrl);
+      if (!audioRes.ok) {
+        throw new Error(`Failed to fetch synthesized WAV from audio URL: ${audioUrl}`);
       }
+
+      const arrayBuffer = await audioRes.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(arrayBuffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64Audio = window.btoa(binary);
 
       const result: AlibabaAudioResponsePayload = {
         audio: base64Audio,
-        content_type: 'audio/mp3',
+        content_type: 'audio/wav',
       };
 
       if (cacheKey) {
         this.memoryCache.set(cacheKey, result);
-        try {
-          writeCachedJson(cacheKey, result);
-        } catch {}
+        try { writeCachedJson(cacheKey, result); } catch {}
       }
 
       return result;
-    } catch (err) {
-      console.warn('[AlibabaVoiceEngine] TTS fetch error:', err);
-      return null;
+    } catch (err: any) {
+      console.warn('[AlibabaVoiceEngine] Direct TTS fetch error:', err);
+      throw err;
     }
   }
 

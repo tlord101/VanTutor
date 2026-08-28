@@ -125,7 +125,7 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
           <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 mb-1">
             <i className="bi bi-cloud-arrow-up text-[#0066FF]"></i> Alibaba CosyVoice
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">CosyVoice Flash (cosyvoice-v3-flash, Catherine) TTS synthesis.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Qwen3-TTS Flash (qwen3-tts-flash, Cherry) TTS synthesis.</p>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handlePlayPreview('alibaba'); }}

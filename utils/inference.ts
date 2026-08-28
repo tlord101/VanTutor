@@ -227,50 +227,68 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
  */
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getAlibabaApiKey(appSettings);
-
-  const baseUrl = 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
-  const model = 'qwen3.7-flash';
   const { messages } = geminiParamsToChatMessages(params);
+  const model = 'qwen3.7-flash';
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: params?.config?.temperature ?? 0.7,
-      max_tokens: params?.config?.maxOutputTokens ?? 4096,
-    }),
-  });
+  const isNative = typeof window !== 'undefined' && (
+    (window as any).Capacitor?.isNativePlatform?.() ||
+    window.location.protocol === 'file:'
+  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Alibaba DashScope HTTP ${response.status}: ${errorText}`);
+  const endpoints = [
+    isNative ? 'https://www.avelut.xyz/api/alibaba-chat' : '/api/alibaba-chat',
+    'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
+  ];
+
+  let lastError: Error | null = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: params?.config?.temperature ?? 0.7,
+          max_tokens: params?.config?.maxOutputTokens ?? 4096,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Alibaba HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const rawText = data?.choices?.[0]?.message?.content || '';
+
+      return {
+        text: () => rawText,
+        candidates: [
+          {
+            content: {
+              parts: [{ text: rawText }],
+              role: 'model',
+            },
+            finishReason: data?.choices?.[0]?.finish_reason || 'STOP',
+          },
+        ],
+        usageMetadata: {
+          promptTokenCount: data?.usage?.prompt_tokens || 0,
+          candidatesTokenCount: data?.usage?.completion_tokens || 0,
+          totalTokenCount: data?.usage?.total_tokens || 0,
+        },
+      };
+    } catch (err: any) {
+      lastError = err;
+    }
   }
 
-  const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content || '';
-
-  return {
-    text: () => rawText,
-    candidates: [
-      {
-        content: {
-          parts: [{ text: rawText }],
-          role: 'model',
-        },
-        finishReason: data?.choices?.[0]?.finish_reason || 'STOP',
-      },
-    ],
-    usageMetadata: {
-      promptTokenCount: data?.usage?.prompt_tokens || 0,
-      candidatesTokenCount: data?.usage?.completion_tokens || 0,
-      totalTokenCount: data?.usage?.total_tokens || 0,
-    },
-  };
+  throw lastError || new Error('Alibaba Qwen inference request failed');
 }
 
 /**
