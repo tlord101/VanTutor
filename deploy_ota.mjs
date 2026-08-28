@@ -1,28 +1,127 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously } from "firebase/auth";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getDatabase, ref as dbRef, set } from "firebase/database";
+import https from "https";
 import fs from "fs";
 import AdmZip from "adm-zip";
 import { execSync } from "child_process";
-import dns from "node:dns";
-dns.setDefaultResultOrder('ipv4first');
 
 const __firebase_config = {
     apiKey: "AIzaSyA2oJ1vB5TDQWr2-Gz72jpCl7pX8rmKmE8",
-    authDomain: "tlord-1ab38.firebaseapp.com",
     databaseURL: "https://tlord-1ab38-default-rtdb.firebaseio.com",
     projectId: "tlord-1ab38",
-    storageBucket: "tlord-1ab38.firebasestorage.app",
-    messagingSenderId: "750743868519",
-    appId: "1:750743868519:web:423b7ba5e2a3d73b6570c2",
-    measurementId: "G-RH14Z1F6T9"
+    storageBucket: "tlord-1ab38.firebasestorage.app"
 };
 
-const app = initializeApp(__firebase_config);
-const auth = getAuth(app);
-const storage = getStorage(app);
-const db = getDatabase(app);
+function httpsPostJson(hostname, path, data, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const bodyStr = typeof data === 'string' ? data : JSON.stringify(data);
+        const req = https.request({
+            hostname,
+            path,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(bodyStr),
+                ...headers
+            }
+        }, (res) => {
+            let resData = '';
+            res.on('data', chunk => resData += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(resData);
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(parsed);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${JSON.stringify(parsed)}`));
+                    }
+                } catch (e) {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(resData);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${resData}`));
+                    }
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(bodyStr);
+        req.end();
+    });
+}
+
+function httpsPutJson(hostname, path, data, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const bodyStr = typeof data === 'string' ? data : JSON.stringify(data);
+        const req = https.request({
+            hostname,
+            path,
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(bodyStr),
+                ...headers
+            }
+        }, (res) => {
+            let resData = '';
+            res.on('data', chunk => resData += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(resData);
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(parsed);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${JSON.stringify(parsed)}`));
+                    }
+                } catch (e) {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(resData);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${resData}`));
+                    }
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(bodyStr);
+        req.end();
+    });
+}
+
+function uploadBufferToFirebaseStorage(hostname, path, buffer, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname,
+            path,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/zip',
+                'Content-Length': buffer.length,
+                ...headers
+            }
+        }, (res) => {
+            let resData = '';
+            res.on('data', chunk => resData += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(resData);
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(parsed);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${JSON.stringify(parsed)}`));
+                    }
+                } catch (e) {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(resData);
+                    } else {
+                        reject(new Error(`HTTP ${res.statusCode}: ${resData}`));
+                    }
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(buffer);
+        req.end();
+    });
+}
 
 async function deployOTA() {
     try {
@@ -46,26 +145,42 @@ async function deployOTA() {
         zip.addLocalFolder("./dist");
         zip.writeZip("./dist.zip");
 
-        console.log("Signing in anonymously...");
-        await signInAnonymously(auth);
+        console.log("Signing in anonymously via Firebase Auth REST API...");
+        const authRes = await httpsPostJson(
+            'identitytoolkit.googleapis.com',
+            `/v1/accounts:signUp?key=${__firebase_config.apiKey}`,
+            { returnSecureToken: true }
+        );
+        const idToken = authRes.idToken;
+        console.log("Anonymous Auth successful.");
 
-        console.log("Uploading to Firebase Storage...");
+        console.log("Uploading OTA package to Firebase Storage...");
         const zipBuffer = fs.readFileSync("./dist.zip");
-        const sRef = storageRef(storage, `app_releases/ota/${otaVersion}.zip`);
-        await uploadBytes(sRef, new Uint8Array(zipBuffer), { contentType: "application/zip" });
+        const objectPath = `app_releases/ota/${otaVersion}.zip`;
+        const uploadRes = await uploadBufferToFirebaseStorage(
+            'firebasestorage.googleapis.com',
+            `/v0/b/${__firebase_config.storageBucket}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`,
+            zipBuffer,
+            { Authorization: `Firebase ${idToken}` }
+        );
         console.log("Upload complete.");
 
-        const downloadUrl = await getDownloadURL(sRef);
+        const downloadToken = uploadRes.downloadTokens || '';
+        const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${__firebase_config.storageBucket}/o/${encodeURIComponent(objectPath)}?alt=media${downloadToken ? `&token=${downloadToken}` : ''}`;
         console.log("Download URL:", downloadUrl);
 
         console.log("Updating Realtime Database at app_updates/ota_latest...");
-        await set(dbRef(db, "app_updates/ota_latest"), {
-            version: otaVersion,
-            downloadUrl: downloadUrl,
-            releaseDate: new Date().toISOString()
-        });
+        await httpsPutJson(
+            'tlord-1ab38-default-rtdb.firebaseio.com',
+            `/app_updates/ota_latest.json?auth=${idToken}`,
+            {
+                version: otaVersion,
+                downloadUrl: downloadUrl,
+                releaseDate: new Date().toISOString()
+            }
+        );
 
-        console.log("OTA Database updated successfully.");
+        console.log("✅ OTA Database updated successfully to version:", otaVersion);
         
         // Cleanup
         if (fs.existsSync("./dist.zip")) {
@@ -74,6 +189,9 @@ async function deployOTA() {
         process.exit(0);
     } catch (e) {
         console.error("Error during OTA deployment:", e);
+        if (fs.existsSync("./dist.zip")) {
+            fs.unlinkSync("./dist.zip");
+        }
         process.exit(1);
     }
 }
