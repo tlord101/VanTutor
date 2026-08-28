@@ -115,7 +115,7 @@ class AlibabaVoiceEngine {
     }
 
     const model = 'qwen3-tts-flash';
-    const voice = 'Cherry';
+    const voice = 'Jennifer';
 
     let lastErr: Error | null = null;
 
