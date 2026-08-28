@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const voice = body.voice || 'Cherry';
+    const voice = body.voice || 'Jennifer';
     const model = body.model || 'qwen3-tts-flash';
 
     const response = await fetch(
