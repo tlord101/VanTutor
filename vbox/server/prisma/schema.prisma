@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Email {
+  id            String       @id @default(uuid())
+  resendEmailId String       @unique
+  messageId     String?
+  threadId      String?
+  fromName      String?
+  fromEmail     String
+  to            Json         @default("[]")
+  cc            Json         @default("[]")
+  bcc           Json         @default("[]")
+  subject       String       @default("")
+  textBody      String?      @db.Text
+  htmlBody      String?      @db.Text
+  preview       String?
+  receivedAt    DateTime     @default(now())
+  isRead        Boolean      @default(false)
+  isStarred     Boolean      @default(false)
+  isArchived    Boolean      @default(false)
+  isTrash       Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  attachments   Attachment[]
+
+  @@index([receivedAt])
+  @@index([fromEmail])
+  @@index([subject])
+  @@index([isRead])
+  @@index([isStarred])
+  @@index([isArchived])
+  @@index([isTrash])
+}
+
+model Attachment {
+  id                 String   @id @default(uuid())
+  emailId            String
+  resendAttachmentId String?
+  filename           String
+  contentType        String
+  size               Int
+  contentDisposition String?
+  contentId          String?
+  downloadUrl        String?
+  createdAt          DateTime @default(now())
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@index([emailId])
+}
