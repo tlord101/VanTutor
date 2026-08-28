@@ -48,7 +48,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onOnboardingComple
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-[#0b1120] border border-gray-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="flex justify-center mb-6">
-              <img src="/logo_full.png" alt="AVELUT" className="h-14 sm:h-16 object-contain" />
+              <img src="/logo_full_black.png" alt="AVELUT" className="h-14 sm:h-16 object-contain dark:hidden" />
+              <img src="/logo_full_white.png" alt="AVELUT" className="h-14 sm:h-16 object-contain hidden dark:block" />
           </div>
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Welcome!</h2>

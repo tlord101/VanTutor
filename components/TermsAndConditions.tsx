@@ -17,10 +17,10 @@ export default function TermsAndConditions() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#060814] text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-400">
+    <div className="min-h-screen bg-[#060814] text-slate-200 font-sans selection:bg-[#0066FF]/30 selection:text-white">
       {/* Decorative background gradients */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#0088cc]/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#002d62]/30 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#0066FF]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#002D62]/30 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b border-neutral-800/60 bg-[#060814]/80 backdrop-blur-md">
@@ -30,7 +30,7 @@ export default function TermsAndConditions() {
               <img src="/logo_icon.png" alt="AVELUT" className="h-full w-full object-contain" />
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-500">AVELUT</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#0066FF]">AVELUT</span>
               <h1 className="text-lg font-bold text-slate-100 leading-none">Terms of Service</h1>
             </div>
           </div>
@@ -54,7 +54,7 @@ export default function TermsAndConditions() {
           {/* Sticky Table of Contents Sidebar */}
           <aside className="lg:col-span-1">
             <div className="sticky top-28 rounded-2xl border border-neutral-800/60 bg-[#0d1122]/90 p-5 backdrop-blur">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-500">Navigation</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-[#0066FF]">Navigation</h3>
               <nav className="mt-4 space-y-2">
                 {sections.map(section => (
                   <a
@@ -166,9 +166,9 @@ export default function TermsAndConditions() {
               </section>
 
               <section id="disclaimers" className="scroll-mt-28">
-                <h3 className="text-xl font-bold text-white mb-4 text-[#0088cc]">7. AI Accuracy & Liability Disclaimers</h3>
-                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-950/15 p-5 mb-4">
-                  <p className="text-sm font-semibold text-yellow-500 uppercase tracking-wider mb-2">Generative AI Output Notice</p>
+                <h3 className="text-xl font-bold text-white mb-4 text-[#0066FF]">7. AI Accuracy & Liability Disclaimers</h3>
+                <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-5 mb-4">
+                  <p className="text-sm font-semibold text-[#0066FF] uppercase tracking-wider mb-2">Generative AI Output Notice</p>
                   <p className="text-slate-300 leading-relaxed text-sm">
                     AVELUT utilizes state-of-the-art Large Language Models (LLMs) to answer academic questions. <strong>Generative AI models are subject to hallucinations, errors, and omissions. AVELUT does not guarantee the absolute accuracy, completeness, or grades of any answers provided by the AI.</strong> You must verify equations, citations, and answers independently before submitting work.
                   </p>

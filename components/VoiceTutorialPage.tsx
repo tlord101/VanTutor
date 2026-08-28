@@ -21,7 +21,7 @@ import rehypeKatex from 'rehype-katex';
 // @ts-ignore: KaTeX stylesheet
 import 'katex/dist/katex.min.css';
 import { LimitExceededModal } from './LimitExceededModal';
-import { grokTts, grokVoiceEngine } from '../services/voice/GrokVoiceEngine';
+import { unifiedVoiceRouter, unifiedTts } from '../services/voice/UnifiedVoiceRouter';
 import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
 import { deductAICredits, getFeatureCost, checkAICredits, isPaidSubscriber, isExempt } from '../utils/usage';
 
@@ -279,11 +279,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             } catch (_) {}
             currentAudioRef.current = null;
         }
-        if (typeof grokVoiceEngine.stopAudio === 'function') {
-            grokVoiceEngine.stopAudio();
-        } else if (typeof (grokVoiceEngine as any).stopAll === 'function') {
-            (grokVoiceEngine as any).stopAll();
-        }
+        unifiedVoiceRouter.stopAudio();
         setIsSpeaking(false);
         isSpeakingRef.current = false;
         setIsTtsLoading(false);
@@ -467,13 +463,13 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
         sessionData?.source === 'notebook'
       );
 
-      const player = grokTts.playSpeech(seg.script, {
-        voice: 'altair',
+      const player = unifiedVoiceRouter.playSpeech(seg.script, {
+        appSettings,
+        context: isNotebook ? 'notebook' : 'study_guide',
+        voice: isNotebook ? appSettings?.notebook_voice_provider === 'alibaba' ? (appSettings?.alibaba_voice_name || 'longxiaochun') : 'altair' : 'altair',
         withTimestamps: true,
         cacheKey: seg.key,
         isPrivate: isNotebook,
-        cacheScope: isNotebook ? 'private' : 'public',
-        source: isNotebook ? 'notebook' : 'study_guide',
         onStart: () => {
           clearTimeout(startWatchdog);
           readyOrStarted = true;
@@ -585,10 +581,10 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
       const nextIdx = targetIdx + 1;
       if (nextIdx < len && isActiveRef.current) {
         const nSeg = buildGradedSegment(lessonPlanRef.current || lesson, nextIdx, nextIdx);
-        grokVoiceEngine.prefetchSpeech(nSeg.script, nSeg.key, {
+        unifiedVoiceRouter.prefetchSpeech(nSeg.script, nSeg.key, {
+          appSettings,
+          context: isNotebook ? 'notebook' : 'study_guide',
           isPrivate: isNotebook,
-          cacheScope: isNotebook ? 'private' : 'public',
-          source: isNotebook ? 'notebook' : 'study_guide',
         });
       }
     };
@@ -647,13 +643,12 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             sessionData?.source === 'notebook'
         );
 
-        const player = grokTts.playSpeech(cleanedText, {
-            voice: 'altair',
+        const player = unifiedVoiceRouter.playSpeech(cleanedText, {
+            appSettings,
+            context: isNotebook ? 'notebook' : 'study_guide',
             withTimestamps: true,
             cacheKey,
             isPrivate: isNotebook,
-            cacheScope: isNotebook ? 'private' : 'public',
-            source: isNotebook ? 'notebook' : 'study_guide',
             onStart: () => {
                 if (!isActiveRef.current || playSessionIdRef.current !== sessionId) return;
                 setIsSpeaking(true);
@@ -1151,10 +1146,11 @@ At the very end say exactly: "Now, let us continue our lesson."`;
             const cleanedAnswer = cleanSpokenTextForTTS(answerText);
             const cidQA = sessionData?.course?.course_id || 'general';
             const tidQA = sessionData?.topic?.topic_id || 'core';
-            await grokTts.playSpeech(cleanedAnswer, {
-                voice: 'altair',
+            unifiedVoiceRouter.playSpeech(cleanedAnswer, {
+                appSettings,
+                context: isNotebook ? 'notebook' : 'study_guide',
                 withTimestamps: true,
-                cacheKey: `avelut_grok_${cidQA}_${tidQA}_qa_${simpleHash(cleanedAnswer)}`,
+                cacheKey: `avelut_${cidQA}_${tidQA}_qa_${simpleHash(cleanedAnswer)}`,
                 onEnd: () => {
                     if (!isActiveRef.current) return;
                     setTimeout(() => {
@@ -1516,9 +1512,9 @@ At the very end say exactly: "Now, let us continue our lesson."`;
                     >
                         {/* ── Audio Generation Error / Retry Banner ── */}
                         {audioErrorBoardIdx === boardIndex && (
-                            <div className="sticky top-0 z-30 mb-3.5 p-3.5 sm:p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-[#0F172A] shadow-md animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="sticky top-0 z-30 mb-3.5 p-3.5 sm:p-4 rounded-2xl bg-blue-50 border-2 border-blue-200 text-[#0F172A] shadow-md animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#0F172A] flex items-center justify-center shrink-0">
                                         <i className="bi bi-exclamation-triangle-fill text-base"></i>
                                     </div>
                                     <div>
@@ -1539,15 +1535,15 @@ At the very end say exactly: "Now, let us continue our lesson."`;
 
                         {/* ── Live Q&A Realtime Audio Waveform Overlay ── */}
                         {isAnsweringQuestion && (
-                            <div className="sticky top-0 z-30 mb-4 p-4 sm:p-5 rounded-2xl bg-[#002D62] text-white border-2 border-[#0066FF] shadow-xl animate-fade-in">
+                            <div className="sticky top-0 z-30 mb-4 p-4 sm:p-5 rounded-2xl bg-[#0F172A] text-white border-2 border-[#0066FF] shadow-xl animate-fade-in">
                                 <div className="flex items-center justify-between gap-2 mb-2">
                                     <div className="flex items-center gap-2 text-xs font-bold text-blue-200 uppercase tracking-wider">
                                         <i className="bi bi-broadcast text-[#0066FF] animate-pulse text-sm"></i>
                                         <span>Altair Explaining Your Question</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                        <span className="text-[10px] font-mono font-bold text-emerald-300 uppercase tracking-wider">Live Voice</span>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/30">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#0066FF] animate-ping" />
+                                        <span className="text-[10px] font-mono font-bold text-blue-200 uppercase tracking-wider">Live Voice</span>
                                     </div>
                                 </div>
 
@@ -1633,7 +1629,7 @@ At the very end say exactly: "Now, let us continue our lesson."`;
                                                             </ReactMarkdown>
                                                         </div>
                                                     ) : isVarLine ? (
-                                                        <div className="font-mono text-sm sm:text-base text-[#002D62] leading-snug pl-2 w-full font-medium">
+                                                        <div className="font-mono text-sm sm:text-base text-[#0F172A] leading-snug pl-2 w-full font-medium">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
@@ -1742,7 +1738,7 @@ At the very end say exactly: "Now, let us continue our lesson."`;
                                     title={isMicListening ? "Listening... Click to send" : "Tap mic to pause video and ask a question"}
                                     className={`flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl font-bold transition-all cursor-pointer shadow-xl active:scale-95 ${
                                         isMicListening 
-                                            ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30' 
+                                            ? 'bg-[#0F172A] text-white animate-pulse ring-4 ring-[#0066FF]/40' 
                                             : 'bg-[#0066FF] hover:bg-blue-700 text-white shadow-blue-500/20 ring-2 ring-blue-400/30'
                                     }`}
                                 >

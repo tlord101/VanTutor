@@ -269,11 +269,25 @@ export interface UsageSettings {
   };
 }
 
+export type VoiceProvider = 'grok' | 'alibaba' | 'kitten' | 'gemini' | 'browser';
+export type AIProvider = 'gemini' | 'alibaba_qwen' | 'openai' | 'deepseek' | 'custom';
+
 export interface AppSettings {
   show_playstore_modal?: boolean;
   playstore_modal_collect_emails?: boolean;
   primary_gemini_model?: string;
   gemini_api_key?: string;
+  primary_ai_provider?: AIProvider;
+  alibaba_api_key?: string;
+  alibaba_base_url?: string;
+  alibaba_model?: string;
+  active_voice_provider?: VoiceProvider;
+  studyguide_voice_provider?: VoiceProvider;
+  notebook_voice_provider?: VoiceProvider;
+  alibaba_voice_model?: string;
+  alibaba_voice_name?: string;
+  grok_api_key?: string;
+  grok_voice_id?: string;
   upload_center_uploads_enabled?: boolean;
   coming_soon_enabled?: boolean;
   paystack_public_key: string;

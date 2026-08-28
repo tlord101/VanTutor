@@ -179,7 +179,104 @@ export const getResponseText = (response: any): string => {
 };
 
 /**
- * Centralized client factory that instantiates or wraps the GoogleGenAI client.
+ * Convert Gemini-style contents/parts to standard OpenAI/Alibaba chat messages
+ */
+function geminiParamsToChatMessages(params: any): { systemPrompt: string; messages: Array<{ role: string; content: string }> } {
+  let systemPrompt = '';
+  const messages: Array<{ role: string; content: string }> = [];
+
+  if (params?.config?.systemInstruction) {
+    const si = params.config.systemInstruction;
+    if (typeof si === 'string') {
+      systemPrompt = si;
+    } else if (si?.parts && Array.isArray(si.parts)) {
+      systemPrompt = si.parts.map((p: any) => p.text || '').join('\n');
+    }
+  }
+
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+
+  const contents = params?.contents;
+  if (Array.isArray(contents)) {
+    for (const c of contents) {
+      const role = c.role === 'model' || c.role === 'assistant' ? 'assistant' : 'user';
+      let content = '';
+      if (typeof c === 'string') {
+        content = c;
+      } else if (c?.parts && Array.isArray(c?.parts)) {
+        content = c.parts.map((p: any) => p.text || (p.inlineData ? '[Image attachment]' : '')).join('\n');
+      } else if (typeof c?.text === 'string') {
+        content = c.text;
+      }
+      if (content) {
+        messages.push({ role, content });
+      }
+    }
+  } else if (typeof contents === 'string') {
+    messages.push({ role: 'user', content: contents });
+  }
+
+  return { systemPrompt, messages };
+}
+
+/**
+ * Call Alibaba DashScope / OpenAI compatible endpoint
+ */
+async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
+  const apiKey = appSettings?.alibaba_api_key?.trim();
+  if (!apiKey) {
+    throw new Error('Alibaba Cloud DashScope API Key is not configured. Please set it in Admin System Settings.');
+  }
+
+  const baseUrl = (appSettings?.alibaba_base_url?.trim() || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/+$/, '');
+  const model = params.model || appSettings?.alibaba_model || 'qwen-plus';
+  const { messages } = geminiParamsToChatMessages(params);
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: params?.config?.temperature ?? 0.7,
+      max_tokens: params?.config?.maxOutputTokens ?? 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Alibaba DashScope HTTP ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const rawText = data?.choices?.[0]?.message?.content || '';
+
+  return {
+    text: () => rawText,
+    candidates: [
+      {
+        content: {
+          parts: [{ text: rawText }],
+          role: 'model',
+        },
+        finishReason: data?.choices?.[0]?.finish_reason || 'STOP',
+      },
+    ],
+    usageMetadata: {
+      promptTokenCount: data?.usage?.prompt_tokens || 0,
+      candidatesTokenCount: data?.usage?.completion_tokens || 0,
+      totalTokenCount: data?.usage?.total_tokens || 0,
+    },
+  };
+}
+
+/**
+ * Centralized client factory that instantiates or wraps the AI client (Google Gemini or Alibaba Qwen).
  * Injects RPM rate limiting, context compaction, and context compression when a personal key is used.
  */
 export const createAvelutAI = (
@@ -191,6 +288,43 @@ export const createAvelutAI = (
     userProfile?.personal_api_key?.trim()
   );
 
+  const provider = usePersonalToken
+    ? 'gemini'
+    : (appSettings?.primary_ai_provider || 'gemini');
+
+  // 1. Alibaba Cloud Qwen Route
+  if (provider === 'alibaba_qwen') {
+    const apiKey = appSettings?.alibaba_api_key?.trim();
+    if (!apiKey) return null;
+
+    return {
+      models: {
+        generateContent: async (params: any) => {
+          return await callAlibabaQwen(params, appSettings);
+        },
+        generateContentStream: async (params: any) => {
+          // Standard wrapper fallback
+          const result = await callAlibabaQwen(params, appSettings);
+          return {
+            stream: (async function* () {
+              yield result;
+            })(),
+            response: Promise.resolve(result),
+          };
+        },
+        generateImages: async () => {
+          throw new Error('Image generation is not supported on this model endpoint.');
+        },
+      },
+      interactions: {
+        create: async (params: any) => {
+          return await callAlibabaQwen(params, appSettings);
+        },
+      },
+    };
+  }
+
+  // 2. Google Gemini Route
   const apiKey = usePersonalToken
     ? userProfile!.personal_api_key!.trim()
     : (appSettings?.gemini_api_key?.trim() || '');
@@ -240,7 +374,8 @@ export const createAvelutAI = (
       void push(dbRef(db, 'usage_logs/ai_requests'), {
         timestamp: Date.now(),
         user_id: userProfile?.uid || 'anonymous',
-      model: appSettings.primary_gemini_model || 'gemini-3.1-flash-lite',
+        model: params.model || appSettings.primary_gemini_model || 'gemini-3.1-flash-lite',
+        provider: 'gemini',
         use_personal_token: usePersonalToken
       });
     } catch (err) {
@@ -262,7 +397,6 @@ export const createAvelutAI = (
         return await rawClient.models.generateContentStream(processed);
       },
       generateImages: async (params: any) => {
-        // Image generation doesn't need context compaction, but we can pass it through prepareParams to rate limit
         const processed = await prepareParams(params);
         return await rawClient.models.generateImages(processed);
       }

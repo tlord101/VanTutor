@@ -87,7 +87,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
   if (navItems.length !== 5) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 flex justify-center z-[120] md:hidden animate-fade-in-up pb-[env(safe-area-inset-bottom,0px)] bg-transparent">
-        <div className="relative w-full max-w-md h-16 bg-white/90 dark:bg-[#111C24]/90 backdrop-blur-xl rounded-full border border-slate-200/80 dark:border-white/10 px-6 flex items-center justify-around">
+        <div className="relative w-full max-w-md h-16 bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur-xl rounded-full border border-slate-200/80 dark:border-white/10 px-6 flex items-center justify-around">
           {navItems.map((item) => {
             const isActive = activeItem === item.id;
             const activeColorClass = isActive ? 'text-[#0066FF] dark:text-[#0066FF]' : 'text-[#002D62] dark:text-slate-400';
@@ -164,7 +164,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
             willChange: 'transform'
           }}
         >
-           <div className="absolute inset-0 bg-white/95 dark:bg-[#111C24]/95 backdrop-blur-xl translate-z-0 border-t border-slate-200/80 dark:border-white/10"></div>
+           <div className="absolute inset-0 bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-xl translate-z-0 border-t border-slate-200/80 dark:border-white/10"></div>
         </div>
 
         {/* Premium highlight border tracing the notch shape */}
@@ -179,7 +179,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeItem, onItemCl
 
         <button
           onClick={() => onCenterActionClick ? onCenterActionClick() : onItemClick(navItems[2].id)}
-          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-[#111C24] border-[4px] border-[#002D62] dark:border-white/15 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#0066FF]/30 dark:ring-white/20' : ''}`}
+          className={`absolute -top-[25px] left-1/2 -translate-x-1/2 w-[64px] h-[64px] rounded-full bg-white dark:bg-[#0A0A0A] border-[4px] border-[#002D62] dark:border-white/15 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all z-30 cursor-pointer ${activeItem === 'visual_solver' ? 'ring-4 ring-[#0066FF]/30 dark:ring-white/20' : ''}`}
         >
           {activeItem === 'visual_solver' ? (
             <ShutterIcon className="w-8 h-8 text-[#0066FF] dark:text-white" />

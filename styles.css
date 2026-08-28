@@ -36,7 +36,7 @@
   --card-foreground: #0F172A;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
-  --primary: #002D62;
+  --primary: #0F172A;
   --primary-foreground: #FFFFFF;
   --secondary: #F1F5F9;
   --secondary-foreground: #0F172A;
@@ -50,30 +50,30 @@
 }
 
 .dark {
-  /* Academic Precision Dark Tokens (Deep Midnight + Hairline Borders) */
-  --background: #0B141A;
+  /* Academic Precision Dark Tokens (Pure Black & Off-Black + Hairline Borders) */
+  --background: #000000;
   --foreground: #F8FAFC;
-  --card: #111C24;
+  --card: #0A0A0A;
   --card-foreground: #F8FAFC;
-  --popover: #111C24;
+  --popover: #0A0A0A;
   --popover-foreground: #F8FAFC;
-  --primary: #FFFFFF;
-  --primary-foreground: #0B141A;
-  --secondary: #17242D;
+  --primary: #0066FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #11141A;
   --secondary-foreground: #F8FAFC;
-  --muted: #17242D;
+  --muted: #11141A;
   --muted-foreground: #94A3B8;
   --accent: #0066FF;
   --accent-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: rgba(0, 102, 255, 0.50);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #0066FF;
 }
 
 /* Native status bar placeholder — only shown on native */
 .native-status-bar-spacer {
   height: var(--safe-area-top);
-  background-color: #002D62;
+  background-color: #0F172A;
 }
 
 /* Pushes content up when keyboard is visible on native */
@@ -101,7 +101,7 @@
   }
   @keyframes scan-pulse {
     50% {
-      box-shadow: 0 0 30px 10px rgba(163, 230, 53, 0.5);
+      box-shadow: 0 0 30px 10px rgba(0, 102, 255, 0.4);
     }
   }
   @keyframes fade-in {
@@ -147,13 +147,13 @@
   @keyframes voice-pulse {
     50% {
       transform: scale(1.08);
-      box-shadow: 0 0 40px 10px rgba(163, 230, 53, 0.4);
+      box-shadow: 0 0 40px 10px rgba(0, 102, 255, 0.35);
     }
   }
   @keyframes speaking-glow {
     50% {
       transform: scale(1.05);
-      box-shadow: 0 0 50px 15px rgba(45, 212, 191, 0.5);
+      box-shadow: 0 0 50px 15px rgba(0, 102, 255, 0.45);
     }
   }
   @keyframes toast-in {
@@ -443,73 +443,6 @@
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
   }
-  :root {
-    --background: #F5F2EA;
-    --foreground: #002D62;
-    --card: #FFFDF7;
-    --card-foreground: #002D62;
-    --popover: #FFFDF7;
-    --popover-foreground: #002D62;
-    --primary: #0088CC;
-    --primary-foreground: #F5F2EA;
-    --secondary: #B3E5FC;
-    --secondary-foreground: #002D62;
-    --muted: #EAF6FD;
-    --muted-foreground: #486380;
-    --accent: #B3E5FC;
-    --accent-foreground: #002D62;
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: #D9EAF6;
-    --input: #D9EAF6;
-    --ring: #0088CC;
-    --chart-1: #002D62;
-    --chart-2: #0088CC;
-    --chart-3: #B3E5FC;
-    --chart-4: #6FBEE6;
-    --chart-5: #F5F2EA;
-    --radius: 0.625rem;
-    --sidebar: #FFFDF7;
-    --sidebar-foreground: #002D62;
-    --sidebar-primary: #0088CC;
-    --sidebar-primary-foreground: #F5F2EA;
-    --sidebar-accent: #B3E5FC;
-    --sidebar-accent-foreground: #002D62;
-    --sidebar-border: #D9EAF6;
-    --sidebar-ring: #0088CC;
-  }
-  .dark {
-    --background: #002D62;
-    --foreground: #F5F2EA;
-    --card: #003E61;
-    --card-foreground: #F5F2EA;
-    --popover: #003E61;
-    --popover-foreground: #F5F2EA;
-    --primary: #B3E5FC;
-    --primary-foreground: #002D62;
-    --secondary: #003E61;
-    --secondary-foreground: #F5F2EA;
-    --muted: #00467A;
-    --muted-foreground: #B3E5FC;
-    --accent: #0088CC;
-    --accent-foreground: #F5F2EA;
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: #005583;
-    --input: #005583;
-    --ring: #B3E5FC;
-    --chart-1: #B3E5FC;
-    --chart-2: #0088CC;
-    --chart-3: #6FBEE6;
-    --chart-4: #003E61;
-    --chart-5: #F5F2EA;
-    --sidebar: #002D62;
-    --sidebar-foreground: #F5F2EA;
-    --sidebar-primary: #0088CC;
-    --sidebar-primary-foreground: #F5F2EA;
-    --sidebar-accent: #003E61;
-    --sidebar-accent-foreground: #F5F2EA;
-    --sidebar-border: #005583;
-    --sidebar-ring: #B3E5FC;
-  }
   * {
     /* Use CSS variables instead of Tailwind-only utility classes that may not exist
        `--border` and `--ring` are defined in :root above by the theme. */
@@ -525,22 +458,22 @@
     font-family: var(--font-sans);
   }
 
-  /* Dynamic App Themes */
+  /* Dynamic App Themes (Strict Academic Blue/Navy/Slate variations) */
   .app-theme-emerald {
-    --primary: #10B981;
-    --ring: #10B981;
+    --primary: #0066FF;
+    --ring: #0066FF;
   }
   .app-theme-violet {
-    --primary: #8B5CF6;
-    --ring: #8B5CF6;
+    --primary: #002D62;
+    --ring: #002D62;
   }
   .app-theme-rose {
-    --primary: #F43F5E;
-    --ring: #F43F5E;
+    --primary: #0066FF;
+    --ring: #0066FF;
   }
   .app-theme-amber {
-    --primary: #0088CC;
-    --ring: #0088CC;
+    --primary: #0066FF;
+    --ring: #0066FF;
   }
 
   /* Messenger Themes */
@@ -552,20 +485,20 @@
   }
 
   .msg-theme-neon {
-    --msg-sender-bg: #F0ABFC;
-    --msg-sender-fg: #4A044E;
+    --msg-sender-bg: #0066FF;
+    --msg-sender-fg: #FFFFFF;
   }
   .msg-theme-sunset {
-    --msg-sender-bg: #FB923C;
-    --msg-sender-fg: #FFF7ED;
+    --msg-sender-bg: #002D62;
+    --msg-sender-fg: #FFFFFF;
   }
   .msg-theme-forest {
-    --msg-sender-bg: #4ADE80;
-    --msg-sender-fg: #064E3B;
+    --msg-sender-bg: #005583;
+    --msg-sender-fg: #FFFFFF;
   }
   .msg-theme-midnight {
-    --msg-sender-bg: #818CF8;
-    --msg-sender-fg: #1E1B4B;
+    --msg-sender-bg: #0F172A;
+    --msg-sender-fg: #FFFFFF;
   }
 }
 
@@ -642,15 +575,15 @@
   color: #94a3b8 !important;
 }
 .avelut-admin.dark .bg-lime-50 {
-  background-color: rgba(163, 230, 53, 0.05) !important;
-  border-color: rgba(163, 230, 53, 0.2) !important;
-  color: #bef264 !important;
+  background-color: rgba(0, 102, 255, 0.08) !important;
+  border-color: rgba(0, 102, 255, 0.25) !important;
+  color: #93c5fd !important;
 }
 .avelut-admin.dark .text-lime-800 {
-  color: #bef264 !important;
+  color: #93c5fd !important;
 }
 .avelut-admin.dark .border-lime-200 {
-  border-color: rgba(163, 230, 53, 0.2) !important;
+  border-color: rgba(0, 102, 255, 0.25) !important;
 }
 @layer utilities {
   .perspective-1000 {

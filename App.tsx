@@ -15,6 +15,7 @@ import { Onboarding } from './components/Onboarding';
 import { createAvelutAI } from './utils/inference';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
@@ -458,6 +459,13 @@ const App: React.FC = () => {
     });
     const userProfileRef = useRef<UserProfile | null>(userProfile);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
+
+    // Dismiss native splash screen immediately for lightning-fast launch
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            SplashScreen.hide({ fadeOutDuration: 150 }).catch(() => {});
+        }
+    }, []);
 
     // Initialize local SQLite database, hydrate cache & clean expired AI cache on app startup
     useEffect(() => {

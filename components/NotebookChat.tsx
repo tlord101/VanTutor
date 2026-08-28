@@ -311,7 +311,7 @@ ${messageText}`;
             {formatLatexMath(completedPart)}
           </ReactMarkdown>
           {activePart && (
-            <div className="inline-block text-[#002D62] dark:text-blue-300 font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+            <div className="inline-block text-[#0F172A] dark:text-blue-300 font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
               <span>{activePart}</span>
               <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
             </div>
@@ -321,7 +321,7 @@ ${messageText}`;
     }
 
     return (
-      <div className="inline-block text-[#002D62] dark:text-blue-300 font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+      <div className="inline-block text-[#0F172A] dark:text-blue-300 font-semibold text-[17px] sm:text-[18px] tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
         <span>{text}</span>
         <span className="inline-block w-2 h-4 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
       </div>
@@ -336,7 +336,7 @@ ${messageText}`;
       <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight border-b border-[#E3E9F1] dark:border-slate-800 pb-1.5" {...props} />
     ),
     h3: ({ node, ...props }: any) => (
-      <h3 className="text-lg sm:text-xl font-bold text-[#002D62] dark:text-blue-400 mt-3.5 mb-1.5" {...props} />
+      <h3 className="text-lg sm:text-xl font-bold text-[#0F172A] dark:text-blue-400 mt-3.5 mb-1.5" {...props} />
     ),
     h4: ({ node, ...props }: any) => (
       <h4 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-white mt-3 mb-1" {...props} />
@@ -357,7 +357,7 @@ ${messageText}`;
     ul: ({ node, ...props }: any) => <ul className="mb-4 last:mb-0 list-disc pl-5 space-y-2 text-[17px] sm:text-[18px] marker:text-[#0066FF] dark:marker:text-blue-400 text-[#0F172A] dark:text-slate-100" {...props} />,
     ol: ({ node, ...props }: any) => <ol className="mb-4 last:mb-0 list-decimal pl-5 space-y-2 text-[17px] sm:text-[18px] marker:text-[#0066FF] dark:marker:text-blue-400 text-[#0F172A] dark:text-slate-100 font-medium" {...props} />,
     li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
-    a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] dark:text-blue-400 underline hover:text-[#002D62] dark:hover:text-blue-300'}`} target="_blank" rel="noopener noreferrer" {...props} />,
+    a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] dark:text-blue-400 underline hover:text-[#0F172A] dark:hover:text-blue-300'}`} target="_blank" rel="noopener noreferrer" {...props} />,
   });
 
   return (
@@ -406,7 +406,7 @@ ${messageText}`;
                     <div
                       className={`leading-relaxed text-[17px] sm:text-[18px] relative ${
                         isUser
-                          ? 'p-4 sm:p-5 min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#002D62] text-white shadow-xs rounded-2xl rounded-tr-none text-base'
+                          ? 'p-4 sm:p-5 min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#0F172A] text-white shadow-xs rounded-2xl rounded-tr-none text-base'
                           : 'w-full bg-transparent text-[#0F172A] dark:text-slate-100 border-0 shadow-none px-1 py-2 text-[17px] sm:text-[18px]'
                       }`}
                     >
@@ -417,7 +417,7 @@ ${messageText}`;
 
                             {/* Fade Shadow Gradient for Long User Sent Messages */}
                             {isLongUserMsg && !isExpanded && (
-                              <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#002D62] via-[#002D62]/85 to-transparent pointer-events-none" />
+                              <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/85 to-transparent pointer-events-none" />
                             )}
                           </div>
 

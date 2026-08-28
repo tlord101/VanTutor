@@ -531,7 +531,7 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
             {/* Bottom Drawer Container */}
             <div
                 ref={sheetRef}
-                className={`relative flex flex-col w-full max-w-5xl h-[88vh] rounded-t-[36px] sm:rounded-[36px] border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-[0_-20px_60px_rgba(0,0,0,0.25)] backdrop-blur-2xl transition-transform duration-300 overflow-hidden ${isClosing ? 'translate-y-full' : 'translate-y-0'}`}
+                className={`relative flex flex-col w-full max-w-5xl h-[88vh] rounded-t-[36px] sm:rounded-[36px] border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-[#0A0A0A]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-transform duration-300 overflow-hidden ${isClosing ? 'translate-y-full' : 'translate-y-0'}`}
                 style={{ transform: `translateY(${dragOffsetY}px)` }}
             >
                 {/* Drag Handle */}
@@ -549,11 +549,11 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                 </div>
 
                 {/* Header Bar */}
-                <div className="flex items-center justify-between px-5 sm:px-8 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center justify-between px-5 sm:px-8 pb-3 border-b border-slate-100 dark:border-white/10">
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-                            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">Step-By-Step Solution</p>
+                            <span className="flex h-2 w-2 rounded-full bg-[#0066FF]" />
+                            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[#0066FF] dark:text-blue-400">Step-By-Step Solution</p>
                         </div>
                         <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">Problem Breakdown</h3>
                     </div>
@@ -588,15 +588,15 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
                                 ),
                                 h2: ({node, ...props}: any) => (
                                     <div className="mt-8 mb-4 flex items-center gap-2.5">
-                                        <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                                        <span className="h-2.5 w-2.5 rounded-full bg-[#0066FF]" />
                                         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight" {...props} />
                                     </div>
                                 ),
                                 h3: ({node, children, ...props}: any) => {
                                     const isStep = String(children).includes('Step') || String(children).includes('🔹');
                                     return (
-                                        <div className={`mt-6 mb-3 ${isStep ? 'p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl shadow-sm' : ''}`}>
-                                            <h3 className="text-lg sm:text-xl font-bold text-indigo-900 dark:text-indigo-200 tracking-tight flex items-center gap-2" {...props}>
+                                        <div className={`mt-6 mb-3 ${isStep ? 'p-3.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-2xl shadow-sm' : ''}`}>
+                                            <h3 className="text-lg sm:text-xl font-bold text-[#002D62] dark:text-blue-200 tracking-tight flex items-center gap-2" {...props}>
                                                 {children}
                                             </h3>
                                         </div>
@@ -793,33 +793,33 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
             {/* Forward Modal */}
             {showForwardModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-                    <div className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-5">
+                    <div className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white dark:bg-[#0A0A0A] shadow-2xl border border-slate-200 dark:border-white/10">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 p-5">
                             <h2 className="text-base font-bold text-slate-900 dark:text-white">Forward Solution</h2>
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer">
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 text-xs font-bold text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-white/20 cursor-pointer">
                                 <i className="bi bi-x-lg text-xs"></i>
                             </button>
                         </div>
-                        <div className="border-b border-slate-100 dark:border-slate-800 p-4">
-                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2 text-sm text-slate-900 dark:text-white focus:border-amber-400 focus:outline-none" />
+                        <div className="border-b border-slate-100 dark:border-white/10 p-4">
+                            <input type="text" placeholder="Search partners..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-sm text-slate-900 dark:text-white focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF] focus:outline-none" />
                         </div>
                         <div className="flex-1 space-y-2 overflow-y-auto p-4">
                             {filteredPartners.length === 0 ? (
                                 <p className="py-8 text-center text-xs font-medium text-slate-500 dark:text-slate-400">No study partners found</p>
                             ) : (
                                 filteredPartners.map(u => (
-                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition-colors ${selectedIds.includes(u.uid) ? 'border-amber-400 bg-amber-500/10 dark:bg-amber-500/15' : 'border-slate-200 dark:border-slate-800'}`}>
+                                    <div key={u.uid} onClick={() => setSelectedIds(prev => prev.includes(u.uid) ? prev.filter(id => id !== u.uid) : [...prev, u.uid])} className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition-colors ${selectedIds.includes(u.uid) ? 'border-[#0066FF] bg-blue-50/50 dark:bg-blue-950/30' : 'border-slate-200 dark:border-white/10'}`}>
                                         <div className="text-sm font-semibold text-slate-900 dark:text-white">{u.display_name}</div>
-                                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selectedIds.includes(u.uid) ? 'border-amber-400 bg-amber-400 text-slate-950' : 'border-slate-300 dark:border-slate-600'}`}>
+                                        <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selectedIds.includes(u.uid) ? 'border-[#0066FF] bg-[#0066FF] text-white' : 'border-slate-300 dark:border-slate-600'}`}>
                                             {selectedIds.includes(u.uid) && <i className="bi bi-check text-xs font-bold"></i>}
                                         </div>
                                     </div>
                                 ))
                             )}
                         </div>
-                        <div className="flex gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
-                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-3.5 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300 cursor-pointer">Cancel</button>
-                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 py-3.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50 transition-colors cursor-pointer">
+                        <div className="flex gap-3 border-t border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
+                            <button onClick={() => setShowForwardModal(false)} disabled={isSending} className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 py-3.5 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300 cursor-pointer">Cancel</button>
+                            <button onClick={handleForwardToPartner} disabled={isSending || selectedIds.length === 0} className="flex-[2] rounded-xl bg-[#0066FF] hover:bg-[#0055D4] text-white py-3.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50 transition-colors cursor-pointer">
                                 {isSending ? 'Sending...' : `Send to ${selectedIds.length} partner${selectedIds.length !== 1 ? 's' : ''}`}
                             </button>
                         </div>

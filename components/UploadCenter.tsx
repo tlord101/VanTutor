@@ -14,6 +14,7 @@ import { getWindowPathname } from '../utils/pathname';
 import { PDFDocument } from 'pdf-lib';
 import { PageSkeleton } from './Skeleton';
 import { SchoolHierarchySelector } from './SchoolHierarchySelector';
+import { UploadCloud, X, LayoutDashboard, BookOpen, FolderOpen, FileQuestion, List, Menu, HardDrive, ChevronRight, Plus, Trash2, Layers } from 'lucide-react';
 
 function uint8ToBase64(bytes: Uint8Array): string {
     let binary = '';
@@ -1160,7 +1161,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                         <p className="font-bold">{up.course_name}</p>
                         <p className="text-sm text-slate-500">{up.level} - {up.semester}</p>
                       </div>
-                      <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold">Uploaded</span>
+                      <span className="text-xs bg-blue-50 text-[#0F172A] border border-blue-200 px-3 py-1 rounded-full font-bold">Uploaded</span>
                     </div>
                   ))}
                 </div>
@@ -1204,10 +1205,10 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                   {schoolCourses.map((course: any) => {
                     const isUploaded = isTextbookUploaded(course);
                     return (
-                      <div key={course.course_id + course.level} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
+                      <div key={course.course_id + course.level} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-blue-200' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex flex-col items-start gap-2">
-                             <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                             <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${course.semester === 'first' ? 'bg-blue-50 text-[#0F172A] border-blue-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                                 {course.semester === 'first' ? '1st Sem' : '2nd Sem'}
                              </span>
                              {course.department_count > 0 && (
@@ -1216,7 +1217,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                                 </span>
                              )}
                           </div>
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${isUploaded ? 'bg-blue-50 text-[#0F172A] border border-blue-200' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                         </div>
                         <h4 className="font-black text-lg  dark:text-white leading-tight mt-3">{course.course_name}</h4>
                         <p className="text-sm font-bold text-slate-400 mt-1">{course.course_code || course.course_id}</p>
@@ -1268,7 +1269,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     {schoolDepartments.map(dept => (
                       <div key={dept.id} onClick={() => { setSelectedCollegeId(dept.collegeId); setSelectedDepartmentId(dept.id); }} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm hover:shadow-md hover:border-sky-200 cursor-pointer transition-all">
                           <div className="flex justify-between items-start mb-2">
-                             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-blue-50 text-[#0F172A] border border-blue-200">
                                 {dept.collegeName}
                              </span>
                           </div>
@@ -1370,10 +1371,10 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                       ) : (
                         <div className="space-y-8">
                           {/* File Upload Section */}
-                          <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5">
-                            <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><UploadCloud className="w-4 h-4"/> Extract from Course Form or Syllabus</h4>
-                            <p className="text-xs text-indigo-700/70 mb-4">Upload a course registration form, syllabus, or outline (PDF or photo) to automatically extract course codes and names.</p>
-                            <label className="flex items-center justify-center w-full py-3 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition cursor-pointer shadow-sm">
+                          <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
+                            <h4 className="font-bold text-[#0F172A] dark:text-white mb-2 flex items-center gap-2"><UploadCloud className="w-4 h-4"/> Extract from Course Form or Syllabus</h4>
+                            <p className="text-xs text-slate-600 mb-4">Upload a course registration form, syllabus, or outline (PDF or photo) to automatically extract course codes and names.</p>
+                            <label className="flex items-center justify-center w-full py-3 bg-white border border-blue-200 text-[#0066FF] rounded-xl font-bold hover:bg-blue-50 transition cursor-pointer shadow-sm">
                               {isExtractingCourses ? (
                                 <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing Document...</span>
                               ) : (
@@ -1421,9 +1422,9 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                     const isUploaded = isTextbookUploaded(course);
                     const deptPath = `${selectedSchoolId}/colleges/${selectedCollegeId}/departments/${selectedDepartmentId}`;
                     return (
-                      <div key={course.course_id} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-green-200' : 'border-slate-200'}`}>
+                      <div key={course.course_id} className={`bg-white border rounded-[24px] p-6 shadow-sm transition-all ${isUploaded ? 'border-blue-200' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-start mb-2">
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${isUploaded ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${isUploaded ? 'bg-blue-50 text-[#002D62] border border-blue-200' : 'bg-slate-100 text-slate-500'}`}>{isUploaded ? 'Textbook Ready' : 'No Textbook'}</span>
                           <button onClick={() => handleDeleteCourse(course)} className="text-slate-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button>
                         </div>
                         <h4 className="font-black text-lg  dark:text-white leading-tight">{course.course_name}</h4>
@@ -1492,11 +1493,11 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                       <div key={course.course_id} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
                         <div className="flex justify-between items-start mb-2">
                            {isPQUploaded(course, selectedDepartmentId, pqIndex) ? (
-                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-green-100 text-green-700 border border-green-200">
+                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-blue-50 text-[#002D62] border border-blue-200">
                                   PQ Ready
                                </span>
                            ) : (
-                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                               <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                                   No Past Q&A
                                </span>
                            )}
@@ -1508,7 +1509,7 @@ Return a JSON object with a 'courses' array, where each item has 'course_name' a
                           <button onClick={() => {
                               setUploadType('past_question');
                               setUploadModal({course, courseKey, deptPath});
-                          }} disabled={isUploadingCourseKey === courseKey} className="flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 transition disabled:opacity-50">
+                          }} disabled={isUploadingCourseKey === courseKey} className="flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white bg-[#0F172A] hover:bg-slate-800 transition disabled:opacity-50">
                             {isUploadingCourseKey === courseKey ? 'Uploading...' : <><FileQuestion className="w-4 h-4"/> Upload Past Q&A</>}
                           </button>
                         </div>

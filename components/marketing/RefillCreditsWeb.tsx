@@ -138,7 +138,7 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                     </a>
                     <a
                         href="/plans"
-                        className="text-xs font-bold text-[#0066FF] hover:text-[#002D62] bg-[#F1F5F9] px-3.5 py-1.5 rounded-full border border-[#E3E9F1] transition-colors"
+                        className="text-xs font-bold text-[#0066FF] hover:text-[#0F172A] bg-[#F1F5F9] px-3.5 py-1.5 rounded-full border border-[#E3E9F1] transition-colors"
                     >
                         View Weekly / Monthly Plans →
                     </a>
@@ -209,7 +209,7 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                                     type="button"
                                     onClick={() => handlePurchaseCredits(pack.amount, pack.title)}
                                     disabled={isProcessing || !email}
-                                    className="w-full py-3 bg-[#0066FF] hover:bg-[#002D62] disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95"
+                                    className="w-full py-3 bg-[#0066FF] hover:bg-slate-900 disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95"
                                 >
                                     Purchase Pass
                                 </button>
@@ -253,7 +253,7 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                                 void handlePurchaseCredits(val, `Custom Refill ₦${val}`);
                             }}
                             disabled={isProcessing || !email || !customAmount}
-                            className="px-6 py-3 bg-[#0F172A] hover:bg-[#002D62] disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                            className="px-6 py-3 bg-[#0F172A] hover:bg-slate-800 disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
                         >
                             Top Up
                         </button>

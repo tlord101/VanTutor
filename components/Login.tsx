@@ -107,7 +107,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
         <div className="w-full max-w-md">
           <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
             <div className="flex justify-center mb-6">
-                <img src="/logo_full.png" alt="AVELUT Logo" className="h-16 object-contain" />
+                <img src="/logo_full_black.png" alt="AVELUT Logo" className="h-16 object-contain dark:hidden" />
+                <img src="/logo_full_white.png" alt="AVELUT Logo" className="h-16 object-contain hidden dark:block" />
             </div>
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-bold  dark:text-white tracking-wider">Welcome Back</h2>

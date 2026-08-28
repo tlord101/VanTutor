@@ -112,25 +112,25 @@ export const Header: React.FC<HeaderProps> = ({
                         <button 
                             onClick={onMessengerClick}
                             data-tour-id="header-messenger"
-                            className="relative text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                            className="relative text-slate-600 dark:text-slate-300 hover:text-[#0066FF] dark:hover:text-[#0066FF] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
                             aria-label={`Messenger (${unreadMessagesCount} unread)`}
                         >
                             <i className="bi bi-chat-dots text-lg"></i>
                             {unreadMessagesCount > 0 && (
-                                <div className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-4 text-slate-950 shadow-xs flex items-center justify-center">
+                                <div className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-[#0066FF] px-1 text-[9px] font-bold leading-4 text-white shadow-xs flex items-center justify-center">
                                     {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                                 </div>
                             )}
                         </button>
                         <button 
                             onClick={onNotificationsClick}
-                            className="relative text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                            className="relative text-slate-600 dark:text-slate-300 hover:text-[#0066FF] dark:hover:text-[#0066FF] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
                             aria-label={`Notifications (${unreadCount} unread)`}
                         >
                             <i className="bi bi-bell text-lg"></i>
                             {unreadCount > 0 && (
                                 <div className="absolute top-1.5 right-1.5">
-                                    <span className="flex h-2 w-2 rounded-full bg-amber-500" />
+                                    <span className="flex h-2 w-2 rounded-full bg-[#0066FF]" />
                                 </div>
                             )}
                         </button>
@@ -152,8 +152,8 @@ export const Header: React.FC<HeaderProps> = ({
                             </button>
 
                             {isAvatarMenuOpen && (
-                                <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-black dark:bg-card rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-gray-800 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                                    <div className="px-4 py-3 border-b border-slate-50 dark:border-gray-800 mb-2">
+                                <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-[#0A0A0A] rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/10 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                                    <div className="px-4 py-3 border-b border-slate-50 dark:border-white/10 mb-2">
                                         <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{userProfile?.display_name || 'User'}</p>
                                         <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 dark:text-gray-400 uppercase tracking-widest">{userProfile?.level || 'New'} Level</p>
                                     </div>

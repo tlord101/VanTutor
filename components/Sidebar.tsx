@@ -68,7 +68,7 @@ const NavButton: React.FC<{
                         {item.label}
                     </span>
                     {item.id === 'messenger' && unreadMessagesCount > 0 && (
-                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" />
                     )}
                 </button>
             </div>
@@ -88,12 +88,12 @@ const NavButton: React.FC<{
                     {item.label}
                 </span>
                 {isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
-                    <span className="bg-red-500 text-white text-[9px] font-black rounded-full h-4 min-w-4 px-1 flex items-center justify-center shadow-sm">
+                    <span className="bg-[#0066FF] text-white text-[9px] font-black rounded-full h-4 min-w-4 px-1 flex items-center justify-center shadow-sm">
                         {unreadMessagesCount}
                     </span>
                 )}
                 {!isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
-                    <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                    <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" />
                 )}
             </button>
         )}
@@ -117,9 +117,15 @@ const SidebarContent: React.FC<{
       {/* Top Section: Logo */}
       <div className={`flex items-center flex-shrink-0 px-2 pt-2 ${isModal ? 'mb-6 justify-center' : 'mb-10'}`}>
         {isExpanded ? (
-          <img src="/logo_full.png" alt="AVELUT Logo" className={`object-contain ${isModal ? 'h-8' : 'h-10'}`} />
+          <>
+            <img src="/logo_full_black.png" alt="AVELUT Logo" className={`object-contain dark:hidden ${isModal ? 'h-8' : 'h-10'}`} />
+            <img src="/logo_full_white.png" alt="AVELUT Logo" className={`object-contain hidden dark:block ${isModal ? 'h-8' : 'h-10'}`} />
+          </>
         ) : (
-          <img src="/logo_icon.png" alt="AVELUT Logo" className="w-10 h-10 object-contain" />
+          <>
+            <img src="/logo_icon_black_glyph.png" alt="AVELUT Logo" className="w-10 h-10 object-contain dark:hidden" />
+            <img src="/logo_icon_white_glyph.png" alt="AVELUT Logo" className="w-10 h-10 object-contain hidden dark:block" />
+          </>
         )}
       </div>
       
@@ -137,7 +143,7 @@ const SidebarContent: React.FC<{
       <div className="flex-shrink-0">
         <div className={`mt-6 p-3 rounded-xl border relative ${isModal ? 'bg-slate-50 dark:bg-black dark:bg-slate-800/50 border-slate-100 dark:border-slate-700' : 'bg-white dark:bg-black/45 backdrop-blur-sm border-white/50 shadow-sm'}`}>
           {unreadCount > 0 && (
-             <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" title={`${unreadCount} unread notifications`} />
+             <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" title={`${unreadCount} unread notifications`} />
           )}
           <div className="flex items-center">
             <Avatar display_name={userProfile?.display_name || null} photo_url={userProfile?.photo_url} className="w-10 h-10 flex-shrink-0" />

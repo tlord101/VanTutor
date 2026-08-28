@@ -281,7 +281,7 @@ RULES:
             {savedQuiz && savedQuiz.length > 0 && (
               <div className="p-4 mb-6 bg-[#F1F5F9] dark:bg-slate-800 border border-[#0066FF]/30 dark:border-blue-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#002D62] text-white flex items-center justify-center text-base shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#0F172A] text-white flex items-center justify-center text-base shrink-0">
                     <i className="bi bi-bookmark-check-fill text-[#0066FF] dark:text-blue-400"></i>
                   </div>
                   <div className="min-w-0">
@@ -320,7 +320,7 @@ RULES:
                     onClick={() => setSelectedMinutes(mins)}
                     className={`py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                       selectedMinutes === mins
-                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        ? 'bg-[#0F172A] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
                         : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >
@@ -343,7 +343,7 @@ RULES:
                     onClick={() => setQuestionCount(cnt)}
                     className={`py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                       questionCount === cnt
-                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        ? 'bg-[#0F172A] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
                         : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >
@@ -366,7 +366,7 @@ RULES:
                     onClick={() => setDifficulty(diff)}
                     className={`py-3 rounded-2xl text-xs font-bold capitalize transition-all cursor-pointer ${
                       difficulty === diff
-                        ? 'bg-[#002D62] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
+                        ? 'bg-[#0F172A] dark:bg-blue-600 text-white border-2 border-[#0066FF] dark:border-blue-400'
                         : 'bg-[#F6F6F3] dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E3E9F1] dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700'
                     }`}
                   >

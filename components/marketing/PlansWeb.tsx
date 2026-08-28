@@ -203,7 +203,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                                 className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-2xs active:scale-95 ${
                                     currentStatus === 'weekly'
                                         ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
-                                        : 'bg-[#0066FF] hover:bg-[#002D62] text-white'
+                                        : 'bg-[#0066FF] hover:bg-slate-900 text-white'
                                 }`}
                             >
                                 {currentStatus === 'weekly' ? 'Current Plan' : 'Subscribe Weekly'}
@@ -253,7 +253,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                                 className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-md active:scale-95 ${
                                     currentStatus === 'monthly' || currentStatus === 'premium'
                                         ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
-                                        : 'bg-[#0066FF] hover:bg-[#002D62] text-white'
+                                        : 'bg-[#0066FF] hover:bg-slate-900 text-white'
                                 }`}
                             >
                                 {currentStatus === 'monthly' || currentStatus === 'premium' ? 'Current Plan' : 'Subscribe Monthly'}
@@ -303,7 +303,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                                 className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-2xs active:scale-95 ${
                                     currentStatus === 'semester'
                                         ? 'bg-[#F1F5F9] text-[#64748B] cursor-default'
-                                        : 'bg-[#0F172A] hover:bg-[#002D62] text-white'
+                                        : 'bg-[#0F172A] hover:bg-slate-800 text-white'
                                 }`}
                             >
                                 {currentStatus === 'semester' ? 'Current Plan' : 'Get Semester Access'}
@@ -361,7 +361,7 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 </div>
 
                 {/* Pay As You Go Banner */}
-                <div className="bg-gradient-to-br from-[#0F172A] to-[#002D62] text-white rounded-3xl p-6 sm:p-8 max-w-5xl mx-auto shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="bg-gradient-to-br from-[#0F172A] to-[#000000] text-white rounded-3xl p-6 sm:p-8 max-w-5xl mx-auto shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="space-y-1.5 text-center md:text-left">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] bg-white/10 px-3 py-0.5 rounded-full inline-block">
                             Pay-As-You-Go Credits

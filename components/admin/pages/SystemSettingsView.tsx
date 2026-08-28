@@ -3,10 +3,12 @@ import { db } from '../../../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import type { AppSettings, EmailConfig, UsageSettings, TierConfig } from '../../../types';
+import { VoiceProviderSelector } from '../primitives/VoiceProviderSelector';
+import { AIModelProviderSelector } from '../primitives/AIModelProviderSelector';
 
 export const SystemSettingsView: React.FC = () => {
     const { addToast } = useToast();
-    const [activeTab, setActiveTab] = useState<'general' | 'plans' | 'keys' | 'email'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'ai_voice' | 'plans' | 'keys' | 'email'>('ai_voice');
     
     // States
     const [appSettings, setAppSettings] = useState<Partial<AppSettings>>({});
@@ -150,34 +152,64 @@ export const SystemSettingsView: React.FC = () => {
         <div className="space-y-8 text-slate-900 dark:text-slate-100">
             <div className="flex flex-wrap gap-4 border-b border-slate-200 dark:border-slate-800">
                 <button 
+                    onClick={() => setActiveTab('ai_voice')}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'ai_voice' ? 'border-[#0066FF] text-[#0066FF] dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    <i className="bi bi-cpu-fill"></i>
+                    <span>AI & Voice Engines</span>
+                </button>
+                <button 
                     onClick={() => setActiveTab('general')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'general' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'general' ? 'border-[#0066FF] text-[#0066FF] dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                     <i className="bi bi-gear-fill"></i>
                     <span>General Platform</span>
                 </button>
                 <button 
                     onClick={() => setActiveTab('plans')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'plans' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'plans' ? 'border-[#0066FF] text-[#0066FF] dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                     <i className="bi bi-credit-card-fill"></i>
                     <span>Usage & Plans</span>
                 </button>
                 <button 
                     onClick={() => setActiveTab('keys')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'keys' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'keys' ? 'border-[#0066FF] text-[#0066FF] dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                     <i className="bi bi-key-fill"></i>
                     <span>API & Secrets</span>
                 </button>
                 <button 
                     onClick={() => setActiveTab('email')}
-                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'email' ? 'border-amber-500 text-slate-900 dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`pb-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${activeTab === 'email' ? 'border-[#0066FF] text-[#0066FF] dark:text-white font-black' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                     <i className="bi bi-envelope-fill"></i>
                     <span>SMTP Configuration</span>
                 </button>
             </div>
+
+            {activeTab === 'ai_voice' && (
+                <div className="max-w-4xl space-y-6">
+                    <AIModelProviderSelector
+                        appSettings={appSettings}
+                        onChange={(updated) => setAppSettings(prev => ({ ...prev, ...updated }))}
+                    />
+                    <VoiceProviderSelector
+                        appSettings={appSettings}
+                        onChange={(updated) => setAppSettings(prev => ({ ...prev, ...updated }))}
+                    />
+                    <div className="flex justify-end pt-4">
+                        <button
+                            onClick={handleSaveApp}
+                            disabled={isSaving}
+                            className="px-8 py-4 bg-[#0066FF] hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                        >
+                            <i className="bi bi-floppy-fill"></i>
+                            {isSaving ? 'Saving Engine Settings...' : 'Save AI & Voice Settings'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {activeTab === 'general' && (
                 <div className="max-w-4xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-8">

@@ -384,7 +384,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSaving}
-                        className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-amber-500 text-slate-950 w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-amber-400 transition border-2 border-white dark:border-slate-800 opacity-90 group-hover:opacity-100 cursor-pointer font-bold"
+                        className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-[#0066FF] text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-[#0055D4] transition border-2 border-white dark:border-white/10 opacity-90 group-hover:opacity-100 cursor-pointer font-bold"
                     >
                         <i className="bi bi-camera-fill text-base"></i>
                     </button>
@@ -398,14 +398,14 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 type="text"
                                 value={newDisplayName}
                                 onChange={(e) => setNewDisplayName(e.target.value)}
-                                className="w-full sm:w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-4 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-sm"
+                                className="w-full sm:w-64 bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-xl py-2 px-4 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-[#0066FF] focus:outline-none shadow-sm"
                                 disabled={isSaving}
                             />
                             <div className="flex gap-2">
-                                <button onClick={handleSaveName} disabled={isSaving || newDisplayName.trim() === ''} className="px-5 py-2 bg-amber-500 text-slate-950 rounded-xl text-sm font-black shadow-sm hover:bg-amber-400 transition disabled:opacity-50 cursor-pointer">
+                                <button onClick={handleSaveName} disabled={isSaving || newDisplayName.trim() === ''} className="px-5 py-2 bg-[#0066FF] text-white rounded-xl text-sm font-black shadow-sm hover:bg-[#0055D4] transition disabled:opacity-50 cursor-pointer">
                                     Save
                                 </button>
-                                <button onClick={handleCancelEdit} disabled={isSaving} className="px-5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 cursor-pointer">
+                                <button onClick={handleCancelEdit} disabled={isSaving} className="px-5 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition disabled:opacity-50 cursor-pointer">
                                     Cancel
                                 </button>
                             </div>
@@ -449,7 +449,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                         />
 
                         <div className="mt-4 flex justify-end">
-                            <button onClick={handleSaveBioAndContact} disabled={isSaving} className="px-6 py-2.5 bg-slate-900 dark:bg-amber-500 hover:bg-slate-800 dark:hover:bg-amber-400 text-white dark:text-slate-950 rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer">
+                            <button onClick={handleSaveBioAndContact} disabled={isSaving} className="px-6 py-2.5 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer">
                                 Save Profile Info
                             </button>
                         </div>
@@ -459,7 +459,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Academic Details</h3>
                             {!isEditingAcademics ? (
-                                <button onClick={() => setIsEditingAcademics(true)} className="text-xs font-bold text-amber-500 hover:text-amber-400 cursor-pointer">Edit</button>
+                                <button onClick={() => setIsEditingAcademics(true)} className="text-xs font-bold text-[#0066FF] hover:text-[#0055D4] cursor-pointer">Edit</button>
                             ) : (
                                 <button onClick={() => setIsEditingAcademics(false)} className="text-xs font-bold text-slate-400 hover:text-slate-300 cursor-pointer">Cancel</button>
                             )}
@@ -477,7 +477,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 <button 
                                     onClick={handleSaveAcademics}
                                     disabled={isSaving || !editSchoolId || !editCollegeId || !editDepartmentId}
-                                    className="w-full mt-4 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer"
+                                    className="w-full mt-4 px-6 py-2.5 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer"
                                 >
                                     Save Academic Info
                                 </button>
@@ -521,9 +521,9 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
 
                 {/* Right Column: Privacy Settings */}
                 <div className="space-y-6">
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-[#0066FF]">
                                 <i className="bi bi-shield-lock text-lg"></i>
                             </div>
                             <div>
@@ -533,7 +533,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">Contact Details</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show contact to public</p>
@@ -541,13 +541,13 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 <button
                                     onClick={() => handleTogglePrivacy('public_contact')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_contact ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_contact ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-slate-900 w-4 h-4 rounded-full transition-transform ${privacySettings.public_contact ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_contact ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">School Info</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show school to public</p>
@@ -555,13 +555,13 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 <button
                                     onClick={() => handleTogglePrivacy('public_school')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_school ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_school ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-slate-900 w-4 h-4 rounded-full transition-transform ${privacySettings.public_school ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_school ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">Department</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show department</p>
@@ -569,13 +569,13 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 <button
                                     onClick={() => handleTogglePrivacy('public_department')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_department ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_department ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-slate-900 w-4 h-4 rounded-full transition-transform ${privacySettings.public_department ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_department ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">Level</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show level to public</p>
@@ -583,17 +583,17 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                 <button
                                     onClick={() => handleTogglePrivacy('public_level')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_level ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_level ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-slate-900 w-4 h-4 rounded-full transition-transform ${privacySettings.public_level ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_level ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-[#0066FF]">
                                 <i className="bi bi-gift text-lg"></i>
                             </div>
                             <div>
@@ -603,15 +603,15 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                         </div>
 
                         <div className="space-y-4">
-                            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 text-center">
+                            <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border border-slate-100 dark:border-white/10 text-center">
                                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Your Referral Code</p>
                                 <div className="flex items-center justify-center gap-2">
-                                    <span className="text-2xl font-black text-amber-500 tracking-widest">{userProfile.referral_code || '---'}</span>
+                                    <span className="text-2xl font-black text-[#0066FF] tracking-widest">{userProfile.referral_code || '---'}</span>
                                     {userProfile.referral_code && (
                                         <button onClick={() => {
                                             navigator.clipboard.writeText(userProfile.referral_code!);
                                             addToast('Referral code copied!', 'success');
-                                        }} className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/30 transition cursor-pointer">
+                                        }} className="p-2 bg-blue-50 text-[#0066FF] dark:bg-blue-950/40 dark:text-blue-300 rounded-lg hover:bg-blue-100 transition cursor-pointer">
                                             <i className="bi bi-clipboard text-sm"></i>
                                         </button>
                                     )}
@@ -620,7 +620,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                             </div>
 
                             {!userProfile.referred_by && (
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="pt-4 border-t border-slate-100 dark:border-white/10">
                                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Were you referred by a friend?</p>
                                     <div className="flex gap-2">
                                         <input
@@ -628,12 +628,12 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                             value={referralCodeInput}
                                             onChange={(e) => setReferralCodeInput(e.target.value)}
                                             placeholder="Enter their code"
-                                            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase"
+                                            className="flex-1 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] uppercase"
                                         />
                                         <button
                                             onClick={handleSubmitReferral}
                                             disabled={isSubmittingReferral || !referralCodeInput.trim()}
-                                            className="px-4 py-2 bg-amber-500 text-slate-950 rounded-xl text-sm font-black shadow-sm hover:bg-amber-400 transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                                            className="px-4 py-2 bg-[#0066FF] text-white rounded-xl text-sm font-black shadow-sm hover:bg-[#0055D4] transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
                                         >
                                             {isSubmittingReferral ? '...' : 'Claim'}
                                         </button>

@@ -250,11 +250,11 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                         </div>
                                         <div className="shrink-0" onClick={e => e.stopPropagation()}>
                                             {isPartner ? (
-                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl">✓ Connected</span>
+                                                <span className="text-xs font-bold text-[#002D62] bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl">✓ Connected</span>
                                             ) : req?.status === 'sent' ? (
-                                                <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl">Pending</span>
+                                                <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl">Pending</span>
                                             ) : (
-                                                <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#009EE2] hover:bg-[#0070B8] px-4 py-2 rounded-xl transition shadow-sm">Connect</button>
+                                                <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#0066FF] hover:bg-[#0055D4] px-4 py-2 rounded-xl transition shadow-sm">Connect</button>
                                             )}
                                         </div>
                                     </div>
@@ -284,7 +284,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                                 </div>
                                                 <div className="shrink-0 flex gap-2" onClick={e => e.stopPropagation()}>
                                                     <button onClick={() => declinePartnerRequest(req.senderId)} className="text-xs font-bold text-[#6C757D] dark:text-gray-400 bg-neutral-100 hover:bg-neutral-200 px-4 py-2 rounded-xl transition">Decline</button>
-                                                    <button onClick={() => sender && acceptPartnerRequest(sender)} className="text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-sm transition">Accept</button>
+                                                    <button onClick={() => sender && acceptPartnerRequest(sender)} className="text-xs font-black text-white bg-[#0066FF] hover:bg-[#0055D4] px-4 py-2 rounded-xl shadow-sm transition">Accept</button>
                                                 </div>
                                             </div>
                                         );
@@ -306,8 +306,8 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                                     <h4 className="font-bold text-sm text-[#212529] dark:text-white truncate">{receiver?.display_name || 'Unknown'}</h4>
                                                 </div>
                                                 <div className="shrink-0 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                                    <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl hidden sm:inline-block">Pending</span>
-                                                    <button onClick={() => declinePartnerRequest(req.receiverId)} className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition border border-red-100">Cancel</button>
+                                                    <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl hidden sm:inline-block">Pending</span>
+                                                    <button onClick={() => declinePartnerRequest(req.receiverId)} className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl transition border border-slate-200">Cancel</button>
                                                 </div>
                                             </div>
                                         );
