@@ -15,7 +15,7 @@ export const AIModelProviderSelector: React.FC<AIModelProviderSelectorProps> = (
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ text: string; latencyMs: number; error?: string } | null>(null);
 
-  const activeProvider: AIProvider = appSettings.primary_ai_provider || 'gemini';
+  const activeProvider: AIProvider = appSettings.primary_ai_provider || 'alibaba_qwen';
 
   const handleTestInference = async () => {
     setIsTesting(true);
@@ -126,9 +126,9 @@ export const AIModelProviderSelector: React.FC<AIModelProviderSelectorProps> = (
           <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 mb-1">
             <i className="bi bi-cloud-check-fill text-[#0066FF]"></i> Alibaba Qwen Engine
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">High-speed reasoning with Qwen3.7-Flash model studio instance.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">High-speed flagship reasoning with Qwen3.8-Max model studio instance.</p>
           <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0A0A0A] p-2 rounded-lg border border-slate-200 dark:border-white/10">
-            Model: qwen3.7-flash (Hardcoded)
+            Model: {appSettings.alibaba_model || 'qwen3.8-max'}
           </div>
         </div>
       </div>

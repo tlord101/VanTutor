@@ -181,7 +181,7 @@ export const getFeatureModel = (
   feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'title_generation',
   appSettings?: AppSettings | null
 ): string => {
-  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.primary_gemini_model || DEFAULT_APP_SETTINGS.primary_gemini_model || 'gemini-3.1-flash-lite';
+  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || 'qwen3.8-max';
 };
 
 // Legacy object for backward compatibility, mapped to dynamic getter

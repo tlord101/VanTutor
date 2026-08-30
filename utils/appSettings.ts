@@ -130,13 +130,13 @@ export const DEFAULT_USAGE_SETTINGS = {
     study_guide_extraction: 10,   // 10 credits per extraction (no longer free)
   },
   feature_models: {
-    visual_solve: 'gemini-3.1-flash-lite',
-    chat_interaction: 'gemini-3.1-flash-lite',
-    flashcard_generation: 'gemini-3.1-flash-lite',
-    ai_quiz_generation: 'gemini-3.1-flash-lite',
-    study_guide_lesson: 'gemini-3.1-flash-lite',
-    study_guide_extraction: 'gemini-3.1-flash-lite',
-    title_generation: 'gemini-3.1-flash-lite',
+    visual_solve: 'qwen3.8-max',
+    chat_interaction: 'qwen3.8-max',
+    flashcard_generation: 'qwen3.8-max',
+    ai_quiz_generation: 'qwen3.8-max',
+    study_guide_lesson: 'qwen3.8-max',
+    study_guide_extraction: 'qwen3.8-max',
+    title_generation: 'qwen3.8-max',
   },
   additional_prices: {
     live_tutorial_pass: 150,
@@ -149,12 +149,12 @@ export const DEFAULT_USAGE_SETTINGS = {
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  primary_gemini_model: 'gemini-3.1-flash-lite',
+  primary_gemini_model: 'qwen3.8-max',
   gemini_api_key: '',
-  primary_ai_provider: 'gemini',
+  primary_ai_provider: 'alibaba_qwen',
   alibaba_api_key: '',
   alibaba_base_url: 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
-  alibaba_model: 'qwen3.7-flash',
+  alibaba_model: 'qwen3.8-max',
   active_voice_provider: 'grok',
   studyguide_voice_provider: 'grok',
   notebook_voice_provider: 'grok',
