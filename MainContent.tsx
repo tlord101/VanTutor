@@ -113,7 +113,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                                 </div>
                         );
                     case 'dashboard':
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                        return (
+                            <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />
+                        );
                     case 'study_guide':
                         return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
                     case 'voice_tutorial':
@@ -161,7 +163,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                             ? (
                                         <AdminPanel userProfile={userProfile} />
                                 )
-                            : <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                            : <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
                     case 'notifications':
                         return (
                                 <Notifications 
@@ -182,7 +184,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                                     <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />
                             );
                         }
-                        return <Dashboard userProfile={userProfile} dashboardData={dashboardData} onNavigateToStudyGuide={() => onNavigate?.('study_guide')} onNavigateToLeaderboard={() => onNavigate?.('leaderboard')} />;
+                        return <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
                 }
             })()}
         </Suspense>

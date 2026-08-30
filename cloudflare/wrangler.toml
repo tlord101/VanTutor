@@ -1,0 +1,10 @@
+name = "avelut-r2-media-worker"
+main = "worker.js"
+compatibility_date = "2024-04-01"
+
+# Bind your R2 Bucket here:
+# 1. Create a bucket in Cloudflare Dashboard: R2 -> Create Bucket (name e.g. "avelut-media")
+# 2. Run: npx wrangler deploy
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "avelut-media"

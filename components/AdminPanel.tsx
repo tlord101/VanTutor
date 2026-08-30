@@ -335,7 +335,18 @@ const sanitizeCourseFromRegistrationForm = (
     const courseTitle = (course?.course_title || course?.title || course?.course_name || course?.name || '').toString().trim();
     const fallbackName = courseCode || `Course ${index + 1}`;
     const courseName = courseTitle || fallbackName;
-    const level = normalizeLevel(overrideLevel || course?.level || extractedLevel);
+    // Intelligently determine level: check course code (e.g. CPE 211 -> 200lvl), then extracted document level, then course object, then override
+    const inferLevelFromCode = (code: string): string | undefined => {
+        const match = code.match(/\b([1-5])\d{2}\b/);
+        if (match && match[1]) {
+            return `${match[1]}00lvl`;
+        }
+        return undefined;
+    };
+
+    const codeInferredLevel = inferLevelFromCode(courseCode);
+    const rawLevel = course?.level || extractedLevel || codeInferredLevel || overrideLevel;
+    const level = normalizeLevel(rawLevel);
     const session = (overrideSession || course?.academic_session || course?.session || extractedSession || '').toString().trim();
     const semester = normalizeSemester((course?.semester || '').toString().trim().toLowerCase() as Course['semester']);
     const parsedUnit = Number.parseInt((course?.course_unit ?? course?.unit ?? '').toString().trim(), 10);
@@ -2174,7 +2185,7 @@ RULES:
 1. Output ONLY valid JSON.
 2. Root object must include:
    - academic_session (string, e.g. "2025/2026")
-   - level (string, e.g. "100lvl")
+   - level (CRITICAL: Look at the student header or level written on the form, e.g. "100 Level", "200 Level", "300 Level", "400 Level", "500 Level". Output strictly as "100lvl", "200lvl", "300lvl", "400lvl", or "500lvl". If course codes are 200-series like CPE 211, level is "200lvl").
    - courses (array)
 3. Each courses item must include:
    - code (string)
@@ -2188,13 +2199,13 @@ RULES:
 FORMAT:
 {
   "academic_session": "2025/2026",
-  "level": "100lvl",
+  "level": "200lvl",
   "courses": [
     {
-      "code": "GST 111",
-      "title": "COMMUNICATION IN ENGLISH",
+      "code": "CPE 211",
+      "title": "CIRCUIT THEORY",
       "semester": "first",
-      "unit": 2,
+      "unit": 3,
       "status": "C"
     }
   ]

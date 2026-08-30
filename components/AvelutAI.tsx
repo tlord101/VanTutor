@@ -29,6 +29,7 @@ import {
   renameLocalConversation,
 } from '../services/chatStorageService';
 import { getCachedAIResponse, setCachedAIResponse } from '../services/aiCacheService';
+import { uploadToR2, deleteFromR2, isR2Configured } from '../services/cloudflareR2Service';
 import { GeminiLiveVoiceClient } from '../services/voice/GeminiLiveVoiceClient';
 import { ChatIcon } from './icons/ChatIcon';
 import { XIcon } from './icons/XIcon';
@@ -653,6 +654,28 @@ const AnimatedMoonOrb: React.FC<AnimatedMoonOrbProps> = ({
 
 export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfig, unreadMessagesCount = 0 }: AvelutAIProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch && touch.clientX < 80) {
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    if (touch) {
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = touch.clientY - touchStartRef.current.y;
+      if (deltaX > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+        setIsSidebarOpen(true);
+      }
+    }
+    touchStartRef.current = null;
+  };
+
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -1520,6 +1543,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
     setIsSending(true);
     setStatusText('Thinking...');
     setInputState(1);
+    const ephemeralR2Keys: string[] = [];
 
     try {
       if (!ai) {
@@ -1579,6 +1603,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         const prefix = filesToSend.length > 1 ? `[File ${index + 1}/${filesToSend.length}] ` : '';
         setUploadProgress(`Processing ${prefix}${file.name}...`);
         setStatusText(`Processing ${prefix}${file.name}...`);
+
+        // If Cloudflare R2 is configured, upload ephemeral file to R2
+        if (isR2Configured()) {
+          try {
+            const r2Upload = await uploadToR2(file, {
+              burnAfterDownload: true,
+              fileName: file.name,
+              contentType: mimeType,
+              userId: userProfile.uid,
+            });
+            if (r2Upload.key) {
+              ephemeralR2Keys.push(r2Upload.key);
+            }
+          } catch (r2Err) {
+            console.warn('[AvelutAI] R2 ephemeral upload note:', r2Err);
+          }
+        }
 
         const { attachment, base64Data } = await prepareLocalChatAttachment(file, index);
         storedAttachments.push(attachment);
@@ -1911,6 +1952,11 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
       setIsSending(false);
       setStreamingBotText(null);
       setUploadProgress(null);
+
+      // Programmatically purge any ephemeral files from Cloudflare R2 after AI processing
+      if (ephemeralR2Keys && ephemeralR2Keys.length > 0) {
+        ephemeralR2Keys.forEach(key => void deleteFromR2(key));
+      }
     }
   };
 
@@ -2157,7 +2203,42 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         )}
 
         {/* Main Content Area */}
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-black">
+        <main 
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-black"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Mobile Top Bar with red notification badge on hamburger menu */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200/80 dark:border-white/10 md:hidden bg-white/90 dark:bg-black/90 backdrop-blur-md sticky top-0 z-20">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+              aria-label="Open menu"
+            >
+              <i className="bi bi-list text-2xl"></i>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                </span>
+              )}
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-base font-extrabold text-[#0F172A] dark:text-white tracking-tight">AVELUT AI</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+              aria-label="New chat"
+              title="New chat"
+            >
+              <i className="bi bi-pencil-square text-lg"></i>
+            </button>
+          </div>
 
           {isLiveVoiceMode ? (
             /* Live Voice Immersive Mode (Exact Replica of ChatGPT Voice Moon UI) */
@@ -2173,21 +2254,23 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           ) : (
             <>
               {/* Messages List Container */}
-            <section ref={sectionRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
+            <section ref={sectionRef} className="relative flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[100px] md:pb-5 sm:px-6 scroll-smooth">
               {messages.length === 0 ? (
-                <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-6 py-16 text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#0066FF] text-white shadow-lg">
-                    <ChatIcon className="h-10 w-10" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Ask AVELUT anything</h2>
-                    <p className="mt-2 max-w-xl text-slate-500 dark:text-gray-400">
-                      Get direct, step-by-step answers with clean LaTeX for equations, formulas, and proofs.
-                    </p>
-                  </div>
+                /* Faded Black/White Watermark Center Graphic - Clean & Minimal */
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+                  <img
+                    src="/logo_full_black.png"
+                    alt=""
+                    className="w-48 sm:w-64 h-auto opacity-[0.10] dark:hidden object-contain grayscale"
+                  />
+                  <img
+                    src="/logo_full_white.png"
+                    alt=""
+                    className="w-48 sm:w-64 h-auto opacity-[0.10] hidden dark:block object-contain"
+                  />
                 </div>
               ) : (
-                <div className="mx-auto flex w-full max-w-6xl min-h-full flex-col justify-end gap-4">
+                <div className="relative z-10 mx-auto flex w-full max-w-6xl min-h-full flex-col justify-end gap-4">
                   {displayMessages.map((message, idx) => {
                     // If this is the last bot message and it's redundant with streaming, hide it temporarily
                     if (streamingBotText !== null &&
@@ -2215,16 +2298,16 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                     href={message.attachments[0].url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-block overflow-hidden rounded-3xl border border-transparent bg-transparent transition-transform hover:scale-[1.01]"
+                                    className="inline-block overflow-hidden rounded-[20px] border border-transparent bg-transparent transition-transform hover:scale-[1.01]"
                                   >
                                     <img
                                       src={message.attachments[0].url}
                                       alt={message.attachments[0].name}
-                                      className="max-h-64 sm:max-h-80 w-auto rounded-3xl object-cover border border-transparent shadow-xs"
+                                      className="max-h-[360px] sm:max-h-[460px] w-full rounded-[20px] object-cover border border-transparent shadow-xs"
                                     />
                                   </a>
                                 ) : (
-                                  <div className={`grid gap-2 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                  <div className={`grid gap-2.5 ${message.attachments.some(item => item.isImage) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                                     {message.attachments.map(attachmentItem => (
                                       <a
                                         key={attachmentItem.id}
@@ -2234,7 +2317,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                                         className="overflow-hidden rounded-2xl border border-transparent bg-transparent text-slate-900 dark:text-white"
                                       >
                                         {attachmentItem.isImage ? (
-                                          <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-56 w-full object-cover rounded-2xl border border-transparent" />
+                                          <img src={attachmentItem.url} alt={attachmentItem.name} className="max-h-72 w-full object-cover rounded-2xl border border-transparent" />
                                         ) : (
                                           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 dark:bg-black/20 border border-white/10">
                                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 dark:bg-black/30 text-[10px] font-black uppercase text-white">

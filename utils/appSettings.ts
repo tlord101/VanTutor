@@ -120,7 +120,7 @@ export const DEFAULT_USAGE_SETTINGS = {
     },
   },
   feature_costs: {
-    live_tutorial: 300,           // ₦300 per full topic (pay-as-you-go)
+    live_tutorial: 150,           // ₦150 per full topic (pay-as-you-go)
     live_tutorial_question: 50,   // 50 credits per question asked during live tutorial
     flashcard_generation: 50,     // ₦50 per flashcard
     chat_interaction: 1,          // 1 credit per AI response (Notebook Chat & Study Guide Chat)
@@ -139,7 +139,7 @@ export const DEFAULT_USAGE_SETTINGS = {
     title_generation: 'gemini-3.1-flash-lite',
   },
   additional_prices: {
-    live_tutorial_pass: 300,
+    live_tutorial_pass: 150,
     flashcards_pack_10: 500,
     visual_messages_price: 200,
     visual_messages_count: 10,

@@ -1,4 +1,17 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { IncomingMessage, ServerResponse } from 'http';
+
+export type VercelRequest = IncomingMessage & {
+  body: any;
+  query: { [key: string]: string | string[] };
+  cookies: { [key: string]: string };
+  method?: string;
+};
+
+export type VercelResponse = ServerResponse & {
+  send: (body: any) => VercelResponse;
+  json: (jsonBody: any) => VercelResponse;
+  status: (statusCode: number) => VercelResponse;
+};
 import crypto from 'crypto';
 
 export const config = {

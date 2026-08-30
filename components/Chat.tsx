@@ -238,7 +238,7 @@ const TextChat: React.FC<{
                 setMessages(localMsgs.map(m => ({
                     id: m.id,
                     text: m.text,
-                    sender: m.sender as 'user' | 'ai',
+                    sender: (m.sender === 'user' ? 'user' : 'bot'),
                     timestamp: m.timestamp
                 })));
             }
@@ -372,7 +372,7 @@ const TextChat: React.FC<{
                 timestamp: Date.now()
             });
 
-            setMessages(prev => [...prev, { id: aiMsgId, text: responseText, sender: 'ai', timestamp: Date.now() }]);
+            setMessages(prev => [...prev, { id: aiMsgId, text: responseText, sender: 'bot', timestamp: Date.now() }]);
 
             push(messagesRef, {
                 text: responseText,

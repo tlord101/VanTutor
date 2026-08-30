@@ -39,7 +39,7 @@ export function getNextHint(
     question: LearningQuestion | null | undefined,
     state: HintState
 ): HintDelivery {
-    if (!question || !Array.isArray(question.hints) || question.hints.length === 0) {
+    if (!question || !question.hints || (question.hints as string[]).length === 0) {
         return {
             hintText: question?.expectedAnswer 
                 ? `The target answer is: ${question.expectedAnswer}`

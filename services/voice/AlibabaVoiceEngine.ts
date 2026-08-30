@@ -114,8 +114,8 @@ class AlibabaVoiceEngine {
       apiKey = options.apiKey?.trim() || '';
     }
 
-    const model = 'qwen3-tts-flash';
-    const voice = 'Jennifer';
+    const model = options.model || options.appSettings?.alibaba_voice_model || 'qwen3-tts-flash';
+    const voice = options.voice || options.appSettings?.alibaba_voice_name || 'Jennifer';
 
     let lastErr: Error | null = null;
 

@@ -288,7 +288,7 @@ export async function evaluateStudentAnswer(
     const aiRes = await evaluateWithAI(
         studentAnswer,
         question.expectedAnswer,
-        `Question: ${question.questionText}\nContext: ${dialogueContext}`,
+        `Question: ${question.question}\nContext: ${dialogueContext}`,
         aiClient,
         model
     );

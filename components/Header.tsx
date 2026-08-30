@@ -68,22 +68,29 @@ export const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-3.5 sm:px-6 md:px-8 py-2.5 sm:py-3.5 border-b border-[#E3E9F1] dark:border-slate-800 ${className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}>
-            {/* Left Slot: Back Button / Left Actions */}
-            <div className="flex items-center gap-2.5 min-w-[40px] shrink-0">
-                {leftActions}
-                {!hideTitle && !title && typeof currentPageLabel === 'string' && (
-                    <div className="flex items-center gap-3 min-w-0">
-                        <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#0F172A] dark:text-white tracking-tight uppercase truncate">
-                            {currentPageLabel}
-                        </h2>
-                        {userProfile?.use_personal_token && userProfile?.personal_api_key && (
-                            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                AI Token Active
+        <header className={`sticky top-0 z-50 flex-shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 py-2 border-b border-[#E3E9F1] dark:border-slate-800 ${className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}>
+            {/* Left Slot: Menu Hamburger with Red Badge / Back Button / Custom Left Actions */}
+            <div className="flex items-center gap-2 min-w-[40px] shrink-0">
+                {leftActions ? leftActions : (
+                    <button 
+                        onClick={onMenuClick}
+                        className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer md:hidden"
+                        aria-label="Open menu"
+                    >
+                        <i className="bi bi-list text-2xl"></i>
+                        {(unreadCount > 0 || unreadMessagesCount > 0) && (
+                            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
                             </span>
                         )}
-                    </div>
+                    </button>
+                )}
+                {userProfile?.use_personal_token && userProfile?.personal_api_key && (
+                    <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        AI Token Active
+                    </span>
                 )}
             </div>
 

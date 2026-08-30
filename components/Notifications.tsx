@@ -100,11 +100,11 @@ const resolveNotificationRoute = (notification: Notification): string | null => 
         case 'app_update':
         case 'welcome':
         case 'general_info':
-            return 'dashboard';
+            return 'chat';
         case 'personal':
             return 'messenger';
         default:
-            return null;
+            return 'chat';
     }
 };
 

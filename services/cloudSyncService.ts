@@ -1,5 +1,4 @@
-import { db } from '../firebase';
-import { ref as dbRef, set, update, remove, get } from 'firebase/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   getPendingSyncQueue,
   removeSyncQueueItem,
@@ -100,9 +99,9 @@ class CloudSyncEngine {
    */
   public async triggerSync(): Promise<void> {
     if (this.isSyncing) return;
-    if (!this.isOnline()) {
+    if (!this.isOnline() || !isSupabaseConfigured) {
       const queue = await getPendingSyncQueue();
-      this.updateStatus('offline', queue.length);
+      this.updateStatus(this.isOnline() ? 'synced' : 'offline', queue.length);
       return;
     }
 
@@ -115,7 +114,7 @@ class CloudSyncEngine {
         await this.processOutgoingSyncQueue(pendingItems);
       }
 
-      // Download downstream remote changes from Firebase if user is logged in
+      // Download downstream remote changes from Supabase if user is logged in
       if (this.currentUserId) {
         await this.pullDownstreamChanges(this.currentUserId);
       }
@@ -135,7 +134,7 @@ class CloudSyncEngine {
   }
 
   /**
-   * Push local SQLite mutations up to Firebase Realtime Database.
+   * Push local SQLite mutations up to Supabase.
    */
   private async processOutgoingSyncQueue(pendingItems: any[]): Promise<void> {
     for (const item of pendingItems) {
@@ -148,15 +147,23 @@ class CloudSyncEngine {
             if (!userId) break;
 
             if (item.action === 'delete') {
-              await remove(dbRef(db, `chat_conversations/${userId}/${item.entity_id}`));
-              await remove(dbRef(db, `chat_messages/${item.entity_id}`));
+              // Delete conversation from Supabase
+              await supabase
+                .from('messenger_conversations')
+                .delete()
+                .eq('id', item.entity_id);
             } else {
-              const convoRef = dbRef(db, `chat_conversations/${userId}/${item.entity_id}`);
-              await update(convoRef, {
-                title: payload.title || 'New Chat',
-                created_at: payload.created_at || Date.now(),
-                last_updated_at: payload.last_updated_at || Date.now(),
-              });
+              // Upsert conversation metadata
+              await supabase
+                .from('messenger_conversations')
+                .upsert({
+                  id: item.entity_id,
+                  user1_id: userId,
+                  user2_id: payload.other_user_id || userId,
+                  last_message_preview: payload.title || 'Conversation',
+                  last_message_time: new Date(payload.last_updated_at || Date.now()).toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
               await markConversationSynced(item.entity_id);
             }
             break;
@@ -164,54 +171,38 @@ class CloudSyncEngine {
 
           case 'message': {
             if (item.action === 'delete') {
-              // Not commonly single-deleted, but handled safely
-              await remove(dbRef(db, `chat_messages/${payload.conversation_id}/${item.entity_id}`));
+              await supabase
+                .from('messenger_messages')
+                .delete()
+                .eq('id', item.entity_id);
             } else {
-              const msgRef = dbRef(db, `chat_messages/${payload.conversation_id}/${item.entity_id}`);
-              await set(msgRef, {
-                sender: payload.sender,
-                text: payload.text,
-                attachments: payload.attachments_json ? JSON.parse(payload.attachments_json) : null,
-                image_url: payload.image_url || null,
-                timestamp: payload.timestamp || Date.now(),
-              });
+              await supabase
+                .from('messenger_messages')
+                .upsert({
+                  id: item.entity_id,
+                  conversation_id: payload.conversation_id,
+                  sender_id: payload.user_id || this.currentUserId,
+                  recipient_id: payload.recipient_id || payload.user_id || this.currentUserId,
+                  message_type: payload.image_url ? 'image' : 'text',
+                  text_content: payload.text,
+                  media_url: payload.image_url || null,
+                  created_at: new Date(payload.timestamp || Date.now()).toISOString(),
+                });
               await markMessageSynced(item.entity_id);
-            }
-            break;
-          }
-
-          case 'flashcard': {
-            const userId = payload.user_id || this.currentUserId;
-            if (!userId) break;
-            const fcRef = dbRef(db, `users/${userId}/flashcards/${item.entity_id}`);
-            if (item.action === 'delete') {
-              await remove(fcRef);
-            } else {
-              await set(fcRef, payload);
-            }
-            break;
-          }
-
-          case 'history': {
-            const userId = payload.user_id || this.currentUserId;
-            if (!userId) break;
-            const histRef = dbRef(db, `users/${userId}/history/${item.entity_id}`);
-            if (item.action === 'delete') {
-              await remove(histRef);
-            } else {
-              await set(histRef, payload);
             }
             break;
           }
 
           case 'app_state': {
             const userId = payload.userId || this.currentUserId;
-            if (userId) {
-              await set(dbRef(db, `user_cache/${userId}/${payload.key}`), {
-                category: payload.category,
-                payload: payload.payload,
-                updated_at: Date.now()
-              });
+            if (userId && payload.key === 'profile') {
+              await supabase
+                .from('profiles')
+                .upsert({
+                  id: userId,
+                  ...payload.payload,
+                  updated_at: new Date().toISOString(),
+                });
             }
             break;
           }
@@ -227,89 +218,70 @@ class CloudSyncEngine {
   }
 
   /**
-   * Pull latest conversations, exams, and history from Firebase and merge into local SQLite.
+   * Pull latest conversations and progress from Supabase and merge into local SQLite.
    */
   private async pullDownstreamChanges(userId: string): Promise<void> {
     try {
-      const conversationsRef = dbRef(db, `chat_conversations/${userId}`);
-      const snapshot = await get(conversationsRef);
+      const { data: conversations, error } = await supabase
+        .from('messenger_conversations')
+        .select('*')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .order('updated_at', { ascending: false });
 
-      if (snapshot.exists()) {
-        const val = snapshot.val() || {};
-        const remoteConversations: LocalConversation[] = [];
-
-        Object.keys(val).forEach((key) => {
-          const item = val[key];
-          if (item) {
-            remoteConversations.push({
-              id: key,
-              user_id: userId,
-              title: item.title || 'New Chat',
-              created_at: Number(item.created_at || Date.now()),
-              last_updated_at: Number(item.last_updated_at || item.created_at || Date.now()),
-              sync_status: 'synced',
-              is_deleted: 0,
-            });
-          }
-        });
-
-        if (remoteConversations.length > 0) {
-          await bulkUpsertRemoteConversations(remoteConversations);
-        }
+      if (error) {
+        console.warn('[CloudSync] Error fetching remote conversations:', error);
+        return;
       }
 
-      // Pull remote history into SQLite
-      const histRef = dbRef(db, `users/${userId}/history`);
-      const histSnap = await get(histRef);
-      if (histSnap.exists()) {
-        const histVal = histSnap.val() || {};
-        const { bulkUpsertRemoteMaterials } = await import('./materialStorageService');
-        const remoteMaterials = Object.keys(histVal).map(k => ({
-          ...histVal[k],
-          id: k
+      if (conversations && conversations.length > 0) {
+        const remoteConversations: LocalConversation[] = conversations.map(item => ({
+          id: item.id,
+          user_id: userId,
+          title: item.last_message_preview || 'Chat',
+          created_at: new Date(item.last_message_time || item.updated_at).getTime(),
+          last_updated_at: new Date(item.updated_at).getTime(),
+          sync_status: 'synced',
+          is_deleted: 0,
         }));
-        await bulkUpsertRemoteMaterials(userId, remoteMaterials);
+        await bulkUpsertRemoteConversations(remoteConversations);
       }
     } catch (err) {
-      console.warn('[CloudSync] Failed to pull downstream changes from Firebase:', err);
+      console.warn('[CloudSync] Failed to pull downstream changes from Supabase:', err);
     }
   }
 
   /**
-   * Pull messages for a specific conversation on-demand from Firebase and save to SQLite.
+   * Pull messages for a specific conversation on-demand from Supabase and save to SQLite.
    */
   public async pullMessagesForConversation(conversationId: string, userId: string): Promise<void> {
-    if (!conversationId || !this.isOnline()) return;
+    if (!conversationId || !this.isOnline() || !isSupabaseConfigured) return;
 
     try {
-      const messagesRef = dbRef(db, `chat_messages/${conversationId}`);
-      const snapshot = await get(messagesRef);
+      const { data: messages, error } = await supabase
+        .from('messenger_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
 
-      if (snapshot.exists()) {
-        const val = snapshot.val() || {};
-        const remoteMessages: LocalMessage[] = [];
+      if (error) {
+        console.warn(`[CloudSync] Error pulling messages for ${conversationId}:`, error);
+        return;
+      }
 
-        Object.keys(val).forEach((key) => {
-          const item = val[key];
-          if (item) {
-            remoteMessages.push({
-              id: key,
-              conversation_id: conversationId,
-              user_id: userId,
-              sender: item.sender || 'user',
-              text: item.text || '',
-              attachments_json: item.attachments ? JSON.stringify(item.attachments) : null,
-              image_url: item.image_url || null,
-              timestamp: Number(item.timestamp || Date.now()),
-              sync_status: 'synced',
-              is_deleted: 0,
-            });
-          }
-        });
-
-        if (remoteMessages.length > 0) {
-          await bulkUpsertRemoteMessages(remoteMessages);
-        }
+      if (messages && messages.length > 0) {
+        const remoteMessages: LocalMessage[] = messages.map(item => ({
+          id: item.id,
+          conversation_id: item.conversation_id,
+          user_id: item.sender_id,
+          sender: item.sender_id === userId ? 'user' : 'assistant',
+          text: item.text_content || '',
+          attachments_json: null,
+          image_url: item.media_url || null,
+          timestamp: new Date(item.created_at).getTime(),
+          sync_status: 'synced',
+          is_deleted: 0,
+        }));
+        await bulkUpsertRemoteMessages(remoteMessages);
       }
     } catch (err) {
       console.warn(`[CloudSync] Failed to pull messages for conversation ${conversationId}:`, err);
@@ -318,3 +290,4 @@ class CloudSyncEngine {
 }
 
 export const cloudSyncEngine = new CloudSyncEngine();
+export default cloudSyncEngine;

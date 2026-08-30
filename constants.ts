@@ -6,6 +6,7 @@ import { DashboardIcon } from './components/icons/DashboardIcon';
 import { StudyGuideIcon } from './components/icons/StudyGuideIcon';
 import { CameraIcon } from './components/icons/CameraIcon';
 import { ChatIcon } from './components/icons/ChatIcon';
+import { AIIcon } from './components/icons/AIIcon';
 import { HelpIcon } from './components/icons/HelpIcon';
 import { GraduationCapIcon } from './components/icons/GraduationCapIcon';
 import { LeaderboardIcon } from './components/icons/LeaderboardIcon';
@@ -73,12 +74,11 @@ const FeedbackIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' 
 );
 
 export const navigationItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: React.createElement(DashboardIcon) },
-  { id: 'leaderboard', label: 'Leaderboard', icon: React.createElement(LeaderboardIcon) },
-  { id: 'study_guide', label: 'MY NOTEBOOKS', icon: React.createElement(StudyGuideIcon) },
-  { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
-  { id: 'chat', label: 'Chat', icon: React.createElement(ChatIcon) },
+  { id: 'chat', label: 'Avelut AI', icon: React.createElement(AIIcon) },
+  { id: 'study_guide', label: 'My Notebooks', icon: React.createElement(StudyGuideIcon) },
   { id: 'messenger', label: 'Messages', icon: React.createElement(MessengerIcon) },
+  { id: 'visual_solver', label: 'Visual Solver', icon: React.createElement(CameraIcon) },
+  { id: 'leaderboard', label: 'Leaderboard', icon: React.createElement(LeaderboardIcon) },
   { id: 'history', label: 'History', icon: React.createElement(HistoryIcon) },
   { id: 'feedback', label: 'Feedback', icon: React.createElement(FeedbackIcon) },
 ];

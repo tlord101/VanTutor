@@ -1,5 +1,4 @@
-import { db } from '../firebase';
-import { ref as dbRef, get, onValue } from 'firebase/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile } from '../types';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 
@@ -28,18 +27,39 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
         // Continue to network fetch
     }
 
+    if (!isSupabaseConfigured) return null;
+
     try {
-        const snap = await get(dbRef(db, `users/${uid}`));
-        if (snap.exists()) {
-            const data = snap.val();
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', uid)
+            .maybeSingle();
+
+        if (error) {
+            console.warn(`[UserProfileService] Error fetching profile for ${uid}:`, error);
+            return null;
+        }
+
+        if (data) {
             const profile: UserProfile = {
-                uid,
-                display_name: data.displayName || data.display_name || 'User',
-                photo_url: data.photoURL || data.photo_url || '',
-                ...data
+                uid: data.id,
+                display_name: data.full_name || data.username || 'User',
+                photo_url: data.avatar_url || '',
+                email: data.email || '',
+                school_id: data.school_id,
+                department_id: data.department_id,
+                level: data.level,
+                xp: data.xp || 0,
+                current_streak: data.streak || 0,
+                last_activity_date: Date.now(),
+                notifications_enabled: true,
+                ai_credits_balance: data.ai_credits ?? 50,
+                is_admin: data.is_admin || false,
+                subscription_status: data.is_paid_subscriber ? 'semester' : (data.subscription_status || 'free'),
             };
             profileMemoryCache.set(uid, profile);
-            writeCachedJson(`user_profile_${uid}`, profile);
+            try { writeCachedJson(`user_profile_${uid}`, profile); } catch {}
             return profile;
         }
     } catch (err) {
@@ -56,22 +76,45 @@ export const getMultipleUserProfiles = async (uids: string[]): Promise<UserProfi
 };
 
 export const subscribeUserProfile = (uid: string, callback: (profile: UserProfile | null) => void) => {
-    if (!uid) return () => {};
-    const userRef = dbRef(db, `users/${uid}`);
-    return onValue(userRef, (snap) => {
-        if (snap.exists()) {
-            const data = snap.val();
-            const profile: UserProfile = {
-                uid,
-                display_name: data.displayName || data.display_name || 'User',
-                photo_url: data.photoURL || data.photo_url || '',
-                ...data
-            };
-            profileMemoryCache.set(uid, profile);
-            writeCachedJson(`user_profile_${uid}`, profile);
-            callback(profile);
-        } else {
-            callback(null);
-        }
-    });
+    if (!uid || !isSupabaseConfigured) return () => {};
+
+    // Initial fetch
+    void getUserProfile(uid).then(p => callback(p));
+
+    // Realtime subscription on profiles table
+    const channel = supabase
+        .channel(`profile_changes_${uid}`)
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+            (payload) => {
+                if (payload.new && (payload.new as any).id) {
+                    const data = payload.new as any;
+                    const profile: UserProfile = {
+                        uid: data.id,
+                        display_name: data.full_name || data.username || 'User',
+                        photo_url: data.avatar_url || '',
+                        email: data.email || '',
+                        school_id: data.school_id,
+                        department_id: data.department_id,
+                        level: data.level,
+                        xp: data.xp || 0,
+                        current_streak: data.streak || 0,
+                        last_activity_date: Date.now(),
+                        notifications_enabled: true,
+                        ai_credits_balance: data.ai_credits ?? 50,
+                        is_admin: data.is_admin || false,
+                        subscription_status: data.is_paid_subscriber ? 'semester' : (data.subscription_status || 'free'),
+                    };
+                    profileMemoryCache.set(uid, profile);
+                    try { writeCachedJson(`user_profile_${uid}`, profile); } catch {}
+                    callback(profile);
+                }
+            }
+        )
+        .subscribe();
+
+    return () => {
+        void supabase.removeChannel(channel);
+    };
 };

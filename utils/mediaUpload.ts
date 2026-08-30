@@ -75,6 +75,64 @@ const guessMimeFromUri = (uri: string): string => {
   }
 };
 
+/**
+ * Automatically compress large phone camera images (12-48MP, 5-15MB) into high-quality
+ * web-optimized JPEG blobs (max 1600px dimension, ~150-350KB) for instantaneous, reliable mobile sending.
+ */
+export const compressImageBlob = async (blob: Blob, maxDimension = 1600, quality = 0.82): Promise<Blob> => {
+  if (typeof window === 'undefined' || !blob.type.startsWith('image/') || blob.type === 'image/gif' || blob.type === 'image/svg+xml') {
+    return blob;
+  }
+
+  return new Promise<Blob>((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension && blob.size < 500 * 1024) {
+        return resolve(blob);
+      }
+
+      if (width > height) {
+        if (width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        }
+      } else {
+        if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(blob);
+
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (compressedBlob) => {
+          if (compressedBlob && compressedBlob.size < blob.size) {
+            resolve(compressedBlob);
+          } else {
+            resolve(blob);
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(blob);
+    };
+    img.src = url;
+  });
+};
+
 export interface SourceBlob {
   blob: Blob;
   mimeType: string;
@@ -88,10 +146,16 @@ export interface SourceBlob {
 export const sourceToBlob = async (source: unknown): Promise<SourceBlob> => {
   if (!source) throw new Error('No media source provided.');
 
-  // Real File/Blob coming from <input type="file"> or MediaRecorder — use directly.
+  // Real File/Blob coming from <input type="file"> or MediaRecorder — compress if image and use.
   if (typeof Blob !== 'undefined' && source instanceof Blob) {
     if (source.size === 0) throw new Error('Selected media is empty.');
-    return { blob: source, mimeType: (source as File).type || source.type || '' };
+    let mimeType = (source as File).type || source.type || '';
+    let finalBlob = source;
+    if (mimeType.startsWith('image/')) {
+      finalBlob = await compressImageBlob(source);
+      mimeType = finalBlob.type || mimeType;
+    }
+    return { blob: finalBlob, mimeType };
   }
 
   if (typeof source !== 'string' || !source.trim()) throw new Error('Invalid media source.');

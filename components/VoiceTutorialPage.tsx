@@ -24,6 +24,7 @@ import { LimitExceededModal } from './LimitExceededModal';
 import { unifiedVoiceRouter, unifiedTts } from '../services/voice/UnifiedVoiceRouter';
 import { sanitizeAndValidateSvg, SVG_REALISTIC_ILLUSTRATION_SYSTEM_PROMPT } from '../services/svgIllustrationEngine';
 import { deductAICredits, getFeatureCost, checkAICredits, isPaidSubscriber, isExempt } from '../utils/usage';
+import { TeachingEngineSessionView } from './tutorial/TeachingEngineSessionView';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BOARD_LINES = 6;
@@ -224,6 +225,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [limitModalData, setLimitModalData] = useState<{ cost: number; balance: number }>({ cost: 1, balance: 0 });
     const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+    const [useTeachingEngine, setUseTeachingEngine] = useState(true);
 
     // ── Refs ────────────────────────────────────────────────────────────
     const boardScrollRef            = useRef<HTMLDivElement | null>(null);
@@ -952,13 +954,13 @@ OUTPUT VALID JSON ONLY:
         let lesson: SinglePassTopicLesson | null = cachedLesson || (sqliteRecord?.blueprint ? (sqliteRecord.blueprint as SinglePassTopicLesson) : null);
 
         if (!lesson || !lesson.boards || lesson.boards.length === 0) {
-            const tutorialCost = getFeatureCost('live_tutorial', appSettings) || 300;
+            const tutorialCost = getFeatureCost('live_tutorial', appSettings) || 150;
             if (userProfile && !isPaidSubscriber(userProfile) && !isExempt(userProfile)) {
                 const creditCheck = checkAICredits(userProfile, tutorialCost, appSettings);
                 if (!creditCheck.allowed) {
                     setLimitModalData({ cost: tutorialCost, balance: creditCheck.balance });
                     setShowLimitModal(true);
-                    addToast('Live tutorial requires a subscription or at least 300 credits.', 'error');
+                    addToast('Live tutorial requires a subscription or at least 150 credits.', 'error');
                     return;
                 }
             }
@@ -1147,7 +1149,7 @@ At the very end say exactly: "Now, let us continue our lesson."`;
             const tidQA = sessionData?.topic?.topic_id || 'core';
             unifiedVoiceRouter.playSpeech(cleanedAnswer, {
                 appSettings,
-                context: isNotebook ? 'notebook' : 'study_guide',
+                context: (sessionData?.source === 'notebook') ? 'notebook' : 'study_guide',
                 withTimestamps: true,
                 cacheKey: `avelut_${cidQA}_${tidQA}_qa_${simpleHash(cleanedAnswer)}`,
                 onEnd: () => {
@@ -1418,6 +1420,17 @@ At the very end say exactly: "Now, let us continue our lesson."`;
     const currentBoard = lessonPlan?.boards?.[boardIndex];
 
     // ── Render ──────────────────────────────────────────────────────────
+    if (useTeachingEngine) {
+        return (
+            <TeachingEngineSessionView
+                topicTitle={sessionData?.topic?.topic_name || sessionData?.customPrompt || 'Live Tutorial'}
+                courseName={sessionData?.course?.course_name || 'Academic Topic'}
+                syllabusContext={sessionData?.syllabusContext}
+                onClose={handleGoBack}
+            />
+        );
+    }
+
     return (
         <div className="flex-1 w-full h-full flex flex-col bg-[#F6F6F3] text-[#0F172A] overflow-hidden select-none relative">
 

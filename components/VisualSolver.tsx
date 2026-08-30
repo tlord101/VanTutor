@@ -224,7 +224,7 @@ interface TutorialDisplayProps {
     tutorialText: string;
     onClose: () => void;
     userProfile: UserProfile;
-    onStartChat?: (payload: VisualSolverChatPayload | string, tutorialText?: string) => void;
+    onStartChat?: (payload: any, tutorialText?: string) => void;
 }
 
 const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutorialText, onClose, userProfile, onStartChat }) => {
@@ -849,7 +849,7 @@ export interface VisualSolverChatPayload {
 
 interface VisualSolverProps {
   userProfile: UserProfile;
-  onStartChat?: (payload: VisualSolverChatPayload | string, tutorialText?: string) => void;
+  onStartChat?: (payload: any, tutorialText?: string) => void;
   triggerScanRef?: React.MutableRefObject<(() => void) | null>;
 }
 

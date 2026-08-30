@@ -12,6 +12,7 @@ import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remov
 import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { sourceToBlob, uploadBlobWithRetry, type SourceBlob } from '../utils/mediaUpload';
+import { uploadToR2, isR2Configured } from '../services/cloudflareR2Service';
 import { useTheme } from '../contexts/ThemeContext';
 import { TypingIndicator } from './TypingIndicator';
 import { getMultipleUserProfiles } from '../services/userProfileService';
@@ -195,7 +196,7 @@ const ProgressiveImageBubble: React.FC<{
 
   return (
     <div
-      className="relative overflow-hidden rounded-[16px] max-w-[280px] sm:max-w-[340px] w-full min-h-[160px] max-h-[260px] bg-black/5 dark:bg-white/5 cursor-pointer select-none flex items-center justify-center"
+      className="relative overflow-hidden rounded-[20px] max-w-[340px] sm:max-w-[440px] md:max-w-[500px] w-full min-h-[200px] max-h-[380px] sm:max-h-[460px] bg-black/5 dark:bg-white/5 cursor-pointer select-none flex items-center justify-center shadow-xs"
       onClick={() => onPreview(src || microThumbnail || '')}
     >
       {/* 1. Micro Thumbnail (Instant 0ms blur placeholder from chat payload) */}
@@ -213,13 +214,13 @@ const ProgressiveImageBubble: React.FC<{
           src={src}
           alt=""
           onLoad={() => setIsLoaded(true)}
-          className={`w-full max-h-[260px] object-cover transition-opacity duration-300 ${
+          className={`w-full h-auto max-h-[380px] sm:max-h-[460px] object-cover transition-opacity duration-300 ${
             isLoaded ? 'opacity-100' : microThumbnail ? 'opacity-0' : 'opacity-100'
           }`}
         />
       ) : !microThumbnail ? (
-        <div className="h-[180px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
-          <svg className="animate-spin h-5 w-5 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div className="h-[200px] w-full flex flex-col items-center justify-center text-xs text-neutral-400 gap-2 font-medium">
+          <svg className="animate-spin h-6 w-6 text-[#009EE2]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -229,13 +230,13 @@ const ProgressiveImageBubble: React.FC<{
 
       {/* 3. WhatsApp-style sending badge */}
       {isUploading && (
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-10">
-          <div className="flex items-center gap-2 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-md">
+        <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-10">
+          <div className="flex items-center gap-2.5 bg-black/75 text-white text-xs font-semibold px-4 py-2 rounded-full backdrop-blur-md shadow-lg">
             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Sending...</span>
+            <span>Sending image...</span>
           </div>
         </div>
       )}
@@ -949,12 +950,13 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
         reader.readAsDataURL(file);
       });
     }
+    e.target.value = '';
   };
 
   return (
     <div className={`w-full relative select-none z-40 bg-transparent pb-2 pt-2 md:w-full md:mx-auto ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <input type="file" ref={fileInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
-      <input type="file" ref={imageInputRef} onClick={(e: any) => { e.target.value = null; }} onChange={handleInternalImageSelect} className="hidden" accept="image/*" multiple />
+      <input type="file" ref={fileInputRef} onChange={onFileSelect} className="hidden" multiple accept="*/*" />
+      <input type="file" ref={imageInputRef} onChange={handleInternalImageSelect} className="hidden" accept="image/*" multiple />
 
       {isRecording && !isLocked && (
         <div
@@ -1098,6 +1100,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
   const [showDeleteChatConfirmDialog, setShowDeleteChatConfirmDialog] = useState(false);
+  const [pinnedChatIds, setPinnedChatIds] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(`avelut_pinned_chats_${userProfile.uid}`, {}));
+  const [mutedChatIds, setMutedChatIds] = useState<Record<string, boolean>>(() => readCachedJson<Record<string, boolean>>(`avelut_muted_chats_${userProfile.uid}`, {}));
+  const [showSelectedMenu, setShowSelectedMenu] = useState(false);
+  const selectedMenuRef = useRef<HTMLDivElement>(null);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [partnerModalTab, setPartnerModalTab] = useState<'mates' | 'find_requests'>('mates');
   const [partnerModalSubView, setPartnerModalSubView] = useState<'all' | 'incoming' | 'sent'>('all');
@@ -1363,19 +1369,26 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   }, [firebaseUser]);
 
   const activeChats = useMemo(() => {
-    const list = chats.filter(c => {
+    let list = chats.filter(c => {
       const partnerId = c.otherUserId || c.otherUser?.uid;
       return studyPartners[partnerId] === true;
     });
-    if (!chatSearchQuery.trim()) return list;
-    const queryLower = chatSearchQuery.toLowerCase();
-    return list.filter(c => {
-      const name = (c.otherUser?.display_name || '').toLowerCase();
-      const dept = (c.otherUser?.department_id || '').toLowerCase();
-      const lastMsg = (getLastMessagePreview(c)).toLowerCase();
-      return name.includes(queryLower) || dept.includes(queryLower) || lastMsg.includes(queryLower);
+    if (chatSearchQuery.trim()) {
+      const queryLower = chatSearchQuery.toLowerCase();
+      list = list.filter(c => {
+        const name = (c.otherUser?.display_name || '').toLowerCase();
+        const dept = (c.otherUser?.department_id || '').toLowerCase();
+        const lastMsg = (getLastMessagePreview(c)).toLowerCase();
+        return name.includes(queryLower) || dept.includes(queryLower) || lastMsg.includes(queryLower);
+      });
+    }
+    return list.sort((a, b) => {
+      const aPinned = pinnedChatIds[a.id] ? 1 : 0;
+      const bPinned = pinnedChatIds[b.id] ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return (b.timestamp || 0) - (a.timestamp || 0);
     });
-  }, [chats, studyPartners, chatSearchQuery]);
+  }, [chats, studyPartners, chatSearchQuery, pinnedChatIds]);
 
   const confirmedStudyPartnersList = useMemo(() => {
     const list = allUsers.filter(u => studyPartners[u.uid] === true);
@@ -2045,13 +2058,34 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     };
 
     try {
-      // Fast direct single-step upload to destination path (bypasses redundant temp download/re-upload)
-      const permanentUrl = await uploadBlobWithRetry(
-        storage,
-        sourceBlob.blob,
-        cloudPath,
-        { contentType: rawMime || undefined, attempts: 2, timeoutMs: 30000 }
-      );
+      let permanentUrl = '';
+
+      // 1. High-speed zero-egress Cloudflare R2 upload with auto burn-after-download
+      if (isR2Configured()) {
+        try {
+          const r2Res = await uploadToR2(sourceBlob.blob, {
+            burnAfterDownload: true,
+            fileName,
+            contentType: rawMime || undefined,
+            userId: firebaseUser.uid,
+          });
+          if (r2Res.success && r2Res.url) {
+            permanentUrl = r2Res.url;
+          }
+        } catch (r2Err) {
+          console.warn('[Messenger] Cloudflare R2 upload error, falling back to standard storage:', r2Err);
+        }
+      }
+
+      // 2. Resilient fallback to Firebase / Supabase Storage
+      if (!permanentUrl) {
+        permanentUrl = await uploadBlobWithRetry(
+          storage,
+          sourceBlob.blob,
+          cloudPath,
+          { contentType: rawMime || undefined, attempts: 2, timeoutMs: 30000 }
+        );
+      }
 
       // Clean up optimistic state and broadcast real message to chat thread
       setOptimisticMessages(prev => prev.filter((m: any) => m.id !== tempId));
@@ -2444,18 +2478,22 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     if (!setCustomHeaderConfig) return;
 
     if (selectedChatIds.length > 0) {
+      const isAllMuted = selectedChatIds.every(id => mutedChatIds[id]);
+      const isAllPinned = selectedChatIds.every(id => pinnedChatIds[id]);
+
       setCustomHeaderConfig({
         title: (
           <div className="flex items-center gap-3 w-full">
             <button
               type="button"
-              onClick={() => setSelectedChatIds([])}
+              onClick={() => {
+                setSelectedChatIds([]);
+                setShowSelectedMenu(false);
+              }}
               className="w-9 h-9 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+              aria-label="Cancel selection"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
+              <i className="bi bi-arrow-left text-xl"></i>
             </button>
             <span className="text-lg font-bold text-slate-900 dark:text-white">
               {selectedChatIds.length}
@@ -2464,14 +2502,24 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         ),
         leftActions: null,
         rightActions: (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 relative">
             <button
               type="button"
-              onClick={() => addToast('Chat pinned.', 'info')}
+              onClick={() => {
+                setPinnedChatIds(prev => {
+                  const next = { ...prev };
+                  const targetState = !isAllPinned;
+                  selectedChatIds.forEach(id => { next[id] = targetState; });
+                  writeCachedJson(`avelut_pinned_chats_${userProfile.uid}`, next, userProfile.uid);
+                  addToast(targetState ? 'Chat pinned.' : 'Chat unpinned.', 'info');
+                  return next;
+                });
+                setSelectedChatIds([]);
+              }}
               className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-              title="Pin chat"
+              title={isAllPinned ? "Unpin chat" : "Pin chat"}
             >
-              <i className="bi bi-[#009EE2] bi-pin-angle-fill text-lg"></i>
+              <i className={`bi ${isAllPinned ? 'bi-pin-angle-fill text-[#0066FF]' : 'bi-pin-angle'} text-lg`}></i>
             </button>
             <button
               type="button"
@@ -2483,20 +2531,83 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             </button>
             <button
               type="button"
-              onClick={() => addToast('Notifications muted.', 'info')}
+              onClick={() => {
+                setMutedChatIds(prev => {
+                  const next = { ...prev };
+                  const targetState = !isAllMuted;
+                  selectedChatIds.forEach(id => { next[id] = targetState; });
+                  writeCachedJson(`avelut_muted_chats_${userProfile.uid}`, next, userProfile.uid);
+                  addToast(targetState ? 'Notifications muted.' : 'Notifications unmuted.', 'info');
+                  return next;
+                });
+                setSelectedChatIds([]);
+              }}
               className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-              title="Mute notifications"
+              title={isAllMuted ? "Unmute notifications" : "Mute notifications"}
             >
-              <i className="bi bi-bell-slash text-lg"></i>
+              <i className={`bi ${isAllMuted ? 'bi-volume-up' : 'bi-volume-mute'} text-lg`}></i>
             </button>
-            <button
-              type="button"
-              onClick={() => addToast('Options', 'info')}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-              title="More options"
-            >
-              <i className="bi bi-three-dots-vertical text-lg"></i>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSelectedMenu(prev => !prev)}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                title="More options"
+              >
+                <i className="bi bi-three-dots-vertical text-lg"></i>
+              </button>
+              {showSelectedMenu && (
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 origin-top-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (firebaseUser) {
+                        const updates: Record<string, any> = {};
+                        selectedChatIds.forEach(id => {
+                          updates[`user_chats/${firebaseUser.uid}/${id}/unreadCount`] = 1;
+                        });
+                        update(dbRef(db), updates).catch(console.error);
+                      }
+                      addToast('Marked as unread.', 'info');
+                      setSelectedChatIds([]);
+                      setShowSelectedMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Mark as unread
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (firebaseUser) {
+                        for (const chatId of selectedChatIds) {
+                          const chat = chats.find(c => c.id === chatId);
+                          if (chat?.otherUser?.uid) {
+                            await set(dbRef(db, `users/${firebaseUser.uid}/blocked_users/${chat.otherUser.uid}`), true);
+                          }
+                        }
+                        addToast('User blocked.', 'success');
+                      }
+                      setSelectedChatIds([]);
+                      setShowSelectedMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                  >
+                    Block User
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReportModal(true);
+                      setShowSelectedMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Report User
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ),
         className: 'bg-white dark:bg-[#1F2C34] shadow-md h-16 border-b border-slate-200 dark:border-slate-800',
@@ -2922,10 +3033,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                 isMe={isMe}
                                 isUploading={msg.isUploading}
                               />
-                            ) : msg.type === 'image' ? (
-                              <div className="rounded-[16px] overflow-hidden max-w-[280px] sm:max-w-[340px] w-full bg-transparent relative flex flex-col">
+                            ) : (msg.type === 'image' || Boolean(imageUrl) || /!\[.*?\]\(.*?\)/.test(rawText)) ? (
+                              <div className="rounded-[20px] overflow-hidden max-w-[340px] sm:max-w-[440px] md:max-w-[500px] w-full bg-transparent relative flex flex-col">
                                 <ProgressiveImageBubble
-                                  src={imageUrl}
+                                  src={imageUrl || resolveImageDisplayUrl(msg)}
                                   microThumbnail={msg.microThumbnail}
                                   isUploading={msg.isUploading}
                                   onPreview={(url) => setPreviewImageUrl(url)}
@@ -2934,10 +3045,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
                                   const extractedCaption = extractImageCaption(rawText);
                                   if (!extractedCaption) return null;
                                   return (
-                                    <div className="message-text">
+                                    <div className="message-text mt-1.5 px-1">
                                       <ReactMarkdown
                                         components={{
-                                          p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} />,
+                                          p: ({ node, ...props }: any) => <p className="m-0 inline text-sm sm:text-base leading-relaxed" {...props} />,
                                           a: ({ node, ...props }: any) => <a className="text-[#009EE2] underline break-all" target="_blank" rel="noreferrer" {...props} />
                                         }}
                                       >

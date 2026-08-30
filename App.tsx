@@ -709,16 +709,38 @@ const App: React.FC = () => {
 
 
 
+    const globalTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+    const handleGlobalTouchStart = (e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        if (touch && touch.clientX < Math.max(60, window.innerWidth * 0.18)) {
+            globalTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        }
+    };
+
+    const handleGlobalTouchEnd = (e: React.TouchEvent) => {
+        if (!globalTouchStartRef.current) return;
+        const touch = e.changedTouches[0];
+        if (touch) {
+            const deltaX = touch.clientX - globalTouchStartRef.current.x;
+            const deltaY = touch.clientY - globalTouchStartRef.current.y;
+            if (deltaX > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+                setIsMobileSidebarOpen(true);
+            }
+        }
+        globalTouchStartRef.current = null;
+    };
+
     useEffect(() => {
         const handleGoBack = () => {
             setNavHistory(prev => {
                 if (prev.length === 0) {
-                    setActiveItemState('dashboard');
+                    setActiveItemState('chat');
                     return prev;
                 }
                 const newHistory = [...prev];
                 const lastRoute = newHistory.pop();
-                setActiveItemState(lastRoute || 'dashboard');
+                setActiveItemState(lastRoute || 'chat');
                 return newHistory;
             });
         };
@@ -848,7 +870,7 @@ const App: React.FC = () => {
     const tourStatusRef = useRef<'unknown' | 'checked' | 'shown'>('unknown');
 
     const startTour = useCallback(() => {
-        setActiveItem('dashboard');
+        setActiveItem('chat');
         setTimeout(() => setIsTourOpen(true), 300);
     }, [setActiveItem]);
 
@@ -1489,7 +1511,7 @@ const App: React.FC = () => {
             });
             
             setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
-            setActiveItem('dashboard');
+            setActiveItem('chat');
             addToast("Profile completed successfully!", "success");
         } catch (error: any) {
             console.error("Failed to complete onboarding:", error.message || error);
@@ -1772,7 +1794,11 @@ const App: React.FC = () => {
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <div className="flex h-screen w-full bg-off-white dark:bg-black font-sans text-charcoal dark:text-white selection:bg-brand-200 selection:text-brand-900 overflow-hidden">
+        <div 
+            className="flex h-screen w-full bg-off-white dark:bg-black font-sans text-charcoal dark:text-white selection:bg-brand-200 selection:text-brand-900 overflow-hidden"
+            onTouchStart={handleGlobalTouchStart}
+            onTouchEnd={handleGlobalTouchEnd}
+        >
             <NativePullToRefresh />
 
             <AppUpdateDropModal

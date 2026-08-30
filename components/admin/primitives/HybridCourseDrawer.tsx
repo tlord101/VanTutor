@@ -285,12 +285,29 @@ OUTPUT ONLY A VALID JSON OBJECT:
                 const isExist = Boolean(globalEntry);
                 const existingDepts = globalEntry?.linked_departments || [];
 
+                // Check level from item or code digits (e.g. 211 -> 200lvl)
+                const inferLvl = (rawLvl?: string, code?: string): string => {
+                    if (rawLvl) {
+                        const clean = rawLvl.toLowerCase().replace(/\s+/g, '');
+                        if (LEVELS.includes(clean)) return clean;
+                        const match = clean.match(/\d+/);
+                        if (match && LEVELS.includes(`${match[0]}lvl`)) return `${match[0]}lvl`;
+                    }
+                    if (code) {
+                        const codeMatch = code.match(/\b([1-5])\d{2}\b/);
+                        if (codeMatch && codeMatch[1]) return `${codeMatch[1]}00lvl`;
+                    }
+                    return '100lvl';
+                };
+
+                const resolvedLevel = inferLvl(item.level, courseCode);
+
                 return {
                     course_id: courseId,
                     course_code: courseCode,
                     course_name: courseName || 'Untitled Course',
                     course_unit: Number(item.course_unit) || 3,
-                    level: item.level && LEVELS.includes(item.level) ? item.level : '100lvl',
+                    level: resolvedLevel,
                     semester: item.semester === 'second' ? 'second' : 'first',
                     isGlobalExist: isExist,
                     existingLinkedDepts: existingDepts,

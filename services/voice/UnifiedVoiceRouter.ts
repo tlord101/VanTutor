@@ -68,6 +68,8 @@ class UnifiedVoiceRouter {
     if (provider === 'alibaba') {
       return alibabaVoiceEngine.playSpeech(text, {
         appSettings: options.appSettings,
+        voice: options.voice || options.appSettings?.alibaba_voice_name || 'Jennifer',
+        model: 'qwen3-tts-flash',
         speed: options.speed,
         apiKey: options.appSettings?.alibaba_api_key,
         cacheKey: options.cacheKey,
@@ -132,7 +134,7 @@ class UnifiedVoiceRouter {
     }
 
     if (provider === 'grok') {
-      grokVoiceEngine.prefetchSpeech(text, cacheKey, {
+      void grokVoiceEngine.fetchGrokSpeech(text, {
         voice: options.voice || options.appSettings?.grok_voice_id || 'altair',
         language: options.language,
         withTimestamps: options.withTimestamps !== false,

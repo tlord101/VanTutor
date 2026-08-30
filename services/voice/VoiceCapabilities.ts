@@ -20,9 +20,9 @@ export async function detectVoiceCapabilities(): Promise<HardwareVoiceCapabiliti
     let hasAudioContext = typeof window !== 'undefined' && ('AudioContext' in window || 'webkitAudioContext' in window);
 
     // 1. Detect WebGPU with active adapter verification
-    if (typeof navigator !== 'undefined' && 'gpu' in navigator && navigator.gpu) {
+    if (typeof navigator !== 'undefined' && 'gpu' in navigator && (navigator as any).gpu) {
         try {
-            const adapter = await navigator.gpu.requestAdapter();
+            const adapter = await (navigator as any).gpu.requestAdapter();
             if (adapter) {
                 hasWebGPU = true;
             }
