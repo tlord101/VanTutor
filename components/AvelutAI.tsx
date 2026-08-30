@@ -1283,7 +1283,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
             aria-label="New chat"
             title="New chat"
           >
-            <PlusIcon />
+            <i className="bi bi-pencil-square text-base"></i>
           </button>
         ),
         className: 'bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-slate-200/60 dark:border-white/5'
@@ -2208,38 +2208,6 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Mobile Top Bar with red notification badge on hamburger menu */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-200/80 dark:border-white/10 md:hidden bg-white/90 dark:bg-black/90 backdrop-blur-md sticky top-0 z-20">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
-              aria-label="Open menu"
-            >
-              <i className="bi bi-list text-2xl"></i>
-              {unreadMessagesCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                </span>
-              )}
-            </button>
-
-            <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold text-[#0F172A] dark:text-white tracking-tight">AVELUT AI</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
-              aria-label="New chat"
-              title="New chat"
-            >
-              <i className="bi bi-pencil-square text-lg"></i>
-            </button>
-          </div>
-
           {isLiveVoiceMode ? (
             /* Live Voice Immersive Mode (Exact Replica of ChatGPT Voice Moon UI) */
             <div className="relative flex-1 flex flex-col justify-center items-center w-full h-full p-4 sm:p-6 overflow-hidden animate-fade-in">
