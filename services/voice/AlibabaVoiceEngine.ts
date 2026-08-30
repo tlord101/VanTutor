@@ -155,10 +155,10 @@ class AlibabaVoiceEngine {
       lastErr = e;
     }
 
-    // 2. Direct client call fallback if proxy is unreachable / 404
-    if (!apiKey) {
+    // 2. Direct client call fallback only for native apps (Capacitor/Node) where CORS does not apply
+    if (!isNative || !apiKey) {
       console.warn('[AlibabaVoiceEngine] TTS fetch error:', lastErr);
-      throw lastErr || new Error('Alibaba API key is not configured');
+      throw lastErr || new Error('Alibaba TTS proxy failed or API key is not configured');
     }
 
     try {

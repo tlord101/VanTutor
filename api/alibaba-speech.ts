@@ -46,17 +46,33 @@ export async function POST(req: Request) {
       );
     }
 
+    const workspaceId =
+      req.headers.get('x-dashscope-workspace') ||
+      process.env.ALIBABA_WORKSPACE_ID ||
+      process.env.VITE_ALIBABA_WORKSPACE_ID ||
+      'ws-o3v6mh0i8y9tqdfx';
+
+    const baseUrl =
+      process.env.ALIBABA_DASHSCOPE_URL ||
+      process.env.VITE_ALIBABA_DASHSCOPE_URL ||
+      'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/api/v1';
+
+    const requestHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (workspaceId) {
+      requestHeaders['X-DashScope-WorkSpace'] = workspaceId;
+    }
+
     const voice = body.voice || 'Jennifer';
     const model = body.model || 'qwen3-tts-flash';
 
     const response = await fetch(
-      'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+      `${baseUrl.replace(/\/+$/, '')}/services/aigc/multimodal-generation/generation`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: requestHeaders,
         body: JSON.stringify({
           model,
           input: {

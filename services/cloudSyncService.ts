@@ -226,14 +226,18 @@ class CloudSyncEngine {
     }
 
     try {
+      const sanitizedId = userId.trim();
       const { data: conversations, error } = await supabase
         .from('messenger_conversations')
         .select('*')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .or(`user1_id.eq.${sanitizedId},user2_id.eq.${sanitizedId}`)
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.warn('[CloudSync] Error fetching remote conversations:', error);
+        // Table might not exist or RLS policy might restrict anonymous queries
+        if (error.code !== 'PGRST116') {
+          console.warn('[CloudSync] Error fetching remote conversations:', error.message || error);
+        }
         return;
       }
 

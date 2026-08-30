@@ -1,4 +1,4 @@
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function OPTIONS() {
   return new Response(null, {
@@ -6,7 +6,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-DashScope-WorkSpace',
     },
   });
 }
@@ -32,26 +32,76 @@ export async function POST(req: Request) {
       );
     }
 
-    const response = await fetch(
-      'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: body.model || 'qwen3.8-max',
-          messages: body.messages || [],
-          temperature: body.temperature ?? 0.7,
-          max_tokens: body.max_tokens ?? 4096,
-        }),
-      }
-    );
+    const workspaceId =
+      req.headers.get('x-dashscope-workspace') ||
+      process.env.ALIBABA_WORKSPACE_ID ||
+      process.env.VITE_ALIBABA_WORKSPACE_ID ||
+      'ws-o3v6mh0i8y9tqdfx';
 
-    const errorTextOrData = await response.text();
-    return new Response(errorTextOrData, {
-      status: response.status,
+    const baseUrl =
+      process.env.ALIBABA_OPENAI_COMPATIBLE_URL ||
+      process.env.VITE_ALIBABA_OPENAI_COMPATIBLE_URL ||
+      'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
+
+    const requestHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (workspaceId) {
+      requestHeaders['X-DashScope-WorkSpace'] = workspaceId;
+    }
+
+    const payload: any = {
+      model: body.model || 'qwen3.8-max',
+      messages: body.messages || [],
+      temperature: body.temperature ?? 0.7,
+      max_tokens: body.max_tokens ?? 4096,
+    };
+
+    if (body.stream) {
+      payload.stream = true;
+      if (body.stream_options) {
+        payload.stream_options = body.stream_options;
+      }
+    }
+
+    if (body.response_format) {
+      payload.response_format = body.response_format;
+    }
+
+    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return new Response(errorText, {
+        status: response.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    // If streaming, pipe SSE stream directly
+    if (body.stream && response.body) {
+      return new Response(response.body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    const data = await response.text();
+    return new Response(data, {
+      status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -70,3 +120,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

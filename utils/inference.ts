@@ -272,10 +272,9 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
     window.location.protocol === 'file:'
   );
 
-  const endpoints = [
-    isNative ? 'https://www.avelut.xyz/api/alibaba-chat' : '/api/alibaba-chat',
-    'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
-  ];
+  const endpoints = isNative
+    ? ['https://www.avelut.xyz/api/alibaba-chat', '/api/alibaba-chat']
+    : ['/api/alibaba-chat', 'https://www.avelut.xyz/api/alibaba-chat'];
 
   const bodyPayload: any = {
     model,
@@ -352,10 +351,9 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
     window.location.protocol === 'file:'
   );
 
-  const endpoints = [
-    isNative ? 'https://www.avelut.xyz/api/alibaba-chat' : '/api/alibaba-chat',
-    'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
-  ];
+  const endpoints = isNative
+    ? ['https://www.avelut.xyz/api/alibaba-chat', '/api/alibaba-chat']
+    : ['/api/alibaba-chat', 'https://www.avelut.xyz/api/alibaba-chat'];
 
   const bodyPayload: any = {
     model,
