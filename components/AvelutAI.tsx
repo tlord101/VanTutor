@@ -1995,8 +1995,8 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
   };
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-slate-50 dark:bg-black pt-0">
-      <div className="mx-auto flex h-full min-h-0 max-w-7xl overflow-hidden bg-white dark:bg-black/90 backdrop-blur md:rounded-[2rem] md:border md:border-slate-200 dark:border-white/10 md:shadow-[0_20px_80px_rgba(0,0,0,0.08)]">
+    <div className="h-full min-h-0 overflow-hidden bg-white dark:bg-black pt-0">
+      <div className="mx-auto flex h-full min-h-0 max-w-7xl overflow-hidden bg-white dark:bg-black md:rounded-[2rem] md:border md:border-slate-200/80 dark:border-white/10 md:shadow-[0_20px_80px_rgba(0,0,0,0.08)]">
         
         {/* Modern Replica Sidebar Drawer (Exact layout from uploaded image) */}
         <aside
@@ -2204,7 +2204,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
         {/* Main Content Area */}
         <main 
-          className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-black"
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-black"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -2227,14 +2227,14 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
                 /* Faded Black/White Watermark Center Graphic - Clean & Minimal */
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
                   <img
-                    src="/logo_full_black.png"
-                    alt=""
-                    className="w-48 sm:w-64 h-auto opacity-[0.10] dark:hidden object-contain grayscale"
+                    src="/logo_icon_black_glyph.png"
+                    alt="AVELUT"
+                    className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 opacity-[0.12] dark:hidden object-contain"
                   />
                   <img
-                    src="/logo_full_white.png"
-                    alt=""
-                    className="w-48 sm:w-64 h-auto opacity-[0.10] hidden dark:block object-contain"
+                    src="/logo_icon_white_glyph.png"
+                    alt="AVELUT"
+                    className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 opacity-[0.18] hidden dark:block object-contain"
                   />
                 </div>
               ) : (

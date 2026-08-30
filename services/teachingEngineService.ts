@@ -217,6 +217,69 @@ export class TeachingEngineService {
     }
   }
 
+  /**
+   * Handles real-time student interruption questions ("Ask the Lecturer")
+   */
+  public async askLecturerQuestion(params: {
+    topic: string;
+    studentQuestion: string;
+  }): Promise<{ spokenAnswer: string; boardActions?: BoardAction[] }> {
+    this.stopCurrentPlayback();
+
+    try {
+      const ai = createAvelutAI(this.appSettings, this.userProfile);
+      if (!ai) throw new Error('AI client could not be initialized');
+
+      const { buildStudentInterruptionPrompt } = await import('./teachingEnginePrompt');
+      const prompt = buildStudentInterruptionPrompt({
+        topic: params.topic,
+        currentSegmentTitle: this.currentSegment?.lesson.title || params.topic,
+        studentQuestion: params.studentQuestion,
+      });
+
+      const response = await ai.models.generateContent({
+        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+        contents: [
+          { role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+        }
+      });
+
+      const rawText = getResponseText(response);
+      const cleaned = (rawText || '').replace(/```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
+      const result = JSON.parse(cleaned);
+
+      if (result.spokenAnswer) {
+        unifiedVoiceRouter.playSpeech(result.spokenAnswer, {
+          appSettings: this.appSettings,
+          provider: 'alibaba',
+          voice: this.voice,
+          speed: 1.05,
+        });
+      }
+
+      if (result.boardActions && Array.isArray(result.boardActions)) {
+        result.boardActions.forEach((act: BoardAction) => {
+          this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
+        });
+      }
+
+      return result;
+    } catch (err) {
+      console.warn('[TeachingEngine] Interruption question error:', err);
+      const fallbackAnswer = `Great question! When we look at ${params.topic}, this principle ensures all elements remain balanced and clear on our board.`;
+      unifiedVoiceRouter.playSpeech(fallbackAnswer, {
+        appSettings: this.appSettings,
+        provider: 'alibaba',
+        voice: this.voice,
+      });
+      return { spokenAnswer: fallbackAnswer };
+    }
+  }
+
   private scheduleSynchronizedActions(speech: string, actions: BoardAction[]) {
     const words = speech.split(/\s+/);
     const totalWords = words.length || 1;

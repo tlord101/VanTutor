@@ -176,15 +176,31 @@ const globalRateLimiter = new RpmRateLimiter(10);
 export const getResponseText = (response: any): string => {
   if (!response) return '';
   const text = response.text;
-  return typeof text === 'function' ? text() : (text || '');
+  if (typeof text === 'function') {
+    return text();
+  }
+  if (typeof text === 'string') {
+    return text;
+  }
+  if (response?.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
+    return response.candidates[0].content.parts[0].text;
+  }
+  if (response?.choices?.[0]?.delta?.content !== undefined) {
+    return response.choices[0].delta.content || '';
+  }
+  if (response?.choices?.[0]?.message?.content !== undefined) {
+    return response.choices[0].message.content || '';
+  }
+  return '';
 };
 
 /**
  * Convert Gemini-style contents/parts to standard OpenAI/Alibaba chat messages
+ * Supports both text and multi-modal image content
  */
-function geminiParamsToChatMessages(params: any): { systemPrompt: string; messages: Array<{ role: string; content: string }> } {
+function geminiParamsToChatMessages(params: any): { systemPrompt: string; messages: Array<{ role: string; content: any }> } {
   let systemPrompt = '';
-  const messages: Array<{ role: string; content: string }> = [];
+  const messages: Array<{ role: string; content: any }> = [];
 
   if (params?.config?.systemInstruction) {
     const si = params.config.systemInstruction;
@@ -203,16 +219,37 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
   if (Array.isArray(contents)) {
     for (const c of contents) {
       const role = c.role === 'model' || c.role === 'assistant' ? 'assistant' : 'user';
-      let content = '';
       if (typeof c === 'string') {
-        content = c;
+        messages.push({ role, content: c });
       } else if (c?.parts && Array.isArray(c?.parts)) {
-        content = c.parts.map((p: any) => p.text || (p.inlineData ? '[Image attachment]' : '')).join('\n');
+        const hasImage = c.parts.some((p: any) => p.inlineData || p.imageUrl || p.image_url);
+        if (hasImage) {
+          const multiModalContent: any[] = [];
+          for (const p of c.parts) {
+            if (p.text) {
+              multiModalContent.push({ type: 'text', text: p.text });
+            } else if (p.inlineData) {
+              const mime = p.inlineData.mimeType || 'image/jpeg';
+              const base64 = p.inlineData.data;
+              multiModalContent.push({
+                type: 'image_url',
+                image_url: { url: `data:${mime};base64,${base64}` },
+              });
+            } else if (p.imageUrl || p.image_url) {
+              const url = p.imageUrl || p.image_url;
+              multiModalContent.push({
+                type: 'image_url',
+                image_url: { url: typeof url === 'string' ? url : url.url },
+              });
+            }
+          }
+          messages.push({ role, content: multiModalContent });
+        } else {
+          const text = c.parts.map((p: any) => p.text || '').join('\n');
+          if (text) messages.push({ role, content: text });
+        }
       } else if (typeof c?.text === 'string') {
-        content = c.text;
-      }
-      if (content) {
-        messages.push({ role, content });
+        messages.push({ role, content: c.text });
       }
     }
   } else if (typeof contents === 'string') {
@@ -223,12 +260,12 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
 }
 
 /**
- * Call Alibaba DashScope / OpenAI compatible endpoint
+ * Call Alibaba DashScope / OpenAI compatible endpoint (Non-Streaming)
  */
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getAlibabaApiKey(appSettings);
   const { messages } = geminiParamsToChatMessages(params);
-  const model = 'qwen3.7-flash';
+  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -240,6 +277,18 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
     'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
   ];
 
+  const bodyPayload: any = {
+    model,
+    messages,
+    temperature: params?.config?.temperature ?? 0.7,
+    max_tokens: params?.config?.maxOutputTokens ?? 4096,
+  };
+
+  // Enable JSON mode if requested
+  if (params?.config?.responseMimeType === 'application/json' || params?.config?.response_format?.type === 'json_object') {
+    bodyPayload.response_format = { type: 'json_object' };
+  }
+
   let lastError: Error | null = null;
 
   for (const endpoint of endpoints) {
@@ -250,12 +299,7 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: params?.config?.temperature ?? 0.7,
-          max_tokens: params?.config?.maxOutputTokens ?? 4096,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -292,6 +336,149 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
 }
 
 /**
+ * Call Alibaba DashScope / OpenAI compatible endpoint with Server-Sent Events (SSE) Streaming
+ */
+async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
+  const apiKey = getAlibabaApiKey(appSettings);
+  const { messages } = geminiParamsToChatMessages(params);
+  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
+
+  const isNative = typeof window !== 'undefined' && (
+    (window as any).Capacitor?.isNativePlatform?.() ||
+    window.location.protocol === 'file:'
+  );
+
+  const endpoints = [
+    isNative ? 'https://www.avelut.xyz/api/alibaba-chat' : '/api/alibaba-chat',
+    'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
+  ];
+
+  const bodyPayload: any = {
+    model,
+    messages,
+    stream: true,
+    stream_options: { include_usage: true },
+    temperature: params?.config?.temperature ?? 0.7,
+    max_tokens: params?.config?.maxOutputTokens ?? 4096,
+  };
+
+  if (params?.config?.responseMimeType === 'application/json' || params?.config?.response_format?.type === 'json_object') {
+    bodyPayload.response_format = { type: 'json_object' };
+  }
+
+  let response: Response | null = null;
+  let lastError: Error | null = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (response.ok && response.body) {
+        break;
+      } else {
+        const errText = await response.text();
+        throw new Error(`Alibaba SSE HTTP ${response.status}: ${errText}`);
+      }
+    } catch (err: any) {
+      lastError = err;
+      response = null;
+    }
+  }
+
+  if (!response || !response.body) {
+    // Fallback to non-streaming if stream connection fails
+    const fallbackResult = await callAlibabaQwen(params, appSettings);
+    yield fallbackResult;
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(':')) continue; // Skip comments/keep-alive
+
+        if (trimmed === 'data: [DONE]') {
+          return;
+        }
+
+        if (trimmed.startsWith('data:')) {
+          const jsonStr = trimmed.slice(5).trim();
+          try {
+            const parsed = JSON.parse(jsonStr);
+            
+            // 1. Standard Chat Completions format
+            const delta = parsed?.choices?.[0]?.delta;
+            let deltaText = delta?.content || '';
+            let reasoningText = delta?.reasoning_content || '';
+            let finishReason = parsed?.choices?.[0]?.finish_reason || null;
+
+            // 2. OpenAI / DashScope Responses API event format
+            if (parsed?.type === 'response.output_text.delta' && parsed?.delta) {
+              deltaText = parsed.delta;
+            } else if (parsed?.type === 'response.completed') {
+              finishReason = 'stop';
+            }
+
+            // 3. DashScope native output format
+            if (!deltaText && parsed?.output?.choices?.[0]?.message?.content) {
+              deltaText = parsed.output.choices[0].message.content;
+            } else if (!deltaText && parsed?.output?.text) {
+              deltaText = parsed.output.text;
+            }
+
+            const usage = parsed?.usage || parsed?.response?.usage;
+
+            if (deltaText || reasoningText || finishReason || usage) {
+              yield {
+                text: () => deltaText,
+                reasoningText: () => reasoningText,
+                candidates: [
+                  {
+                    content: {
+                      parts: [{ text: deltaText, reasoning: reasoningText }],
+                      role: 'model',
+                    },
+                    finishReason,
+                  },
+                ],
+                usageMetadata: usage ? {
+                  promptTokenCount: usage.prompt_tokens || usage.input_tokens || 0,
+                  candidatesTokenCount: usage.completion_tokens || usage.output_tokens || 0,
+                  totalTokenCount: usage.total_tokens || 0,
+                } : undefined,
+              };
+            }
+          } catch {
+            // Ignore partial SSE chunk parse failures
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
  * Centralized client factory that instantiates or wraps the AI client (Google Gemini or Alibaba Qwen).
  * Injects RPM rate limiting, context compaction, and context compression when a personal key is used.
  */
@@ -324,14 +511,13 @@ export const createAvelutAI = (
           return await callAlibabaQwen(params, appSettings);
         },
         generateContentStream: async (params: any) => {
-          // Standard wrapper fallback
-          const result = await callAlibabaQwen(params, appSettings);
-          return {
-            stream: (async function* () {
-              yield result;
-            })(),
-            response: Promise.resolve(result),
+          const streamGen = callAlibabaQwenStream(params, appSettings);
+          const asyncIterable = {
+            [Symbol.asyncIterator]: () => streamGen,
+            stream: streamGen,
+            response: Promise.resolve(null),
           };
+          return asyncIterable;
         },
         generateImages: async () => {
           throw new Error('Image generation is not supported on this model endpoint.');
@@ -344,6 +530,7 @@ export const createAvelutAI = (
       },
     };
   }
+
 
   // 2. Google Gemini Route
   const apiKey = usePersonalToken

@@ -145,3 +145,30 @@ REQUIRED JSON SCHEMA (Return ONLY this JSON):
   "followUpObjective": "Brief note on where the lesson should proceed next"
 }`;
 }
+
+export function buildStudentInterruptionPrompt(params: {
+  topic: string;
+  currentSegmentTitle: string;
+  studentQuestion: string;
+}): string {
+  return `The student has just interrupted the live lesson on "${params.topic}" (Current Topic: "${params.currentSegmentTitle}") with a direct question:
+Student Question: "${params.studentQuestion}"
+
+Respond directly, warmly, and concisely as an expert lecturer (1-3 sentences).
+Provide clarifying board action(s) (highlighting, rewriting a variable, or drawing a quick illustration) to resolve their confusion immediately.
+
+REQUIRED JSON SCHEMA (Return ONLY this JSON):
+{
+  "spokenAnswer": "Clear, direct conversational tutor response (1-3 sentences)",
+  "boardActions": [
+    {
+      "id": "clarify_act_1",
+      "type": "write" | "highlight" | "circle" | "label",
+      "target": "target_element",
+      "content": "Clarification notes or formula step",
+      "sync": { "phrase": "key phrase from spokenAnswer" },
+      "metadata": { "x": 50, "y": 40 }
+    }
+  ]
+}`;
+}
