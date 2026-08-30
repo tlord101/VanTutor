@@ -67,10 +67,16 @@ export const LiveTutorialVoiceSelectorModal: React.FC<LiveTutorialVoiceSelectorM
 
   const [selectedVoice, setSelectedVoice] = useState<string>(initialVoice);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const activeAudioElRef = useRef<HTMLAudioElement | null>(null);
   const activePlayerRef = useRef<UnifiedAudioPlayer | null>(null);
 
   useEffect(() => {
     return () => {
+      if (activeAudioElRef.current) {
+        try {
+          activeAudioElRef.current.pause();
+        } catch (_) {}
+      }
       if (activePlayerRef.current) {
         try {
           activePlayerRef.current.stop();
@@ -86,6 +92,12 @@ export const LiveTutorialVoiceSelectorModal: React.FC<LiveTutorialVoiceSelectorM
 
     // If already playing this voice, stop it
     if (playingVoiceId === voiceOption.id) {
+      if (activeAudioElRef.current) {
+        try {
+          activeAudioElRef.current.pause();
+        } catch (_) {}
+        activeAudioElRef.current = null;
+      }
       if (activePlayerRef.current) {
         try {
           activePlayerRef.current.stop();
@@ -97,6 +109,12 @@ export const LiveTutorialVoiceSelectorModal: React.FC<LiveTutorialVoiceSelectorM
     }
 
     // Stop current audio if playing
+    if (activeAudioElRef.current) {
+      try {
+        activeAudioElRef.current.pause();
+      } catch (_) {}
+      activeAudioElRef.current = null;
+    }
     if (activePlayerRef.current) {
       try {
         activePlayerRef.current.stop();
@@ -106,32 +124,54 @@ export const LiveTutorialVoiceSelectorModal: React.FC<LiveTutorialVoiceSelectorM
 
     setPlayingVoiceId(voiceOption.id);
 
-    try {
-      const player = unifiedVoiceRouter.playSpeech(voiceOption.sampleText, {
-        appSettings,
-        provider: 'alibaba',
-        voice: voiceOption.id,
-        speed: 1.0,
-        onEnd: () => {
-          setPlayingVoiceId(null);
-          activePlayerRef.current = null;
-        },
-        onError: (err) => {
-          console.warn('[VoiceSelector] Preview error:', err);
-          setPlayingVoiceId(null);
-          activePlayerRef.current = null;
-          addToast('Could not play preview. Connecting to speech engine...', 'info');
-        },
-      });
+    // 1. Try playing the pre-generated static audio asset from storage
+    const staticAudioUrl = `/assets/voices/${voiceOption.id.toLowerCase()}.mp3`;
+    const audio = new Audio(staticAudioUrl);
 
-      activePlayerRef.current = player;
-    } catch (err) {
-      console.warn('[VoiceSelector] Speech preview exception:', err);
+    audio.onended = () => {
       setPlayingVoiceId(null);
-    }
+      activeAudioElRef.current = null;
+    };
+
+    audio.onerror = () => {
+      // Fallback: Synthesize via UnifiedVoiceRouter if static file is unavailable
+      try {
+        const player = unifiedVoiceRouter.playSpeech(voiceOption.sampleText, {
+          appSettings,
+          provider: 'alibaba',
+          voice: voiceOption.id,
+          speed: 1.0,
+          onEnd: () => {
+            setPlayingVoiceId(null);
+            activePlayerRef.current = null;
+          },
+          onError: (err) => {
+            console.warn('[VoiceSelector] Preview error:', err);
+            setPlayingVoiceId(null);
+            activePlayerRef.current = null;
+            addToast('Could not play preview. Please check connection.', 'info');
+          },
+        });
+        activePlayerRef.current = player;
+      } catch (err) {
+        setPlayingVoiceId(null);
+      }
+    };
+
+    audio.play().then(() => {
+      activeAudioElRef.current = audio;
+    }).catch(() => {
+      // Browser autoplay policy or error -> trigger fallback
+      audio.onerror?.(new Event('error') as any);
+    });
   };
 
   const handleConfirmStart = () => {
+    if (activeAudioElRef.current) {
+      try {
+        activeAudioElRef.current.pause();
+      } catch (_) {}
+    }
     if (activePlayerRef.current) {
       try {
         activePlayerRef.current.stop();
