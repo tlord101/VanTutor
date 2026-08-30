@@ -221,6 +221,10 @@ class CloudSyncEngine {
    * Pull latest conversations and progress from Supabase and merge into local SQLite.
    */
   private async pullDownstreamChanges(userId: string): Promise<void> {
+    if (!userId || userId.trim() === '' || userId === 'guest' || userId.startsWith('guest_')) {
+      return;
+    }
+
     try {
       const { data: conversations, error } = await supabase
         .from('messenger_conversations')

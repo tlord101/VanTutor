@@ -203,12 +203,7 @@ export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings
     fromEnv = process.env.VITE_ALIBABA_API_KEY || process.env.ALIBABA_API_KEY || '';
   }
 
-  const key = fromEnv.trim();
-  if (!key) {
-    throw new Error('Alibaba Cloud DashScope API Key is not configured. Please set it in Admin System Settings or environment variables.');
-  }
-
-  return key;
+  return fromEnv ? fromEnv.trim() : '';
 };
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({

@@ -293,12 +293,16 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
 
   for (const endpoint of endpoints) {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers,
         body: JSON.stringify(bodyPayload),
       });
 
@@ -371,12 +375,16 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
 
   for (const endpoint of endpoints) {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
       response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers,
         body: JSON.stringify(bodyPayload),
       });
 
@@ -497,14 +505,6 @@ export const createAvelutAI = (
 
   // 1. Alibaba Cloud Qwen Route
   if (provider === 'alibaba_qwen') {
-    let apiKey = '';
-    try {
-      apiKey = getAlibabaApiKey(appSettings);
-    } catch (_) {
-      apiKey = '';
-    }
-    if (!apiKey) return null;
-
     return {
       models: {
         generateContent: async (params: any) => {
