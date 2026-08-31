@@ -7,6 +7,7 @@ import { TeachingBoard } from './live-teaching/TeachingBoard';
 import { QuestionOverlay } from './live-teaching/QuestionOverlay';
 import { LecturerAskModal } from './live-teaching/LecturerAskModal';
 import { LiveTutorialVoiceSelectorModal } from './LiveTutorialVoiceSelectorModal';
+import { unifiedVoiceRouter } from '../../services/voice/UnifiedVoiceRouter';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useToast } from '../../hooks/useToast';
 
@@ -302,16 +303,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           activeUnderlines={activeUnderlines}
           tutorPointer={tutorPointer}
         />
-
-        {/* Loading Concept Indicator */}
-        {isLoadingSegment && (
-          <div className="absolute inset-0 bg-[#070B14]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-30 animate-in fade-in">
-            <div className="w-10 h-10 border-3 border-[#38BDF8] border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide">
-              Lecturer is writing on the board...
-            </p>
-          </div>
-        )}
 
         {/* Floating Question Comprehension Overlay (bottom docked) */}
         {activeQuestion && (
