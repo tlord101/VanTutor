@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
-import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { ref as dbRef, update, get } from 'firebase/database';
+import { db } from '../firebase';
 
 export type Mode = 'light' | 'dark';
 
@@ -22,21 +22,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const savedMode = readCachedJson<Mode>('app_mode', 'light');
     if (savedMode) setModeState(savedMode);
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = supabaseAuthService.onAuthStateChanged(async (user) => {
         if (user) {
-            setUserUid(user.uid);
+            setUserUid(user.id);
             try {
-                const prefsRef = dbRef(db, `users/${user.uid}/theme_preferences`);
+                const prefsRef = dbRef(db, `users/${user.id}/theme_preferences`);
                 const snapshot = await get(prefsRef);
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     if (data.mode) {
                         setModeState(data.mode);
-                        writeCachedJson('app_mode', data.mode, user.uid);
+                        writeCachedJson('app_mode', data.mode, user.id);
                     }
                 }
             } catch (err) {
-                console.error("Error loading theme prefs from Firebase:", err);
+                console.error("Error loading theme prefs:", err);
             }
         } else {
             setUserUid(null);

@@ -52,7 +52,7 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
 
   const paystackMetadata = {
     ...(metadata || {}),
-    payment_log_id: paymentLogRef?.key || metadata?.payment_log_id,
+    payment_log_id: paymentLogId || metadata?.payment_log_id,
     custom_fields: [
       ...(Array.isArray(metadata?.custom_fields) ? metadata.custom_fields : []),
       { display_name: 'User ID', variable_name: 'user_id', value: userId },
@@ -65,11 +65,6 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
     addToast('Demo Mode: Simulating checkout...', 'info');
     setTimeout(async () => {
       const referenceId = 'demo_' + Math.random().toString(36).substring(2, 11);
-      if (paymentLogRef) {
-        try {
-          await update(paymentLogRef, { status: 'success', reference: referenceId });
-        } catch (e) {}
-      }
       try {
         await onSuccess(referenceId);
       } catch (e) {
@@ -82,11 +77,6 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
   const isLoaded = await loadPaystackScript();
   if (!isLoaded) {
     addToast('Could not load payment gateway.', 'error');
-    if (paymentLogRef) {
-      try {
-        await update(paymentLogRef, { status: 'failed', error: 'Script load failed' });
-      } catch (e) {}
-    }
     if (onError) onError(new Error('Paystack script load failed'));
     return;
   }
@@ -103,57 +93,26 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
           const reference = response?.reference || 'ref_missing';
 
           if (response?.status && response.status !== 'success') {
-            if (paymentLogRef) {
-              try {
-                await update(paymentLogRef, { status: 'failed', reference, error: response.message || 'Transaction failed' });
-              } catch (e) {}
-            }
             if (onError) onError(new Error(response.message || 'Transaction was not successful'));
             return;
           }
 
-          if (paymentLogRef) {
-            try {
-              await update(paymentLogRef, { status: 'processing', reference }); // Changed to processing as backend verifies
-            } catch (e) {}
-          }
           try {
             await onSuccess(reference);
-            if (paymentLogRef) {
-               await update(paymentLogRef, { status: 'success' });
-            }
           } catch (e) {
-            if (paymentLogRef) {
-              try {
-                await update(paymentLogRef, { status: 'failed', error: e instanceof Error ? e.message : 'Verification failed' });
-              } catch (err) {}
-            }
             if (onError) onError(e);
           }
         };
         void runAsyncCallback();
       },
       onClose: () => {
-        const runAsyncClose = async () => {
-          if (paymentLogRef) {
-            try {
-              await update(paymentLogRef, { status: 'cancelled' });
-            } catch (e) {}
-          }
-          addToast('Payment cancelled.', 'info');
-          if (onCancel) onCancel();
-        };
-        void runAsyncClose();
+        addToast('Payment cancelled.', 'info');
+        if (onCancel) onCancel();
       },
     });
     handler.openIframe();
   } catch (e: any) {
     console.error(e);
-    if (paymentLogRef) {
-      try {
-        await update(paymentLogRef, { status: 'failed', error: e.message });
-      } catch (err) {}
-    }
     addToast('Error during payment processing.', 'error');
     if (onError) onError(e);
   }

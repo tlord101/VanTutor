@@ -22,14 +22,16 @@ export const getTodayDateString = (): string => {
  * Returns true if the user has already earned a streak today.
  */
 export const isStreakAlreadyAwardedToday = (userProfile: UserProfile): boolean => {
-  return userProfile.last_streak_date === getTodayDateString() || userProfile.last_active_date === getTodayDateString();
+  const lastActive = userProfile.last_activity_date ? new Date(userProfile.last_activity_date).toISOString().split('T')[0] : '';
+  return userProfile.last_streak_date === getTodayDateString() || lastActive === getTodayDateString();
 };
 
 /**
  * Checks whether the user's streak is "active" (last award was today).
  */
 export const isStreakActiveToday = (userProfile: UserProfile): boolean => {
-  return userProfile.last_streak_date === getTodayDateString() || userProfile.last_active_date === getTodayDateString();
+  const lastActive = userProfile.last_activity_date ? new Date(userProfile.last_activity_date).toISOString().split('T')[0] : '';
+  return userProfile.last_streak_date === getTodayDateString() || lastActive === getTodayDateString();
 };
 
 /**

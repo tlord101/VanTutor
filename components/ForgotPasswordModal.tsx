@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { auth, sendPasswordResetEmail } from '../firebase';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { useToast } from '../hooks/useToast';
 
 interface ForgotPasswordModalProps {
@@ -23,7 +23,10 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     setIsSending(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { success, error } = await supabaseAuthService.sendPasswordReset(email);
+      if (error || !success) {
+        throw new Error(error || 'Failed to send password reset link');
+      }
 
       addToast('A password reset link has been sent to your email address.', 'success');
       setIsSent(true);

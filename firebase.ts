@@ -43,6 +43,64 @@ const functions = getFunctions(app);
 const googleProvider = new GoogleAuthProvider();
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
+import { supabaseAuthService } from "./services/supabaseAuthService";
+
+// Supabase-backed Auth Compatibility Layer
+const supabaseOnAuthStateChanged = (authObj: any, callback: (user: any | null) => void) => {
+  return supabaseAuthService.onAuthStateChanged((user, profile) => {
+    if (user) {
+      const fbUser = {
+        uid: user.id,
+        email: user.email,
+        displayName: profile?.display_name || user.user_metadata?.full_name || '',
+        photoURL: profile?.photo_url || user.user_metadata?.avatar_url || '',
+        ...user,
+      };
+      callback(fbUser);
+    } else {
+      callback(null);
+    }
+  });
+};
+
+const supabaseSignInWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  const res = await supabaseAuthService.signInWithEmail(email, pass);
+  if (res.error) throw new Error(res.error);
+  return { user: { uid: res.user.id, email: res.user.email } };
+};
+
+const supabaseCreateUserWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  const res = await supabaseAuthService.signUpWithEmail(email, pass, email.split('@')[0]);
+  if (res.error) throw new Error(res.error);
+  return { user: { uid: res.user.id, email: res.user.email } };
+};
+
+const supabaseSignOut = async (authObj?: any) => {
+  await supabaseAuthService.signOut();
+};
+
+const supabaseSendPasswordResetEmail = async (authObj: any, email: string) => {
+  const res = await supabaseAuthService.sendPasswordReset(email);
+  if (res.error) throw new Error(res.error);
+};
+
+const supabaseUpdateProfile = async (userObj: any, profileData: { displayName?: string; photoURL?: string }) => {
+  if (userObj?.uid) {
+    await supabaseAuthService.upsertProfile(userObj.uid, {
+      display_name: profileData.displayName,
+      photo_url: profileData.photoURL,
+    });
+  }
+};
+
+const supabaseSignInAnonymously = async (authObj?: any) => {
+  const anonEmail = `guest_${Date.now()}_${Math.floor(Math.random() * 10000)}@avelut.app`;
+  const anonPass = `guest_pass_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const res = await supabaseAuthService.signUpWithEmail(anonEmail, anonPass, 'Guest User');
+  if (res.error) throw new Error(res.error);
+  return { user: { uid: res.user.id, email: res.user.email } };
+};
+
 export { 
   db, 
   storage, 
@@ -51,16 +109,16 @@ export {
   messaging,
   googleProvider,
   serverTimestamp,
-  signInAnonymously, 
-  onAuthStateChanged, 
+  supabaseSignInAnonymously as signInAnonymously,
+  supabaseOnAuthStateChanged as onAuthStateChanged,
   signInWithCustomToken, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  updateProfile, 
+  supabaseCreateUserWithEmailAndPassword as createUserWithEmailAndPassword,
+  supabaseSignInWithEmailAndPassword as signInWithEmailAndPassword,
+  supabaseUpdateProfile as updateProfile,
   GoogleAuthProvider, 
   signInWithPopup, 
-  sendPasswordResetEmail,
-  firebaseSignOut
+  supabaseSendPasswordResetEmail as sendPasswordResetEmail,
+  supabaseSignOut as firebaseSignOut
 };
 
 export type { FirebaseUser };
