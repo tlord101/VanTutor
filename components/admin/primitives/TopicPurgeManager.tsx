@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { db } from '../../../firebase';
 import { ref as dbRef, get, update } from 'firebase/database';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
 import { MergeReviewModal, SuggestedMerge } from './MergeReviewModal';

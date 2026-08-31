@@ -1,8 +1,17 @@
-import { GoogleGenAI } from '@google/genai';
 import type { AppSettings, UserProfile } from '../types';
 import { getAlibabaApiKey } from './appSettings';
-import { db } from '../firebase';
-import { ref as dbRef, push } from 'firebase/database';
+
+/**
+ * Universal JSON Schema Type Enum (replaces @google/genai Type)
+ */
+export const Type = {
+  STRING: 'STRING',
+  NUMBER: 'NUMBER',
+  INTEGER: 'INTEGER',
+  BOOLEAN: 'BOOLEAN',
+  ARRAY: 'ARRAY',
+  OBJECT: 'OBJECT',
+} as const;
 
 /**
  * Strips mathematical LaTeX/KaTeX symbols and complex code blocks from text
@@ -485,133 +494,35 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
 }
 
 /**
- * Centralized client factory that instantiates or wraps the AI client (Google Gemini or Alibaba Qwen).
- * Injects RPM rate limiting, context compaction, and context compression when a personal key is used.
+ * Centralized client factory that instantiates the Alibaba Cloud Qwen AI client.
+ * Provides high-speed flagship reasoning with Qwen3.7-Flash and SSE streaming.
  */
 export const createAvelutAI = (
   appSettings: AppSettings,
-  userProfile: UserProfile | null
+  userProfile?: UserProfile | null
 ): any => {
-  const usePersonalToken = !!(
-    userProfile?.use_personal_token &&
-    userProfile?.personal_api_key?.trim()
-  );
-
-  const provider = usePersonalToken
-    ? 'gemini'
-    : (appSettings?.primary_ai_provider || 'alibaba_qwen');
-
-  // 1. Alibaba Cloud Qwen Route
-  if (provider === 'alibaba_qwen') {
-    return {
-      models: {
-        generateContent: async (params: any) => {
-          return await callAlibabaQwen(params, appSettings);
-        },
-        generateContentStream: async (params: any) => {
-          const streamGen = callAlibabaQwenStream(params, appSettings);
-          const asyncIterable = {
-            [Symbol.asyncIterator]: () => streamGen,
-            stream: streamGen,
-            response: Promise.resolve(null),
-          };
-          return asyncIterable;
-        },
-        generateImages: async () => {
-          throw new Error('Image generation is not supported on this model endpoint.');
-        },
-      },
-      interactions: {
-        create: async (params: any) => {
-          return await callAlibabaQwen(params, appSettings);
-        },
-      },
-    };
-  }
-
-
-  // 2. Google Gemini Route
-  const apiKey = usePersonalToken
-    ? userProfile!.personal_api_key!.trim()
-    : (appSettings?.gemini_api_key?.trim() || '');
-
-  if (!apiKey) return null;
-
-  const rawClient = new GoogleGenAI({ apiKey });
-  const isFreeCustomTokenUser = usePersonalToken && userProfile?.subscription_status === 'personal_token';
-  const limitRpm = isFreeCustomTokenUser ? 9 : (appSettings?.custom_user_limit_rpm || 10);
-  const limitTpm = appSettings?.custom_user_limit_tpm || 250000;
-
-  globalRateLimiter.setLimitRpm(limitRpm);
-
-  const prepareParams = async (params: any) => {
-    let processedParams = { ...params };
-
-    if (usePersonalToken) {
-      // 1. Context Compaction Adapter
-      const mathOrCodeRequested = isMathOrCodeRequested(processedParams.contents);
-      
-      if (processedParams && Array.isArray(processedParams.contents)) {
-        processedParams.contents = processedParams.contents.map((content: any) => {
-          if (content && Array.isArray(content.parts)) {
-            return {
-              ...content,
-              parts: content.parts.map((part: any) => {
-                if (part && typeof part.text === 'string') {
-                  return { ...part, text: compactContext(part.text, mathOrCodeRequested) };
-                }
-                return part;
-              })
-            };
-          }
-          return content;
-        });
-      }
-
-      // 2. Context Compression Pass
-      processedParams = compressContext(processedParams, limitTpm);
-
-      // 3. RPM Rate-Limiting Queue
-      await globalRateLimiter.acquireToken();
-    }
-
-    // Log AI request asynchronously for real-time analytics
-    try {
-      void push(dbRef(db, 'usage_logs/ai_requests'), {
-        timestamp: Date.now(),
-        user_id: userProfile?.uid || 'anonymous',
-        model: params.model || appSettings.primary_gemini_model || 'gemini-3.1-flash-lite',
-        provider: 'gemini',
-        use_personal_token: usePersonalToken
-      });
-    } catch (err) {
-      console.error('Failed to log AI request:', err);
-    }
-
-    return processedParams;
-  };
-
-  // Return a wrapped client matching standard GoogleGenAI signature
   return {
     models: {
       generateContent: async (params: any) => {
-        const processed = await prepareParams(params);
-        return await rawClient.models.generateContent(processed);
+        return await callAlibabaQwen(params, appSettings);
       },
       generateContentStream: async (params: any) => {
-        const processed = await prepareParams(params);
-        return await rawClient.models.generateContentStream(processed);
+        const streamGen = callAlibabaQwenStream(params, appSettings);
+        const asyncIterable = {
+          [Symbol.asyncIterator]: () => streamGen,
+          stream: streamGen,
+          response: Promise.resolve(null),
+        };
+        return asyncIterable;
       },
-      generateImages: async (params: any) => {
-        const processed = await prepareParams(params);
-        return await rawClient.models.generateImages(processed);
-      }
+      generateImages: async () => {
+        throw new Error('Image generation is not supported on this model endpoint.');
+      },
     },
     interactions: {
       create: async (params: any) => {
-        const processed = await prepareParams(params);
-        return await rawClient.interactions.create(processed);
-      }
-    }
+        return await callAlibabaQwen(params, appSettings);
+      },
+    },
   };
 };

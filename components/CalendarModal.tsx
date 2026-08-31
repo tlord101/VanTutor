@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
-import { createAvelutAI, getResponseText } from '../utils/inference';
-import { Type } from '@google/genai';
+import { createAvelutAI, getResponseText, Type } from '../utils/inference';
 import { useToast } from '../hooks/useToast';
 import { getFeatureModel, checkAICredits, deductAICredits, getFeatureCost } from '../utils/usage';
 import { useApiLimiter } from '../hooks/useApiLimiter';

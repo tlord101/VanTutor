@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Type } from '@google/genai';
 import { db, storage, auth as firebaseAuth } from '../firebase';
 import { ref as dbRef, get, set, update, push } from 'firebase/database';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
-import { createAvelutAI, getResponseText } from '../utils/inference';
+import { createAvelutAI, getResponseText, Type } from '../utils/inference';
 import { useApiLimiter } from './useApiLimiter';
 import { useAppSettings } from './useAppSettings';
 import { useToast } from './useToast';

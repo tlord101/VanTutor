@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import { readCachedJson, writeCachedJson, clearCachedKey, initCacheFromSqlite } from './utils/cache';
-import { GoogleGenAI, Type } from '@google/genai'; 
+import { Type } from './utils/inference'; 
 import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
 import { DEFAULT_USAGE_SETTINGS } from './utils/appSettings';

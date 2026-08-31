@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { GoogleGenAI } from '@google/genai';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from 'firebase/database';

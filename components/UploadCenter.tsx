@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createAvelutAI, getResponseText } from '../utils/inference';
-import { Type } from '@google/genai';
+import { createAvelutAI, getResponseText, Type } from '../utils/inference';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, auth as firebaseAuth, firebaseSignOut, onAuthStateChanged, db, storage } from '../firebase';
 import { ref as dbRef, get, onValue, push, set, update, remove } from 'firebase/database';
 import { ref as storageRef, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';

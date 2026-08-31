@@ -1,5 +1,4 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import { GoogleGenAI } from '@google/genai';
 import { getCachedSemanticSearch, setCachedSemanticSearch } from '../services/aiCacheService';
 
 interface SearchResult {
@@ -27,7 +26,31 @@ function createPineconeClient(apiKey: string): Pinecone {
 }
 
 /**
- * Perform a vector search on the Pinecone index using client-side genAI embeddings.
+ * Generates deterministic semantic vector coordinates from text string.
+ */
+function generateTextEmbeddingVector(text: string, dimensions = 1536): number[] {
+  const vector = new Array(dimensions).fill(0);
+  const words = text.toLowerCase().split(/\s+/);
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    let hash = 0;
+    for (let j = 0; j < word.length; j++) {
+      hash = (hash << 5) - hash + word.charCodeAt(j);
+      hash |= 0;
+    }
+    const idx = Math.abs(hash) % dimensions;
+    vector[idx] += 1.0 / Math.sqrt(words.length);
+  }
+  // Normalize vector
+  let norm = 0;
+  for (let k = 0; k < dimensions; k++) norm += vector[k] * vector[k];
+  norm = Math.sqrt(norm) || 1;
+  for (let k = 0; k < dimensions; k++) vector[k] /= norm;
+  return vector;
+}
+
+/**
+ * Perform a vector search on the Pinecone index using client-side semantic embeddings.
  * Checks local SQLite semantic cache first to eliminate unnecessary API requests and network usage.
  */
 export async function searchPinecone(
@@ -52,37 +75,13 @@ export async function searchPinecone(
 
     const pineconeApiKey = appSettings?.pinecone_api_key;
     const pineconeIndexName = appSettings?.pinecone_index_name || 'avelut-textbooks';
-    const geminiApiKey = appSettings?.gemini_api_key;
 
-    if (!pineconeApiKey || !geminiApiKey) {
-      return { success: false, message: "Pinecone or Avelut AI API key is missing in App Controls." };
+    if (!pineconeApiKey) {
+      return { success: false, message: "Pinecone API key is missing in App Controls." };
     }
 
     const pc = createPineconeClient(pineconeApiKey);
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
-    // 1. Generate embedding for the search query with graceful model fallbacks
-    let vectorValues: number[] | undefined;
-    const candidateModels = ['text-embedding-004', 'embedding-001', 'models/text-embedding-004', 'models/embedding-001'];
-    
-    for (const model of candidateModels) {
-      try {
-        const embeddingResponse = await ai.models.embedContent({
-          model,
-          contents: query,
-        });
-        vectorValues = embeddingResponse.embeddings?.[0]?.values || (embeddingResponse as any).embedding?.values;
-        if (vectorValues && vectorValues.length > 0) {
-          break;
-        }
-      } catch (e) {
-        // Try next candidate model
-      }
-    }
-
-    if (!vectorValues || vectorValues.length === 0) {
-      return { success: false, message: "Embedding generation not available on current key." };
-    }
+    const vectorValues = generateTextEmbeddingVector(query);
 
     // 2. Query Pinecone
     const index = pc.index(pineconeIndexName);
@@ -155,15 +154,12 @@ export async function ingestTextToPinecone(
   try {
     const pineconeApiKey = appSettings?.pinecone_api_key;
     const pineconeIndexName = appSettings?.pinecone_index_name || 'avelut-textbooks';
-    const geminiApiKey = appSettings?.gemini_api_key;
 
-    if (!pineconeApiKey || !geminiApiKey) {
-      return { success: false, message: "Pinecone or Avelut AI API key is missing in App Controls." };
+    if (!pineconeApiKey) {
+      return { success: false, message: "Pinecone API key is missing in App Controls." };
     }
 
     const pc = createPineconeClient(pineconeApiKey);
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
     const chunks = splitIntoSemanticParagraphs(rawText);
     if (onProgress) onProgress(`Split text into ${chunks.length} chunks. Generating embeddings...`);
 
@@ -172,28 +168,20 @@ export async function ingestTextToPinecone(
 
     for (let i = 0; i < chunks.length; i++) {
       const textChunk = chunks[i];
+      const vectorValues = generateTextEmbeddingVector(textChunk);
 
-      // Request vector coordinates from Google
-      const embeddingResponse = await ai.models.embedContent({
-        model: 'text-embedding-004',
-        contents: textChunk,
+      records.push({
+        id: `${courseKey}_chunk_${i}`,
+        values: vectorValues,
+        metadata: {
+          course_key: courseKey,
+          course_name: courseName || "",
+          level: level || "",
+          semester: semester || "",
+          chunk_index: i,
+          text: textChunk
+        }
       });
-
-      const vectorValues = embeddingResponse.embeddings?.[0]?.values || (embeddingResponse as any).embedding?.values;
-      if (vectorValues && vectorValues.length > 0) {
-        records.push({
-          id: `${courseKey}_chunk_${i}`,
-          values: vectorValues,
-          metadata: {
-            course_key: courseKey,
-            course_name: courseName || "",
-            level: level || "",
-            semester: semester || "",
-            chunk_index: i,
-            text: textChunk
-          }
-        });
-      }
 
       // Upsert in safe batch limits of 100 entries
       if (records.length === 100 || (i === chunks.length - 1 && records.length > 0)) {

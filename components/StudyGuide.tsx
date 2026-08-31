@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
-import { createAvelutAI, getResponseText } from '../utils/inference';
-import { Type } from '@google/genai';
+import { createAvelutAI, getResponseText, Type } from '../utils/inference';
 import { db } from '../firebase';
 import { ref as dbRef, update, get } from 'firebase/database';
 import type { UserProfile, Course, Topic, UserProgress } from '../types';

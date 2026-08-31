@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
 

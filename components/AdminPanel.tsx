@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, storage, auth } from '../firebase';
 import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '../utils/inference';
 import type { UsageSettings } from '../types';
 import { useToast } from '../hooks/useToast';
 import { useAppSettings } from '../hooks/useAppSettings';
