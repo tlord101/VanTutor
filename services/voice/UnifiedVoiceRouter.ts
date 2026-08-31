@@ -83,12 +83,7 @@ export class UnifiedVoiceRouter {
     text: string,
     options: UnifiedSpeechOptions = {}
   ): void {
-    const grokVoice = this.normalizeGrokVoice(options.voice || options.appSettings?.grok_voice_id || 'altair');
-    void grokVoiceEngine.prefetchSpeech(text, {
-      voice: grokVoice,
-      language: options.language,
-      withTimestamps: options.withTimestamps !== false,
-      cacheKey: options.cacheKey,
+    void grokVoiceEngine.prefetchSpeech(text, options.cacheKey, {
       isPrivate: options.isPrivate,
     });
   }
