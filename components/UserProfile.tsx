@@ -296,12 +296,18 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
             type === 'avatar' ? 800 : 1600, 
             0.8 
         );
-        const uploadResult = await uploadBytes(sRef, compressedFile);
+        
+        const { supabaseStorageService } = await import('../services/supabaseStorageService');
+        const uploadResult = await supabaseStorageService.uploadAvatar(user.uid, compressedFile);
+
         clearInterval(progressInterval);
         setUploadProgress({ type, progress: 100 });
-        
-        const downloadURL = await getDownloadURL(uploadResult.ref);
-        const cacheBustURL = `${downloadURL}?t=${new Date().getTime()}`;
+
+        if (uploadResult.error || !uploadResult.url) {
+            throw new Error(uploadResult.error || 'Upload failed');
+        }
+
+        const cacheBustURL = `${uploadResult.url}?t=${new Date().getTime()}`;
         const updateData = type === 'avatar' ? { photo_url: cacheBustURL } : { cover_photo: cacheBustURL };
         const updateResult = await onProfileUpdate(updateData);
         
@@ -310,7 +316,7 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
         } else {
             addToast(updateResult.error || `Could not update ${type} picture.`, "error");
         }
-    } catch (error) {
+    } catch (error: any) {
         clearInterval(progressInterval);
         console.error(`Failed to upload ${type}:`, error);
         addToast(`Could not update ${type === 'avatar' ? 'profile' : 'cover'} picture. Check your connection.`, "error");

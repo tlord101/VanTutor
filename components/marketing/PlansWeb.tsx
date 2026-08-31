@@ -3,10 +3,7 @@ import { DEFAULT_USAGE_SETTINGS } from '../../utils/appSettings';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../firebase';
-import { db } from '../../firebase';
-import { ref as dbRef, update } from 'firebase/database';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { saveLocalCredits } from '../../services/creditsStorageService';
 
 interface PlansWebProps {
@@ -69,20 +66,28 @@ export const PlansWeb: React.FC<PlansWebProps> = ({ appSettings, userProfile }) 
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const userRef = dbRef(db, `users/${targetUid}`);
-                        await update(userRef, {
-                            subscription_status: planKey,
-                            ai_credits_balance: creditAlloc,
-                            subscription_updated_at: Date.now(),
-                        });
+                        if (isSupabaseConfigured && targetUid) {
+                            await supabase.from('profiles').update({
+                                is_paid_subscriber: true,
+                                ai_credits: creditAlloc,
+                                updated_at: new Date().toISOString(),
+                            }).eq('id', targetUid);
+
+                            await supabase.from('subscriptions').upsert({
+                                user_id: targetUid,
+                                plan_type: planKey,
+                                status: 'active',
+                                paystack_reference: reference,
+                                starts_at: new Date().toISOString(),
+                            });
+                        }
                         saveLocalCredits(targetUid, creditAlloc, planKey).catch(console.warn);
 
                         try {
-                            const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
-                            await verifyTx({
-                                reference,
-                                purchaseType: 'subscription',
-                                planKey
+                            await fetch('/api/paystack-verify', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ reference, userId: targetUid }),
                             });
                         } catch (fnErr) {
                             console.warn('[PlansWeb] Cloud verification notice:', fnErr);

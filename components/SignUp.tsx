@@ -1,13 +1,10 @@
 
 import React, { useState } from 'react';
-import { auth, db, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from '../firebase';
-import { signInWithCredential } from 'firebase/auth';
-import { ref as dbRef, set, get } from 'firebase/database';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeOffIcon } from './icons/EyeOffIcon';
 import { useToast } from '../hooks/useToast';
-import { isNative } from '../utils/capacitorUtils';
 
 interface SignUpProps {
     onSwitchToLogin: () => void;
@@ -25,62 +22,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
-      const ipRes = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await ipRes.json();
-      const ipRef = dbRef(db, `ip_logs/${ip.replace(/[\.#$\[\]]/g, '_').replace(/:/g, '_')}`);
-      const ipSnap = await get(ipRef);
-      if (ipSnap.exists()) {
-          addToast('An account has already been created from this device/IP.', 'error');
-          setIsGoogleSubmitting(false);
-          return;
+      const { error } = await supabaseAuthService.signInWithGoogle();
+      if (error) {
+        throw new Error(error);
       }
-
-      const provider = new GoogleAuthProvider();
-      if (isNative()) {
-        // Use @capacitor-firebase/authentication for native Google Sign-In (Capacitor 8 compatible)
-        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        const idToken = result.credential?.idToken;
-        const accessToken = result.credential?.accessToken;
-        if (!idToken) {
-          throw new Error('No ID token returned from Google Sign-In.');
-        }
-        const credential = GoogleAuthProvider.credential(idToken, accessToken);
-        const fbResult = await signInWithCredential(auth, credential);
-        const user = fbResult.user;
-        const userRef = dbRef(db, `users/${user.uid}`);
-        const userSnap = await get(userRef);
-        if (!userSnap.exists()) {
-          await set(userRef, {
-            uid: user.uid,
-            display_name: user.displayName || 'User',
-            email: user.email || '',
-            photo_url: user.photoURL || '',
-            ai_credits_balance: 30,
-            created_at: Date.now()
-          });
-          await set(ipRef, { uid: user.uid, timestamp: Date.now() });
-          sessionStorage.setItem('just_signed_up', 'true');
-        }
-      } else {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const userRef = dbRef(db, `users/${user.uid}`);
-        const userSnap = await get(userRef);
-        if (!userSnap.exists()) {
-          await set(userRef, {
-            uid: user.uid,
-            display_name: user.displayName || 'User',
-            email: user.email || '',
-            photo_url: user.photoURL || '',
-            ai_credits_balance: 30,
-            created_at: Date.now()
-          });
-          await set(ipRef, { uid: user.uid, timestamp: Date.now() });
-          sessionStorage.setItem('just_signed_up', 'true');
-        }
-      }
-      // On successful sign-in, onAuthStateChanged in App.tsx will trigger.
     } catch (err: any) {
       if (err.message !== 'The user cancelled the sign-in flow.') {
         addToast(err.message || 'Failed to sign in with Google.', 'error');
@@ -91,7 +36,6 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     }
   };
 
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (displayName.trim() === '') {
@@ -101,34 +45,13 @@ export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
     setIsSubmitting(true);
 
     try {
-      const ipRes = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await ipRes.json();
-      const ipRef = dbRef(db, `ip_logs/${ip.replace(/[\.#$\[\]]/g, '_').replace(/:/g, '_')}`);
-      const ipSnap = await get(ipRef);
-      if (ipSnap.exists()) {
-          addToast('An account has already been created from this device/IP.', 'error');
-          setIsSubmitting(false);
-          return;
+      const res = await supabaseAuthService.signUpWithEmail(email, password, displayName);
+      if (res.error) {
+        addToast(res.error, 'error');
+      } else {
+        sessionStorage.setItem('just_signed_up', 'true');
+        addToast('Account created successfully!', 'success');
       }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      await updateProfile(user, { displayName: displayName.trim() });
-      
-      // Initialize user profile in RTDB
-      await set(dbRef(db, `users/${user.uid}`), {
-        uid: user.uid,
-        display_name: displayName.trim(),
-        email: user.email,
-        ai_credits_balance: 30,
-        created_at: Date.now()
-      });
-      await set(ipRef, { uid: user.uid, timestamp: Date.now() });
-
-      sessionStorage.setItem('just_signed_up', 'true');
-      addToast("Account created successfully!", "success");
-      // onAuthStateChanged in App.tsx will handle the state change.
     } catch (err: any) {
       let errorMessage = err.message || 'Failed to create an account.';
       console.error('Sign up failed:', err);

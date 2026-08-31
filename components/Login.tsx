@@ -1,15 +1,11 @@
 
 import React, { useState } from 'react';
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword } from '../firebase';
-import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
-import { ref as dbRef, set, get } from 'firebase/database';
-import { db } from '../firebase';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { GoogleIcon } from './icons/GoogleIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeOffIcon } from './icons/EyeOffIcon';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { useToast } from '../hooks/useToast';
-import { isNative } from '../utils/capacitorUtils';
 
 interface LoginProps {
     onSwitchToSignUp: () => void;
@@ -27,51 +23,10 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     try {
-      const provider = new GoogleAuthProvider();
-      if (isNative()) {
-        // Use @capacitor-firebase/authentication for native Google Sign-In (Capacitor 8 compatible)
-        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        const idToken = result.credential?.idToken;
-        const accessToken = result.credential?.accessToken;
-        if (!idToken) {
-          throw new Error('No ID token returned from Google Sign-In.');
-        }
-        const credential = GoogleAuthProvider.credential(idToken, accessToken);
-        const fbResult = await signInWithCredential(auth, credential);
-        
-        const user = fbResult.user;
-        const userRef = dbRef(db, `users/${user.uid}`);
-        const userSnap = await get(userRef);
-        if (!userSnap.exists()) {
-          await set(userRef, {
-            uid: user.uid,
-            display_name: user.displayName || 'User',
-            email: user.email || '',
-            photo_url: user.photoURL || '',
-            ai_credits_balance: 30,
-            created_at: Date.now()
-          });
-          sessionStorage.setItem('just_signed_up', 'true');
-        }
-      } else {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const userRef = dbRef(db, `users/${user.uid}`);
-        const userSnap = await get(userRef);
-        if (!userSnap.exists()) {
-          await set(userRef, {
-            uid: user.uid,
-            display_name: user.displayName || 'User',
-            email: user.email || '',
-            photo_url: user.photoURL || '',
-            ai_credits_balance: 30,
-            created_at: Date.now()
-          });
-          sessionStorage.setItem('just_signed_up', 'true');
-        }
+      const { error } = await supabaseAuthService.signInWithGoogle();
+      if (error) {
+        throw new Error(error);
       }
-      // On successful sign-in, onAuthStateChanged will trigger in App.tsx
     } catch (err: any) {
       if (err.message !== 'The user cancelled the sign-in flow.') {
         addToast(err.message || 'Failed to sign in with Google.', 'error');
@@ -87,15 +42,17 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
     setIsSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // On successful login, onAuthStateChanged in App.tsx will handle the state change.
-    } catch (err: any) {
-      let errorMessage = err.message || 'An unexpected error occurred.';
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-        errorMessage = 'Incorrect email or password. Please try again.';
+      const res = await supabaseAuthService.signInWithEmail(email, password);
+      if (res.error) {
+        let errorMessage = res.error;
+        if (errorMessage.toLowerCase().includes('invalid login credentials')) {
+          errorMessage = 'Incorrect email or password. Please try again.';
+        }
+        addToast(errorMessage, 'error');
       }
+    } catch (err: any) {
       console.error('Login failed:', err);
-      addToast(errorMessage, 'error');
+      addToast(err.message || 'An unexpected error occurred.', 'error');
     } finally {
       setIsSubmitting(false);
     }

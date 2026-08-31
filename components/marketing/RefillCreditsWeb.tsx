@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import type { AppSettings, UserProfile } from '../../types';
 import { triggerPaystackPurchase } from '../../utils/usage';
 import { useToast } from '../../hooks/useToast';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../firebase';
-import { db } from '../../firebase';
-import { ref as dbRef, runTransaction } from 'firebase/database';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { saveLocalCredits } from '../../services/creditsStorageService';
 
 interface RefillCreditsWebProps {
@@ -78,29 +75,33 @@ export const RefillCreditsWeb: React.FC<RefillCreditsWebProps> = ({ appSettings,
                 addToast,
                 onSuccess: async (reference) => {
                     try {
-                        const userRef = dbRef(db, `users/${targetUid}`);
-                        let newBal = 0;
-                        await runTransaction(userRef, (profile) => {
-                            if (profile) {
-                                profile.ai_credits_balance = (profile.ai_credits_balance || 0) + amount;
-                                newBal = profile.ai_credits_balance;
+                        let newBal = (userProfile?.ai_credits || 0) + amount;
+                        if (isSupabaseConfigured && targetUid) {
+                            const { data: rpcRes } = await supabase.rpc('increment_user_credits', {
+                                p_user_id: targetUid,
+                                p_amount: amount,
+                            });
+                            if (rpcRes?.credits) {
+                                newBal = rpcRes.credits;
+                            } else {
+                                const { data: prof } = await supabase.from('profiles').select('ai_credits').eq('id', targetUid).maybeSingle();
+                                newBal = (prof?.ai_credits || 0) + amount;
+                                await supabase.from('profiles').update({ ai_credits: newBal, updated_at: new Date().toISOString() }).eq('id', targetUid);
                             }
-                            return profile;
-                        });
+                        }
                         saveLocalCredits(targetUid, newBal, userProfile?.subscription_status || 'free').catch(console.warn);
 
                         try {
-                            const verifyTx = httpsCallable(functions, 'verifyPaystackTransaction');
-                            await verifyTx({
-                                reference,
-                                purchaseType: 'additional_credits',
-                                creditAmount: amount
+                            await fetch('/api/paystack-verify', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ reference, userId: targetUid }),
                             });
                         } catch (fnErr) {
                             console.warn('[RefillCreditsWeb] Cloud verification notice:', fnErr);
                         }
 
-                        addToast('Payment successful! Credits have been added to your account.', 'success');
+                        addToast(`Payment successful! ${amount.toLocaleString()} credits added.`, 'success');
                         setTimeout(() => {
                             window.location.href = '/payment-success';
                         }, 800);

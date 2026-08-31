@@ -1,5 +1,4 @@
-import { db } from '../firebase';
-import { ref as dbRef, push, set, update, get, runTransaction } from 'firebase/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile, AppSettings } from '../types';
 import { DEFAULT_USAGE_SETTINGS, DEFAULT_APP_SETTINGS } from './appSettings';
 import { saveLocalCredits, recordLocalCreditDeduction } from '../services/creditsStorageService';
@@ -37,25 +36,18 @@ interface PaystackPurchaseOptions {
 export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) => {
   const { publicKey, email, amount, userId, userName, purchaseType, metadata, onSuccess, onCancel, onError, addToast } = options;
 
-  let paymentLogRef: any = null;
-  try {
-    paymentLogRef = push(dbRef(db, 'usage_logs/payments'));
-    await set(paymentLogRef, {
-      id: paymentLogRef.key,
-      user_id: userId,
-      user_name: userName || metadata?.user_name || 'Student',
-      user_email: email,
-      email: email,
-      amount: amount,
-      purchase_type: purchaseType,
-      plan_key: metadata?.plan_key || (purchaseType === 'subscription' ? 'basic' : null),
-      credit_amount: metadata?.credit_amount || null,
-      metadata: metadata || {},
-      status: 'initiated',
-      timestamp: Date.now(),
-    });
-  } catch (err) {
-    console.error('Failed to create payment log:', err);
+  let paymentLogId = 'pay_' + Date.now();
+  if (isSupabaseConfigured && userId) {
+    try {
+      await supabase.from('reports').insert({
+        reporter_id: userId,
+        type: 'feedback',
+        title: `Payment initiated: ${purchaseType}`,
+        details: JSON.stringify({ amount, email, purchaseType, plan_key: metadata?.plan_key }),
+      });
+    } catch (err) {
+      console.warn('Failed to log payment attempt:', err);
+    }
   }
 
   const paystackMetadata = {
@@ -258,33 +250,54 @@ export const checkAICredits = (
 };
 
 /**
- * Safely decrements user AI credit balance in the database.
+ * Safely decrements user AI credit balance in Supabase and local SQLite.
  */
 export const deductAICredits = async (userId: string, cost: number, featureName: string, appSettings?: AppSettings) => {
   if (!userId || cost <= 0) return;
-  try {
-    const creditsRef = dbRef(db, `users/${userId}/ai_credits_balance`);
-    const result = await runTransaction(creditsRef, (currentBalance) => {
-      const balance = typeof currentBalance === 'number' ? currentBalance : 30;
-      return Math.max(0, balance - cost);
-    }, { applyLocally: true });
 
-    if (result.committed) {
-      const updatedBalance = result.snapshot.val() ?? 0;
-      saveLocalCredits(userId, updatedBalance, 'free').catch(console.warn);
-      recordLocalCreditDeduction(userId, cost, featureName).catch(console.warn);
+  // Always record deduction locally first for instant zero-latency UI updates
+  recordLocalCreditDeduction(userId, cost, featureName).catch(console.warn);
 
-      // Log usage in cloud asynchronously
-      const usageLogRef = push(dbRef(db, `usage_logs/credits/${userId}`));
-      void set(usageLogRef, {
+  if (isSupabaseConfigured) {
+    try {
+      // 1. Try atomic RPC deduction first
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('deduct_user_credits', {
+        p_user_id: userId,
+        p_amount: cost,
+      });
+
+      if (!rpcErr && rpcRes?.success) {
+        if (typeof rpcRes.remaining_credits === 'number') {
+          saveLocalCredits(userId, rpcRes.remaining_credits, 'free').catch(console.warn);
+        }
+      } else {
+        // Fallback: direct update on profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('ai_credits')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile) {
+          const newCredits = Math.max(0, (profile.ai_credits ?? 50) - cost);
+          await supabase
+            .from('profiles')
+            .update({ ai_credits: newCredits, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+          saveLocalCredits(userId, newCredits, 'free').catch(console.warn);
+        }
+      }
+
+      // 2. Audit log to usage_records table asynchronously
+      void supabase.from('usage_records').insert({
+        user_id: userId,
         feature: featureName,
-        deduction: cost,
-        timestamp: Date.now(),
-      }).catch(() => {});
+        credits_spent: cost,
+        created_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('[Credits] Supabase deduction error:', err);
     }
-  } catch (err) {
-    console.warn('[Credits] Deduction note:', err);
-    recordLocalCreditDeduction(userId, cost, featureName).catch(() => {});
   }
 };
 

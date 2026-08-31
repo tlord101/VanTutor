@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import type { UserProfile } from '../types';
-import { auth, type FirebaseUser } from '../firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { useToast } from '../hooks/useToast';
 import { ConfirmationModal } from './ConfirmationModal';
 import { isNative } from '../utils/capacitorUtils';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsProps {
-  user: FirebaseUser | null;
+  user: any | null;
   userProfile: UserProfile;
   onLogout: () => void;
   onProfileUpdate: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
@@ -89,7 +88,10 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
     }
     setIsResetEmailSending(true);
     try {
-      await sendPasswordResetEmail(auth, user.email);
+      const res = await supabaseAuthService.sendPasswordReset(user.email);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to send password reset email');
+      }
       addToast('Password reset email sent! Check your inbox.', 'success');
     } catch (error: any) {
       console.error(error);

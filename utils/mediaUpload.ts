@@ -238,40 +238,54 @@ export const sourceToBlob = async (source: unknown): Promise<SourceBlob> => {
   throw new Error(`Unsupported media source: ${uri.slice(0, 64)}`);
 };
 
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+
 export interface UploadWithRetryOptions {
   attempts?: number;
-  /** Hard cap per attempt covering both uploadBytes and getDownloadURL. */
   timeoutMs?: number;
   contentType?: string;
 }
 
 /**
- * Uploads a Blob to Firebase Storage with retries + timeouts and returns a
- * validated, PERMANENT https download URL. Rejects if every attempt fails or if
- * the resolved URL is not a durable http(s) URL (e.g. someone accidentally
- * returned a blob:/data: URL which would die after page unload).
+ * Uploads a Blob to Supabase Storage with retries + timeouts and returns a
+ * validated, PERMANENT https public URL.
  */
 export const uploadBlobWithRetry = async (
-  storage: FirebaseStorage,
+  _storage: any,
   blob: Blob,
   cloudPath: string,
   options: UploadWithRetryOptions = {}
 ): Promise<string> => {
-  const { attempts = 3, timeoutMs = 60000, contentType } = options;
+  const { attempts = 3, contentType } = options;
   let lastError: unknown;
+
+  const bucket = cloudPath.startsWith('avatars/') ? 'profile_avatars' : 'solution_shares';
+  const cleanPath = cloudPath.replace(/^(avatars|solution_shares|temp_uploads)\//, '');
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const snapshot = await withTimeout(
-        uploadBytes(storageRef(storage, cloudPath), blob, contentType ? { contentType } : undefined),
-        timeoutMs,
-        `Upload attempt ${attempt}/${attempts}`
-      );
-      const url = await withTimeout(getDownloadURL(snapshot.ref), timeoutMs, 'Resolving download URL');
-      if (!url || !/^https?:\/\//i.test(url)) {
-        throw new Error(`Storage returned an invalid (non-permanent) URL: ${String(url).slice(0, 64)}`);
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .upload(cleanPath, blob, {
+            upsert: true,
+            contentType: contentType || blob.type || 'image/jpeg',
+          });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(data.path);
+
+        const url = publicUrlData.publicUrl;
+        if (!url || !/^https?:\/\//i.test(url)) {
+          throw new Error(`Storage returned an invalid URL: ${String(url).slice(0, 64)}`);
+        }
+        return url;
       }
-      return url;
     } catch (error) {
       lastError = error;
       console.warn(`[mediaUpload] Attempt ${attempt}/${attempts} failed for ${cloudPath}:`, error);

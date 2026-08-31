@@ -1,5 +1,4 @@
-import { ref as dbRef, get, update, runTransaction } from 'firebase/database';
-import { db } from '../firebase';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile } from '../types';
 
 /**
@@ -17,69 +16,68 @@ export const getTodayDateString = (): string => {
  * Returns true if the user has already earned a streak today.
  */
 export const isStreakAlreadyAwardedToday = (userProfile: UserProfile): boolean => {
-  return userProfile.last_streak_date === getTodayDateString();
+  return userProfile.last_streak_date === getTodayDateString() || userProfile.last_active_date === getTodayDateString();
 };
 
 /**
  * Checks whether the user's streak is "active" (last award was today).
  */
 export const isStreakActiveToday = (userProfile: UserProfile): boolean => {
-  return userProfile.last_streak_date === getTodayDateString();
+  return userProfile.last_streak_date === getTodayDateString() || userProfile.last_active_date === getTodayDateString();
 };
 
 /**
- * Awards one streak day to the user (once per day, enforced by last_streak_date).
+ * Awards one streak day to the user in Supabase.
  * Returns true if the streak was incremented, false if it was already done today.
  */
 export const awardDailyStreak = async (uid: string): Promise<boolean> => {
+  if (!uid || !isSupabaseConfigured) return false;
   const today = getTodayDateString();
 
   try {
-    const userRef = dbRef(db, `users/${uid}`);
-    let wasAwarded = false;
-
-    await runTransaction(userRef, (currentData) => {
-      // Because the first run might receive null if data isn't cached,
-      // we must return a valid object so the server can reject the hash and provide real data,
-      // or if it really is empty, it will initialize it.
-      if (!currentData) {
-        currentData = {};
-      }
-      if (currentData.last_streak_date === today) {
-        return undefined; // Abort transaction, no changes needed
-      }
-
-      const lastStreakDate: string | undefined = currentData.last_streak_date;
-      const currentStreak: number = typeof currentData.current_streak === 'number' ? currentData.current_streak : 
-                                     (parseInt(currentData.current_streak) || 0);
-
-      // Determine if it's a consecutive day (yesterday)
-      let newStreak = currentStreak;
-      if (lastStreakDate) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-        
-        if (lastStreakDate === yesterdayStr) {
-          newStreak = currentStreak + 1; // Consecutive day
-        } else {
-          newStreak = 1; // Streak broken — reset to 1
-        }
-      } else {
-        newStreak = 1; // First ever streak
-      }
-
-      currentData.current_streak = newStreak;
-      currentData.last_streak_date = today;
-      currentData.last_activity_date = Date.now();
-      
-      wasAwarded = true;
-      return currentData;
+    // 1. Try atomic RPC streak update first
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_daily_streak', {
+      p_user_id: uid,
     });
 
-    return wasAwarded;
-  } catch (error) {
-    console.error('[streaks] Failed to award daily streak:', error);
+    if (!rpcErr && rpcRes?.success) {
+      return true;
+    }
+
+    // 2. Direct Supabase profile update fallback
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('streak, last_active_date')
+      .eq('id', uid)
+      .maybeSingle();
+
+    if (profile) {
+      if (profile.last_active_date === today) {
+        return false;
+      }
+
+      const currentStreak = profile.streak || 0;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+      const newStreak = profile.last_active_date === yesterdayStr ? currentStreak + 1 : 1;
+
+      await supabase
+        .from('profiles')
+        .update({
+          streak: newStreak,
+          last_active_date: today,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', uid);
+
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('[Streaks] Supabase streak update note:', err);
     return false;
   }
 };

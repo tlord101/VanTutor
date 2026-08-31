@@ -131,15 +131,14 @@ export const useSharedTextbookUpload = () => {
             for (let index = 0; index < pdfFiles.length; index += 1) {
                 const file = pdfFiles[index];
                 setUploadProgress({ status: `Uploading PDF to storage (${index + 1}/${pdfFiles.length})...`, percent: 10 + (index * 5) });
-                const uploadToken = `${Date.now()}_${index}_${file.lastModified}_${file.size}`;
-                // Save in users/ shared or uploader/
-                const storagePath = isUploader 
-                    ? `textbooks/uploader/${currentUser.uid}/${courseKey}/${uploadToken}_${file.name}`
-                    : `textbooks/users/${currentUser.uid}/${courseKey}/${uploadToken}_${file.name}`;
                 
-                const fileRef = storageRef(storage, storagePath);
-                const result = await uploadBytes(fileRef, file);
-                const downloadURL = await getDownloadURL(result.ref);
+                const { supabaseStorageService } = await import('../services/supabaseStorageService');
+                const uploadRes = await supabaseStorageService.uploadMaterial(currentUser.uid, file, file.name);
+                
+                const downloadURL = uploadRes.url || '';
+                if (!downloadURL) {
+                    throw new Error(uploadRes.error || 'Failed to upload textbook to storage');
+                }
                 uploadedUrls.push(downloadURL);
 
                 setUploadProgress({ status: `Extracting textbook contents (${index + 1}/${pdfFiles.length})...`, percent: 20 + (index * 5) });
