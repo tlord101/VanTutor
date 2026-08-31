@@ -220,8 +220,22 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
       unsubscribe();
       engine.destroy();
+      unifiedVoiceRouter.stopAll();
     };
   }, [topicTitle, courseName, syllabusContext]);
+
+  const handleCloseSession = useCallback(() => {
+    if (autoContinueTimerRef.current) {
+      clearTimeout(autoContinueTimerRef.current);
+      autoContinueTimerRef.current = null;
+    }
+    if (engineRef.current) {
+      engineRef.current.destroy();
+      engineRef.current = null;
+    }
+    unifiedVoiceRouter.stopAll();
+    onClose?.();
+  }, [onClose]);
 
   const handleVoiceChange = (newVoice: string) => {
     setCurrentVoice(newVoice);
@@ -276,7 +290,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         isSpeaking={isSpeaking}
         currentVoice={currentVoice}
         onOpenVoiceSelector={() => setShowVoiceModal(true)}
-        onClose={onClose}
+        onClose={handleCloseSession}
       />
 
       {/* ── 2. HERO WHITEBOARD SURFACE (occupies the entire screen below header) ── */}

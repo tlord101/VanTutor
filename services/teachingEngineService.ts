@@ -116,12 +116,12 @@ export class TeachingEngineService {
       const speechText = segment.teaching.speech.trim();
       const actions = segment.teaching.actions || [];
 
-      // Start audio synthesis via UnifiedVoiceRouter using Alibaba qwen3-tts-flash
+      // Start audio synthesis via UnifiedVoiceRouter with fast 1.15x lecturer pace
       this.activeAudioPlayer = unifiedVoiceRouter.playSpeech(speechText, {
         appSettings: this.appSettings,
-        provider: 'alibaba',
+        provider: 'grok',
         voice: this.voice,
-        speed: 1.0,
+        speed: 1.15,
         onEnd: () => {
           this.listeners.forEach((l) => l.onAudioPlaybackStateChanged?.(false));
           if (segment.question && segment.question.waitForAnswer) {
@@ -134,7 +134,7 @@ export class TeachingEngineService {
         },
       });
 
-      // Schedule semantic phrase actions
+      // Schedule fast, snappy synchronized board actions
       this.scheduleSynchronizedActions(speechText, actions);
     } catch (err: any) {
       console.warn('[TeachingEngine] Speech playback fallback:', err);
@@ -142,7 +142,7 @@ export class TeachingEngineService {
       segment.teaching.actions.forEach((act, idx) => {
         const timer = setTimeout(() => {
           this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
-        }, idx * 1200);
+        }, idx * 600);
         this.activeTimers.push(timer);
       });
       this.listeners.forEach((l) => l.onAudioPlaybackStateChanged?.(false));
@@ -283,7 +283,8 @@ export class TeachingEngineService {
   private scheduleSynchronizedActions(speech: string, actions: BoardAction[]) {
     const words = speech.split(/\s+/);
     const totalWords = words.length || 1;
-    const estTotalDurationMs = Math.max(3000, (totalWords / 2.6) * 1000);
+    // Faster action pacing (2.8 words/sec)
+    const estTotalDurationMs = Math.max(2000, (totalWords / 2.8) * 1000);
 
     actions.forEach((action, index) => {
       let delayMs = 0;
@@ -296,17 +297,18 @@ export class TeachingEngineService {
           const ratio = charIndex / speechLower.length;
           delayMs = Math.floor(ratio * estTotalDurationMs);
         } else {
-          delayMs = Math.floor(((index + 1) / (actions.length + 1)) * estTotalDurationMs);
+          delayMs = Math.floor((index / Math.max(1, actions.length)) * estTotalDurationMs * 0.8);
         }
       } else {
-        delayMs = Math.floor(((index + 1) / (actions.length + 1)) * estTotalDurationMs);
+        delayMs = Math.floor((index / Math.max(1, actions.length)) * estTotalDurationMs * 0.8);
       }
 
+      // Fast, snappy action triggers with lead delay of 80ms
       const timer = setTimeout(() => {
         if (!this.isDestroyed) {
           this.listeners.forEach((l) => l.onBoardActionTriggered?.(action));
         }
-      }, Math.max(100, delayMs));
+      }, Math.max(80, delayMs));
 
       this.activeTimers.push(timer);
     });
@@ -359,16 +361,22 @@ export class TeachingEngineService {
   public stopCurrentPlayback() {
     this.activeTimers.forEach((t) => clearTimeout(t));
     this.activeTimers = [];
-    if (this.activeAudioPlayer && typeof this.activeAudioPlayer.pause === 'function') {
+    if (this.activeAudioPlayer) {
       try {
-        this.activeAudioPlayer.pause();
+        if (typeof this.activeAudioPlayer.stop === 'function') {
+          this.activeAudioPlayer.stop();
+        } else if (typeof this.activeAudioPlayer.pause === 'function') {
+          this.activeAudioPlayer.pause();
+        }
       } catch (_) {}
     }
+    unifiedVoiceRouter.stopAudio();
   }
 
   public destroy() {
     this.isDestroyed = true;
     this.stopCurrentPlayback();
+    unifiedVoiceRouter.stopAll();
     this.listeners.clear();
   }
 }
