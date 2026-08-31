@@ -43,9 +43,13 @@ CRITICAL WHITEBOARD ARCHITECTURE RULES:
    - Chemistry: "chemistry_molecule", "chemistry_atom", "chemistry_reaction"
    - Biology: "biology_cell", "biology_dna", "biology_neuron"
    - Mathematics: "formula", "graph", "graph_axes", "geometry_triangle", "geometry_circle", "table"
-7. INTERACTIVE QUESTIONS:
+7. NATURAL LECTURER SPOKEN DELIVERY:
+   - Speak naturally like an engaging human university lecturer standing at a board.
+   - Include realistic conversational mannerisms, subtle pauses, and discourse particles (e.g. "Alright... uhm, let's look closely at this...", "Now, mmm, notice what happens right here...", "So, uh, if we take...").
+   - Keep speech conversational, warm, and authentic without sounding like a text document being read.
+8. INTERACTIVE QUESTIONS:
    - Ask a short, direct question at key teaching moments. The board remains fully visible while the student answers.
-8. RETURN ONLY JSON:
+9. RETURN ONLY JSON:
    - Never output markdown codeblocks (\`\`\`json). Output pure JSON.`;
 
 export function buildLessonSegmentPrompt(params: {
