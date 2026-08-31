@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, push, update, set } from 'firebase/database';
-import { Type } from '../../../utils/inference';
+import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 
@@ -28,7 +28,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     const [notificationRoute, setNotificationRoute] = useState('dashboard');
     const [isSendingPush, setIsSendingPush] = useState(false);
 
-    const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+    const ai = createAvelutAI({ gemini_api_key: geminiApiKey } as any);
 
     const notificationRoutes = [
         { value: 'dashboard', label: 'Dashboard' },

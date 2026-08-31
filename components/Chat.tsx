@@ -121,7 +121,7 @@ const TextChat: React.FC<{
     handleNewChat: () => void;
     isDeleting: boolean;
     geminiModel: string;
-    ai: GoogleGenAI | null;
+    ai: any;
     addToast: (message: string, type: 'success' | 'error' | 'info') => void;
     attemptApiCall: <T>(apiCall: () => Promise<T>) => Promise<{ success: boolean; data?: T; message: string }>;
 }> = ({

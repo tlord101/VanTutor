@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { db } from '../../../firebase';
 import { ref as dbRef, get, update } from 'firebase/database';
-import { Type } from '../../../utils/inference';
+import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
 import { MergeReviewModal, SuggestedMerge } from './MergeReviewModal';
@@ -37,11 +37,11 @@ export const TopicPurgeManager: React.FC<TopicPurgeManagerProps> = ({
     const [approvedMergesToExecute, setApprovedMergesToExecute] = useState<SuggestedMerge[]>([]);
     const [isExecutingMerge, setIsExecutingMerge] = useState(false);
 
-    const geminiApiKey = appSettings.gemini_api_key.trim();
-    const aiClient = useRef<GoogleGenAI | null>(null);
+    const geminiApiKey = appSettings.gemini_api_key?.trim() || '';
+    const aiClient = useRef<any>(null);
 
     if (geminiApiKey && !aiClient.current) {
-        aiClient.current = new GoogleGenAI({ apiKey: geminiApiKey });
+        aiClient.current = createAvelutAI(appSettings);
     }
 
     // Trigger AI Topic Analysis

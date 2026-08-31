@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db, auth } from '../../../firebase';
 import { ref as dbRef, get, set } from 'firebase/database';
-import { Type } from '../../../utils/inference';
+import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
 
@@ -32,7 +32,7 @@ export const AppVersionUpdateView: React.FC = () => {
     const [title, setTitle] = useState('App Update Available');
     const [message, setMessage] = useState('A new version of AVELUT is available. Update now for the latest fixes and features.');
     const [mandatory, setMandatory] = useState(false);
-    const ai = appSettings.gemini_api_key ? new GoogleGenAI({ apiKey: appSettings.gemini_api_key }) : null;
+    const ai = createAvelutAI(appSettings);
 
     const loadConfig = async () => {
         setIsLoading(true);

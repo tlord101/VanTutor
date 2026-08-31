@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../../../../firebase';
 import { ref as dbRef, get, update } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Type } from '../../../../utils/inference';
+import { Type, createAvelutAI } from '../../../../utils/inference';
 import { useToast } from '../../../../hooks/useToast';
 import { useAppSettings } from '../../../../hooks/useAppSettings';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
@@ -116,13 +116,13 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
         addToast(`Successfully deleted ${selectedTopicIds.size} topic(s).`, 'success');
     };
 
-    const geminiApiKey = appSettings.gemini_api_key.trim();
-    const aiClient = useRef<GoogleGenAI | null>(null);
+    const geminiApiKey = appSettings.gemini_api_key?.trim() || '';
+    const aiClient = useRef<any>(null);
     useEffect(() => {
         if (geminiApiKey) {
-            aiClient.current = new GoogleGenAI({ apiKey: geminiApiKey });
+            aiClient.current = createAvelutAI(appSettings);
         }
-    }, [geminiApiKey]);
+    }, [geminiApiKey, appSettings]);
 
     const loadCourseData = async () => {
         setIsLoading(true);
