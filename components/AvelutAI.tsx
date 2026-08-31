@@ -1743,7 +1743,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
         // Check if there is a cached response for exact prompt when no files attached
         if (filesToSend.length === 0) {
-          const cachedReply = await getCachedAIResponse(prompt, geminiModel || 'gemini-3.1-flash-lite', courseContext);
+          const cachedReply = await getCachedAIResponse(prompt, geminiModel || 'qwen-plus', courseContext);
           if (cachedReply) {
             return cachedReply;
           }
@@ -1812,7 +1812,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
         try {
           const responseStream = await ai.models.generateContentStream({
-            model: geminiModel || 'gemini-3.1-flash-lite',
+            model: geminiModel || 'qwen-plus',
             contents: [
               {
                 role: 'user',
@@ -1837,7 +1837,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
         } catch (streamError) {
           console.warn('Streaming failed, falling back to generateContent:', streamError);
           const nonStreamResult = await ai.models.generateContent({
-            model: geminiModel || 'gemini-3.1-flash-lite',
+            model: geminiModel || 'qwen-plus',
             contents: [
               {
                 role: 'user',
@@ -1911,7 +1911,7 @@ export default function AvelutAI({ userProfile, onNavigate, setCustomHeaderConfi
 
       // Cache AI response for future zero-latency repeat queries
       if (filesToSend.length === 0) {
-        void setCachedAIResponse(prompt, geminiModel || 'gemini-3.1-flash-lite', courseContext, finalResponseText);
+        void setCachedAIResponse(prompt, geminiModel || 'qwen-plus', courseContext, finalResponseText);
       }
 
       push(messagesRef, {

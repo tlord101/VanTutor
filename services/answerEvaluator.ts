@@ -246,7 +246,7 @@ export async function evaluateStudentAnswer(
     studentAnswer: string,
     dialogueContext: string,
     aiClient: any,
-    model: string = 'gemini-3.1-flash-lite'
+    model: string = 'qwen-plus'
 ): Promise<{
     isCorrect: boolean;
     misconceptionType?: MisconceptionType;

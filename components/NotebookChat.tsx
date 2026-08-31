@@ -243,7 +243,7 @@ ${messageText}`;
       }]);
 
       const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-3.1-flash-lite',
+        model: 'qwen-plus',
         contents: prompt,
         config: {
           temperature: 0.3,

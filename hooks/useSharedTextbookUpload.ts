@@ -93,7 +93,7 @@ export const useSharedTextbookUpload = () => {
     const { addToast } = useToast();
     const { attemptApiCall } = useApiLimiter();
     const { settings: appSettings } = useAppSettings();
-    const geminiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || 'gemini-3.1-flash-lite';
+    const geminiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || 'qwen-plus';
     const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
 
     const [uploadProgress, setUploadProgress] = useState<{ status: string; percent: number } | null>(null);

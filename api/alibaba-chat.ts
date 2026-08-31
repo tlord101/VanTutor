@@ -51,14 +51,31 @@ export async function POST(req: Request) {
       requestHeaders['X-DashScope-WorkSpace'] = workspaceId;
     }
 
-    let model = body.model || 'qwen3.7-flash';
-    if (model === 'qwen3.8-max' || !model.trim()) {
-      model = 'qwen3.7-flash';
+    // Normalize model name for DashScope OpenAI-compatible endpoint
+    const messages = body.messages || [];
+    const hasImage = messages.some((m: any) =>
+      Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
+    );
+
+    let model = 'qwen-plus';
+    if (hasImage) {
+      model = 'qwen-vl-plus';
+    } else if (body.model) {
+      const lower = String(body.model).toLowerCase().trim();
+      if (lower.includes('turbo') || lower.includes('lite') || lower.includes('flash')) {
+        model = 'qwen-turbo';
+      } else if (lower.includes('max') || lower.includes('pro')) {
+        model = 'qwen-max';
+      } else if (lower === 'qwen-plus' || lower === 'qwen-turbo' || lower === 'qwen-max' || lower === 'qwen-vl-plus' || lower === 'qwen-vl-max') {
+        model = lower;
+      } else {
+        model = 'qwen-plus';
+      }
     }
 
     const payload: any = {
       model,
-      messages: body.messages || [],
+      messages,
       temperature: body.temperature ?? 0.7,
       max_tokens: body.max_tokens ?? 4096,
     };

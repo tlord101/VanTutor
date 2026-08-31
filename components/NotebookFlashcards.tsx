@@ -176,7 +176,7 @@ RULES:
 ]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
+        model: 'qwen-plus',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

@@ -269,12 +269,31 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
 }
 
 /**
+ * Normalizes model names to valid Alibaba DashScope Qwen models
+ */
+export function normalizeQwenModelName(model?: string, hasImage: boolean = false): string {
+  if (hasImage) return 'qwen-vl-plus';
+  if (!model || typeof model !== 'string') return 'qwen-plus';
+  const lower = model.toLowerCase().trim();
+  if (lower.includes('turbo') || lower.includes('lite') || lower.includes('flash')) return 'qwen-turbo';
+  if (lower.includes('max') || lower.includes('pro')) return 'qwen-max';
+  if (lower.includes('vl') || lower.includes('vision') || lower.includes('image')) return 'qwen-vl-plus';
+  if (lower === 'qwen-plus' || lower === 'qwen-turbo' || lower === 'qwen-max' || lower === 'qwen-vl-plus' || lower === 'qwen-vl-max') {
+    return lower;
+  }
+  return 'qwen-plus';
+}
+
+/**
  * Call Alibaba DashScope / OpenAI compatible endpoint (Non-Streaming)
  */
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getAlibabaApiKey(appSettings);
   const { messages } = geminiParamsToChatMessages(params);
-  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
+  const hasImage = messages.some((m: any) =>
+    Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
+  );
+  const model = normalizeQwenModelName(params?.model || appSettings?.alibaba_model, hasImage);
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -353,7 +372,10 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
 async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
   const apiKey = getAlibabaApiKey(appSettings);
   const { messages } = geminiParamsToChatMessages(params);
-  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
+  const hasImage = messages.some((m: any) =>
+    Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
+  );
+  const model = normalizeQwenModelName(params?.model || appSettings?.alibaba_model, hasImage);
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||

@@ -838,7 +838,7 @@ OUTPUT VALID JSON ONLY:
             parts.push({ text: phase === 1 ? phase1Prompt : phase2Prompt });
 
             const result = await aiClient.models.generateContent({
-                model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
+                model: appSettings?.alibaba_model || 'qwen-plus',
                 contents: [{ role: 'user', parts }],
                 config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 8192 },
             });
@@ -1130,7 +1130,7 @@ At the very end say exactly: "Now, let us continue our lesson."`;
             parts.push({ text: qaPrompt });
 
             const result = await aiClient.models.generateContent({
-                model: appSettings?.primary_gemini_model || 'gemini-3.1-flash-lite',
+                model: appSettings?.alibaba_model || 'qwen-plus',
                 contents: [{ role: 'user', parts }],
                 config: { temperature: 0.3, maxOutputTokens: 150 },
             });

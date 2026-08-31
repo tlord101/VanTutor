@@ -231,7 +231,7 @@ OUTPUT ONLY A VALID JSON OBJECT:
   ]
 }`;
 
-            const modelName = appSettings.primary_gemini_model || 'gemini-2.5-flash';
+            const modelName = appSettings.alibaba_model || appSettings.primary_gemini_model || 'qwen-plus';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [

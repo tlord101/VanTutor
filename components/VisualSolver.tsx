@@ -1074,7 +1074,7 @@ FORMATTING REQUIREMENT: Present everything vertically line-by-line. Never use ho
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
+                    model: geminiModel || 'qwen-vl-plus',
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
@@ -1146,7 +1146,7 @@ CRITICAL FORMATTING & LAYOUT RULES:
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'gemini-3.1-flash-lite',
+                    model: geminiModel || 'qwen-vl-plus',
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
