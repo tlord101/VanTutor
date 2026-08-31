@@ -10,12 +10,14 @@ export interface TeachingBoardProps {
   activeCircles?: Set<string>;
   activeUnderlines?: Set<string>;
   tutorPointer?: { x: number; y: number; active: boolean; color?: string } | null;
+  isAudioReady?: boolean;
   className?: string;
 }
 
 /**
  * LIVE TEACHING WHITEBOARD SURFACE
  * Features:
+ * - Title-first progressive reveal: Only displays title until voice audio begins.
  * - Anti-clustering responsive vertical flow layout.
  * - Smooth downward scrolling for extensive derivations & notes.
  * - Auto-scrolls downwards when new elements/derivations are written.
@@ -27,6 +29,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   activeHighlights = new Set(),
   activeCircles = new Set(),
   activeUnderlines = new Set(),
+  isAudioReady = true,
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -177,9 +180,10 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
           );
         })}
 
-        {/* Structured Blackboard Flow Area (Clean vertical stacking, zero overlapping) */}
-        <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 w-full py-4">
-          {bodyElements.map((el) => {
+        {/* Structured Blackboard Flow Area (Revealed in sync with voice) */}
+        {isAudioReady && (
+          <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 w-full py-4">
+            {bodyElements.map((el) => {
             const isHighlighted = activeHighlights.has(el.id);
             const isCircled = activeCircles.has(el.id);
             const isUnderlined = activeUnderlines.has(el.id);
@@ -335,6 +339,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

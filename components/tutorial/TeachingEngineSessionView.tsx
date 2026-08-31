@@ -53,6 +53,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [totalEstimatedSegments, setTotalEstimatedSegments] = useState(5);
   const [isLoadingSegment, setIsLoadingSegment] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAudioReady, setIsAudioReady] = useState(false);
 
   // Whiteboard State
   const [boardElements, setBoardElements] = useState<LiveBoardElement[]>([]);
@@ -150,6 +151,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         isSegmentLoadingRef.current = false;
         setCurrentSegment(segment);
         setIsLoadingSegment(false);
+        setIsAudioReady(false);
         if (segment.lesson.totalEstimatedSegments) {
           setTotalEstimatedSegments(segment.lesson.totalEstimatedSegments);
         }
@@ -166,6 +168,9 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       },
       onAudioPlaybackStateChanged: (playing) => {
         setIsSpeaking(playing);
+        if (playing) {
+          setIsAudioReady(true);
+        }
 
         // Auto-continue when speech finishes if no active blocking question
         if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current) {
@@ -302,6 +307,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           activeCircles={activeCircles}
           activeUnderlines={activeUnderlines}
           tutorPointer={tutorPointer}
+          isAudioReady={isAudioReady}
         />
 
         {/* Floating Question Comprehension Overlay (bottom docked) */}

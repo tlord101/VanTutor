@@ -57,31 +57,62 @@ export function buildLessonSegmentPrompt(params: {
   courseName?: string;
   syllabusContext?: string;
   segmentNumber: number;
+  studentName?: string;
   previousSegmentsSummary?: string;
   studentKnowledgeLevel?: string;
   isOpening?: boolean;
 }): string {
-  const { topic, courseName, syllabusContext, segmentNumber, previousSegmentsSummary, isOpening } = params;
+  const { topic, courseName, syllabusContext, segmentNumber, studentName, previousSegmentsSummary, isOpening } = params;
 
-  return `Generate Segment ${segmentNumber} of a live tutorial on "${topic}" (Course: ${courseName || 'Academic Subject'}).
+  const greeting = studentName ? `Hello ${studentName}!` : 'Hello and welcome!';
+
+  let segmentGuidance = '';
+  if (segmentNumber === 1) {
+    segmentGuidance = `This is Segment 1 (The Broad Introduction & Intuitive Foundation).
+- Start with a warm spoken greeting addressing the student: "${greeting} Welcome to our live tutorial on ${topic}."
+- Provide broad foundational context: explain what this topic is, why it was developed, its core real-world motivation, and intuitive meaning before jumping into dense formulas.
+- Do NOT jump straight to conclusions or skip fundamentals. Cover the breadth of the subject.
+- On the board, write the main TOPIC TITLE at the top (persistence: "persistent") and the core intuitive governing principle.`;
+  } else if (segmentNumber === 2) {
+    segmentGuidance = `This is Segment 2 (Fundamental Principles, Terminology & Conceptual Framework).
+- Explore the core definitions, fundamental laws, and governing mechanics.
+- Break down the primary variables and definitions clearly on the board.`;
+  } else if (segmentNumber === 3) {
+    segmentGuidance = `This is Segment 3 (Mathematical Formulation, Derivation & Visual Diagram).
+- Provide step-by-step mathematical reasoning, equations, and draw an accurate scientific vector diagram primitive.`;
+  } else if (segmentNumber === 4) {
+    segmentGuidance = `This is Segment 4 (Real-World Applications, Analogies & Engineering Context).
+- Explain practical real-world applications, laboratory observations, or physical examples to cement deep understanding.`;
+  } else {
+    segmentGuidance = `This is Segment ${segmentNumber} (Worked Problem & Mastery Check).
+- Walk through a clear step-by-step worked problem and ask an engaging concept question.`;
+  }
+
+  return `You are generating Segment ${segmentNumber} of a comprehensive, broad live tutorial on "${topic}" (Course: ${courseName || 'Academic Subject'}).
 ${syllabusContext ? `Syllabus/Context: ${syllabusContext}\n` : ''}
 ${previousSegmentsSummary ? `Previous Teaching Progress: ${previousSegmentsSummary}\n` : ''}
 
-${isOpening ? `This is Segment 1 (Opening). Start with real-world intuition before introducing formal definitions. Write the concept title and introduce the core relationship.` : `Continue the teaching sequence on the same board. Decide whether to retain persistent formulas or clear temporary examples.`}
+SEGMENT ${segmentNumber} PEDAGOGICAL MANDATE:
+${segmentGuidance}
 
-REQUIRED JSON FORMAT (Return ONLY this JSON):
+TEACHING SCRIPT GUIDELINES:
+1. SPOKEN NARRATIVE: Must be broad, conversational, and thorough (65 to 110 words). Use natural lecturer cadence ("Alright... uhm, let's explore...", "Now, mmm, notice what happens...").
+2. WHITEBOARD SYNCHRONIZATION: For every board action, provide "sync": { "phrase": "exact phrase from speech" } so elements appear at the exact moment those words are spoken.
+3. TITLE DEDUPLICATION: Title element (y <= 18) must only contain the clean topic name.
+
+REQUIRED JSON FORMAT (Return ONLY this JSON, no markdown formatting):
 {
   "lesson": {
     "id": "${topic.toLowerCase().replace(/[^a-z0-9]/g, '-')}",
     "topic": "${topic}",
     "segmentId": "seg_${segmentNumber}",
-    "title": "Short 2-4 word concept name",
+    "title": "Clear 2-4 word concept heading",
     "segmentNumber": ${segmentNumber},
     "totalEstimatedSegments": 5
   },
   "teaching": {
     "objective": "Pedagogical goal for this concept",
-    "speech": "Natural spoken lecturer narrative without markdown (30-60 words)",
+    "speech": "Natural spoken lecturer narrative without markdown (65-110 words)",
     "boardTransition": "${isOpening ? 'clear_board' : (segmentNumber % 2 === 0 ? 'retain_persistent' : 'clear_board')}",
     "actions": [
       {
@@ -97,7 +128,7 @@ REQUIRED JSON FORMAT (Return ONLY this JSON):
         "id": "formula_${segmentNumber}",
         "type": "write",
         "persistence": "persistent",
-        "content": "E = mc^2",
+        "content": "Core Equation",
         "position": { "x": 50, "y": 28 },
         "sync": { "phrase": "exact phrase from speech" },
         "metadata": { "latex": "E = mc^2", "fontSize": "2xl", "color": "#38BDF8" }
@@ -107,8 +138,8 @@ REQUIRED JSON FORMAT (Return ONLY this JSON):
         "type": "write",
         "persistence": "temporary",
         "groupId": "breakdown_${segmentNumber}",
-        "content": "E -> Energy\\nm -> Mass\\nc -> Speed of Light",
-        "position": { "x": 30, "y": 48 },
+        "content": "Detailed breakdown line 1\\nDetailed breakdown line 2",
+        "position": { "x": 30, "y": 50 },
         "sync": { "phrase": "exact phrase from speech" },
         "metadata": { "fontSize": "md", "color": "#94A3B8" }
       },
@@ -120,26 +151,19 @@ REQUIRED JSON FORMAT (Return ONLY this JSON):
         "position": { "x": 70, "y": 55 },
         "sync": { "phrase": "exact phrase from speech" },
         "metadata": { "primitive": "physics_block", "color": "#FACC15" }
-      },
-      {
-        "id": "highlight_${segmentNumber}",
-        "type": "highlight",
-        "target": "formula_${segmentNumber}",
-        "sync": { "phrase": "exact phrase from speech" }
       }
     ]
   },
   "question": {
     "id": "q_${segmentNumber}",
     "type": "understanding",
-    "question": "Clear single-sentence conceptual question based on what was just taught",
+    "question": "Clear conceptual multiple-choice question",
     "waitForAnswer": true,
-    "expectedConcepts": ["mass", "energy conversion"],
-    "options": ["Energy increases", "Mass decreases", "Speed remains constant"]
+    "expectedConcepts": ["core principle"],
+    "options": ["Accurate Option A", "Plausible Distractor B", "Plausible Distractor C"]
   },
   "next": {
-    "type": "wait_for_answer",
-    "suggestedNextSegment": "Next progressive concept"
+    "type": "wait_for_answer"
   }
 }`;
 }
