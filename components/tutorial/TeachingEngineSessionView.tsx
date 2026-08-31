@@ -17,6 +17,7 @@ export interface TeachingEngineSessionViewProps {
   syllabusContext?: string;
   initialVoice?: string;
   onClose?: () => void;
+  setCustomHeaderConfig?: (config: any) => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   syllabusContext,
   initialVoice = 'Jennifer',
   onClose,
+  setCustomHeaderConfig,
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
@@ -50,7 +52,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
 
   const [currentSegment, setCurrentSegment] = useState<TeachingSegment | null>(null);
   const [segmentNumber, setSegmentNumber] = useState(1);
-  const [totalEstimatedSegments, setTotalEstimatedSegments] = useState(5);
+  const [totalEstimatedSegments, setTotalEstimatedSegments] = useState(10);
   const [isLoadingSegment, setIsLoadingSegment] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioReady, setIsAudioReady] = useState(false);
@@ -194,8 +196,16 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = null;
         }
-        setActiveQuestion(question);
-        setEvaluationFeedback(null);
+        // Only trigger question modal if we are on or past the last board segment
+        if (segmentNumberRef.current >= totalSegmentsRef.current) {
+          setActiveQuestion(question);
+          setEvaluationFeedback(null);
+        } else {
+          // If a question was attached on an intermediate board, bypass and continue seamlessly
+          autoContinueTimerRef.current = setTimeout(() => {
+            handleContinueRef.current();
+          }, 2400);
+        }
       },
       onAnswerEvaluated: (evalResult) => {
         setEvaluationFeedback(evalResult);
@@ -285,21 +295,72 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     addToast('Lecturer answering your question on the board...', 'info');
   };
 
+  // Set Custom Header for main App Header
+  useEffect(() => {
+    if (setCustomHeaderConfig) {
+      setCustomHeaderConfig({
+        leftActions: (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              onClick={handleCloseSession}
+              type="button"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#131E32] hover:bg-[#1E2E4A] border border-[#1E293B] flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95 cursor-pointer shrink-0"
+              title="Exit Classroom"
+              aria-label="Exit Classroom"
+            >
+              <i className="bi bi-arrow-left text-sm sm:text-base"></i>
+            </button>
+            <div className="min-w-0 flex items-center gap-2">
+              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[150px] xs:max-w-[200px] sm:max-w-md md:max-w-xl">
+                {topicTitle}
+              </h1>
+            </div>
+          </div>
+        ),
+        rightActions: (
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] border border-[#1E293B] text-[10px] sm:text-xs font-mono text-slate-300">
+              <span className="text-[#38BDF8] font-bold">{String(segmentNumber).padStart(2, '0')}</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-slate-400">{String(totalEstimatedSegments).padStart(2, '0')}</span>
+            </div>
+            <button
+              onClick={() => setShowVoiceModal(true)}
+              type="button"
+              className="hidden xs:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] hover:bg-[#1E2E4A] border border-[#1E293B] text-[11px] font-bold text-[#60A5FA] transition-colors cursor-pointer"
+              title={`Lecturer: ${currentVoice} (Click to change)`}
+            >
+              <i className="bi bi-person-voice text-xs"></i>
+              <span className="hidden sm:inline">{currentVoice}</span>
+              <i className="bi bi-chevron-down text-[9px] opacity-70"></i>
+            </button>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] border border-[#1E293B]">
+              <span
+                className={`w-2 h-2 rounded-full transition-all ${
+                  isSpeaking ? 'bg-[#34D399] shadow-[0_0_8px_#34D399] animate-pulse' : 'bg-slate-500'
+                }`}
+              />
+              <span className="text-[10px] sm:text-xs font-bold text-slate-200 tracking-wider">
+                {isSpeaking ? 'LIVE' : 'READY'}
+              </span>
+            </div>
+          </div>
+        ),
+        hideBottomNav: true,
+        className: 'bg-[#070B14] border-b border-[#1E293B]'
+      });
+    }
+
+    return () => {
+      if (setCustomHeaderConfig) {
+        setCustomHeaderConfig(null);
+      }
+    };
+  }, [setCustomHeaderConfig, topicTitle, segmentNumber, totalEstimatedSegments, isSpeaking, currentVoice, handleCloseSession]);
+
   return (
     <div className="flex flex-col h-full w-full bg-[#070B14] text-white select-none overflow-hidden relative">
-      {/* ── 1. MINIMAL APP HEADER ── */}
-      <TeachingHeader
-        topicTitle={topicTitle}
-        courseName={courseName}
-        segmentNumber={segmentNumber}
-        totalSegments={totalEstimatedSegments}
-        isSpeaking={isSpeaking}
-        currentVoice={currentVoice}
-        onOpenVoiceSelector={() => setShowVoiceModal(true)}
-        onClose={handleCloseSession}
-      />
-
-      {/* ── 2. HERO WHITEBOARD SURFACE (occupies the entire screen below header) ── */}
+      {/* ── HERO WHITEBOARD SURFACE (occupies the full screen below main App header) ── */}
       <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden p-1.5 sm:p-3">
         <TeachingBoard
           elements={boardElements}

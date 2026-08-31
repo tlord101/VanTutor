@@ -196,6 +196,7 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
             courseName={courseName}
             syllabusContext={syllabusContext}
             onClose={onBack}
+            setCustomHeaderConfig={setCustomHeaderConfig}
         />
     );
 };
