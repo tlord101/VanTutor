@@ -185,6 +185,30 @@ export const VoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
     onBack,
     setCustomHeaderConfig,
 }) => {
+    // ── Live Teaching Whiteboard Architecture ──
+    const topicTitle = initialSessionData?.topic?.topic_name || initialSessionData?.customPrompt || 'Live Tutorial';
+    const courseName = initialSessionData?.course?.course_name || 'Academic Topic';
+    const syllabusContext = initialSessionData?.syllabusContext;
+
+    return (
+        <TeachingEngineSessionView
+            topicTitle={topicTitle}
+            courseName={courseName}
+            syllabusContext={syllabusContext}
+            onClose={onBack}
+        />
+    );
+};
+
+// ── Legacy Component Implementation (Preserved for compatibility) ────────────
+export const LegacyVoiceTutorialPage: React.FC<VoiceTutorialPageProps> = ({
+    userProfile,
+    appSettings: propAppSettings,
+    onNavigate,
+    initialSessionData,
+    onBack,
+    setCustomHeaderConfig,
+}) => {
     const { settings: hookAppSettings } = useAppSettings();
     const appSettings = propAppSettings || hookAppSettings;
     const { addToast } = useToast();

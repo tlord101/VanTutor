@@ -14,20 +14,23 @@ export interface TeachingBoardProps {
 }
 
 /**
- * 95% FULLSCREEN LIVE TEACHING WHITEBOARD
- * Replaces card-based UIs with a unified lecturer blackboard surface.
- * All text, formulas, diagrams, arrows, annotations, and examples exist directly
- * on this single viewport without requiring scrolling or panning.
+ * LIVE TEACHING WHITEBOARD SURFACE
+ * Features:
+ * - Anti-clustering responsive vertical flow layout.
+ * - Smooth downward scrolling for extensive derivations & notes.
+ * - Auto-scrolls downwards when new elements/derivations are written.
+ * - Rich KaTeX math & SVG scientific diagram primitives.
+ * - Clean academic chalkboard texture without distracting yellow laser glow.
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
   activeHighlights = new Set(),
   activeCircles = new Set(),
   activeUnderlines = new Set(),
-  tutorPointer,
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Resize canvas to container
@@ -52,7 +55,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Canvas background grid & tutor laser pointer
+  // Canvas background chalk grid (No yellow laser pointer glow)
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -83,81 +86,127 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
         }
       }
 
-      // Tutor Laser Pointer Glow (if active)
-      if (tutorPointer?.active) {
-        const px = (tutorPointer.x / 100) * rect.width;
-        const py = (tutorPointer.y / 100) * rect.height;
-
-        const rad = ctx.createRadialGradient(px, py, 2, px, py, 32);
-        rad.addColorStop(0, 'rgba(250, 204, 21, 0.9)');
-        rad.addColorStop(0.4, 'rgba(250, 204, 21, 0.3)');
-        rad.addColorStop(1, 'rgba(250, 204, 21, 0)');
-
-        ctx.fillStyle = rad;
-        ctx.beginPath();
-        ctx.arc(px, py, 32, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(px, py, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
       ctx.restore();
       animId = requestAnimationFrame(render);
     };
 
     render();
     return () => cancelAnimationFrame(animId);
-  }, [tutorPointer]);
+  }, []);
+
+  // Auto-scroll downwards smoothly as new elements are written
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [elements.length]);
+
+  // Separate title element from content body elements
+  const { titleElements, bodyElements } = useMemo(() => {
+    const titles: LiveBoardElement[] = [];
+    const bodies: LiveBoardElement[] = [];
+
+    // Sort by sequential order or vertical position
+    const sorted = [...elements].sort((a, b) => {
+      if (a.position && b.position) {
+        return a.position.y - b.position.y;
+      }
+      return 0;
+    });
+
+    for (const el of sorted) {
+      if (el.type === 'text' && el.position && el.position.y <= 15 && !(el.content || '').includes('\n')) {
+        titles.push(el);
+      } else {
+        bodies.push(el);
+      }
+    }
+
+    return { titleElements: titles, bodyElements: bodies };
+  }, [elements]);
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full bg-[#0F172A] rounded-2xl sm:rounded-3xl border border-[#1E293B] shadow-2xl overflow-hidden select-none font-sans text-slate-100 flex items-center justify-center ${className}`}
+      className={`relative w-full h-full bg-[#0F172A] rounded-2xl sm:rounded-3xl border border-[#1E293B] shadow-2xl overflow-hidden select-none font-sans text-slate-100 flex flex-col ${className}`}
       style={{
-        background: 'radial-gradient(ellipse at 50% 30%, #17233D 0%, #0B1120 70%, #070B14 100%)',
+        background: 'radial-gradient(ellipse at 50% 20%, #131E35 0%, #0B1120 60%, #070B14 100%)',
       }}
     >
-      {/* 1. Underlying Canvas for Background Grid & Pointer */}
+      {/* 1. Underlying Canvas for Background Grid */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none z-0"
       />
 
-      {/* 2. Unified Teaching Surface (Everything placed in 0-100% Normalized Safe Viewport) */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none z-10">
-        {elements.map((el) => {
-          const posX = `${el.position.x}%`;
-          const posY = `${el.position.y}%`;
+      {/* 2. Scrollable Board Body (Allows student to scroll downwards seamlessly) */}
+      <div
+        ref={scrollAreaRef}
+        className="relative z-10 flex-1 w-full overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-6 sm:space-y-8 scroll-smooth"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#1E293B transparent',
+        }}
+      >
+        {/* Top Board Titles */}
+        {titleElements.map((el) => {
           const isHighlighted = activeHighlights.has(el.id);
-          const isCircled = activeCircles.has(el.id);
           const isUnderlined = activeUnderlines.has(el.id);
-
-          // ── A. FORMULA ELEMENT (KaTeX directly on the board) ──
-          if (el.type === 'formula' || el.latex) {
-            let renderedHtml = '';
-            try {
-              renderedHtml = katex.renderToString(el.latex || el.content || '', {
-                displayMode: true,
-                throwOnError: false,
-              });
-            } catch {
-              renderedHtml = `<span>${el.content}</span>`;
-            }
-
-            return (
-              <div
-                key={el.id}
-                style={{ left: posX, top: posY }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-all duration-500 animate-in fade-in zoom-in-95 ${
-                  isHighlighted ? 'scale-105 filter drop-shadow-[0_0_16px_rgba(56,189,248,0.8)]' : ''
+          return (
+            <div key={el.id} className="text-center py-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <h2
+                className={`inline-block text-lg sm:text-2xl md:text-3xl font-black tracking-widest uppercase pb-1.5 transition-all ${
+                  isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
                 }`}
+                style={{
+                  borderBottom: `2px solid ${isHighlighted ? '#38BDF8' : '#0066FF'}`,
+                  color: el.color || '#FFFFFF',
+                }}
               >
-                <div className="relative flex flex-col items-center">
+                {el.content}
+              </h2>
+              {isUnderlined && (
+                <svg className="w-48 mx-auto h-2 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                  <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                </svg>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Structured Blackboard Flow Area */}
+        <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 min-h-[60%] justify-center">
+          {bodyElements.map((el) => {
+            const isHighlighted = activeHighlights.has(el.id);
+            const isCircled = activeCircles.has(el.id);
+            const isUnderlined = activeUnderlines.has(el.id);
+
+            // ── A. FORMULA ELEMENT ──
+            if (el.type === 'formula' || el.latex) {
+              let renderedHtml = '';
+              try {
+                renderedHtml = katex.renderToString(el.latex || el.content || '', {
+                  displayMode: true,
+                  throwOnError: false,
+                });
+              } catch {
+                renderedHtml = `<span>${el.content}</span>`;
+              }
+
+              return (
+                <div
+                  key={el.id}
+                  className={`relative flex flex-col items-center justify-center p-3 sm:p-5 rounded-2xl transition-all duration-300 animate-in fade-in zoom-in-95 max-w-full overflow-x-auto ${
+                    isHighlighted
+                      ? 'bg-[#38BDF8]/10 ring-2 ring-[#38BDF8]/50 shadow-[0_0_24px_rgba(56,189,248,0.25)]'
+                      : 'bg-black/25 border border-white/5 shadow-inner'
+                  }`}
+                >
                   <div
-                    className={`text-2xl sm:text-3xl font-bold tracking-wider select-none ${
+                    className={`text-xl sm:text-3xl md:text-4xl font-bold tracking-wide select-none ${
                       isHighlighted ? 'text-[#38BDF8]' : 'text-white'
                     }`}
                     style={{ color: el.color || '#38BDF8' }}
@@ -166,36 +215,33 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
 
                   {/* Chalk Underline */}
                   {isUnderlined && (
-                    <svg className="w-full h-3 mt-1 overflow-visible animate-in fade-in" viewBox="0 0 100 10" preserveAspectRatio="none">
-                      <path d="M 0 5 Q 50 10 100 4" fill="none" stroke="#FACC15" strokeWidth="3" strokeLinecap="round" />
+                    <svg className="w-full h-3 mt-2 overflow-visible" viewBox="0 0 100 10" preserveAspectRatio="none">
+                      <path d="M 0 5 Q 50 10 100 4" fill="none" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
                     </svg>
                   )}
 
                   {/* Hand-Drawn Chalk Circle */}
                   {isCircled && (
-                    <svg className="absolute -inset-4 w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#FACC15" strokeWidth="2.5" strokeDasharray="3 1" />
+                    <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
+                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeDasharray="4 2" />
                     </svg>
                   )}
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          // ── B. DIAGRAM ELEMENT (Direct SVG Vector Illustration) ──
-          if (el.type === 'diagram') {
-            return (
-              <div
-                key={el.id}
-                style={{ left: posX, top: posY }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-all duration-500 animate-in zoom-in-95 ${
-                  isHighlighted ? 'filter drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]' : ''
-                }`}
-              >
-                <div className="relative">
+            // ── B. DIAGRAM ELEMENT ──
+            if (el.type === 'diagram') {
+              return (
+                <div
+                  key={el.id}
+                  className={`relative p-3 sm:p-5 rounded-2xl bg-black/25 border border-white/5 shadow-inner transition-all duration-300 animate-in zoom-in-95 flex flex-col items-center ${
+                    isHighlighted ? 'ring-2 ring-[#38BDF8] shadow-[0_0_24px_rgba(56,189,248,0.25)]' : ''
+                  }`}
+                >
                   <BoardDiagramPrimitives
                     type={el.primitive || 'physics_block'}
-                    width={320}
+                    width={340}
                     height={200}
                     progress={el.progress ?? 1.0}
                     color={el.color || '#38BDF8'}
@@ -203,105 +249,95 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   />
 
                   {isCircled && (
-                    <svg className="absolute -inset-4 w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#FACC15" strokeWidth="2.5" />
+                    <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
+                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
                     </svg>
                   )}
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          // ── C. ARROW & RELATION ELEMENT ──
-          if (el.type === 'arrow') {
-            return (
-              <div
-                key={el.id}
-                style={{ left: posX, top: posY }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto animate-in fade-in duration-300"
-              >
-                <div className="flex items-center gap-2">
+            // ── C. ARROW & RELATION ELEMENT ──
+            if (el.type === 'arrow') {
+              return (
+                <div
+                  key={el.id}
+                  className="flex items-center gap-3 py-1 animate-in fade-in duration-300"
+                >
                   <svg width="48" height="24" viewBox="0 0 48 24" className="overflow-visible">
-                    <line x1="0" y1="12" x2="40" y2="12" stroke={el.color || '#FACC15'} strokeWidth="3" strokeLinecap="round" />
-                    <polygon points="38,6 48,12 38,18" fill={el.color || '#FACC15'} />
+                    <line x1="0" y1="12" x2="40" y2="12" stroke={el.color || '#38BDF8'} strokeWidth="3" strokeLinecap="round" />
+                    <polygon points="38,6 48,12 38,18" fill={el.color || '#38BDF8'} />
                   </svg>
                   {el.content && (
-                    <span className="text-xs sm:text-sm font-bold text-[#FACC15] tracking-wide whitespace-nowrap">
+                    <span className="text-xs sm:text-sm font-bold text-[#38BDF8] tracking-wide">
                       {el.content}
                     </span>
                   )}
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          // ── D. LABEL ELEMENT (Variable breakdowns: F → Force) ──
-          if (el.type === 'label') {
+            // ── D. LABEL ELEMENT ──
+            if (el.type === 'label') {
+              return (
+                <div
+                  key={el.id}
+                  className="animate-in fade-in duration-300"
+                >
+                  <span className="text-xs sm:text-sm font-bold text-[#38BDF8] bg-[#38BDF8]/10 border border-[#38BDF8]/30 px-3.5 py-1.5 rounded-full shadow-sm">
+                    {el.content}
+                  </span>
+                </div>
+              );
+            }
+
+            // ── E. TEXT / DERIVATION / MULTI-LINE NOTES ──
+            const isMultiline = (el.content || '').includes('\n');
+
             return (
               <div
                 key={el.id}
-                style={{ left: posX, top: posY }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto animate-in fade-in duration-300"
+                className={`relative w-full max-w-2xl transition-all duration-300 animate-in fade-in ${
+                  isHighlighted ? 'bg-[#38BDF8]/10 p-4 rounded-2xl ring-1 ring-[#38BDF8]' : ''
+                }`}
               >
-                <span className="text-xs sm:text-sm font-bold text-[#FACC15] bg-[#FACC15]/10 border border-[#FACC15]/30 px-3 py-1 rounded-full whitespace-nowrap shadow-sm">
-                  {el.content}
-                </span>
-              </div>
-            );
-          }
-
-          // ── E. TEXT / TITLE / WORKED EXAMPLE ELEMENT ──
-          const isTitle = el.position.y < 20;
-          const isMultline = (el.content || '').includes('\n');
-
-          return (
-            <div
-              key={el.id}
-              style={{ left: posX, top: posY }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-all duration-300 animate-in fade-in ${
-                isHighlighted ? 'filter drop-shadow-[0_0_12px_rgba(250,204,21,0.8)]' : ''
-              }`}
-            >
-              <div className="flex flex-col items-center">
-                {isTitle ? (
-                  <h2 className="text-lg sm:text-2xl font-black text-white tracking-widest uppercase text-center border-b-2 border-[#0066FF] pb-1">
-                    {el.content}
-                  </h2>
-                ) : isMultline ? (
-                  <div className="font-mono text-xs sm:text-sm text-slate-300 leading-relaxed space-y-1 text-left bg-black/20 p-2.5 rounded-xl border border-white/5">
+                {isMultiline ? (
+                  <div className="font-mono text-xs sm:text-sm text-slate-200 leading-relaxed space-y-1.5 bg-black/30 p-4 sm:p-5 rounded-2xl border border-white/10 shadow-inner">
                     {el.content?.split('\n').map((line, idx) => (
-                      <p key={idx} className="whitespace-pre">
+                      <p key={idx} className="whitespace-pre-wrap">
                         {line}
                       </p>
                     ))}
                   </div>
                 ) : (
                   <p
-                    className="text-sm sm:text-base font-semibold text-slate-200 tracking-wide text-center"
-                    style={{ color: el.color || '#E2E8F0' }}
+                    className="text-sm sm:text-lg font-medium text-slate-100 tracking-wide text-center leading-relaxed"
+                    style={{ color: el.color || '#F1F5F9' }}
                   >
                     {el.content}
                   </p>
                 )}
 
                 {/* Chalk Underline */}
-                {isUnderlined && !isTitle && (
-                  <svg className="w-full h-2 mt-0.5" viewBox="0 0 100 8" preserveAspectRatio="none">
-                    <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#FACC15" strokeWidth="2.5" />
+                {isUnderlined && (
+                  <svg className="w-3/4 mx-auto h-2.5 mt-2" viewBox="0 0 100 8" preserveAspectRatio="none">
+                    <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
                   </svg>
                 )}
 
                 {/* Hand-Drawn Chalk Circle */}
                 {isCircled && (
                   <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                    <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#FACC15" strokeWidth="2.5" />
+                    <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
                   </svg>
                 )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 };
+
+export default TeachingBoard;

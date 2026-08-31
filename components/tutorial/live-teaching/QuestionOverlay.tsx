@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { TeachingQuestion, StudentAnswerEvaluation } from '../../../types/teachingScript';
 
 export interface QuestionOverlayProps {
@@ -21,6 +21,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   onDismiss,
 }) => {
   const [inputText, setInputText] = useState('');
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -63,6 +64,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const handleSubmit = (ans?: string) => {
     const finalAns = ans || inputText.trim();
     if (!finalAns || isSubmittingAnswer) return;
+    if (ans) setSelectedOption(ans);
     onSubmitAnswer(finalAns);
   };
 
@@ -72,11 +74,11 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         {/* Header Badge */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full bg-[#FACC15] text-[#0A0F1D] flex items-center justify-center text-xs font-black">
+            <span className="w-7 h-7 rounded-full bg-[#0066FF] text-white flex items-center justify-center text-xs font-black">
               Q
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-[#38BDF8]">
-              Think About It
+              Check Your Understanding
             </span>
           </div>
 
@@ -85,7 +87,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
               onClick={onDismiss}
               type="button"
               className="text-slate-400 hover:text-white text-xs p-1 rounded-full hover:bg-white/10"
-              title="Minimize question"
+              title="Continue lesson"
             >
               <i className="bi bi-x-lg"></i>
             </button>
@@ -97,20 +99,30 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           {question.question}
         </h3>
 
-        {/* Quick Options (if present) */}
+        {/* Quick Options */}
         {question.options && question.options.length > 0 && !evaluationFeedback && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {question.options.map((option, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSubmit(option)}
-                disabled={isSubmittingAnswer}
-                type="button"
-                className="px-3.5 py-2 rounded-xl bg-[#1E293B] hover:bg-[#0066FF] border border-[#334155] hover:border-blue-400 text-xs sm:text-sm font-semibold text-slate-100 transition-all active:scale-95 cursor-pointer text-left"
-              >
-                {option}
-              </button>
-            ))}
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
+            {question.options.map((option, idx) => {
+              const isSelected = selectedOption === option;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleSubmit(option)}
+                  disabled={isSubmittingAnswer}
+                  type="button"
+                  className={`flex-1 min-w-[45%] px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all active:scale-95 cursor-pointer text-left flex items-center justify-between gap-2 ${
+                    isSelected
+                      ? 'bg-[#0066FF] border-[#38BDF8] text-white ring-2 ring-[#38BDF8]/50'
+                      : 'bg-[#1E293B] hover:bg-[#1E293B]/80 hover:border-[#38BDF8]/50 border-[#334155] text-slate-100'
+                  }`}
+                >
+                  <span>{option}</span>
+                  {isSelected && isSubmittingAnswer && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -144,34 +156,50 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
               onClick={() => handleSubmit()}
               disabled={!inputText.trim() || isSubmittingAnswer}
               type="button"
-              className="px-4 py-2.5 rounded-xl bg-[#0066FF] hover:bg-blue-600 disabled:opacity-40 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#0066FF] hover:bg-blue-600 disabled:opacity-40 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
-              {isSubmittingAnswer ? '...' : 'Send'}
+              {isSubmittingAnswer ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                'Send'
+              )}
             </button>
           </div>
         )}
 
-        {/* Conversational Evaluation Feedback */}
+        {/* Conversational Evaluation Feedback & Next Button */}
         {evaluationFeedback && (
-          <div className="mt-2 p-3.5 rounded-2xl bg-[#1E293B] border border-[#334155] animate-in fade-in duration-300">
-            <div className="flex items-center gap-2 mb-1.5">
+          <div className="mt-2 p-4 rounded-2xl bg-[#1E293B] border border-[#334155] animate-in fade-in duration-300 space-y-3">
+            <div className="flex items-center gap-2">
               <i
                 className={`bi ${
                   evaluationFeedback.isCorrect
                     ? 'bi-check-circle-fill text-[#34D399]'
-                    : 'bi-info-circle-fill text-[#FACC15]'
+                    : 'bi-info-circle-fill text-[#38BDF8]'
                 } text-base`}
               ></i>
               <span className="text-xs font-bold uppercase tracking-wider text-white">
-                {evaluationFeedback.isCorrect ? 'Spot On!' : 'Tutor Insight:'}
+                {evaluationFeedback.isCorrect ? 'Spot On!' : 'Lecturer Note:'}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
               {evaluationFeedback.spokenFeedback}
             </p>
+            {onDismiss && (
+              <button
+                onClick={onDismiss}
+                type="button"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0066FF] hover:bg-blue-600 active:scale-98 text-white font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              >
+                <span>Continue to Next Concept</span>
+                <i className="bi bi-arrow-right text-xs"></i>
+              </button>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 };
+
+export default QuestionOverlay;

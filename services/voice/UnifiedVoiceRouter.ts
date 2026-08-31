@@ -1,63 +1,50 @@
-/**
- * UnifiedVoiceRouter.ts — Central Voice Routing Architecture for Avelut
- *
- * Directs speech synthesis requests to the appropriate engine based on dynamic admin configuration:
- * - Grok AI (xAI Altair TTS - currently active default)
- * - Alibaba Cloud (DashScope CosyVoice / Qwen-TTS)
- * - KittenML / Local KittenTTS
- * - Browser Fallback
- */
-
 import { grokVoiceEngine, type GrokSpeechOptions, type GrokAudioPlayer, type GrokTtsResponsePayload } from './GrokVoiceEngine';
 import { alibabaVoiceEngine, type AlibabaSpeechOptions, type AlibabaAudioPlayer, type AlibabaAudioResponsePayload } from './AlibabaVoiceEngine';
-import { kittenTts, KittenVoice } from '../kittenTtsService';
-import type { AppSettings, VoiceProvider } from '../../types';
+import { kittenTts } from '../kittenTtsService';
+import type { AppSettings } from '../../types';
+
+export type UnifiedVoiceProvider = 'grok' | 'alibaba' | 'kitten';
 
 export interface UnifiedSpeechOptions {
-  provider?: VoiceProvider;
-  context?: 'study_guide' | 'notebook' | 'general';
-  appSettings?: AppSettings | null;
+  provider?: UnifiedVoiceProvider;
   voice?: string;
-  language?: string;
   speed?: number;
+  pitch?: number;
+  language?: string;
   withTimestamps?: boolean;
   cacheKey?: string;
   isPrivate?: boolean;
+  appSettings?: AppSettings;
   onStart?: () => void;
   onReady?: () => void;
-  onTimeUpdate?: (currentTime: number, charIndex: number, spokenWord: string) => void;
   onEnd?: () => void;
   onError?: (err: Error) => void;
 }
 
-export interface UnifiedAudioPlayer {
-  pause: () => void;
-  resume: () => void;
-  stop: () => void;
-  isPlaying: () => boolean;
-  seek?: (time: number) => void;
-}
+export type UnifiedAudioPlayer = GrokAudioPlayer | AlibabaAudioPlayer;
 
-class UnifiedVoiceRouter {
+/**
+ * Unified Voice Router
+ * Intelligently routes text-to-speech synthesis requests across:
+ * 1. Alibaba Cloud DashScope TTS (CosyVoice / Qwen TTS Flash)
+ * 2. Grok Voice Engine (xAI Speech)
+ * 3. KittenTTS (Local fast fallback)
+ */
+export class UnifiedVoiceRouter {
   /**
-   * Resolves the active voice provider based on context and app settings
+   * Determine the active voice provider from AppSettings or caller options
    */
-  public resolveProvider(options?: UnifiedSpeechOptions): VoiceProvider {
-    if (options?.provider) return options.provider;
+  public resolveProvider(options: UnifiedSpeechOptions = {}): UnifiedVoiceProvider {
+    if (options.provider) return options.provider;
 
-    const settings = options?.appSettings;
-    if (options?.context === 'study_guide') {
-      return settings?.studyguide_voice_provider || settings?.active_voice_provider || 'grok';
-    }
-    if (options?.context === 'notebook') {
-      return settings?.notebook_voice_provider || settings?.active_voice_provider || 'grok';
-    }
-
-    return settings?.active_voice_provider || 'grok';
+    const providerSetting = options.appSettings?.voice_provider || 'alibaba';
+    if (providerSetting === 'grok') return 'grok';
+    if (providerSetting === 'kitten') return 'kitten';
+    return 'alibaba';
   }
 
   /**
-   * Plays speech using the resolved active provider
+   * Universal play speech across configured engine
    */
   public playSpeech(
     text: string,
@@ -67,58 +54,58 @@ class UnifiedVoiceRouter {
 
     if (provider === 'alibaba') {
       return alibabaVoiceEngine.playSpeech(text, {
-        appSettings: options.appSettings,
-        voice: options.voice || options.appSettings?.alibaba_voice_name || 'Jennifer',
-        model: 'qwen3-tts-flash',
+        voice: options.voice || options.appSettings?.alibaba_voice_id || 'Jennifer',
         speed: options.speed,
-        apiKey: options.appSettings?.alibaba_api_key,
+        pitch: options.pitch,
         cacheKey: options.cacheKey,
         isPrivate: options.isPrivate,
+        appSettings: options.appSettings,
+        apiKey: options.appSettings?.alibaba_api_key,
         onStart: options.onStart,
         onReady: options.onReady,
         onEnd: options.onEnd,
-        onError: options.onError,
+        onError: (err) => {
+          console.warn('[UnifiedVoiceRouter] Alibaba TTS error, attempting Grok fallback:', err);
+          // Auto fallback to Grok if Alibaba fails
+          grokVoiceEngine.playSpeech(text, {
+            voice: 'altair',
+            onStart: options.onStart,
+            onReady: options.onReady,
+            onEnd: options.onEnd,
+            onError: options.onError,
+          });
+        },
       });
     }
 
-    if (provider === 'kitten') {
-      const kittenPlayer = kittenTts.speak(text, {
-        voice: (options.voice as KittenVoice) || KittenVoice.Bella,
-        rate: options.speed || 1.2,
-        onStart: options.onStart,
-        onEnd: options.onEnd,
-        onError: options.onError,
-      });
-      return {
-        pause: () => kittenTts.stop(),
-        resume: () => {},
-        stop: () => kittenPlayer.stop(),
-        isPlaying: () => true,
-      };
-    }
-
-    // Default: Grok (xAI Altair TTS)
     return grokVoiceEngine.playSpeech(text, {
       voice: options.voice || options.appSettings?.grok_voice_id || 'altair',
       language: options.language,
       withTimestamps: options.withTimestamps !== false,
       cacheKey: options.cacheKey,
       isPrivate: options.isPrivate,
-      source: options.context,
       onStart: options.onStart,
       onReady: options.onReady,
-      onTimeUpdate: options.onTimeUpdate,
       onEnd: options.onEnd,
-      onError: options.onError,
+      onError: (err) => {
+        console.warn('[UnifiedVoiceRouter] Grok TTS error, attempting Alibaba fallback:', err);
+        alibabaVoiceEngine.playSpeech(text, {
+          voice: 'Jennifer',
+          appSettings: options.appSettings,
+          onStart: options.onStart,
+          onReady: options.onReady,
+          onEnd: options.onEnd,
+          onError: options.onError,
+        });
+      },
     });
   }
 
   /**
-   * Prefetches speech audio for low-latency playback transitions
+   * Pre-fetches speech payload for zero-latency audio playback
    */
   public prefetchSpeech(
     text: string,
-    cacheKey: string,
     options: UnifiedSpeechOptions = {}
   ): void {
     const provider = this.resolveProvider(options);
@@ -127,25 +114,23 @@ class UnifiedVoiceRouter {
       void alibabaVoiceEngine.fetchAlibabaSpeech(text, {
         appSettings: options.appSettings,
         apiKey: options.appSettings?.alibaba_api_key,
-        cacheKey,
+        cacheKey: options.cacheKey,
         isPrivate: options.isPrivate,
       });
       return;
     }
 
-    if (provider === 'grok') {
-      void grokVoiceEngine.fetchGrokSpeech(text, {
-        voice: options.voice || options.appSettings?.grok_voice_id || 'altair',
-        language: options.language,
-        withTimestamps: options.withTimestamps !== false,
-        cacheKey,
-        isPrivate: options.isPrivate,
-      });
-    }
+    void grokVoiceEngine.prefetchSpeech(text, {
+      voice: options.voice || options.appSettings?.grok_voice_id || 'altair',
+      language: options.language,
+      withTimestamps: options.withTimestamps !== false,
+      cacheKey: options.cacheKey,
+      isPrivate: options.isPrivate,
+    });
   }
 
   /**
-   * Fetch raw speech payload (audio + timestamps)
+   * Fetches raw audio payload
    */
   public async fetchSpeech(
     text: string,
