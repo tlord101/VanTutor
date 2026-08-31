@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, storage, auth } from '../firebase';
 import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Type } from '../utils/inference';
+import { Type, createAvelutAI } from '../utils/inference';
 import type { UsageSettings } from '../types';
 import { useToast } from '../hooks/useToast';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -382,7 +382,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const geminiModel = appSettings.primary_gemini_model; // Primary model for general tasks
     const geminiApiKey = appSettings.gemini_api_key.trim();
-    const ai = useMemo(() => (geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null), [geminiApiKey]);
+    const ai = useMemo(() => (geminiApiKey ? createAvelutAI({ gemini_api_key: geminiApiKey }) : null), [geminiApiKey]);
     const [isSavingAppSettings, setIsSavingAppSettings] = useState(false);
     const [isTestingAppSettings, setIsTestingAppSettings] = useState(false);
     const [appSettingsDraft, setAppSettingsDraft] = useState(appSettings);
@@ -1350,7 +1350,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         setIsTestingAppSettings(true);
         try {
-            const testClient = new GoogleGenAI({ apiKey: apiKeyToTest });
+            const testClient = createAvelutAI({ gemini_api_key: apiKeyToTest });
             const response = await testClient.models.generateContent({
                 model: modelToTest,
                 contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
