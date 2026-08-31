@@ -73,7 +73,7 @@ export class TeachingEngineService {
       const ai = createAvelutAI(this.appSettings, this.userProfile);
       if (!ai) throw new Error('AI client could not be initialized');
 
-      const resolvedStudentName = params.studentName || this.userProfile?.name || 'Student';
+      const resolvedStudentName = params.studentName || this.userProfile?.display_name || 'Student';
 
       const prompt = buildLessonSegmentPrompt({
         ...params,
