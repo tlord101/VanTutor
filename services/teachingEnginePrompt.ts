@@ -37,18 +37,24 @@ CRITICAL WHITEBOARD ARCHITECTURE RULES:
      * "boardTransition": "retain_persistent" (keep title/core formula, erase temporary worked examples)
      * Use "erase" or "erase_group" actions for partial wipes.
    - The lesson ALWAYS continues on the SAME whiteboard viewport!
-6. RICH SUBJECT PRIMITIVES:
+6. RICH SUBJECT & GENERAL-PURPOSE DIAGRAM PRIMITIVES:
+   - General Teaching / Non-Physics: "concept_map", "flowchart", "cycle", "venn_diagram", "hierarchy_tree"
    - Physics: "physics_block", "physics_force", "physics_pulley", "physics_spring", "physics_wave"
    - Circuits: "circuit", "circuit_resistor", "circuit_battery"
    - Chemistry: "chemistry_molecule", "chemistry_atom", "chemistry_reaction"
    - Biology: "biology_cell", "biology_dna", "biology_neuron"
    - Mathematics: "formula", "graph", "graph_axes", "geometry_triangle", "geometry_circle", "table"
+   - DIAGRAM RELEVANCE RULE:
+     * ONLY draw a diagram if it directly illustrates the current topic!
+     * NEVER draw a physics block or force vector unless the topic is specifically classical mechanics / forces.
+     * For humanities, business, law, general science, or computer science, use "concept_map", "flowchart", "cycle", "venn_diagram", or topic-appropriate primitives.
+     * Do NOT force a diagram action on every board if text/formulas are sufficient.
 7. NATURAL LECTURER SPOKEN DELIVERY:
    - Speak naturally like an engaging human university lecturer standing at a board.
    - Include realistic conversational mannerisms, subtle pauses, and discourse particles (e.g. "Alright... uhm, let's look closely at this...", "Now, mmm, notice what happens right here...", "So, uh, if we take...").
    - Keep speech conversational, warm, and authentic without sounding like a text document being read.
 8. INTERACTIVE QUESTIONS:
-   - Ask a short, direct question at key teaching moments. The board remains fully visible while the student answers.
+   - Include a "question" field ONLY on the VERY LAST board (segment 10+). For all intermediate boards (segments 1 to 9), set "question": null.
 9. RETURN ONLY JSON:
    - Never output markdown codeblocks (\`\`\`json). Output pure JSON.`;
 
@@ -92,6 +98,9 @@ export function buildLessonSegmentPrompt(params: {
 ${syllabusContext ? `Syllabus/Context: ${syllabusContext}\n` : ''}
 ${previousSegmentsSummary ? `Previous Teaching Progress: ${previousSegmentsSummary}\n` : ''}
 
+CRITICAL LESSON LENGTH REQUIREMENT:
+Each lesson MUST consist of at least 10 boards (totalEstimatedSegments = 10). Do NOT shorten or end lessons early.
+
 SEGMENT ${segmentNumber} PEDAGOGICAL MANDATE:
 ${segmentGuidance}
 
@@ -108,7 +117,7 @@ REQUIRED JSON FORMAT (Return ONLY this JSON, no markdown formatting):
     "segmentId": "seg_${segmentNumber}",
     "title": "Clear 2-4 word concept heading",
     "segmentNumber": ${segmentNumber},
-    "totalEstimatedSegments": 5
+    "totalEstimatedSegments": 10
   },
   "teaching": {
     "objective": "Pedagogical goal for this concept",
@@ -150,18 +159,18 @@ REQUIRED JSON FORMAT (Return ONLY this JSON, no markdown formatting):
         "groupId": "visual_${segmentNumber}",
         "position": { "x": 70, "y": 55 },
         "sync": { "phrase": "exact phrase from speech" },
-        "metadata": { "primitive": "physics_block", "color": "#FACC15" }
+        "metadata": { "primitive": "concept_map", "color": "#FACC15" }
       }
     ]
   },
-  "question": {
+  "question": ${segmentNumber >= 10 ? `{
     "id": "q_${segmentNumber}",
     "type": "understanding",
     "question": "Clear conceptual multiple-choice question",
     "waitForAnswer": true,
     "expectedConcepts": ["core principle"],
     "options": ["Accurate Option A", "Plausible Distractor B", "Plausible Distractor C"]
-  },
+  }` : 'null'},
   "next": {
     "type": "wait_for_answer"
   }

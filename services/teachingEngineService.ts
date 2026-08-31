@@ -334,7 +334,7 @@ export class TeachingEngineService {
           segmentId: `seg_${segmentNum}`,
           title: 'Foundations & Intuition',
           segmentNumber: segmentNum,
-          totalEstimatedSegments: 5,
+          totalEstimatedSegments: 10,
         },
         teaching: {
           objective: `Build foundational intuition for ${topic}`,

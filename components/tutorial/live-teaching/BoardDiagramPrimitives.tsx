@@ -384,7 +384,169 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
       );
     }
 
-    // ── 7. MATHEMATICS: COORDINATE GRAPH WITH POLYNOMIAL / SINE CURVE ──
+    // ── 7. GENERAL PURPOSE: CONCEPT MAP / HIERARCHY TREE ──
+    case 'concept_map':
+    case 'hierarchy_tree':
+    case 'mind_map': {
+      const rootText = metadata?.root || 'Core Concept';
+      const node1 = metadata?.nodes?.[0] || 'Principle A';
+      const node2 = metadata?.nodes?.[1] || 'Principle B';
+      const node3 = metadata?.nodes?.[2] || 'Application';
+
+      return (
+        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+          <defs>
+            <marker id="arrow-blue-gm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#38BDF8" />
+            </marker>
+          </defs>
+          {/* Root Node */}
+          <rect x="110" y="20" width="140" height="42" rx="10" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" />
+          <text x="180" y="46" textAnchor="middle" fill="#FFFFFF" fontSize="13" fontWeight="bold">{rootText}</text>
+
+          {/* Connector Lines */}
+          {p >= 0.4 && (
+            <g className="animate-in fade-in duration-300">
+              <line x1="140" y1="62" x2="70" y2="120" stroke="#38BDF8" strokeWidth="2" markerEnd="url(#arrow-blue-gm)" />
+              <line x1="180" y1="62" x2="180" y2="120" stroke="#38BDF8" strokeWidth="2" markerEnd="url(#arrow-blue-gm)" />
+              <line x1="220" y1="62" x2="290" y2="120" stroke="#38BDF8" strokeWidth="2" markerEnd="url(#arrow-blue-gm)" />
+            </g>
+          )}
+
+          {/* Child Nodes */}
+          {p >= 0.7 && (
+            <g className="animate-in zoom-in duration-300">
+              <rect x="15" y="125" width="110" height="40" rx="8" fill="#0F172A" stroke="#FACC15" strokeWidth="1.5" />
+              <text x="70" y="150" textAnchor="middle" fill="#FACC15" fontSize="11" fontWeight="bold">{node1}</text>
+
+              <rect x="130" y="125" width="100" height="40" rx="8" fill="#0F172A" stroke="#34D399" strokeWidth="1.5" />
+              <text x="180" y="150" textAnchor="middle" fill="#34D399" fontSize="11" fontWeight="bold">{node2}</text>
+
+              <rect x="240" y="125" width="105" height="40" rx="8" fill="#0F172A" stroke="#C084FC" strokeWidth="1.5" />
+              <text x="292" y="150" textAnchor="middle" fill="#C084FC" fontSize="11" fontWeight="bold">{node3}</text>
+            </g>
+          )}
+        </svg>
+      );
+    }
+
+    // ── 8. GENERAL PURPOSE: FLOWCHART / SEQUENCE PROCESS ──
+    case 'flowchart':
+    case 'process_flow':
+    case 'sequence': {
+      const step1 = metadata?.steps?.[0] || 'Step 1: Input';
+      const step2 = metadata?.steps?.[1] || 'Step 2: Process';
+      const step3 = metadata?.steps?.[2] || 'Step 3: Outcome';
+
+      return (
+        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+          <defs>
+            <marker id="arrow-green-fl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#34D399" />
+            </marker>
+          </defs>
+          {/* Step 1 */}
+          <rect x="20" y="85" width="95" height="50" rx="8" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" />
+          <text x="67" y="114" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="bold">{step1}</text>
+
+          {/* Arrow 1 -> 2 */}
+          {p >= 0.4 && (
+            <line x1="115" y1="110" x2="140" y2="110" stroke="#34D399" strokeWidth="2.5" markerEnd="url(#arrow-green-fl)" />
+          )}
+
+          {/* Step 2 */}
+          {p >= 0.5 && (
+            <g className="animate-in fade-in duration-300">
+              <rect x="145" y="85" width="95" height="50" rx="8" fill="#1E293B" stroke="#FACC15" strokeWidth="2" />
+              <text x="192" y="114" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="bold">{step2}</text>
+            </g>
+          )}
+
+          {/* Arrow 2 -> 3 */}
+          {p >= 0.75 && (
+            <line x1="240" y1="110" x2="265" y2="110" stroke="#34D399" strokeWidth="2.5" markerEnd="url(#arrow-green-fl)" />
+          )}
+
+          {/* Step 3 */}
+          {p >= 0.85 && (
+            <g className="animate-in fade-in duration-300">
+              <rect x="270" y="85" width="80" height="50" rx="8" fill="#064E3B" stroke="#34D399" strokeWidth="2" />
+              <text x="310" y="114" textAnchor="middle" fill="#34D399" fontSize="11" fontWeight="bold">{step3}</text>
+            </g>
+          )}
+        </svg>
+      );
+    }
+
+    // ── 9. GENERAL PURPOSE: CYCLE / FEEDBACK LOOP ──
+    case 'cycle':
+    case 'feedback_loop': {
+      const labelA = metadata?.labels?.[0] || 'Stage 1';
+      const labelB = metadata?.labels?.[1] || 'Stage 2';
+      const labelC = metadata?.labels?.[2] || 'Stage 3';
+
+      return (
+        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+          {/* Circular loop arrows */}
+          <path d="M 180 30 A 70 70 0 0 1 240 150" fill="none" stroke="#38BDF8" strokeWidth="3" strokeDasharray="4 2" />
+          <path d="M 240 150 A 70 70 0 0 1 120 150" fill="none" stroke="#FACC15" strokeWidth="3" strokeDasharray="4 2" />
+          <path d="M 120 150 A 70 70 0 0 1 180 30" fill="none" stroke="#34D399" strokeWidth="3" strokeDasharray="4 2" />
+
+          {/* Stage A */}
+          <circle cx="180" cy="30" r="24" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" />
+          <text x="180" y="34" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold">{labelA}</text>
+
+          {/* Stage B */}
+          {p >= 0.5 && (
+            <g className="animate-in zoom-in duration-300">
+              <circle cx="240" cy="150" r="24" fill="#1E293B" stroke="#FACC15" strokeWidth="2" />
+              <text x="240" y="154" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold">{labelB}</text>
+            </g>
+          )}
+
+          {/* Stage C */}
+          {p >= 0.8 && (
+            <g className="animate-in zoom-in duration-300">
+              <circle cx="120" cy="150" r="24" fill="#1E293B" stroke="#34D399" strokeWidth="2" />
+              <text x="120" y="154" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold">{labelC}</text>
+            </g>
+          )}
+        </svg>
+      );
+    }
+
+    // ── 10. GENERAL PURPOSE: VENN DIAGRAM ──
+    case 'venn_diagram':
+    case 'comparison_venn': {
+      const leftLabel = metadata?.left || 'Concept A';
+      const rightLabel = metadata?.right || 'Concept B';
+      const centerLabel = metadata?.center || 'Shared';
+
+      return (
+        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+          {/* Circle A */}
+          <circle cx="140" cy="110" r="75" fill="#38BDF8" fillOpacity="0.2" stroke="#38BDF8" strokeWidth="2.5" />
+          <text x="95" y="114" textAnchor="middle" fill="#38BDF8" fontSize="12" fontWeight="bold">{leftLabel}</text>
+
+          {/* Circle B */}
+          {p >= 0.5 && (
+            <g className="animate-in fade-in duration-300">
+              <circle cx="220" cy="110" r="75" fill="#FACC15" fillOpacity="0.2" stroke="#FACC15" strokeWidth="2.5" />
+              <text x="265" y="114" textAnchor="middle" fill="#FACC15" fontSize="12" fontWeight="bold">{rightLabel}</text>
+            </g>
+          )}
+
+          {/* Intersection Label */}
+          {p >= 0.85 && (
+            <text x="180" y="114" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="bold" className="animate-in zoom-in duration-300">
+              {centerLabel}
+            </text>
+          )}
+        </svg>
+      );
+    }
+
+    // ── 11. MATHEMATICS: COORDINATE GRAPH WITH POLYNOMIAL / SINE CURVE ──
     case 'graph':
     case 'math_coordinate':
     case 'calculus_curve':
