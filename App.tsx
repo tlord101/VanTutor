@@ -1153,14 +1153,32 @@ const App: React.FC = () => {
                 }
                 setIsProfileLoading(false);
             } else {
-                if (!navigator.onLine) {
-                    // Do nothing, wait for network to restore instead of showing an error or fallback.
-                } else if (sessionStorage.getItem('just_signed_up') === 'true') {
-                    // Prevent forced onboarding page load
-                    sessionStorage.removeItem('just_signed_up');
-                    setIsProfileLoading(false);
-                } else {
-                    // No data from server — keep loading, the profile may still be being created
+                // If profile snapshot doesn't exist in Realtime Database, construct a default profile object
+                // so the user is immediately transitioned to onboarding or dashboard instead of getting stuck on AppLoader.
+                const defaultProfile: UserProfile = {
+                    uid: user.uid,
+                    display_name: user.displayName || 'AVELITE',
+                    email: user.email || '',
+                    photo_url: user.photoURL || '',
+                    school_id: '',
+                    college_id: '',
+                    department_id: '',
+                    level: '100',
+                    current_streak: 0,
+                    last_activity_date: Date.now(),
+                    notifications_enabled: false,
+                    is_online: true,
+                    last_seen: Date.now(),
+                    has_completed_tour: false,
+                    is_activated: true,
+                    subscription_status: 'free',
+                    ai_credits_balance: 30,
+                };
+                setUserProfile(defaultProfile);
+                userProfileRef.current = defaultProfile;
+                setIsProfileLoading(false);
+                if (!defaultProfile.department_id) {
+                    setActiveItem('onboarding');
                 }
             }
         }, (error) => {
