@@ -3,7 +3,7 @@
  * Defines data structures for Avelut AI Teaching Engine.
  * 
  * The AI generates structured TeachingScripts representing a live lesson performance:
- * Explain -> Visualize -> Demonstrate -> Ask -> Listen -> Clarify -> Continue
+ * Explain -> Visualize on Board -> Derive -> Ask -> Listen -> Erase -> Next Concept
  */
 
 export interface Point2D {
@@ -13,35 +13,43 @@ export interface Point2D {
 }
 
 export type VisualPrimitiveType =
-  | 'circle'
-  | 'rectangle'
-  | 'line'
-  | 'arrow'
-  | 'axis'
-  | 'curve'
-  | 'particle'
-  | 'atom'
-  | 'cell'
-  | 'organ'
+  | 'physics_block'
+  | 'physics_force'
+  | 'physics_pulley'
+  | 'physics_spring'
+  | 'physics_wave'
   | 'circuit'
+  | 'circuit_resistor'
+  | 'circuit_battery'
+  | 'chemistry_molecule'
+  | 'chemistry_atom'
+  | 'chemistry_reaction'
+  | 'biology_cell'
+  | 'biology_dna'
+  | 'biology_neuron'
   | 'graph'
+  | 'graph_axes'
+  | 'geometry_triangle'
+  | 'geometry_circle'
   | 'table'
   | 'formula'
-  | 'label'
+  | 'text'
   | 'custom';
 
 export type BoardActionType =
-  | 'draw'
   | 'write'
+  | 'draw'
+  | 'arrow'
   | 'label'
   | 'highlight'
   | 'circle'
   | 'underline'
-  | 'arrow'
   | 'erase'
-  | 'clear'
-  | 'zoom'
-  | 'pan';
+  | 'erase_group'
+  | 'clear_board'
+  | 'retain';
+
+export type ElementPersistence = 'persistent' | 'temporary';
 
 export interface BoardActionSync {
   phrase?: string;          // Spoken phrase that anchors this action
@@ -52,22 +60,28 @@ export interface BoardActionSync {
 export interface BoardAction {
   id: string;
   type: BoardActionType;
-  target?: string;          // ID or token name of the element being targeted
-  content?: string;         // Text, formula, or label content
-  from?: string | Point2D;  // Source ID or coordinate
-  to?: string | Point2D;    // Destination ID or coordinate
-  sync?: BoardActionSync;   // Semantic speech synchronization
+  groupId?: string;               // Optional logical group ID (e.g. "force_example")
+  persistence?: ElementPersistence; // 'persistent' (keeps across concepts) or 'temporary'
+  target?: string;                // ID of the element being targeted for highlight/circle/underline
+  content?: string;               // Text, formula LaTeX, or label text
+  position?: { x: number; y: number }; // Normalized viewport coordinates (0 to 100)
+  from?: string | Point2D | { x: number; y: number }; // Source ID or coordinate for arrows
+  to?: string | Point2D | { x: number; y: number };   // Destination ID or coordinate for arrows
+  direction?: 'right' | 'left' | 'up' | 'down' | 'custom';
+  sync?: BoardActionSync;         // Semantic speech synchronization
   metadata?: {
     primitive?: VisualPrimitiveType;
-    x?: number;             // X percentage (0-100) or pixel
-    y?: number;             // Y percentage (0-100) or pixel
+    x?: number;                   // 0-100% normalized safe X
+    y?: number;                   // 0-100% normalized safe Y
     width?: number;
     height?: number;
     color?: string;
-    style?: string;
+    style?: string;               // 'chalk' | 'ink' | 'accent' | 'highlight'
+    fontSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     subElements?: string[];
     tableData?: { headers: string[]; rows: string[][] };
     latex?: string;
+    diagramProps?: Record<string, any>;
     workedSteps?: Array<{
       stepNumber: number;
       latex: string;
@@ -75,9 +89,34 @@ export interface BoardAction {
       highlightTokens?: string[];
       isCalculated?: boolean;
     }>;
-    zoomLevel?: number;
-    panTarget?: { x: number; y: number };
   };
+}
+
+export interface LiveBoardElement {
+  id: string;
+  groupId?: string;
+  persistence: ElementPersistence;
+  type: 'text' | 'formula' | 'diagram' | 'arrow' | 'label' | 'table';
+  content?: string;
+  latex?: string;
+  position: { x: number; y: number };
+  primitive?: VisualPrimitiveType;
+  diagramProps?: Record<string, any>;
+  color?: string;
+  fontSize?: string;
+  tableData?: { headers: string[]; rows: string[][] };
+  highlighted?: boolean;
+  circled?: boolean;
+  underlined?: boolean;
+  progress?: number; // 0 to 1.0 progressive draw animation
+  createdAt: number;
+}
+
+export interface BoardState {
+  elements: Map<string, LiveBoardElement>;
+  activeHighlights: Set<string>;
+  activeCircles: Set<string>;
+  activeUnderlines: Set<string>;
 }
 
 export type TeachingQuestionType =
@@ -111,6 +150,7 @@ export interface TeachingSegment {
   teaching: {
     objective: string;
     speech: string;
+    boardTransition?: 'clear_board' | 'retain_persistent' | 'none';
     actions: BoardAction[];
   };
   question?: TeachingQuestion | null;

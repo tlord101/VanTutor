@@ -29,6 +29,11 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
   switch (type) {
     // ── 1. PHYSICS: FORCE VECTORS & MASS ON INCLINE / SURFACE ──
     case 'physics_force_vectors':
+    case 'physics_block':
+    case 'physics_force':
+    case 'physics_pulley':
+    case 'physics_spring':
+    case 'physics_wave':
     case 'force_vector':
     case 'newton_second_law': {
       const showF = p >= 0.3;

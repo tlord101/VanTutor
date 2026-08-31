@@ -67,8 +67,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   };
 
   return (
-    <div className="absolute top-6 left-1/2 -translate-x-1/2 w-11/12 max-w-lg z-40 animate-in fade-in zoom-in-95 duration-300">
-      <div className="rounded-3xl bg-[#0F172A]/95 backdrop-blur-xl border-2 border-[#38BDF8]/40 p-5 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] text-white">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-xl z-40 animate-in slide-in-from-bottom-4 duration-300">
+      <div className="rounded-2xl sm:rounded-3xl bg-[#0B1120]/95 backdrop-blur-xl border border-[#38BDF8]/50 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-white">
         {/* Header Badge */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">

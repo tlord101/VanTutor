@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TeachingSegment, BoardAction, TeachingQuestion, StudentAnswerEvaluation } from '../../types/teachingScript';
+import { TeachingSegment, BoardAction, TeachingQuestion, StudentAnswerEvaluation, LiveBoardElement } from '../../types/teachingScript';
 import { TeachingEngineService } from '../../services/teachingEngineService';
-import { BoardElement } from './LiveWhiteboardCanvas';
+import { BoardStateManager } from '../../services/boardStateManager';
 import { TeachingHeader } from './live-teaching/TeachingHeader';
 import { TeachingBoard } from './live-teaching/TeachingBoard';
 import { TeachingControls } from './live-teaching/TeachingControls';
@@ -22,7 +22,7 @@ export interface TeachingEngineSessionViewProps {
 
 /**
  * REDESIGNED LIVE TEACHING HERO EXPERIENCE
- * Full-screen interactive classroom where the AI Lecturer teaches on an expansive whiteboard.
+ * Full-screen unified whiteboard where the AI Lecturer teaches inside a single 95% viewport.
  * Top bar ~2.5% | Teaching Board ~95% | Bottom bar ~2.5%
  */
 export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps> = ({
@@ -41,6 +41,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [showAskModal, setShowAskModal] = useState<boolean>(false);
   const [isProcessingAsk, setIsProcessingAsk] = useState<boolean>(false);
   const engineRef = useRef<TeachingEngineService | null>(null);
+  const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
 
   const [currentSegment, setCurrentSegment] = useState<TeachingSegment | null>(null);
   const [segmentNumber, setSegmentNumber] = useState(1);
@@ -48,17 +49,12 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [isLoadingSegment, setIsLoadingSegment] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Whiteboard Hero Canvas State
-  const [boardElements, setBoardElements] = useState<BoardElement[]>([]);
+  // Whiteboard State
+  const [boardElements, setBoardElements] = useState<LiveBoardElement[]>([]);
+  const [activeHighlights, setActiveHighlights] = useState<Set<string>>(new Set());
+  const [activeCircles, setActiveCircles] = useState<Set<string>>(new Set());
+  const [activeUnderlines, setActiveUnderlines] = useState<Set<string>>(new Set());
   const [tutorPointer, setTutorPointer] = useState<{ x: number; y: number; active: boolean; color?: string } | null>(null);
-  const [activeFocusArea, setActiveFocusArea] = useState<{ x: number; y: number; w: number; h: number; color?: string } | null>(null);
-  const [activeWorkedEquation, setActiveWorkedEquation] = useState<{
-    latex: string;
-    stepNumber?: number;
-    title?: string;
-    progress: number;
-    highlightTokens?: string[];
-  } | null>(null);
 
   // Question & Interactivity State
   const [activeQuestion, setActiveQuestion] = useState<TeachingQuestion | null>(null);
@@ -66,152 +62,23 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [evaluationFeedback, setEvaluationFeedback] = useState<StudentAnswerEvaluation | null>(null);
   const [completedSegmentsSummary, setCompletedSegmentsSummary] = useState<string[]>([]);
 
-  // Apply whiteboard action to canvas
-  const applyBoardAction = useCallback((action: BoardAction) => {
-    const elementId = action.id || `el_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-
-    if (action.type === 'clear') {
-      setBoardElements([]);
-      setActiveFocusArea(null);
-      setActiveWorkedEquation(null);
-      return;
-    }
-
-    if (action.type === 'erase' && action.target) {
-      setBoardElements((prev) => prev.filter((el) => el.id !== action.target));
-      return;
-    }
-
-    // 1. Target Circle Action
-    if (action.type === 'circle' && action.target) {
-      const newEl: BoardElement = {
-        id: elementId,
-        type: 'target_circle',
-        target: action.target,
-        color: '#FACC15',
-      };
-      setBoardElements((prev) => [...prev, newEl]);
-      return;
-    }
-
-    // 2. Target Arrow Action
-    if (action.type === 'arrow' && action.from && action.to) {
-      const newEl: BoardElement = {
-        id: elementId,
-        type: 'target_arrow',
-        fromTarget: action.from,
-        toTarget: action.to,
-        label: action.content,
-        color: '#38BDF8',
-      };
-      setBoardElements((prev) => [...prev, newEl]);
-      return;
-    }
-
-    // 3. Target Label Action
-    if (action.type === 'label') {
-      const newEl: BoardElement = {
-        id: elementId,
-        type: 'target_label',
-        target: action.target || 'center',
-        text: action.content || 'Key Point',
-        color: '#FACC15',
-      };
-      setBoardElements((prev) => [...prev, newEl]);
-      return;
-    }
-
-    // 4. Highlight Action
-    if (action.type === 'highlight') {
-      const targetX = action.metadata?.x ?? 50;
-      const targetY = action.metadata?.y ?? 50;
-      setActiveFocusArea({
-        x: targetX,
-        y: targetY,
-        w: 140,
-        h: 50,
-        color: '#38BDF8',
-      });
-      setTutorPointer({ x: targetX, y: targetY, active: true, color: '#38BDF8' });
-      return;
-    }
-
-    // 5. Worked Step / Step-by-Step Equation Action
-    if (action.metadata?.workedSteps && action.metadata.workedSteps.length > 0) {
-      const steps = action.metadata.workedSteps;
-      const lastStep = steps[steps.length - 1];
-      setActiveWorkedEquation({
-        latex: lastStep.latex,
-        stepNumber: lastStep.stepNumber,
-        title: lastStep.explanation,
-        progress: 1.0,
-        highlightTokens: lastStep.highlightTokens,
-      });
-      return;
-    }
-
-    // 6. Formula / LaTeX Write Action
-    if (action.type === 'write') {
-      const formulaText = action.content || action.metadata?.latex || topicTitle;
-      const newEl: BoardElement = {
-        id: elementId,
-        type: 'latex',
-        x: action.metadata?.x ?? 50,
-        y: action.metadata?.y ?? 50,
-        text: formulaText,
-        opacity: 1,
-        color: '#FFFFFF',
-      };
-      setBoardElements((prev) => {
-        const filtered = prev.filter((e) => !(e.type === 'latex' && Math.abs((e.x || 0) - (newEl.x || 0)) < 5 && Math.abs((e.y || 0) - (newEl.y || 0)) < 5));
-        return [...filtered, newEl];
-      });
-      setTutorPointer({ x: newEl.x, y: newEl.y, active: true, color: '#38BDF8' });
-
-      // Animate LaTeX Step Card
-      setActiveWorkedEquation({
-        latex: formulaText,
-        progress: 1.0,
-        title: action.sync?.phrase || 'Formula Step',
-      });
-      return;
-    }
-
-    // 7. Draw Primitives Action (Physics, Circuits, Cell, Atom, Economics, CPU, Graph, Table)
-    if (action.type === 'draw') {
-      const primitive = action.metadata?.primitive || 'physics_force_vectors';
-      if (primitive === 'table' && action.metadata?.tableData) {
-        const newEl: BoardElement = {
-          id: elementId,
-          type: 'table',
-          x: action.metadata.x ?? 50,
-          y: action.metadata.y ?? 40,
-          width: 340,
-          headers: action.metadata.tableData.headers,
-          rows: action.metadata.tableData.rows,
-          activeRowIndex: 0,
-        };
-        setBoardElements((prev) => [...prev, newEl]);
-      } else {
-        const newEl: BoardElement = {
-          id: elementId,
-          type: 'illustration',
-          illustrationType: (primitive as any),
-          x: action.metadata?.x ?? 50,
-          y: action.metadata?.y ?? 35,
-          width: 360,
-          height: 230,
-          progress: 1.0,
-        };
-        setBoardElements((prev) => [...prev, newEl]);
-      }
-    }
-  }, [topicTitle]);
+  // Subscribe to BoardStateManager changes
+  useEffect(() => {
+    const manager = boardManagerRef.current;
+    const unsub = manager.subscribe((state) => {
+      setBoardElements(Array.from(state.elements.values()));
+      setActiveHighlights(new Set(state.activeHighlights));
+      setActiveCircles(new Set(state.activeCircles));
+      setActiveUnderlines(new Set(state.activeUnderlines));
+    });
+    return unsub;
+  }, []);
 
   // Initialize Teaching Engine Service
   useEffect(() => {
     const engine = new TeachingEngineService(appSettings, null, currentVoice);
     engineRef.current = engine;
+    const manager = boardManagerRef.current;
 
     const unsubscribe = engine.subscribe({
       onSegmentLoaded: (segment) => {
@@ -220,6 +87,14 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         if (segment.lesson.totalEstimatedSegments) {
           setTotalEstimatedSegments(segment.lesson.totalEstimatedSegments);
         }
+
+        // Apply concept board transition if specified
+        if (segment.teaching.boardTransition === 'clear_board') {
+          manager.applyAction({ id: 'trans_clear', type: 'clear_board' });
+        } else if (segment.teaching.boardTransition === 'retain_persistent') {
+          manager.applyAction({ id: 'trans_retain', type: 'retain' });
+        }
+
         // Auto-play speech and schedule synchronized actions
         engine.playSegmentSpeech(segment);
       },
@@ -227,7 +102,13 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         setIsSpeaking(playing);
       },
       onBoardActionTriggered: (action) => {
-        applyBoardAction(action);
+        manager.applyAction(action);
+        if (action.position) {
+          setTutorPointer({ x: action.position.x, y: action.position.y, active: true, color: '#38BDF8' });
+          setTimeout(() => {
+            setTutorPointer((prev) => (prev ? { ...prev, active: false } : null));
+          }, 1200);
+        }
       },
       onQuestionAsked: (question) => {
         setActiveQuestion(question);
@@ -255,7 +136,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       unsubscribe();
       engine.destroy();
     };
-  }, [topicTitle, courseName, syllabusContext, appSettings, applyBoardAction]);
+  }, [topicTitle, courseName, syllabusContext, appSettings]);
 
   const handleVoiceChange = (newVoice: string) => {
     setCurrentVoice(newVoice);
@@ -338,12 +219,13 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       />
 
       {/* ── 2. HERO INTERACTIVE TEACHING WHITEBOARD (~95% FULL-SCREEN) ── */}
-      <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden">
+      <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden p-1.5 sm:p-3">
         <TeachingBoard
           elements={boardElements}
+          activeHighlights={activeHighlights}
+          activeCircles={activeCircles}
+          activeUnderlines={activeUnderlines}
           tutorPointer={tutorPointer}
-          activeFocusArea={activeFocusArea}
-          activeWorkedEquation={activeWorkedEquation}
         />
 
         {/* Loading Concept Indicator */}
@@ -351,7 +233,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           <div className="absolute inset-0 bg-[#070B14]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-30 animate-in fade-in">
             <div className="w-10 h-10 border-3 border-[#38BDF8] border-t-transparent rounded-full animate-spin"></div>
             <p className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide">
-              Lecturer is preparing the board...
+              Lecturer is writing on the board...
             </p>
           </div>
         )}
