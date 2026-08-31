@@ -1,17 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const LOCAL_REFRESH_KEY = 'avelut_last_refreshed_timestamp';
+let isGlobalRefreshInitialized = false;
+let globalRefreshChannel: RealtimeChannel | null = null;
 
 export const useGlobalRefresh = () => {
-    const initializedRef = useRef(false);
-
     useEffect(() => {
-        if (typeof window === 'undefined' || !isSupabaseConfigured) return;
-
-        // Ensure we only attach the listener once
-        if (initializedRef.current) return;
-        initializedRef.current = true;
+        if (typeof window === 'undefined' || !isSupabaseConfigured || isGlobalRefreshInitialized) return;
+        isGlobalRefreshInitialized = true;
 
         const handleRefreshSignal = async (remoteTimestamp: number) => {
             if (!remoteTimestamp || typeof remoteTimestamp !== 'number') return;
@@ -41,27 +39,27 @@ export const useGlobalRefresh = () => {
         };
 
         // Realtime listener for force_refresh key in app_settings table
-        const channel = supabase
-            .channel('public:system_signals')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'app_settings',
-                    filter: 'key=eq.force_refresh_timestamp',
-                },
-                (payload: any) => {
-                    const ts = payload.new?.value_json?.timestamp || payload.new?.value_json;
-                    if (typeof ts === 'number') {
-                        void handleRefreshSignal(ts);
+        try {
+            globalRefreshChannel = supabase
+                .channel(`public:system_signals_singleton_${Date.now()}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'app_settings',
+                        filter: 'key=eq.force_refresh_timestamp',
+                    },
+                    (payload: any) => {
+                        const ts = payload.new?.value_json?.timestamp || payload.new?.value_json;
+                        if (typeof ts === 'number') {
+                            void handleRefreshSignal(ts);
+                        }
                     }
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+                )
+                .subscribe();
+        } catch (err) {
+            console.warn('[GlobalRefresh] Channel subscribe error:', err);
+        }
     }, []);
 };
