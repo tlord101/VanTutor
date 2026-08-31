@@ -1,6 +1,12 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile } from '../types';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isValidUuid = (id: string | null | undefined): boolean => {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+};
+
 /**
  * Returns today's date as a 'YYYY-MM-DD' string in local time.
  */
@@ -34,50 +40,56 @@ export const awardDailyStreak = async (uid: string): Promise<boolean> => {
   if (!uid || !isSupabaseConfigured) return false;
   const today = getTodayDateString();
 
-  try {
-    // 1. Try atomic RPC streak update first
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_daily_streak', {
-      p_user_id: uid,
-    });
-
-    if (!rpcErr && rpcRes?.success) {
-      return true;
-    }
-
-    // 2. Direct Supabase profile update fallback
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('streak, last_active_date')
-      .eq('id', uid)
-      .maybeSingle();
-
-    if (profile) {
-      if (profile.last_active_date === today) {
+  // Ensure we have a valid Supabase UUID (fall back to active session user id if needed)
+  let targetUid = uid;
+  if (!isValidUuid(targetUid)) {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id && isValidUuid(authData.user.id)) {
+        targetUid = authData.user.id;
+      } else {
         return false;
       }
+    } catch {
+      return false;
+    }
+  }
 
-      const currentStreak = profile.streak || 0;
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+  try {
+    // 1. Direct Supabase profile update (safe & direct)
+    const { data: profile, error: selectErr } = await supabase
+      .from('profiles')
+      .select('streak, last_active_date')
+      .eq('id', targetUid)
+      .maybeSingle();
 
-      const newStreak = profile.last_active_date === yesterdayStr ? currentStreak + 1 : 1;
-
-      await supabase
-        .from('profiles')
-        .update({
-          streak: newStreak,
-          last_active_date: today,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', uid);
-
-      return true;
+    if (selectErr || !profile) {
+      return false;
     }
 
-    return false;
+    if (profile.last_active_date === today) {
+      return false;
+    }
+
+    const currentStreak = profile.streak || 0;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+    const newStreak = profile.last_active_date === yesterdayStr ? currentStreak + 1 : 1;
+
+    await supabase
+      .from('profiles')
+      .update({
+        streak: newStreak,
+        last_active_date: today,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', targetUid);
+
+    return true;
   } catch (err) {
-    console.warn('[Streaks] Supabase streak update note:', err);
+    console.warn('[Streaks] Streak update note:', err);
     return false;
   }
 };

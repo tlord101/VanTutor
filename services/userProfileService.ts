@@ -2,6 +2,12 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile } from '../types';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const isValidUuid = (id: string | null | undefined): boolean => {
+    return typeof id === 'string' && UUID_REGEX.test(id);
+};
+
 // In-memory cache for ultra-fast zero-latency lookup
 const profileMemoryCache = new Map<string, UserProfile>();
 
@@ -29,15 +35,29 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 
     if (!isSupabaseConfigured) return null;
 
+    let targetUid = uid;
+    if (!isValidUuid(targetUid)) {
+        try {
+            const { data: authData } = await supabase.auth.getUser();
+            if (authData?.user?.id && isValidUuid(authData.user.id)) {
+                targetUid = authData.user.id;
+            } else {
+                return null;
+            }
+        } catch {
+            return null;
+        }
+    }
+
     try {
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', uid)
+            .eq('id', targetUid)
             .maybeSingle();
 
         if (error) {
-            console.warn(`[UserProfileService] Error fetching profile for ${uid}:`, error);
+            console.warn(`[UserProfileService] Error fetching profile for ${targetUid}:`, error);
             return null;
         }
 
@@ -59,6 +79,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
                 subscription_status: data.is_paid_subscriber ? 'semester' : (data.subscription_status || 'free'),
             };
             profileMemoryCache.set(uid, profile);
+            profileMemoryCache.set(targetUid, profile);
             try { writeCachedJson(`user_profile_${uid}`, profile); } catch {}
             return profile;
         }
@@ -81,40 +102,48 @@ export const subscribeUserProfile = (uid: string, callback: (profile: UserProfil
     // Initial fetch
     void getUserProfile(uid).then(p => callback(p));
 
-    // Realtime subscription on profiles table
-    const channel = supabase
-        .channel(`profile_changes_${uid}`)
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
-            (payload) => {
-                if (payload.new && (payload.new as any).id) {
-                    const data = payload.new as any;
-                    const profile: UserProfile = {
-                        uid: data.id,
-                        display_name: data.full_name || data.username || 'User',
-                        photo_url: data.avatar_url || '',
-                        email: data.email || '',
-                        school_id: data.school_id,
-                        department_id: data.department_id,
-                        level: data.level,
-                        xp: data.xp || 0,
-                        current_streak: data.streak || 0,
-                        last_activity_date: Date.now(),
-                        notifications_enabled: true,
-                        ai_credits_balance: data.ai_credits ?? 50,
-                        is_admin: data.is_admin || false,
-                        subscription_status: data.is_paid_subscriber ? 'semester' : (data.subscription_status || 'free'),
-                    };
-                    profileMemoryCache.set(uid, profile);
-                    try { writeCachedJson(`user_profile_${uid}`, profile); } catch {}
-                    callback(profile);
-                }
-            }
-        )
-        .subscribe();
+    if (!isValidUuid(uid)) {
+        return () => {};
+    }
 
-    return () => {
-        void supabase.removeChannel(channel);
-    };
+    // Realtime subscription on profiles table
+    try {
+        const channel = supabase
+            .channel(`profile_changes_${uid}_${Date.now()}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+                (payload) => {
+                    if (payload.new && (payload.new as any).id) {
+                        const data = payload.new as any;
+                        const profile: UserProfile = {
+                            uid: data.id,
+                            display_name: data.full_name || data.username || 'User',
+                            photo_url: data.avatar_url || '',
+                            email: data.email || '',
+                            school_id: data.school_id,
+                            department_id: data.department_id,
+                            level: data.level,
+                            xp: data.xp || 0,
+                            current_streak: data.streak || 0,
+                            last_activity_date: Date.now(),
+                            notifications_enabled: true,
+                            ai_credits_balance: data.ai_credits ?? 50,
+                            is_admin: data.is_admin || false,
+                            subscription_status: data.is_paid_subscriber ? 'semester' : (data.subscription_status || 'free'),
+                        };
+                        profileMemoryCache.set(uid, profile);
+                        try { writeCachedJson(`user_profile_${uid}`, profile); } catch {}
+                        callback(profile);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    } catch {
+        return () => {};
+    }
 };

@@ -41,9 +41,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
   const [showAskModal, setShowAskModal] = useState<boolean>(false);
   const [isProcessingAsk, setIsProcessingAsk] = useState<boolean>(false);
+  
   const engineRef = useRef<TeachingEngineService | null>(null);
   const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
   const autoContinueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSegmentLoadingRef = useRef<boolean>(false);
 
   const [currentSegment, setCurrentSegment] = useState<TeachingSegment | null>(null);
   const [segmentNumber, setSegmentNumber] = useState(1);
@@ -64,6 +66,22 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [evaluationFeedback, setEvaluationFeedback] = useState<StudentAnswerEvaluation | null>(null);
   const [completedSegmentsSummary, setCompletedSegmentsSummary] = useState<string[]>([]);
 
+  // Refs for stable callbacks
+  const segmentNumberRef = useRef(segmentNumber);
+  segmentNumberRef.current = segmentNumber;
+  
+  const totalSegmentsRef = useRef(totalEstimatedSegments);
+  totalSegmentsRef.current = totalEstimatedSegments;
+  
+  const currentSegmentRef = useRef(currentSegment);
+  currentSegmentRef.current = currentSegment;
+
+  const completedSummaryRef = useRef(completedSegmentsSummary);
+  completedSummaryRef.current = completedSegmentsSummary;
+
+  const activeQuestionRef = useRef(activeQuestion);
+  activeQuestionRef.current = activeQuestion;
+
   // Subscribe to BoardStateManager changes
   useEffect(() => {
     const manager = boardManagerRef.current;
@@ -76,48 +94,59 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     return unsub;
   }, []);
 
-  // Proceed to Next Segment
+  // Proceed to Next Segment (Stable callback using refs)
   const handleContinueNextSegment = useCallback(async () => {
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
 
-    if (!engineRef.current) return;
-    const nextSegNum = segmentNumber + 1;
-
-    if (nextSegNum > totalEstimatedSegments) {
+    if (!engineRef.current || isSegmentLoadingRef.current) return;
+    
+    const nextSegNum = segmentNumberRef.current + 1;
+    if (nextSegNum > totalSegmentsRef.current) {
       addToast('Lesson complete! Well done.', 'success');
       onClose?.();
       return;
     }
 
+    isSegmentLoadingRef.current = true;
     setSegmentNumber(nextSegNum);
     setIsLoadingSegment(true);
     setActiveQuestion(null);
     setEvaluationFeedback(null);
 
-    if (currentSegment) {
-      setCompletedSegmentsSummary((prev) => [...prev, currentSegment.lesson.title]);
+    const prevSeg = currentSegmentRef.current;
+    if (prevSeg) {
+      setCompletedSegmentsSummary((prev) => [...prev, prevSeg.lesson.title]);
     }
+
+    const summaryHistory = prevSeg 
+      ? [...completedSummaryRef.current, prevSeg.lesson.title].join(' -> ')
+      : completedSummaryRef.current.join(' -> ');
 
     await engineRef.current.loadSegment({
       topic: topicTitle,
       courseName,
       syllabusContext,
       segmentNumber: nextSegNum,
-      previousSegmentsSummary: completedSegmentsSummary.join(' -> '),
+      previousSegmentsSummary: summaryHistory,
     });
-  }, [segmentNumber, totalEstimatedSegments, currentSegment, completedSegmentsSummary, topicTitle, courseName, syllabusContext, onClose, addToast]);
+  }, [topicTitle, courseName, syllabusContext, onClose, addToast]);
 
-  // Initialize Teaching Engine Service
+  const handleContinueRef = useRef(handleContinueNextSegment);
+  handleContinueRef.current = handleContinueNextSegment;
+
+  // Initialize Teaching Engine Service ONCE per topic session
   useEffect(() => {
     const engine = new TeachingEngineService(appSettings, null, currentVoice);
     engineRef.current = engine;
     const manager = boardManagerRef.current;
+    isSegmentLoadingRef.current = true;
 
     const unsubscribe = engine.subscribe({
       onSegmentLoaded: (segment) => {
+        isSegmentLoadingRef.current = false;
         setCurrentSegment(segment);
         setIsLoadingSegment(false);
         if (segment.lesson.totalEstimatedSegments) {
@@ -138,11 +167,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         setIsSpeaking(playing);
 
         // Auto-continue when speech finishes if no active blocking question
-        if (!playing && !activeQuestion) {
+        if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = setTimeout(() => {
-            handleContinueNextSegment();
-          }, 2200);
+            handleContinueRef.current();
+          }, 2400);
         }
       },
       onBoardActionTriggered: (action) => {
@@ -169,11 +198,12 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         // After feedback, auto-continue to next concept after short pause
         if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
         autoContinueTimerRef.current = setTimeout(() => {
-          handleContinueNextSegment();
-        }, 3200);
+          handleContinueRef.current();
+        }, 3400);
       },
       onError: (err) => {
         console.error('[TeachingEngineView] Error:', err);
+        isSegmentLoadingRef.current = false;
         setIsLoadingSegment(false);
       },
     });
@@ -191,7 +221,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       unsubscribe();
       engine.destroy();
     };
-  }, [topicTitle, courseName, syllabusContext, appSettings, handleContinueNextSegment, activeQuestion]);
+  }, [topicTitle, courseName, syllabusContext]);
 
   const handleVoiceChange = (newVoice: string) => {
     setCurrentVoice(newVoice);
