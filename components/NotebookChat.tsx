@@ -452,9 +452,13 @@ ${messageText}`;
               })}
 
               {isLoading && !streamingMsgId && (
-                <div className="flex items-center gap-2 p-3 bg-[#F6F6F3] dark:bg-slate-900 rounded-2xl border border-[#E3E9F1] dark:border-slate-800 w-fit">
-                  <div className="w-2 h-2 rounded-full bg-[#0066FF] dark:bg-blue-400 animate-ping" />
-                  <span className="text-xs text-[#64748B] dark:text-slate-400 font-medium">Tutor is formulating response...</span>
+                <div className="flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-[#E3E9F1] dark:border-slate-800 shadow-2xs w-fit animate-fade-in">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] dark:bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] dark:bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] dark:bg-blue-400 animate-bounce" />
+                  </div>
+                  <span className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 font-semibold">Tutor is formulating response...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />

@@ -637,19 +637,26 @@ ${textToSend || '(Student attached image)'}`;
           })}
 
           {/* Live Streaming Bot Message */}
-          {streamingBotText !== null && (
+          {streamingBotText ? (
             <div className="w-full my-3 px-1 sm:px-2 flex flex-col items-start animate-fade-in">
               <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
                 {renderStreamingContent(streamingBotText)}
               </div>
             </div>
-          )}
-
-          {isSending && streamingBotText === null && (
-            <div className="my-2">
-              <TypingIndicator />
+          ) : isSending ? (
+            <div className="w-full my-3 px-1 sm:px-2 flex flex-col items-start animate-fade-in">
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce" />
+                </div>
+                <span className="text-xs sm:text-sm font-semibold text-[#64748B] dark:text-slate-400">
+                  Course Tutor is preparing your lesson...
+                </span>
+              </div>
             </div>
-          )}
+          ) : null}
 
           <div ref={messagesEndRef} />
         </div>

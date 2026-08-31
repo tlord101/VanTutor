@@ -99,13 +99,29 @@ export class BoardStateManager {
       case 'write': {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
         const posY = action.position?.y ?? action.metadata?.y ?? 30;
-
+        const isTitle = posY <= 18 && !action.content?.includes('\n') && (action.content?.length || 0) < 60;
         const isLatex = Boolean(action.metadata?.latex || action.content?.includes('\\') || action.content?.includes('=') && !action.content?.includes('->'));
+
+        // If writing a new title, clear previous titles to prevent stacking
+        if (isTitle) {
+          for (const [existingId, existingEl] of this.elements.entries()) {
+            if (existingEl.position && existingEl.position.y <= 18 && existingEl.type === 'text') {
+              this.elements.delete(existingId);
+            }
+          }
+        }
+
+        // Deduplicate exact same text/formula
+        for (const [existingId, existingEl] of this.elements.entries()) {
+          if (existingEl.content === action.content || (isLatex && existingEl.latex === action.content)) {
+            this.elements.delete(existingId);
+          }
+        }
         
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
-          persistence: action.persistence || 'temporary',
+          persistence: isTitle ? 'persistent' : (action.persistence || 'temporary'),
           type: isLatex ? 'formula' : 'text',
           content: action.content || '',
           latex: action.metadata?.latex || (isLatex ? action.content : undefined),
@@ -125,6 +141,13 @@ export class BoardStateManager {
       case 'draw': {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
         const posY = action.position?.y ?? action.metadata?.y ?? 55;
+
+        // If drawing a new diagram in the same group, replace old diagram
+        for (const [existingId, existingEl] of this.elements.entries()) {
+          if (existingEl.type === 'diagram' && (existingEl.groupId === action.groupId || !existingEl.groupId)) {
+            this.elements.delete(existingId);
+          }
+        }
 
         const newEl: LiveBoardElement = {
           id: action.id || actionId,

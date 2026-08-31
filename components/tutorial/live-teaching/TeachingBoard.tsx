@@ -151,8 +151,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
           scrollbarColor: '#1E293B transparent',
         }}
       >
-        {/* Top Board Titles */}
-        {titleElements.map((el) => {
+        {/* Top Board Title (Strictly 1 single active title) */}
+        {titleElements.slice(-1).map((el) => {
           const isHighlighted = activeHighlights.has(el.id);
           const isUnderlined = activeUnderlines.has(el.id);
           return (
@@ -177,8 +177,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
           );
         })}
 
-        {/* Structured Blackboard Flow Area */}
-        <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 min-h-[60%] justify-center">
+        {/* Structured Blackboard Flow Area (Clean vertical stacking, zero overlapping) */}
+        <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 w-full py-4">
           {bodyElements.map((el) => {
             const isHighlighted = activeHighlights.has(el.id);
             const isCircled = activeCircles.has(el.id);
