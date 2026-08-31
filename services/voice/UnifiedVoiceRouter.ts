@@ -1,8 +1,7 @@
 import { grokVoiceEngine, type GrokSpeechOptions, type GrokAudioPlayer, type GrokTtsResponsePayload } from './GrokVoiceEngine';
-import { kittenTts } from '../kittenTtsService';
 import type { AppSettings } from '../../types';
 
-export type UnifiedVoiceProvider = 'grok' | 'kitten';
+export type UnifiedVoiceProvider = 'grok';
 
 export interface UnifiedSpeechOptions {
   provider?: UnifiedVoiceProvider;
@@ -24,7 +23,8 @@ export type UnifiedAudioPlayer = GrokAudioPlayer;
 
 /**
  * Unified Voice Router
- * Strictly routes text-to-speech synthesis requests through GROK VOICE ENGINE (xAI Speech)
+ * Strictly routes text-to-speech synthesis requests through GROK VOICE ENGINE (xAI Speech) exclusively.
+ * No fallback engines.
  */
 export class UnifiedVoiceRouter {
   public resolveProvider(_options: UnifiedSpeechOptions = {}): UnifiedVoiceProvider {
@@ -39,7 +39,6 @@ export class UnifiedVoiceRouter {
     options: UnifiedSpeechOptions = {}
   ): UnifiedAudioPlayer {
     const rawVoice = options.voice || options.appSettings?.grok_voice_id || 'altair';
-    // Map any legacy names (like 'Jennifer', 'Cheyenne', etc.) to valid Grok voices
     const grokVoice = this.normalizeGrokVoice(rawVoice);
 
     return grokVoiceEngine.playSpeech(text, {
@@ -72,7 +71,7 @@ export class UnifiedVoiceRouter {
     if (lower.includes('jennifer') || lower.includes('female') || lower.includes('emma') || lower.includes('sarah')) {
       return 'nova';
     }
-    // Male mappings -> 'altair' or 'echo'
+    // Default Grok voice
     return 'altair';
   }
 
@@ -110,7 +109,6 @@ export class UnifiedVoiceRouter {
    */
   public stopAudio(): void {
     grokVoiceEngine.stopAudio();
-    kittenTts.stop();
   }
 
   public stopAll(): void {

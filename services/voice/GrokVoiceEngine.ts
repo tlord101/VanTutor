@@ -329,25 +329,6 @@ class GrokVoiceEngine {
 
         if (isStopped || this.activeSessionId !== sessionId || !payload?.audio) {
           if (!payload?.audio && !isStopped) {
-            console.warn('[GrokVoiceEngine] Grok proxy unavailable, using fast local speech synthesis');
-            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.rate = 1.15;
-              utterance.pitch = 1.0;
-              utterance.onstart = () => {
-                options.onReady?.();
-                options.onStart?.();
-              };
-              utterance.onend = () => {
-                options.onEnd?.();
-              };
-              utterance.onerror = () => {
-                options.onEnd?.();
-              };
-              window.speechSynthesis.cancel();
-              window.speechSynthesis.speak(utterance);
-              return;
-            }
             options.onError?.(new Error('Failed to retrieve Grok audio'));
           } else if (payload?.audio) {
             console.warn('[GrokVoiceEngine] playSpeech session superseded; discarding downloaded audio.');
