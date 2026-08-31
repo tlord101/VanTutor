@@ -78,7 +78,7 @@ export class TeachingEngineService {
       });
 
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.8-max',
+        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
         contents: [
           { role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }
         ],
@@ -171,7 +171,7 @@ export class TeachingEngineService {
       });
 
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.8-max',
+        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
         contents: [
           { role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }
         ],
@@ -238,7 +238,7 @@ export class TeachingEngineService {
       });
 
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.8-max',
+        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
         contents: [
           { role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }
         ],

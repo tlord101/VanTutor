@@ -181,7 +181,7 @@ export const getFeatureModel = (
   feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'title_generation',
   appSettings?: AppSettings | null
 ): string => {
-  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || 'qwen3.8-max';
+  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || 'qwen3.7-flash';
 };
 
 // Legacy object for backward compatibility, mapped to dynamic getter

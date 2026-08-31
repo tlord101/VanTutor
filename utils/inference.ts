@@ -265,7 +265,7 @@ function geminiParamsToChatMessages(params: any): { systemPrompt: string; messag
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getAlibabaApiKey(appSettings);
   const { messages } = geminiParamsToChatMessages(params);
-  const model = params?.model || appSettings?.alibaba_model || 'qwen3.8-max';
+  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -344,7 +344,7 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
 async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
   const apiKey = getAlibabaApiKey(appSettings);
   const { messages } = geminiParamsToChatMessages(params);
-  const model = params?.model || appSettings?.alibaba_model || 'qwen3.8-max';
+  const model = params?.model || appSettings?.alibaba_model || 'qwen3.7-flash';
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||

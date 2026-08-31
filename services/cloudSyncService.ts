@@ -15,6 +15,28 @@ export type CloudSyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'er
 
 type SyncListener = (status: CloudSyncStatus, pendingCount: number) => void;
 
+function toDeterministicUUID(str: string): string {
+  if (!str) return '00000000-0000-0000-0000-000000000000';
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) {
+    return str;
+  }
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+    h3 = Math.imul(h3 ^ ch, 2246822507);
+    h4 = Math.imul(h4 ^ ch, 3266489909);
+  }
+  const hex = [
+    (h1 >>> 0).toString(16).padStart(8, '0'),
+    (h2 >>> 0).toString(16).padStart(8, '0'),
+    (h3 >>> 0).toString(16).padStart(8, '0'),
+    (h4 >>> 0).toString(16).padStart(8, '0')
+  ].join('');
+  return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-a${hex.substring(17, 20)}-${hex.substring(20, 32)}`;
+}
+
 class CloudSyncEngine {
   private status: CloudSyncStatus = 'synced';
   private listeners: Set<SyncListener> = new Set();
@@ -154,12 +176,14 @@ class CloudSyncEngine {
                 .eq('id', item.entity_id);
             } else {
               // Upsert conversation metadata
+              const u1 = toDeterministicUUID(userId);
+              const u2 = toDeterministicUUID(payload.other_user_id || userId);
               await supabase
                 .from('messenger_conversations')
                 .upsert({
                   id: item.entity_id,
-                  user1_id: userId,
-                  user2_id: payload.other_user_id || userId,
+                  user1_id: u1,
+                  user2_id: u2,
                   last_message_preview: payload.title || 'Conversation',
                   last_message_time: new Date(payload.last_updated_at || Date.now()).toISOString(),
                   updated_at: new Date().toISOString(),
@@ -176,13 +200,15 @@ class CloudSyncEngine {
                 .delete()
                 .eq('id', item.entity_id);
             } else {
+              const senderId = toDeterministicUUID(payload.user_id || this.currentUserId || '');
+              const recipientId = toDeterministicUUID(payload.recipient_id || payload.user_id || this.currentUserId || '');
               await supabase
                 .from('messenger_messages')
                 .upsert({
                   id: item.entity_id,
                   conversation_id: payload.conversation_id,
-                  sender_id: payload.user_id || this.currentUserId,
-                  recipient_id: payload.recipient_id || payload.user_id || this.currentUserId,
+                  sender_id: senderId,
+                  recipient_id: recipientId,
                   message_type: payload.image_url ? 'image' : 'text',
                   text_content: payload.text,
                   media_url: payload.image_url || null,
@@ -199,7 +225,7 @@ class CloudSyncEngine {
               await supabase
                 .from('profiles')
                 .upsert({
-                  id: userId,
+                  id: toDeterministicUUID(userId),
                   ...payload.payload,
                   updated_at: new Date().toISOString(),
                 });
@@ -226,11 +252,11 @@ class CloudSyncEngine {
     }
 
     try {
-      const sanitizedId = userId.trim();
+      const uuid = toDeterministicUUID(userId.trim());
       const { data: conversations, error } = await supabase
         .from('messenger_conversations')
         .select('*')
-        .or(`user1_id.eq.${sanitizedId},user2_id.eq.${sanitizedId}`)
+        .or(`user1_id.eq.${uuid},user2_id.eq.${uuid}`)
         .order('updated_at', { ascending: false });
 
       if (error) {
