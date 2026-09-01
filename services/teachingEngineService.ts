@@ -25,7 +25,7 @@ export interface TeachingEngineListener {
 export class TeachingEngineService {
   private appSettings: AppSettings;
   private userProfile: UserProfile | null;
-  private voice: string = 'Jennifer';
+  private voice: string = 'Altair';
   private currentSegment: TeachingSegment | null = null;
   private listeners: Set<TeachingEngineListener> = new Set();
   private isDestroyed = false;
@@ -33,10 +33,10 @@ export class TeachingEngineService {
   private activeAudioPlayer: any = null;
   private activeTimers: ReturnType<typeof setTimeout>[] = [];
 
-  constructor(appSettings: AppSettings, userProfile: UserProfile | null = null, voice: string = 'Jennifer') {
+  constructor(appSettings: AppSettings, userProfile: UserProfile | null = null, voice: string = 'Altair') {
     this.appSettings = appSettings;
     this.userProfile = userProfile;
-    this.voice = voice || 'Jennifer';
+    this.voice = voice || 'Altair';
   }
 
   public setVoice(voice: string) {
@@ -123,25 +123,27 @@ export class TeachingEngineService {
       const triggeredActionIds = new Set<string>();
 
       // Start audio synthesis via UnifiedVoiceRouter with real-time timestamp synchronization
+      const totalWords = speechText.split(/\s+/).length || 1;
+      const totalEstSec = totalWords / 2.8;
+
       this.activeAudioPlayer = unifiedVoiceRouter.playSpeech(speechText, {
         appSettings: this.appSettings,
-        provider: 'grok',
         voice: this.voice,
         speed: 1.15,
         onTimeUpdate: (currentTime, _charIndex, _spokenWord) => {
           if (this.isDestroyed || !actions.length) return;
 
           // Sync actions against real audio position
-          actions.forEach((act) => {
+          actions.forEach((act, idx) => {
             if (triggeredActionIds.has(act.id)) return;
 
-            let targetTime = 0;
+            let targetTime = (idx / Math.max(1, actions.length)) * totalEstSec * 0.8;
             if (act.sync?.phrase) {
               const phraseLower = act.sync.phrase.toLowerCase();
               const speechLower = speechText.toLowerCase();
               const charIdx = speechLower.indexOf(phraseLower);
               if (charIdx !== -1) {
-                targetTime = (charIdx / speechLower.length) * (speechText.split(/\s+/).length / 2.8);
+                targetTime = (charIdx / speechLower.length) * totalEstSec;
               }
             }
 

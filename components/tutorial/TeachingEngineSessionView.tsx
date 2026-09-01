@@ -32,7 +32,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   topicTitle,
   courseName = 'Academic Course',
   syllabusContext,
-  initialVoice = 'Jennifer',
+  initialVoice = 'Altair',
   onClose,
   setCustomHeaderConfig,
 }) => {

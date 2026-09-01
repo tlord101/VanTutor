@@ -48,7 +48,7 @@ export class UnifiedVoiceRouter {
   }
 
   /**
-   * Play speech using the resolved provider engine (Grok or Alibaba)
+   * Play speech using the resolved provider engine (Grok default with Alibaba Qwen3-TTS fallback)
    */
   public playSpeech(
     text: string,
@@ -61,6 +61,7 @@ export class UnifiedVoiceRouter {
       return alibabaVoiceEngine.playSpeech(text, {
         appSettings: options.appSettings,
         voice,
+        model: 'qwen3-tts-flash',
         language: options.language,
         cacheKey: options.cacheKey,
         isPrivate: options.isPrivate,
