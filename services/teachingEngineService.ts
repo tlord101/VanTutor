@@ -120,13 +120,46 @@ export class TeachingEngineService {
       const speechText = segment.teaching.speech.trim();
       const actions = segment.teaching.actions || [];
 
-      // Start audio synthesis via UnifiedVoiceRouter with fast 1.15x lecturer pace
+      const triggeredActionIds = new Set<string>();
+
+      // Start audio synthesis via UnifiedVoiceRouter with real-time timestamp synchronization
       this.activeAudioPlayer = unifiedVoiceRouter.playSpeech(speechText, {
         appSettings: this.appSettings,
         provider: 'grok',
         voice: this.voice,
         speed: 1.15,
+        onTimeUpdate: (currentTime, _charIndex, _spokenWord) => {
+          if (this.isDestroyed || !actions.length) return;
+
+          // Sync actions against real audio position
+          actions.forEach((act) => {
+            if (triggeredActionIds.has(act.id)) return;
+
+            let targetTime = 0;
+            if (act.sync?.phrase) {
+              const phraseLower = act.sync.phrase.toLowerCase();
+              const speechLower = speechText.toLowerCase();
+              const charIdx = speechLower.indexOf(phraseLower);
+              if (charIdx !== -1) {
+                targetTime = (charIdx / speechLower.length) * (speechText.split(/\s+/).length / 2.8);
+              }
+            }
+
+            if (currentTime >= targetTime) {
+              triggeredActionIds.add(act.id);
+              this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
+            }
+          });
+        },
         onEnd: () => {
+          // Ensure all actions are triggered if any were missed
+          actions.forEach((act) => {
+            if (!triggeredActionIds.has(act.id)) {
+              triggeredActionIds.add(act.id);
+              this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
+            }
+          });
+
           this.listeners.forEach((l) => l.onAudioPlaybackStateChanged?.(false));
           if (segment.question && segment.question.waitForAnswer) {
             this.listeners.forEach((l) => l.onQuestionAsked?.(segment.question!));
@@ -138,8 +171,8 @@ export class TeachingEngineService {
         },
       });
 
-      // Schedule fast, snappy synchronized board actions
-      this.scheduleSynchronizedActions(speechText, actions);
+      // Schedule fallback timers in case audio updates lag
+      this.scheduleSynchronizedActions(speechText, actions, triggeredActionIds);
     } catch (err: any) {
       console.warn('[TeachingEngine] Speech playback fallback:', err);
       // Fallback: immediately trigger actions
@@ -284,10 +317,9 @@ export class TeachingEngineService {
     }
   }
 
-  private scheduleSynchronizedActions(speech: string, actions: BoardAction[]) {
+  private scheduleSynchronizedActions(speech: string, actions: BoardAction[], triggeredIds?: Set<string>) {
     const words = speech.split(/\s+/);
     const totalWords = words.length || 1;
-    // Faster action pacing (2.8 words/sec)
     const estTotalDurationMs = Math.max(2000, (totalWords / 2.8) * 1000);
 
     actions.forEach((action, index) => {
@@ -307,10 +339,12 @@ export class TeachingEngineService {
         delayMs = Math.floor((index / Math.max(1, actions.length)) * estTotalDurationMs * 0.8);
       }
 
-      // Fast, snappy action triggers with lead delay of 80ms
       const timer = setTimeout(() => {
         if (!this.isDestroyed) {
-          this.listeners.forEach((l) => l.onBoardActionTriggered?.(action));
+          if (!triggeredIds || !triggeredIds.has(action.id)) {
+            if (triggeredIds) triggeredIds.add(action.id);
+            this.listeners.forEach((l) => l.onBoardActionTriggered?.(action));
+          }
         }
       }, Math.max(80, delayMs));
 

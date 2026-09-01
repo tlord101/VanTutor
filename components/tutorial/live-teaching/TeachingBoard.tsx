@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { LiveBoardElement } from '../../../types/teachingScript';
@@ -15,28 +15,25 @@ export interface TeachingBoardProps {
 }
 
 /**
- * LIVE TEACHING WHITEBOARD SURFACE
+ * FIXED SINGLE VIEWPORT WHITEBOARD SURFACE
  * Features:
- * - Title-first progressive reveal: Only displays title until voice audio begins.
- * - Anti-clustering responsive vertical flow layout.
- * - Smooth downward scrolling for extensive derivations & notes.
- * - Auto-scrolls downwards when new elements/derivations are written.
- * - Rich KaTeX math & SVG scientific diagram primitives.
- * - Clean academic chalkboard texture without distracting yellow laser glow.
+ * - Single visible board viewport (0-100% normalized safe coordinates). No page scrolling.
+ * - Every board element sits directly on the chalkboard canvas without card-like background wrappers.
+ * - Progressive reveal synchronized with spoken lecture audio position.
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
   activeHighlights = new Set(),
   activeCircles = new Set(),
   activeUnderlines = new Set(),
+  tutorPointer,
   isAudioReady = true,
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Resize canvas to container
+  // Resize canvas to fixed container bounds
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -58,7 +55,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Canvas background chalk grid (No yellow laser pointer glow)
+  // Canvas background chalk grid
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -78,7 +75,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.scale(dpr, dpr);
 
-      // Subtle chalk grid dots
+      // Subtle grid dots
       const dotSpacing = 32;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       for (let x = 16; x < rect.width; x += dotSpacing) {
@@ -97,40 +94,6 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // Auto-scroll downwards smoothly as new elements are written
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-  }, [elements.length]);
-
-  // Separate title element from content body elements
-  const { titleElements, bodyElements } = useMemo(() => {
-    const titles: LiveBoardElement[] = [];
-    const bodies: LiveBoardElement[] = [];
-
-    // Sort by sequential order or vertical position
-    const sorted = [...elements].sort((a, b) => {
-      if (a.position && b.position) {
-        return a.position.y - b.position.y;
-      }
-      return 0;
-    });
-
-    for (const el of sorted) {
-      if (el.type === 'text' && el.position && el.position.y <= 15 && !(el.content || '').includes('\n')) {
-        titles.push(el);
-      } else {
-        bodies.push(el);
-      }
-    }
-
-    return { titleElements: titles, bodyElements: bodies };
-  }, [elements]);
-
   return (
     <div
       ref={containerRef}
@@ -139,206 +102,140 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
         background: 'radial-gradient(ellipse at 50% 20%, #131E35 0%, #0B1120 60%, #070B14 100%)',
       }}
     >
-      {/* 1. Underlying Canvas for Background Grid */}
+      {/* 1. Underlying Canvas for Chalk Grid */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none z-0"
       />
 
-      {/* 2. Scrollable Board Body (Allows student to scroll downwards seamlessly) */}
-      <div
-        ref={scrollAreaRef}
-        className="relative z-10 flex-1 w-full overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-6 sm:space-y-8 scroll-smooth"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#1E293B transparent',
-        }}
-      >
-        {/* Top Board Title (Strictly 1 single active title) */}
-        {titleElements.slice(-1).map((el) => {
-          const isHighlighted = activeHighlights.has(el.id);
-          const isUnderlined = activeUnderlines.has(el.id);
-          return (
-            <div key={el.id} className="text-center py-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <h2
-                className={`inline-block text-lg sm:text-2xl md:text-3xl font-black tracking-widest uppercase pb-1.5 transition-all ${
-                  isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
-                }`}
-                style={{
-                  borderBottom: `2px solid ${isHighlighted ? '#38BDF8' : '#0066FF'}`,
-                  color: el.color || '#FFFFFF',
-                }}
-              >
-                {el.content}
-              </h2>
-              {isUnderlined && (
-                <svg className="w-48 mx-auto h-2 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
-                  <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
-                </svg>
-              )}
-            </div>
-          );
-        })}
+      {/* 2. Fixed Viewport Area (0-100% Normalized Placement) */}
+      <div className="relative z-10 w-full h-full overflow-hidden">
+        {isAudioReady &&
+          elements.map((el) => {
+            const posX = Math.max(5, Math.min(95, el.position?.x ?? 50));
+            const posY = Math.max(5, Math.min(95, el.position?.y ?? 50));
 
-        {/* Structured Blackboard Flow Area (Revealed in sync with voice) */}
-        {isAudioReady && (
-          <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 w-full py-4">
-            {bodyElements.map((el) => {
             const isHighlighted = activeHighlights.has(el.id);
             const isCircled = activeCircles.has(el.id);
             const isUnderlined = activeUnderlines.has(el.id);
 
-            // ── A. FORMULA ELEMENT ──
-            if (el.type === 'formula' || el.latex) {
-              let renderedHtml = '';
-              try {
-                renderedHtml = katex.renderToString(el.latex || el.content || '', {
-                  displayMode: true,
-                  throwOnError: false,
-                });
-              } catch {
-                renderedHtml = `<span>${el.content}</span>`;
-              }
-
-              return (
-                <div
-                  key={el.id}
-                  className={`relative flex flex-col items-center justify-center p-3 sm:p-5 rounded-2xl transition-all duration-300 animate-in fade-in zoom-in-95 max-w-full overflow-x-auto ${
-                    isHighlighted
-                      ? 'bg-[#38BDF8]/10 ring-2 ring-[#38BDF8]/50 shadow-[0_0_24px_rgba(56,189,248,0.25)]'
-                      : 'bg-black/25 border border-white/5 shadow-inner'
-                  }`}
-                >
-                  <div
-                    className={`text-xl sm:text-3xl md:text-4xl font-bold tracking-wide select-none ${
-                      isHighlighted ? 'text-[#38BDF8]' : 'text-white'
-                    }`}
-                    style={{ color: el.color || '#38BDF8' }}
-                    dangerouslySetInnerHTML={{ __html: renderedHtml }}
-                  />
-
-                  {/* Chalk Underline */}
-                  {isUnderlined && (
-                    <svg className="w-full h-3 mt-2 overflow-visible" viewBox="0 0 100 10" preserveAspectRatio="none">
-                      <path d="M 0 5 Q 50 10 100 4" fill="none" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  )}
-
-                  {/* Hand-Drawn Chalk Circle */}
-                  {isCircled && (
-                    <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeDasharray="4 2" />
-                    </svg>
-                  )}
-                </div>
-              );
-            }
-
-            // ── B. DIAGRAM ELEMENT ──
-            if (el.type === 'diagram') {
-              return (
-                <div
-                  key={el.id}
-                  className={`relative p-3 sm:p-5 rounded-2xl bg-black/25 border border-white/5 shadow-inner transition-all duration-300 animate-in zoom-in-95 flex flex-col items-center ${
-                    isHighlighted ? 'ring-2 ring-[#38BDF8] shadow-[0_0_24px_rgba(56,189,248,0.25)]' : ''
-                  }`}
-                >
-                  <BoardDiagramPrimitives
-                    type={el.primitive || 'physics_block'}
-                    width={340}
-                    height={200}
-                    progress={el.progress ?? 1.0}
-                    color={el.color || '#38BDF8'}
-                    metadata={el.diagramProps}
-                  />
-
-                  {isCircled && (
-                    <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                      <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
-                    </svg>
-                  )}
-                </div>
-              );
-            }
-
-            // ── C. ARROW & RELATION ELEMENT ──
-            if (el.type === 'arrow') {
-              return (
-                <div
-                  key={el.id}
-                  className="flex items-center gap-3 py-1 animate-in fade-in duration-300"
-                >
-                  <svg width="48" height="24" viewBox="0 0 48 24" className="overflow-visible">
-                    <line x1="0" y1="12" x2="40" y2="12" stroke={el.color || '#38BDF8'} strokeWidth="3" strokeLinecap="round" />
-                    <polygon points="38,6 48,12 38,18" fill={el.color || '#38BDF8'} />
-                  </svg>
-                  {el.content && (
-                    <span className="text-xs sm:text-sm font-bold text-[#38BDF8] tracking-wide">
-                      {el.content}
-                    </span>
-                  )}
-                </div>
-              );
-            }
-
-            // ── D. LABEL ELEMENT ──
-            if (el.type === 'label') {
-              return (
-                <div
-                  key={el.id}
-                  className="animate-in fade-in duration-300"
-                >
-                  <span className="text-xs sm:text-sm font-bold text-[#38BDF8] bg-[#38BDF8]/10 border border-[#38BDF8]/30 px-3.5 py-1.5 rounded-full shadow-sm">
-                    {el.content}
-                  </span>
-                </div>
-              );
-            }
-
-            // ── E. TEXT / DERIVATION / MULTI-LINE NOTES ──
-            const isMultiline = (el.content || '').includes('\n');
-
             return (
               <div
                 key={el.id}
-                className={`relative w-full max-w-2xl transition-all duration-300 animate-in fade-in ${
-                  isHighlighted ? 'bg-[#38BDF8]/10 p-4 rounded-2xl ring-1 ring-[#38BDF8]' : ''
-                }`}
+                className="absolute transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto"
+                style={{
+                  left: `${posX}%`,
+                  top: `${posY}%`,
+                  transform: 'translate(-50%, -50%)',
+                  maxWidth: '90%',
+                }}
               >
-                {isMultiline ? (
-                  <div className="font-mono text-xs sm:text-sm text-slate-200 leading-relaxed space-y-1.5 bg-black/30 p-4 sm:p-5 rounded-2xl border border-white/10 shadow-inner">
-                    {el.content?.split('\n').map((line, idx) => (
-                      <p key={idx} className="whitespace-pre-wrap">
-                        {line}
-                      </p>
-                    ))}
+                {/* ── A. FORMULA ELEMENT ── */}
+                {(el.type === 'formula' || el.latex) && (
+                  <div className="relative flex flex-col items-center justify-center">
+                    <div
+                      className={`text-lg sm:text-2xl md:text-3xl font-bold tracking-wide ${
+                        isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
+                      }`}
+                      style={{ color: el.color || '#38BDF8' }}
+                      dangerouslySetInnerHTML={{
+                        __html: katex.renderToString(el.latex || el.content || '', {
+                          displayMode: true,
+                          throwOnError: false,
+                        }),
+                      }}
+                    />
+                    {isUnderlined && (
+                      <svg className="w-full h-2.5 mt-1 overflow-visible" viewBox="0 0 100 8" preserveAspectRatio="none">
+                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                      </svg>
+                    )}
+                    {isCircled && (
+                      <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none" viewBox="0 0 120 60" preserveAspectRatio="none">
+                        <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeDasharray="4 2" />
+                      </svg>
+                    )}
                   </div>
-                ) : (
-                  <p
-                    className="text-sm sm:text-lg font-medium text-slate-100 tracking-wide text-center leading-relaxed"
-                    style={{ color: el.color || '#F1F5F9' }}
-                  >
+                )}
+
+                {/* ── B. DIAGRAM ELEMENT ── */}
+                {el.type === 'diagram' && (
+                  <div className="relative flex flex-col items-center justify-center">
+                    <BoardDiagramPrimitives
+                      type={el.primitive || 'custom'}
+                      diagram={el.diagram}
+                      width={320}
+                      height={200}
+                      progress={el.progress ?? 1.0}
+                      color={el.color || '#38BDF8'}
+                      activeHighlights={activeHighlights}
+                      activeCircles={activeCircles}
+                      activeUnderlines={activeUnderlines}
+                      metadata={el.diagramProps}
+                    />
+                    {isCircled && (
+                      <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none" viewBox="0 0 120 60" preserveAspectRatio="none">
+                        <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                      </svg>
+                    )}
+                  </div>
+                )}
+
+                {/* ── C. ARROW ELEMENT ── */}
+                {el.type === 'arrow' && (
+                  <div className="flex items-center gap-2">
+                    <svg width="40" height="20" viewBox="0 0 40 20" className="overflow-visible">
+                      <line x1="0" y1="10" x2="32" y2="10" stroke={el.color || '#38BDF8'} strokeWidth="3" strokeLinecap="round" />
+                      <polygon points="30,4 40,10 30,16" fill={el.color || '#38BDF8'} />
+                    </svg>
+                    {el.content && (
+                      <span className="text-xs sm:text-sm font-bold text-[#38BDF8]">
+                        {el.content}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* ── D. LABEL ELEMENT ── */}
+                {el.type === 'label' && (
+                  <span className="text-xs sm:text-sm font-bold text-[#38BDF8]">
                     {el.content}
-                  </p>
+                  </span>
                 )}
 
-                {/* Chalk Underline */}
-                {isUnderlined && (
-                  <svg className="w-3/4 mx-auto h-2.5 mt-2" viewBox="0 0 100 8" preserveAspectRatio="none">
-                    <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
-                  </svg>
-                )}
-
-                {/* Hand-Drawn Chalk Circle */}
-                {isCircled && (
-                  <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none animate-in zoom-in" viewBox="0 0 120 60" preserveAspectRatio="none">
-                    <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
-                  </svg>
+                {/* ── E. TEXT ELEMENT ── */}
+                {el.type === 'text' && (
+                  <div className="relative text-center">
+                    <p
+                      className={`font-semibold tracking-wide transition-all ${
+                        posY <= 18
+                          ? 'text-base sm:text-xl md:text-2xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-1'
+                          : 'text-xs sm:text-base text-slate-100'
+                      } ${isHighlighted ? 'text-[#38BDF8] scale-105' : ''}`}
+                      style={{ color: el.color || undefined }}
+                    >
+                      {el.content}
+                    </p>
+                    {isUnderlined && (
+                      <svg className="w-full h-2 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                      </svg>
+                    )}
+                  </div>
                 )}
               </div>
             );
           })}
-        </div>
+
+        {/* 3. Lecturer Pointer Indicator */}
+        {tutorPointer && tutorPointer.active && (
+          <div
+            className="absolute z-30 w-4 h-4 rounded-full bg-[#38BDF8] shadow-[0_0_16px_#38BDF8] transition-all duration-300 pointer-events-none -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${tutorPointer.x}%`,
+              top: `${tutorPointer.y}%`,
+            }}
+          />
         )}
       </div>
     </div>
