@@ -12,6 +12,49 @@ export interface Point2D {
   pressure?: number;
 }
 
+export type DiagramPrimitiveType =
+  | 'line'
+  | 'path'
+  | 'circle'
+  | 'rect'
+  | 'ellipse'
+  | 'arrow'
+  | 'text'
+  | 'formula'
+  | 'connector'
+  | 'group';
+
+export interface DiagramSubElement {
+  id: string;
+  type: DiagramPrimitiveType;
+  position?: { x: number; y: number }; // Relative coordinates inside diagram box (0 to 100)
+  size?: { width: number; height: number };
+  from?: { x: number; y: number } | string;
+  to?: { x: number; y: number } | string;
+  points?: Array<{ x: number; y: number }>;
+  d?: string;
+  radius?: number;
+  rx?: number;
+  ry?: number;
+  content?: string;
+  latex?: string;
+  label?: string;
+  color?: string;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeDasharray?: string;
+  fontSize?: string | number;
+  elements?: DiagramSubElement[];
+}
+
+export interface ComposedDiagram {
+  id: string;
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
+  elements: DiagramSubElement[];
+}
+
 export type VisualPrimitiveType =
   | 'physics_block'
   | 'physics_force'
@@ -82,6 +125,7 @@ export interface BoardAction {
     tableData?: { headers: string[]; rows: string[][] };
     latex?: string;
     diagramProps?: Record<string, any>;
+    diagram?: ComposedDiagram;
     workedSteps?: Array<{
       stepNumber: number;
       latex: string;
@@ -102,6 +146,7 @@ export interface LiveBoardElement {
   position: { x: number; y: number };
   primitive?: VisualPrimitiveType;
   diagramProps?: Record<string, any>;
+  diagram?: ComposedDiagram;
   color?: string;
   fontSize?: string;
   tableData?: { headers: string[]; rows: string[][] };

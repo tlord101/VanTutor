@@ -15,6 +15,7 @@ export interface UnifiedSpeechOptions {
   appSettings?: AppSettings;
   onStart?: () => void;
   onReady?: () => void;
+  onTimeUpdate?: (currentTime: number, charIndex: number, spokenWord: string) => void;
   onEnd?: () => void;
   onError?: (err: Error) => void;
 }
@@ -49,6 +50,7 @@ export class UnifiedVoiceRouter {
       isPrivate: options.isPrivate,
       onStart: options.onStart,
       onReady: options.onReady,
+      onTimeUpdate: options.onTimeUpdate,
       onEnd: options.onEnd,
       onError: (err) => {
         console.warn('[UnifiedVoiceRouter] Grok TTS playback error:', err);

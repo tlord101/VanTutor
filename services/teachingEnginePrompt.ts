@@ -37,18 +37,21 @@ CRITICAL WHITEBOARD ARCHITECTURE RULES:
      * "boardTransition": "retain_persistent" (keep title/core formula, erase temporary worked examples)
      * Use "erase" or "erase_group" actions for partial wipes.
    - The lesson ALWAYS continues on the SAME whiteboard viewport!
-6. RICH SUBJECT & GENERAL-PURPOSE DIAGRAM PRIMITIVES:
-   - General Teaching / Non-Physics: "concept_map", "flowchart", "cycle", "venn_diagram", "hierarchy_tree"
-   - Physics: "physics_block", "physics_force", "physics_pulley", "physics_spring", "physics_wave"
-   - Circuits: "circuit", "circuit_resistor", "circuit_battery"
-   - Chemistry: "chemistry_molecule", "chemistry_atom", "chemistry_reaction"
-   - Biology: "biology_cell", "biology_dna", "biology_neuron"
-   - Mathematics: "formula", "graph", "graph_axes", "geometry_triangle", "geometry_circle", "table"
-   - DIAGRAM RELEVANCE RULE:
-     * ONLY draw a diagram if it directly illustrates the current topic!
-     * NEVER draw a physics block or force vector unless the topic is specifically classical mechanics / forces.
-     * For humanities, business, law, general science, or computer science, use "concept_map", "flowchart", "cycle", "venn_diagram", or topic-appropriate primitives.
-     * Do NOT force a diagram action on every board if text/formulas are sufficient.
+6. CUSTOM AI DIAGRAM COMPOSITION (NO RAW SVG XML):
+   - Do NOT output raw <svg> XML tags or strings like "<svg><path .../></svg>".
+   - Compose generic custom diagrams from primitive sub-elements using structured JSON inside metadata.diagram:
+     {
+       "id": "custom_diagram_1",
+       "elements": [
+         { "id": "sub_box_1", "type": "rect", "position": { "x": 10, "y": 20 }, "size": { "width": 30, "height": 40 }, "stroke": "#38BDF8", "fill": "rgba(56, 189, 248, 0.1)", "label": "Container" },
+         { "id": "sub_circle_1", "type": "circle", "position": { "x": 25, "y": 40 }, "radius": 10, "stroke": "#FACC15", "fill": "#FACC15", "label": "Particle" },
+         { "id": "sub_arrow_1", "type": "arrow", "from": { "x": 35, "y": 40 }, "to": { "x": 75, "y": 40 }, "stroke": "#34D399", "label": "electron flow" }
+       ]
+     }
+   - Supported primitive types: "rect", "circle", "ellipse", "line", "path", "arrow", "text", "formula", "connector", "group".
+   - Assign every sub-element a unique "id" (e.g. "electron_particle", "force_vector_1").
+   - Later actions (highlight, circle, underline, erase) can target both top-level board element IDs AND individual diagram sub-element IDs (e.g. { "type": "highlight", "target": "sub_circle_1" }).
+   - Predefined primitive named presets ("concept_map", "physics_block", "circuit", etc.) are also accepted under metadata.primitive as fallbacks.
 7. NATURAL LECTURER SPOKEN DELIVERY:
    - Speak naturally like an engaging human university lecturer standing at a board.
    - Include realistic conversational mannerisms, subtle pauses, and discourse particles (e.g. "Alright... uhm, let's look closely at this...", "Now, mmm, notice what happens right here...", "So, uh, if we take...").
@@ -159,7 +162,16 @@ REQUIRED JSON FORMAT (Return ONLY this JSON, no markdown formatting):
         "groupId": "visual_${segmentNumber}",
         "position": { "x": 70, "y": 55 },
         "sync": { "phrase": "exact phrase from speech" },
-        "metadata": { "primitive": "concept_map", "color": "#FACC15" }
+        "metadata": {
+          "diagram": {
+            "id": "diag_comp_${segmentNumber}",
+            "elements": [
+              { "id": "box_1", "type": "rect", "position": { "x": 10, "y": 20 }, "size": { "width": 35, "height": 45 }, "stroke": "#38BDF8", "label": "Input System" },
+              { "id": "arr_1", "type": "arrow", "from": { "x": 45, "y": 42 }, "to": { "x": 65, "y": 42 }, "stroke": "#34D399", "label": "Transfer" },
+              { "id": "circle_1", "type": "circle", "position": { "x": 80, "y": 42 }, "radius": 12, "stroke": "#FACC15", "fill": "#FACC15", "label": "Output" }
+            ]
+          }
+        }
       }
     ]
   },

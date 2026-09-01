@@ -154,8 +154,9 @@ export class BoardStateManager {
           groupId: action.groupId,
           persistence: action.persistence || 'temporary',
           type: 'diagram',
-          primitive: action.metadata?.primitive || 'physics_block',
+          primitive: action.metadata?.primitive || 'custom',
           diagramProps: action.metadata?.diagramProps || {},
+          diagram: action.metadata?.diagram,
           position: {
             x: Math.max(10, Math.min(90, posX)),
             y: Math.max(15, Math.min(85, posY)),
