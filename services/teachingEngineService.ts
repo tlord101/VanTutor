@@ -1,8 +1,7 @@
 /**
  * Teaching Engine Service
- * - Word-index timeline for board actions (appear when phrase is spoken)
- * - Gates board until voice starts
- * - Pause / resume for student interruptions
+ * - Word-index timeline with minimum gap between successive write reveals (~10s)
+ * - Pause / resume for interruptions
  */
 
 import { TeachingSegment, BoardAction, StudentAnswerEvaluation } from '../types/teachingScript';
@@ -21,12 +20,10 @@ export interface TeachingEngineListener {
   onError?: (error: Error) => void;
 }
 
-/** Estimate words-per-second from speed setting (1.15 ≈ 2.9 wps natural) */
 function wordsPerSecond(speed: number): number {
   return Math.max(2.2, 2.55 * speed);
 }
 
-/** Find word index where phrase first appears in speech */
 function phraseWordOffset(speech: string, phrase: string | undefined): number {
   if (!phrase) return 0;
   const speechLower = speech.toLowerCase();
@@ -35,6 +32,10 @@ function phraseWordOffset(speech: string, phrase: string | undefined): number {
   if (charIdx === -1) return -1;
   return speechLower.slice(0, charIdx).trim().split(/\s+/).filter(Boolean).length;
 }
+
+/** Minimum ms between successive board writes so key points are not stacked in 1s */
+const MIN_WRITE_GAP_MS = 9500;
+const MIN_ANY_GAP_MS = 2800;
 
 export class TeachingEngineService {
   private appSettings: AppSettings;
@@ -76,7 +77,6 @@ export class TeachingEngineService {
     return this.currentSegment;
   }
 
-  /** Pause lecturer voice + freeze pending board timers */
   public pauseLesson() {
     this.isPaused = true;
     this.pausedSegment = this.currentSegment;
@@ -92,14 +92,11 @@ export class TeachingEngineService {
     this.listeners.forEach((l) => l.onAudioPlaybackStateChanged?.(false));
   }
 
-  /** Resume from the same segment speech (replay from start of current segment for reliability) */
   public resumeLesson() {
     this.isPaused = false;
     const seg = this.pausedSegment || this.currentSegment;
     this.pausedSegment = null;
-    if (seg) {
-      this.playSegmentSpeech(seg);
-    }
+    if (seg) this.playSegmentSpeech(seg);
   }
 
   public async loadSegment(params: {
@@ -115,7 +112,8 @@ export class TeachingEngineService {
       const ai = createAvelutAI(this.appSettings, this.userProfile);
       if (!ai) throw new Error('AI client could not be initialized');
 
-      const resolvedStudentName = params.studentName || this.userProfile?.display_name || 'Student';
+      const resolvedStudentName =
+        params.studentName || this.userProfile?.display_name || 'Student';
 
       const prompt = buildLessonSegmentPrompt({
         ...params,
@@ -140,7 +138,6 @@ export class TeachingEngineService {
         segment.teaching.boardTransition = 'clear_board';
       }
       this.currentSegment = segment;
-
       this.listeners.forEach((l) => l.onSegmentLoaded?.(segment));
       return segment;
     } catch (err: any) {
@@ -161,7 +158,7 @@ export class TeachingEngineService {
       const actions = segment.teaching.actions || [];
       const triggeredActionIds = new Set<string>();
       let audioStarted = false;
-      const speed = 1.15;
+      const speed = 1.12;
       const wps = wordsPerSecond(speed);
 
       const fireAction = (act: BoardAction) => {
@@ -188,25 +185,8 @@ export class TeachingEngineService {
             this.scheduleWordTimeline(speechText, actions, triggeredActionIds, wps);
           }
 
-          const words = speechText.split(/\s+/).filter(Boolean);
-          const totalWords = words.length || 1;
-          const estTotalSec = totalWords / wps;
-
-          actions.forEach((act) => {
-            if (triggeredActionIds.has(act.id)) return;
-            let targetTime = 0;
-            const offset = phraseWordOffset(speechText, act.sync?.phrase);
-            if (offset >= 0) {
-              targetTime = offset / wps;
-            } else {
-              const idx = actions.indexOf(act);
-              targetTime = ((idx + 1) / (actions.length + 1)) * estTotalSec * 0.8;
-            }
-            // Only fire when audio has reached the phrase (small 80ms lag so speech leads text slightly)
-            if (currentTime + 0.08 >= targetTime) {
-              fireAction(act);
-            }
-          });
+          // Prefer timer schedule; onTimeUpdate only as backup with same gaps enforced in schedule
+          void currentTime;
         },
         onEnd: () => {
           if (this.isPaused) return;
@@ -226,7 +206,6 @@ export class TeachingEngineService {
         },
       });
 
-      // Safety unlock after 1.8s if provider is slow (was 2.5s)
       const safety = setTimeout(() => {
         if (!audioStarted && !this.isDestroyed && !this.isPaused) {
           audioStarted = true;
@@ -241,16 +220,19 @@ export class TeachingEngineService {
       segment.teaching.actions.forEach((act, idx) => {
         const timer = setTimeout(() => {
           this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
-        }, 500 + idx * 900);
+        }, 800 + idx * MIN_WRITE_GAP_MS);
         this.activeTimers.push(timer);
       });
       setTimeout(() => {
         this.listeners.forEach((l) => l.onAudioPlaybackStateChanged?.(false));
-      }, 5000);
+      }, 800 + segment.teaching.actions.length * MIN_WRITE_GAP_MS);
     }
   }
 
-  /** Schedule board actions by word index along estimated speech timeline */
+  /**
+   * Schedule actions by phrase position in speech, then ENFORCE minimum gaps
+   * so consecutive write/key-points cannot fire 1 second apart.
+   */
   private scheduleWordTimeline(
     speech: string,
     actions: BoardAction[],
@@ -259,26 +241,45 @@ export class TeachingEngineService {
   ) {
     const words = speech.split(/\s+/).filter(Boolean);
     const totalWords = words.length || 1;
-    const estTotalMs = Math.max(3000, (totalWords / wps) * 1000);
+    const estTotalMs = Math.max(45000, (totalWords / wps) * 1000);
 
-    actions.forEach((action, index) => {
+    // Compute ideal times from phrase offsets
+    const planned: { action: BoardAction; at: number }[] = actions.map((action, index) => {
       let delayMs = 0;
       const offset = phraseWordOffset(speech, action.sync?.phrase);
-
       if (offset >= 0) {
         delayMs = Math.floor((offset / wps) * 1000);
       } else {
-        delayMs = Math.floor(((index + 1) / Math.max(1, actions.length + 1)) * estTotalMs * 0.8);
+        delayMs = Math.floor(((index + 1) / Math.max(1, actions.length + 1)) * estTotalMs * 0.85);
       }
+      return { action, at: Math.max(400, delayMs) };
+    });
 
-      // Never fire before ~300ms so first audio frames exist
+    // Sort by planned time, then push writes apart by MIN_WRITE_GAP_MS
+    planned.sort((a, b) => a.at - b.at);
+    let lastWriteAt = -MIN_WRITE_GAP_MS;
+    let lastAnyAt = -MIN_ANY_GAP_MS;
+
+    planned.forEach((item) => {
+      const isWrite = item.action.type === 'write' || item.action.type === 'label';
+      let t = item.at;
+      if (isWrite) {
+        t = Math.max(t, lastWriteAt + MIN_WRITE_GAP_MS);
+        lastWriteAt = t;
+      } else {
+        t = Math.max(t, lastAnyAt + MIN_ANY_GAP_MS);
+      }
+      lastAnyAt = t;
+      item.at = t;
+    });
+
+    planned.forEach(({ action, at }) => {
       const timer = setTimeout(() => {
         if (this.isDestroyed || this.isPaused) return;
         if (triggeredIds.has(action.id)) return;
         triggeredIds.add(action.id);
         this.listeners.forEach((l) => l.onBoardActionTriggered?.(action));
-      }, Math.max(300, delayMs));
-
+      }, at);
       this.activeTimers.push(timer);
     });
   }
@@ -310,7 +311,6 @@ export class TeachingEngineService {
       const rawText = getResponseText(response);
       const cleaned = (rawText || '').replace(/```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
       const evaluation: StudentAnswerEvaluation = JSON.parse(cleaned);
-
       this.listeners.forEach((l) => l.onAnswerEvaluated?.(evaluation));
 
       if (evaluation.spokenFeedback) {
@@ -322,29 +322,24 @@ export class TeachingEngineService {
         });
       }
 
-      if (evaluation.boardActions && evaluation.boardActions.length > 0) {
+      if (evaluation.boardActions?.length) {
         evaluation.boardActions.forEach((act) => {
           this.listeners.forEach((l) => l.onBoardActionTriggered?.(act));
         });
       }
-
       return evaluation;
     } catch (err: any) {
       console.error('[TeachingEngine] Answer evaluation error:', err);
       const fallback: StudentAnswerEvaluation = {
         isCorrect: true,
         score: 'correct',
-        spokenFeedback: "Good thinking! That's aligned with our core principle. Let's keep going.",
+        spokenFeedback: "Good thinking! Let's keep going.",
       };
       this.listeners.forEach((l) => l.onAnswerEvaluated?.(fallback));
       return fallback;
     }
   }
 
-  /**
-   * Answer a student interruption with optional board actions for a fresh answer board.
-   * Caller is responsible for saving/restoring the main lesson board.
-   */
   public async askLecturerQuestion(params: {
     topic: string;
     studentQuestion: string;
@@ -372,8 +367,6 @@ export class TeachingEngineService {
       const cleaned = (rawText || '').replace(/```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
       const result = JSON.parse(cleaned);
 
-      // Prefer returning board actions to the UI so it can paint the answer board,
-      // then play speech with word-timed reveals when possible.
       if (result.spokenAnswer) {
         const actions: BoardAction[] = Array.isArray(result.boardActions) ? result.boardActions : [];
         const triggered = new Set<string>();
@@ -403,7 +396,7 @@ export class TeachingEngineService {
       return result;
     } catch (err) {
       console.warn('[TeachingEngine] Interruption question error:', err);
-      const fallbackAnswer = `Great question! When we look at ${params.topic}, this principle keeps the idea clear on the board.`;
+      const fallbackAnswer = `Great question about ${params.topic}. Let me keep that clear for you on the board.`;
       unifiedVoiceRouter.playSpeech(fallbackAnswer, {
         appSettings: this.appSettings,
         provider: 'alibaba',
@@ -441,7 +434,7 @@ export class TeachingEngineService {
               type: 'write',
               persistence: 'persistent',
               content: topic,
-              position: { x: 50, y: 12 },
+              position: { x: 50, y: 10 },
               sync: { phrase: topic },
               metadata: { fontSize: 'xl', color: '#FFFFFF' },
             },
