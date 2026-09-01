@@ -3,9 +3,9 @@
  *
  * Orchestrates:
  * 1) Teaching Structure Generation (Request 1)
- * 2) Sequential Board Performance Generation (Request 2)
- * 3) Speech + Board Writing + SVG Illustration Synchronization
- * 4) Inter-board Board Clearing
+ * 2) Sequential Board Performance Generation (Request 2) with 1-Board Prefetching
+ * 3) Speech + Board Writing + SVG Component Reveal Synchronization
+ * 4) Inter-board Clearing & Timing Pauses
  * 5) Final Mini Test Generation (Request 3)
  */
 
@@ -75,6 +75,11 @@ export class TeachingEngineService {
   private currentBoardIndex: number = 0;
   private runtimeState: TeachingRuntimeState = 'IDLE';
 
+  // 1-Board-Ahead Prefetch Cache State
+  private prefetchedBoardPerformance: TeachingBoardPerformance | null = null;
+  private prefetchedBoardIndex: number | null = null;
+  private currentSessionId: string = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
   constructor(appSettings: AppSettings, userProfile: UserProfile | null = null, voice: string = 'Altair') {
     this.appSettings = appSettings;
     this.userProfile = userProfile;
@@ -120,31 +125,6 @@ export class TeachingEngineService {
     return this.currentBoardIndex;
   }
 
-  public getCurrentSegment(): TeachingSegment | null {
-    if (!this.currentBoardPerformance) return null;
-    return {
-      lesson: {
-        id: (this.currentStructure?.topic || 'topic').toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        topic: this.currentStructure?.topic || 'Topic',
-        segmentId: this.currentBoardPerformance.board_id,
-        title: this.currentBoardPerformance.title,
-        segmentNumber: this.currentBoardPerformance.board_number,
-        totalEstimatedSegments: this.currentStructure?.boards?.length || 5,
-      },
-      teaching: {
-        objective: this.currentBoardPerformance.title,
-        speech: this.currentBoardPerformance.speech,
-        boardTransition: 'clear_board',
-        actions: this.currentBoardPerformance.board_actions || [],
-        svgContent: this.currentBoardPerformance.svg_illustration || undefined,
-      },
-      question: this.currentBoardPerformance.question || null,
-      next: {
-        type: this.currentBoardPerformance.question?.waitForAnswer ? 'wait_for_answer' : 'continue',
-      },
-    };
-  }
-
   public pauseLesson() {
     this.isPaused = true;
     this.activeTimers.forEach((t) => clearTimeout(t));
@@ -176,6 +156,10 @@ export class TeachingEngineService {
     studentName?: string;
   }): Promise<TeachingStructure | null> {
     this.setRuntimeState('PREPARING');
+    this.currentSessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    this.prefetchedBoardPerformance = null;
+    this.prefetchedBoardIndex = null;
+
     try {
       const ai = createAvelutAI(this.appSettings, this.userProfile);
       if (!ai) throw new Error('AI client could not be initialized');
@@ -223,6 +207,7 @@ export class TeachingEngineService {
 
   /**
    * REQUEST 2: Generate Detailed Teaching Performance for ONE Board
+   * Uses 1-board-ahead prefetch cache when available.
    */
   public async loadBoardPerformance(params: {
     boardIndex: number;
@@ -234,92 +219,46 @@ export class TeachingEngineService {
       return null;
     }
 
+    const requestedIndex = params.boardIndex;
+    const sessionTag = this.currentSessionId;
+
+    // Check if Board N was pre-fetched in background
+    if (this.prefetchedBoardIndex === requestedIndex && this.prefetchedBoardPerformance) {
+      const cached = this.prefetchedBoardPerformance;
+      this.prefetchedBoardPerformance = null;
+      this.prefetchedBoardIndex = null;
+      this.currentBoardIndex = requestedIndex;
+      this.currentBoardPerformance = cached;
+
+      this.listeners.forEach((l) => l.onBoardLoaded?.(cached));
+      this.emitLegacySegment(cached);
+
+      // Trigger prefetch for Board N+1
+      this.prefetchNextBoard(requestedIndex + 1, params.studentName, params.completedBoardsSummary, sessionTag);
+      return cached;
+    }
+
     this.setRuntimeState('PREPARING');
-    this.currentBoardIndex = params.boardIndex;
-    const boardPlan: TeachingBoardPlan = this.currentStructure.boards[params.boardIndex];
+    this.currentBoardIndex = requestedIndex;
+    const boardPlan: TeachingBoardPlan = this.currentStructure.boards[requestedIndex];
 
     try {
-      const ai = createAvelutAI(this.appSettings, this.userProfile);
-      if (!ai) throw new Error('AI client could not be initialized');
+      const performance = await this.fetchSingleBoardFromAI(
+        boardPlan,
+        params.studentName,
+        params.completedBoardsSummary
+      );
 
-      const resolvedStudentName = params.studentName || this.userProfile?.display_name || 'Student';
-      const prompt = buildSingleBoardPrompt({
-        topic: this.currentStructure.topic,
-        fullStructure: this.currentStructure,
-        currentBoardPlan: boardPlan,
-        studentName: resolvedStudentName,
-        completedBoardsSummary: params.completedBoardsSummary,
-      });
-
-      const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
-        contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.35,
-        },
-      });
-
-      const rawText = getResponseText(response);
-      if (!rawText) throw new Error('Empty board performance returned by AI');
-
-      const cleaned = rawText.replace(/```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
-      const firstBrace = cleaned.indexOf('{');
-      const lastBrace = cleaned.lastIndexOf('}');
-      const jsonStr = firstBrace !== -1 && lastBrace !== -1 ? cleaned.substring(firstBrace, lastBrace + 1) : cleaned;
-
-      const performance: TeachingBoardPerformance = JSON.parse(jsonStr);
-
-      // Sanitize custom SVG illustration if present
-      if (performance.svg_illustration) {
-        performance.svg_illustration = sanitizeSvg(performance.svg_illustration);
-      }
-
-      // Automatically construct board draw action for SVG if SVG exists and no explicit draw action was created
-      if (performance.svg_illustration) {
-        const hasSvgAction = (performance.board_actions || []).some(
-          (a) => a.type === 'draw' && a.metadata?.svgContent
-        );
-        if (!hasSvgAction) {
-          const svgAction: BoardAction = {
-            id: `svg_ill_${performance.board_number}`,
-            type: 'draw',
-            position: { x: 50, y: 65 },
-            metadata: {
-              primitive: 'custom_svg',
-              svgContent: performance.svg_illustration,
-            },
-          };
-          performance.board_actions = [...(performance.board_actions || []), svgAction];
-        }
+      if (this.currentSessionId !== sessionTag || this.isDestroyed) {
+        return null;
       }
 
       this.currentBoardPerformance = performance;
       this.listeners.forEach((l) => l.onBoardLoaded?.(performance));
+      this.emitLegacySegment(performance);
 
-      // Emit legacy compatibility segment
-      const legacySegment: TeachingSegment = {
-        lesson: {
-          id: this.currentStructure.topic.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          topic: this.currentStructure.topic,
-          segmentId: performance.board_id,
-          title: performance.title,
-          segmentNumber: performance.board_number,
-          totalEstimatedSegments: this.currentStructure.boards.length,
-        },
-        teaching: {
-          objective: boardPlan.teaching_objective,
-          speech: performance.speech,
-          boardTransition: 'clear_board',
-          actions: performance.board_actions || [],
-          svgContent: performance.svg_illustration || undefined,
-        },
-        question: performance.question || null,
-        next: {
-          type: performance.question?.waitForAnswer ? 'wait_for_answer' : 'continue',
-        },
-      };
-      this.listeners.forEach((l) => l.onSegmentLoaded?.(legacySegment));
+      // Trigger background prefetch for Board N+1
+      this.prefetchNextBoard(requestedIndex + 1, params.studentName, params.completedBoardsSummary, sessionTag);
 
       return performance;
     } catch (err: any) {
@@ -328,6 +267,117 @@ export class TeachingEngineService {
       this.listeners.forEach((l) => l.onError?.(err instanceof Error ? err : new Error(String(err))));
       return null;
     }
+  }
+
+  /**
+   * Prefetch Board N+1 in the background without blocking active board playback
+   */
+  private async prefetchNextBoard(
+    nextIndex: number,
+    studentName?: string,
+    completedSummary?: string[],
+    sessionTag?: string
+  ) {
+    if (!this.currentStructure || !this.currentStructure.boards[nextIndex]) return;
+    if (this.currentSessionId !== sessionTag) return;
+
+    const boardPlan = this.currentStructure.boards[nextIndex];
+    try {
+      const perf = await this.fetchSingleBoardFromAI(boardPlan, studentName, completedSummary);
+      if (this.currentSessionId === sessionTag && !this.isDestroyed) {
+        this.prefetchedBoardPerformance = perf;
+        this.prefetchedBoardIndex = nextIndex;
+      }
+    } catch (err) {
+      console.warn('[TeachingEngine] Background prefetch failed for board', nextIndex, err);
+      // Non-blocking fallback; normal loadBoardPerformance will fetch cleanly
+    }
+  }
+
+  private async fetchSingleBoardFromAI(
+    boardPlan: TeachingBoardPlan,
+    studentName?: string,
+    completedBoardsSummary?: string[]
+  ): Promise<TeachingBoardPerformance> {
+    const ai = createAvelutAI(this.appSettings, this.userProfile);
+    if (!ai) throw new Error('AI client could not be initialized');
+
+    const resolvedStudentName = studentName || this.userProfile?.display_name || 'Student';
+    const prompt = buildSingleBoardPrompt({
+      topic: this.currentStructure!.topic,
+      fullStructure: this.currentStructure!,
+      currentBoardPlan: boardPlan,
+      studentName: resolvedStudentName,
+      completedBoardsSummary,
+    });
+
+    const response = await ai.models.generateContent({
+      model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+      contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.35,
+      },
+    });
+
+    const rawText = getResponseText(response);
+    if (!rawText) throw new Error('Empty board performance returned by AI');
+
+    const cleaned = rawText.replace(/```(?:json)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    const jsonStr = firstBrace !== -1 && lastBrace !== -1 ? cleaned.substring(firstBrace, lastBrace + 1) : cleaned;
+
+    const performance: TeachingBoardPerformance = JSON.parse(jsonStr);
+
+    if (performance.svg_illustration) {
+      performance.svg_illustration = sanitizeSvg(performance.svg_illustration);
+    }
+
+    if (performance.svg_illustration) {
+      const hasSvgAction = (performance.board_actions || []).some(
+        (a) => a.type === 'draw' && a.metadata?.svgContent
+      );
+      if (!hasSvgAction) {
+        const svgAction: BoardAction = {
+          id: `svg_ill_${performance.board_number}`,
+          type: 'draw',
+          position: { x: 50, y: 65 },
+          metadata: {
+            primitive: 'custom_svg',
+            svgContent: performance.svg_illustration,
+          },
+        };
+        performance.board_actions = [...(performance.board_actions || []), svgAction];
+      }
+    }
+
+    return performance;
+  }
+
+  private emitLegacySegment(performance: TeachingBoardPerformance) {
+    const legacySegment: TeachingSegment = {
+      lesson: {
+        id: (this.currentStructure?.topic || 'topic').toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        topic: this.currentStructure?.topic || 'Topic',
+        segmentId: performance.board_id,
+        title: performance.title,
+        segmentNumber: performance.board_number,
+        totalEstimatedSegments: this.currentStructure?.boards.length || 5,
+      },
+      teaching: {
+        objective: performance.title,
+        speech: performance.speech,
+        boardTransition: 'clear_board',
+        actions: performance.board_actions || [],
+        svgContent: performance.svg_illustration || undefined,
+      },
+      question: performance.question || null,
+      next: {
+        type: performance.question?.waitForAnswer ? 'wait_for_answer' : 'continue',
+      },
+    };
+    this.listeners.forEach((l) => l.onSegmentLoaded?.(legacySegment));
   }
 
   /**
@@ -346,7 +396,7 @@ export class TeachingEngineService {
       const beats = performance.speech_beats || [];
       const triggeredActionIds = new Set<string>();
       let audioStarted = false;
-      const speed = 1.1;
+      const speed = 1.08;
       const wps = wordsPerSecond(speed);
 
       const fireAction = (act: BoardAction) => {
@@ -446,7 +496,6 @@ export class TeachingEngineService {
     const totalWords = words.length || 1;
     const estTotalMs = Math.max(25000, (totalWords / wps) * 1000);
 
-    // Schedule beats if available
     beats.forEach((beat, bIdx) => {
       const beatOffset = phraseWordOffset(speech, beat.text);
       const delayMs = beatOffset >= 0 ? Math.floor((beatOffset / wps) * 1000) : Math.floor((bIdx / beats.length) * estTotalMs);
@@ -457,7 +506,6 @@ export class TeachingEngineService {
       this.activeTimers.push(timer);
     });
 
-    // Schedule actions by phrase offset
     actions.forEach((action, aIdx) => {
       let delayMs = 0;
       const offset = phraseWordOffset(speech, action.sync?.phrase);
