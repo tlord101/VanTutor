@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TeachingSegment, BoardAction, TeachingQuestion, StudentAnswerEvaluation, LiveBoardElement } from '../../types/teachingScript';
+import { TeachingSegment, TeachingQuestion, StudentAnswerEvaluation, LiveBoardElement } from '../../types/teachingScript';
 import { TeachingEngineService } from '../../services/teachingEngineService';
 import { BoardStateManager } from '../../services/boardStateManager';
-import { TeachingHeader } from './live-teaching/TeachingHeader';
 import { TeachingBoard } from './live-teaching/TeachingBoard';
 import { QuestionOverlay } from './live-teaching/QuestionOverlay';
 import { LecturerAskModal } from './live-teaching/LecturerAskModal';
@@ -20,14 +19,6 @@ export interface TeachingEngineSessionViewProps {
   setCustomHeaderConfig?: (config: any) => void;
 }
 
-/**
- * PURE LIVE TEACHING WHITEBOARD
- * Features:
- * - App Header + Fullscreen Whiteboard Surface (No bottom text block).
- * - Floating Circular "Ask AI" button with Liquid Glass design (transparent white glass, no gradients).
- * - Automatic Board Continuity (seamlessly transitions to next concept after speech/answer).
- * - Natural spoken lecturer mannerisms.
- */
 export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps> = ({
   topicTitle,
   courseName = 'Academic Course',
@@ -39,12 +30,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
 
-  // Engine & Session State
   const [currentVoice, setCurrentVoice] = useState<string>(initialVoice);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
   const [showAskModal, setShowAskModal] = useState<boolean>(false);
   const [isProcessingAsk, setIsProcessingAsk] = useState<boolean>(false);
-  
+
   const engineRef = useRef<TeachingEngineService | null>(null);
   const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
   const autoContinueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,36 +47,28 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioReady, setIsAudioReady] = useState(false);
 
-  // Whiteboard State
   const [boardElements, setBoardElements] = useState<LiveBoardElement[]>([]);
   const [activeHighlights, setActiveHighlights] = useState<Set<string>>(new Set());
   const [activeCircles, setActiveCircles] = useState<Set<string>>(new Set());
   const [activeUnderlines, setActiveUnderlines] = useState<Set<string>>(new Set());
   const [tutorPointer, setTutorPointer] = useState<{ x: number; y: number; active: boolean; color?: string } | null>(null);
 
-  // Question & Interactivity State
   const [activeQuestion, setActiveQuestion] = useState<TeachingQuestion | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<StudentAnswerEvaluation | null>(null);
   const [completedSegmentsSummary, setCompletedSegmentsSummary] = useState<string[]>([]);
 
-  // Refs for stable callbacks
   const segmentNumberRef = useRef(segmentNumber);
   segmentNumberRef.current = segmentNumber;
-  
   const totalSegmentsRef = useRef(totalEstimatedSegments);
   totalSegmentsRef.current = totalEstimatedSegments;
-  
   const currentSegmentRef = useRef(currentSegment);
   currentSegmentRef.current = currentSegment;
-
   const completedSummaryRef = useRef(completedSegmentsSummary);
   completedSummaryRef.current = completedSegmentsSummary;
-
   const activeQuestionRef = useRef(activeQuestion);
   activeQuestionRef.current = activeQuestion;
 
-  // Subscribe to BoardStateManager changes
   useEffect(() => {
     const manager = boardManagerRef.current;
     const unsub = manager.subscribe((state) => {
@@ -98,7 +80,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     return unsub;
   }, []);
 
-  // Proceed to Next Segment (Stable callback using refs)
   const handleContinueNextSegment = useCallback(async () => {
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
@@ -106,7 +87,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     }
 
     if (!engineRef.current || isSegmentLoadingRef.current) return;
-    
+
     const nextSegNum = segmentNumberRef.current + 1;
     if (nextSegNum > totalSegmentsRef.current) {
       addToast('Lesson complete! Well done.', 'success');
@@ -119,13 +100,17 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     setIsLoadingSegment(true);
     setActiveQuestion(null);
     setEvaluationFeedback(null);
+    setIsAudioReady(false);
+
+    // Hard wipe before next concept loads so previous diagram/text cannot stick
+    boardManagerRef.current.applyAction({ id: 'pre_clear', type: 'clear_board' });
 
     const prevSeg = currentSegmentRef.current;
     if (prevSeg) {
       setCompletedSegmentsSummary((prev) => [...prev, prevSeg.lesson.title]);
     }
 
-    const summaryHistory = prevSeg 
+    const summaryHistory = prevSeg
       ? [...completedSummaryRef.current, prevSeg.lesson.title].join(' -> ')
       : completedSummaryRef.current.join(' -> ');
 
@@ -141,7 +126,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const handleContinueRef = useRef(handleContinueNextSegment);
   handleContinueRef.current = handleContinueNextSegment;
 
-  // Initialize Teaching Engine Service ONCE per topic session
   useEffect(() => {
     const engine = new TeachingEngineService(appSettings, null, currentVoice);
     engineRef.current = engine;
@@ -153,19 +137,20 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         isSegmentLoadingRef.current = false;
         setCurrentSegment(segment);
         setIsLoadingSegment(false);
-        setIsAudioReady(false);
+        setIsAudioReady(false); // stay blank until voice starts
+
         if (segment.lesson.totalEstimatedSegments) {
           setTotalEstimatedSegments(segment.lesson.totalEstimatedSegments);
         }
 
-        // Apply concept board transition if specified
-        if (segment.teaching.boardTransition === 'clear_board') {
-          manager.applyAction({ id: 'trans_clear', type: 'clear_board' });
-        } else if (segment.teaching.boardTransition === 'retain_persistent') {
+        // Always clear (or retain only persistent titles). Never leave old diagrams.
+        const transition = segment.teaching.boardTransition || 'clear_board';
+        if (transition === 'retain_persistent') {
           manager.applyAction({ id: 'trans_retain', type: 'retain' });
+        } else {
+          manager.applyAction({ id: 'trans_clear', type: 'clear_board' });
         }
 
-        // Auto-play speech and schedule synchronized actions
         engine.playSegmentSpeech(segment);
       },
       onAudioPlaybackStateChanged: (playing) => {
@@ -174,7 +159,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           setIsAudioReady(true);
         }
 
-        // Auto-continue when speech finishes if no active blocking question
         if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = setTimeout(() => {
@@ -196,12 +180,10 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = null;
         }
-        // Only trigger question modal if we are on or past the last board segment
         if (segmentNumberRef.current >= totalSegmentsRef.current) {
           setActiveQuestion(question);
           setEvaluationFeedback(null);
         } else {
-          // If a question was attached on an intermediate board, bypass and continue seamlessly
           autoContinueTimerRef.current = setTimeout(() => {
             handleContinueRef.current();
           }, 2400);
@@ -210,8 +192,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       onAnswerEvaluated: (evalResult) => {
         setEvaluationFeedback(evalResult);
         setIsSubmittingAnswer(false);
-
-        // After feedback, auto-continue to next concept after short pause
         if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
         autoContinueTimerRef.current = setTimeout(() => {
           handleContinueRef.current();
@@ -224,7 +204,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       },
     });
 
-    // Start Segment 1
     engine.loadSegment({
       topic: topicTitle,
       courseName,
@@ -259,16 +238,15 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     if (engineRef.current) {
       engineRef.current.setVoice(newVoice);
       if (currentSegment) {
+        setIsAudioReady(false);
         engineRef.current.playSegmentSpeech(currentSegment);
       }
     }
     addToast(`Lecturer voice switched to ${newVoice}`, 'success');
   };
 
-  // Submit Answer to Engine
   const handleSubmitAnswer = async (answerToSubmit: string) => {
     if (!answerToSubmit.trim() || isSubmittingAnswer || !engineRef.current) return;
-
     setIsSubmittingAnswer(true);
     await engineRef.current.evaluateStudentAnswer({
       topic: topicTitle,
@@ -276,15 +254,12 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     });
   };
 
-  // Handle "Ask the Lecturer" Interruption
   const handleAskLecturer = async (studentQuestion: string) => {
     if (!studentQuestion.trim() || !engineRef.current) return;
-
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
-
     setIsProcessingAsk(true);
     await engineRef.current.askLecturerQuestion({
       topic: topicTitle,
@@ -295,7 +270,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     addToast('Lecturer answering your question on the board...', 'info');
   };
 
-  // Set Custom Header for main App Header
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
@@ -347,20 +321,17 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           </div>
         ),
         hideBottomNav: true,
-        className: 'bg-[#070B14] border-b border-[#1E293B]'
+        className: 'bg-[#070B14] border-b border-[#1E293B]',
       });
     }
 
     return () => {
-      if (setCustomHeaderConfig) {
-        setCustomHeaderConfig(null);
-      }
+      if (setCustomHeaderConfig) setCustomHeaderConfig(null);
     };
   }, [setCustomHeaderConfig, topicTitle, segmentNumber, totalEstimatedSegments, isSpeaking, currentVoice, handleCloseSession]);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#070B14] text-white select-none overflow-hidden relative">
-      {/* ── HERO WHITEBOARD SURFACE (occupies the full screen below main App header) ── */}
       <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden p-1.5 sm:p-3">
         <TeachingBoard
           elements={boardElements}
@@ -371,7 +342,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           isAudioReady={isAudioReady}
         />
 
-        {/* Floating Question Comprehension Overlay (bottom docked) */}
         {activeQuestion && (
           <QuestionOverlay
             question={activeQuestion}
@@ -385,7 +355,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           />
         )}
 
-        {/* ── 3. FLOATING CIRCULAR "ASK AI" BUTTON (LIQUID GLASS DESIGN) ── */}
         <button
           onClick={() => setShowAskModal(true)}
           type="button"
@@ -396,7 +365,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         </button>
       </main>
 
-      {/* Voice Switcher Modal */}
       <LiveTutorialVoiceSelectorModal
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
@@ -405,7 +373,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         initialVoice={currentVoice}
       />
 
-      {/* Ask the Lecturer Interruption Modal */}
       <LecturerAskModal
         isOpen={showAskModal}
         onClose={() => setShowAskModal(false)}
