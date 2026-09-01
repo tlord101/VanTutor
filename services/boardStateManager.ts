@@ -1,36 +1,52 @@
 /**
  * Live Board State Manager
- * - Fixed viewport positions
- * - Hard clear between concepts; diagrams always temporary
- * - Preserves composed diagram JSON from AI
+ * - Handles fixed viewport board elements (text, formulas, custom SVG, diagrams, labels)
+ * - Managed runtime state machine (IDLE, PREPARING, RENDERING, SPEAKING, WAITING_FOR_ANSWER, etc.)
+ * - Provides clean clearBoard() operation resetting text, formulas, SVG, highlights, pointers, question elements, and focus state.
  */
 
-import { BoardAction, LiveBoardElement, BoardState } from '../types/teachingScript';
+import { BoardAction, LiveBoardElement, BoardState, TeachingRuntimeState } from '../types/teachingScript';
+import { sanitizeSvg } from '../utils/svgSanitizer';
 
 export class BoardStateManager {
   private elements: Map<string, LiveBoardElement> = new Map();
   private activeHighlights: Set<string> = new Set();
   private activeCircles: Set<string> = new Set();
   private activeUnderlines: Set<string> = new Set();
-  private listeners: Set<(state: BoardState) => void> = new Set();
+  private focusedElementId: string | null = null;
+  private runtimeState: TeachingRuntimeState = 'IDLE';
+  private listeners: Set<(state: BoardState & { runtimeState: TeachingRuntimeState }) => void> = new Set();
 
   constructor(initialElements: LiveBoardElement[] = []) {
     initialElements.forEach((el) => this.elements.set(el.id, el));
   }
 
-  public subscribe(listener: (state: BoardState) => void): () => void {
+  public subscribe(listener: (state: BoardState & { runtimeState: TeachingRuntimeState }) => void): () => void {
     this.listeners.add(listener);
     listener(this.getState());
     return () => this.listeners.delete(listener);
   }
 
-  public getState(): BoardState {
+  public getState(): BoardState & { runtimeState: TeachingRuntimeState } {
     return {
       elements: new Map(this.elements),
       activeHighlights: new Set(this.activeHighlights),
       activeCircles: new Set(this.activeCircles),
       activeUnderlines: new Set(this.activeUnderlines),
+      focusedElementId: this.focusedElementId,
+      runtimeState: this.runtimeState,
     };
+  }
+
+  public setRuntimeState(newState: TeachingRuntimeState) {
+    if (this.runtimeState !== newState) {
+      this.runtimeState = newState;
+      this.notify();
+    }
+  }
+
+  public getRuntimeState(): TeachingRuntimeState {
+    return this.runtimeState;
   }
 
   private notify() {
@@ -38,36 +54,42 @@ export class BoardStateManager {
     this.listeners.forEach((listener) => listener(state));
   }
 
-  private clearOverlays() {
+  public clearOverlays() {
     this.activeHighlights.clear();
     this.activeCircles.clear();
     this.activeUnderlines.clear();
+    this.focusedElementId = null;
   }
 
-  private clearAllDiagrams() {
-    for (const [id, el] of this.elements.entries()) {
-      if (el.type === 'diagram' || el.type === 'arrow' || el.type === 'label') {
-        this.elements.delete(id);
-        this.activeHighlights.delete(id);
-        this.activeCircles.delete(id);
-        this.activeUnderlines.delete(id);
-      }
-    }
+  /**
+   * Resets and clears the board completely between boards:
+   * Clears text, formulas, custom SVGs, diagrams, labels, overlays, and focus targets.
+   */
+  public clearBoard() {
+    this.elements.clear();
+    this.clearOverlays();
+    this.notify();
   }
 
   public applyAction(action: BoardAction): void {
-    const actionId = action.id || `act_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const actionId = action.id || `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     switch (action.type) {
+      case 'clear':
       case 'clear_board': {
-        this.elements.clear();
-        this.clearOverlays();
+        this.clearBoard();
         break;
       }
 
       case 'retain': {
         for (const [id, el] of this.elements.entries()) {
-          if (el.persistence !== 'persistent' || el.type === 'diagram' || el.type === 'arrow' || el.type === 'label') {
+          if (
+            el.persistence !== 'persistent' ||
+            el.type === 'diagram' ||
+            el.type === 'svg' ||
+            el.type === 'arrow' ||
+            el.type === 'label'
+          ) {
             this.elements.delete(id);
           }
         }
@@ -102,6 +124,7 @@ export class BoardStateManager {
         break;
       }
 
+      case 'reveal':
       case 'write': {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
         const posY = action.position?.y ?? action.metadata?.y ?? 28;
@@ -116,36 +139,12 @@ export class BoardStateManager {
           }
         }
 
-        for (const [existingId, existingEl] of this.elements.entries()) {
-          if (
-            existingEl.content === action.content ||
-            (isLatex && existingEl.latex === (action.metadata?.latex || action.content))
-          ) {
-            this.elements.delete(existingId);
-          }
-        }
-
-        // Near-position dedupe for non-key-point text only
-        const content = action.content || '';
-        const isBullet = content.trim().startsWith('•') || content.trim().startsWith('-');
-        if (!isBullet) {
-          for (const [existingId, existingEl] of this.elements.entries()) {
-            if (
-              (existingEl.type === 'text' || existingEl.type === 'formula') &&
-              Math.abs((existingEl.position?.y ?? 0) - posY) < 6 &&
-              Math.abs((existingEl.position?.x ?? 0) - posX) < 12
-            ) {
-              this.elements.delete(existingId);
-            }
-          }
-        }
-
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
           persistence: isTitle ? 'persistent' : action.persistence || 'temporary',
           type: isLatex ? 'formula' : 'text',
-          content,
+          content: action.content || '',
           latex: action.metadata?.latex,
           position: {
             x: Math.max(10, Math.min(90, posX)),
@@ -161,32 +160,52 @@ export class BoardStateManager {
       }
 
       case 'draw': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 60;
-        const posY = action.position?.y ?? action.metadata?.y ?? 62;
+        const posX = action.position?.x ?? action.metadata?.x ?? 50;
+        const posY = action.position?.y ?? action.metadata?.y ?? 60;
 
-        this.clearAllDiagrams();
+        // If action contains raw SVG content (or custom SVG primitive)
+        const rawSvg = action.metadata?.svgContent || (typeof action.content === 'string' && action.content.includes('<svg') ? action.content : null);
+        const cleanSvg = sanitizeSvg(rawSvg);
 
-        const composed = action.metadata?.diagram;
-        const newEl: LiveBoardElement = {
-          id: action.id || actionId,
-          groupId: action.groupId,
-          persistence: 'temporary',
-          type: 'diagram',
-          primitive: action.metadata?.primitive || 'concept_map',
-          diagramProps: {
-            ...(action.metadata?.diagramProps || {}),
+        if (cleanSvg) {
+          const svgEl: LiveBoardElement = {
+            id: action.id || actionId,
+            groupId: action.groupId,
+            persistence: 'temporary',
+            type: 'svg',
+            svgContent: cleanSvg,
+            primitive: 'custom_svg',
+            position: {
+              x: Math.max(15, Math.min(85, posX)),
+              y: Math.max(25, Math.min(85, posY)),
+            },
+            progress: 1.0,
+            createdAt: Date.now(),
+          };
+          this.elements.set(svgEl.id, svgEl);
+        } else {
+          const composed = action.metadata?.diagram;
+          const diagramEl: LiveBoardElement = {
+            id: action.id || actionId,
+            groupId: action.groupId,
+            persistence: 'temporary',
+            type: 'diagram',
+            primitive: action.metadata?.primitive || 'custom_svg',
+            diagramProps: {
+              ...(action.metadata?.diagramProps || {}),
+              diagram: composed,
+            },
             diagram: composed,
-          },
-          diagram: composed,
-          position: {
-            x: Math.max(35, Math.min(75, posX)),
-            y: Math.max(45, Math.min(78, posY)),
-          },
-          color: action.metadata?.color || '#38BDF8',
-          progress: 1.0,
-          createdAt: Date.now(),
-        };
-        this.elements.set(newEl.id, newEl);
+            position: {
+              x: Math.max(25, Math.min(75, posX)),
+              y: Math.max(35, Math.min(80, posY)),
+            },
+            color: action.metadata?.color || '#38BDF8',
+            progress: 1.0,
+            createdAt: Date.now(),
+          };
+          this.elements.set(diagramEl.id, diagramEl);
+        }
         break;
       }
 
@@ -255,9 +274,15 @@ export class BoardStateManager {
     this.notify();
   }
 
+  public setFocusedElement(elementId: string | null) {
+    this.focusedElementId = elementId;
+    this.notify();
+  }
+
   public reset() {
     this.elements.clear();
     this.clearOverlays();
+    this.runtimeState = 'IDLE';
     this.notify();
   }
 }
