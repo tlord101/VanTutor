@@ -8,7 +8,7 @@ export interface DiagramPrimitiveProps {
   diagram?: ComposedDiagram;
   width?: number;
   height?: number;
-  progress?: number; // 0.0 to 1.0 progressive build
+  progress?: number;
   color?: string;
   activeHighlights?: Set<string>;
   activeCircles?: Set<string>;
@@ -17,15 +17,14 @@ export interface DiagramPrimitiveProps {
 }
 
 /**
- * Generic Primitive Vector Diagram Renderer.
- * Renders custom AI-composed diagrams built from primitive elements (rect, circle, arrow, line, path, text, etc.),
- * or falls back to preset discipline primitives.
+ * Renders AI-composed diagrams (rect/circle/arrow/text/...) or rich preset fallbacks.
+ * Never shows an empty dashed placeholder box.
  */
 export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
   type = 'custom',
   diagram: directDiagram,
-  width = 360,
-  height = 240,
+  width = 380,
+  height = 260,
   progress = 1.0,
   color = '#38BDF8',
   activeHighlights = new Set(),
@@ -36,31 +35,32 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
   const p = Math.min(1.0, Math.max(0.05, progress));
   const activeDiagram: ComposedDiagram | undefined = directDiagram || metadata?.diagram;
 
-  // Render sub-elements recursively from Qwen's composed diagram JSON schema
   const renderSubElement = (el: DiagramSubElement): React.ReactNode => {
     const isHighlighted = activeHighlights.has(el.id);
     const isCircled = activeCircles.has(el.id);
-    const isUnderlined = activeUnderlines.has(el.id);
 
     const strokeColor = isHighlighted ? '#38BDF8' : (el.stroke || el.color || color || '#38BDF8');
-    const fillColor = el.fill || (el.type === 'circle' || el.type === 'rect' ? 'rgba(56, 189, 248, 0.08)' : 'none');
-    const strokeWidth = el.strokeWidth || (isHighlighted ? 3.5 : 2.5);
+    const fillColor =
+      el.fill ||
+      (el.type === 'circle' || el.type === 'rect' || el.type === 'ellipse'
+        ? 'rgba(56, 189, 248, 0.12)'
+        : 'none');
+    const strokeWidth = el.strokeWidth || (isHighlighted ? 3.5 : 2.2);
 
     switch (el.type) {
       case 'rect': {
         const x = (el.position?.x ?? 10) * 3.6;
         const y = (el.position?.y ?? 10) * 2.4;
-        const w = (el.size?.width ?? 20) * 3.6;
-        const h = (el.size?.height ?? 20) * 2.4;
-
+        const w = (el.size?.width ?? 22) * 3.6;
+        const h = (el.size?.height ?? 14) * 2.4;
         return (
-          <g key={el.id} className="transition-all duration-300">
+          <g key={el.id}>
             <rect
               x={x}
               y={y}
               width={w}
               height={h}
-              rx={6}
+              rx={7}
               fill={fillColor}
               stroke={strokeColor}
               strokeWidth={strokeWidth}
@@ -69,17 +69,26 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
             {el.label && (
               <text
                 x={x + w / 2}
-                y={y + h / 2 + 5}
+                y={y + h / 2 + 4}
                 textAnchor="middle"
-                fill={isHighlighted ? '#38BDF8' : '#FFFFFF'}
-                fontSize={el.fontSize || 12}
-                fontWeight="600"
+                fill={isHighlighted ? '#38BDF8' : '#F8FAFC'}
+                fontSize={Number(el.fontSize) || 11}
+                fontWeight={700}
               >
                 {el.label}
               </text>
             )}
             {isCircled && (
-              <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2 + 10} ry={h / 2 + 10} fill="none" stroke="#38BDF8" strokeWidth="2" strokeDasharray="4 2" />
+              <ellipse
+                cx={x + w / 2}
+                cy={y + h / 2}
+                rx={w / 2 + 8}
+                ry={h / 2 + 8}
+                fill="none"
+                stroke="#38BDF8"
+                strokeWidth={2}
+                strokeDasharray="4 2"
+              />
             )}
           </g>
         );
@@ -88,33 +97,31 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
       case 'circle': {
         const cx = (el.position?.x ?? 50) * 3.6;
         const cy = (el.position?.y ?? 50) * 2.4;
-        const r = (el.radius ?? 15) * 2.0;
-
+        const r = (el.radius ?? 10) * 2.0;
         return (
-          <g key={el.id} className="transition-all duration-300">
+          <g key={el.id}>
             <circle
               cx={cx}
               cy={cy}
               r={r}
-              fill={fillColor}
+              fill={fillColor === 'none' ? 'rgba(56,189,248,0.2)' : fillColor}
               stroke={strokeColor}
               strokeWidth={strokeWidth}
-              strokeDasharray={el.strokeDasharray}
             />
             {el.label && (
               <text
                 x={cx}
-                y={cy + r + 14}
+                y={cy + r + 13}
                 textAnchor="middle"
-                fill={isHighlighted ? '#38BDF8' : '#FFFFFF'}
-                fontSize={el.fontSize || 11}
-                fontWeight="600"
+                fill={isHighlighted ? '#38BDF8' : '#F8FAFC'}
+                fontSize={Number(el.fontSize) || 10}
+                fontWeight={600}
               >
                 {el.label}
               </text>
             )}
             {isCircled && (
-              <circle cx={cx} cy={cy} r={r + 8} fill="none" stroke="#38BDF8" strokeWidth="2" strokeDasharray="4 2" />
+              <circle cx={cx} cy={cy} r={r + 7} fill="none" stroke="#38BDF8" strokeWidth={2} strokeDasharray="4 2" />
             )}
           </g>
         );
@@ -123,22 +130,13 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
       case 'ellipse': {
         const cx = (el.position?.x ?? 50) * 3.6;
         const cy = (el.position?.y ?? 50) * 2.4;
-        const rx = (el.rx ?? 20) * 3.6;
-        const ry = (el.ry ?? 12) * 2.4;
-
+        const rx = (el.rx ?? 18) * 3.6;
+        const ry = (el.ry ?? 10) * 2.4;
         return (
-          <g key={el.id} className="transition-all duration-300">
-            <ellipse
-              cx={cx}
-              cy={cy}
-              rx={rx}
-              ry={ry}
-              fill={fillColor}
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-            />
+          <g key={el.id}>
+            <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} />
             {el.label && (
-              <text x={cx} y={cy + 4} textAnchor="middle" fill="#FFFFFF" fontSize={el.fontSize || 11} fontWeight="600">
+              <text x={cx} y={cy + 4} textAnchor="middle" fill="#F8FAFC" fontSize={Number(el.fontSize) || 11} fontWeight={600}>
                 {el.label}
               </text>
             )}
@@ -151,29 +149,22 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
       case 'connector': {
         const fromX = typeof el.from === 'object' ? el.from.x * 3.6 : (el.position?.x ?? 10) * 3.6;
         const fromY = typeof el.from === 'object' ? el.from.y * 2.4 : (el.position?.y ?? 50) * 2.4;
-        const toX = typeof el.to === 'object' ? el.to.x * 3.6 : ((el.position?.x ?? 10) + (el.size?.width ?? 30)) * 3.6;
+        const toX =
+          typeof el.to === 'object'
+            ? el.to.x * 3.6
+            : ((el.position?.x ?? 10) + (el.size?.width ?? 30)) * 3.6;
         const toY = typeof el.to === 'object' ? el.to.y * 2.4 : (el.position?.y ?? 50) * 2.4;
-
         const isArrow = el.type === 'arrow' || el.type === 'connector';
         const midX = (fromX + toX) / 2;
         const midY = (fromY + toY) / 2;
+        const markerId = `ah-${el.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
         return (
-          <g key={el.id} className="transition-all duration-300">
-            <line
-              x1={fromX}
-              y1={fromY}
-              x2={toX}
-              y2={toY}
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-              strokeDasharray={el.strokeDasharray}
-              markerEnd={isArrow ? `url(#arrow-head-${el.id})` : undefined}
-            />
+          <g key={el.id}>
             {isArrow && (
               <defs>
                 <marker
-                  id={`arrow-head-${el.id}`}
+                  id={markerId}
                   viewBox="0 0 10 10"
                   refX="8"
                   refY="5"
@@ -185,15 +176,18 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
                 </marker>
               </defs>
             )}
+            <line
+              x1={fromX}
+              y1={fromY}
+              x2={toX}
+              y2={toY}
+              stroke={strokeColor}
+              strokeWidth={strokeWidth}
+              strokeDasharray={el.strokeDasharray}
+              markerEnd={isArrow ? `url(#${markerId})` : undefined}
+            />
             {el.label && (
-              <text
-                x={midX}
-                y={midY - 8}
-                textAnchor="middle"
-                fill={isHighlighted ? '#38BDF8' : '#FACC15'}
-                fontSize={el.fontSize || 11}
-                fontWeight="700"
-              >
+              <text x={midX} y={midY - 6} textAnchor="middle" fill="#FACC15" fontSize={10} fontWeight={700}>
                 {el.label}
               </text>
             )}
@@ -201,7 +195,7 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
         );
       }
 
-      case 'path': {
+      case 'path':
         return (
           <path
             key={el.id}
@@ -212,21 +206,19 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
             strokeDasharray={el.strokeDasharray}
           />
         );
-      }
 
       case 'text': {
         const x = (el.position?.x ?? 50) * 3.6;
         const y = (el.position?.y ?? 50) * 2.4;
-
         return (
           <text
             key={el.id}
             x={x}
             y={y}
             textAnchor="middle"
-            fill={isHighlighted ? '#38BDF8' : (el.color || '#FFFFFF')}
-            fontSize={el.fontSize || 12}
-            fontWeight="bold"
+            fill={isHighlighted ? '#38BDF8' : el.color || '#FFFFFF'}
+            fontSize={Number(el.fontSize) || 12}
+            fontWeight={700}
           >
             {el.content || el.label}
           </text>
@@ -236,39 +228,32 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
       case 'formula': {
         const x = (el.position?.x ?? 50) * 3.6;
         const y = (el.position?.y ?? 50) * 2.4;
-
-        let renderedHtml = '';
+        let html = '';
         try {
-          renderedHtml = katex.renderToString(el.latex || el.content || '', { throwOnError: false });
+          html = katex.renderToString(el.latex || el.content || '', { throwOnError: false });
         } catch {
-          renderedHtml = el.content || '';
+          html = el.content || '';
         }
-
         return (
-          <foreignObject key={el.id} x={x - 80} y={y - 20} width={160} height={40}>
+          <foreignObject key={el.id} x={x - 80} y={y - 18} width={160} height={36}>
             <div
-              className={`text-center text-xs sm:text-sm font-bold ${isHighlighted ? 'text-[#38BDF8]' : 'text-white'}`}
-              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+              className={`text-center text-xs font-bold ${isHighlighted ? 'text-[#38BDF8]' : 'text-white'}`}
+              dangerouslySetInnerHTML={{ __html: html }}
             />
           </foreignObject>
         );
       }
 
-      case 'group': {
-        return (
-          <g key={el.id}>
-            {(el.elements || []).map((sub) => renderSubElement(sub))}
-          </g>
-        );
-      }
+      case 'group':
+        return <g key={el.id}>{(el.elements || []).map((sub) => renderSubElement(sub))}</g>;
 
       default:
         return null;
     }
   };
 
-  // If a composed diagram is supplied by Qwen, render it directly
-  if (activeDiagram && activeDiagram.elements && activeDiagram.elements.length > 0) {
+  // Prefer AI-composed diagram
+  if (activeDiagram?.elements && activeDiagram.elements.length > 0) {
     return (
       <svg viewBox="0 0 360 240" width={width} height={height} className="overflow-visible select-none">
         {activeDiagram.elements.map((subEl) => renderSubElement(subEl))}
@@ -276,95 +261,208 @@ export const BoardDiagramPrimitives: React.FC<DiagramPrimitiveProps> = ({
     );
   }
 
-  // Fallback preset primitives
-  switch (type) {
-    case 'physics_force_vectors':
-    case 'physics_block':
-    case 'physics_force':
-    case 'physics_pulley':
-    case 'physics_spring':
-    case 'physics_wave':
-    case 'force_vector':
-    case 'newton_second_law': {
-      const showF = p >= 0.3;
-      const showN = p >= 0.6;
-      const showW = p >= 0.8;
-      const showA = p >= 0.95;
+  // Rich preset fallbacks (never empty box)
+  const t = (type || '').toLowerCase();
 
-      return (
-        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
-          <defs>
-            <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#38BDF8" />
-            </marker>
-            <marker id="arrow-yellow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#FACC15" />
-            </marker>
-          </defs>
-
-          <line x1="20" y1="160" x2="340" y2="160" stroke="#475569" strokeWidth="2.5" strokeDasharray="4 4" />
-          {[40, 80, 120, 160, 200, 240, 280, 320].map((hx) => (
-            <line key={hx} x1={hx} y1="160" x2={hx - 10} y2="175" stroke="#334155" strokeWidth="1.5" />
-          ))}
-
-          <rect x="130" y="95" width="100" height="65" rx="8" fill="#1E293B" stroke="#94A3B8" strokeWidth="2.5" />
-          <text x="180" y="134" textAnchor="middle" fill="#FFFFFF" fontSize="16" fontWeight="700">Mass (m)</text>
-
-          {showF && (
-            <g>
-              <line x1="230" y1="127" x2="320" y2="127" stroke="#FACC15" strokeWidth="3" markerEnd="url(#arrow-yellow)" />
-              <text x="280" y="115" fill="#FACC15" fontSize="14" fontWeight="bold">Force (F) →</text>
-            </g>
-          )}
-
-          {showN && (
-            <g>
-              <line x1="180" y1="95" x2="180" y2="25" stroke="#38BDF8" strokeWidth="2.5" markerEnd="url(#arrow-cyan)" />
-              <text x="190" y="45" fill="#38BDF8" fontSize="13" fontWeight="bold">Normal (N)</text>
-            </g>
-          )}
-
-          {showW && (
-            <g>
-              <line x1="180" y1="160" x2="180" y2="210" stroke="#F87171" strokeWidth="2.5" markerEnd="url(#arrow-cyan)" />
-              <text x="190" y="200" fill="#F87171" fontSize="13" fontWeight="bold">W = mg</text>
-            </g>
-          )}
-
-          {showA && (
-            <g>
-              <rect x="235" y="40" width="105" height="34" rx="6" fill="#064E3B" stroke="#34D399" strokeWidth="1.5" />
-              <text x="287" y="62" textAnchor="middle" fill="#34D399" fontSize="12" fontWeight="bold">a = F / m ➔</text>
-            </g>
-          )}
-        </svg>
-      );
-    }
-
-    case 'circuit':
-    case 'circuit_schematic':
-    case 'ohms_law': {
-      return (
-        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
-          <path d="M 60 110 L 60 40 L 140 40 M 220 40 L 300 40 L 300 180 L 60 180 L 60 130" fill="none" stroke="#94A3B8" strokeWidth="3" />
-          <g transform="translate(45, 95)">
-            <line x1="0" y1="10" x2="30" y2="10" stroke="#FACC15" strokeWidth="4" />
-            <line x1="6" y1="25" x2="24" y2="25" stroke="#94A3B8" strokeWidth="2.5" />
-            <text x="-25" y="14" fill="#FACC15" fontSize="14" fontWeight="bold">+ V -</text>
-          </g>
-          <path d="M 140 40 L 147 25 L 160 55 L 173 25 L 186 55 L 199 25 L 212 55 L 220 40" fill="none" stroke="#38BDF8" strokeWidth="3.5" />
-          <text x="180" y="16" textAnchor="middle" fill="#38BDF8" fontSize="14" fontWeight="bold">Resistor (R)</text>
-        </svg>
-      );
-    }
-
-    default: {
-      return (
-        <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
-          <rect x="20" y="20" width="320" height="180" rx="12" fill="none" stroke="#38BDF8" strokeWidth="2" strokeDasharray="4 4" />
-          <text x="180" y="115" textAnchor="middle" fill="#38BDF8" fontSize="14" fontWeight="bold">Interactive Whiteboard Diagram</text>
-        </svg>
-      );
-    }
+  if (t.includes('flow') || t.includes('process') || t.includes('sequence')) {
+    return (
+      <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+        <defs>
+          <marker id="flow-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#34D399" />
+          </marker>
+        </defs>
+        <rect x="15" y="85" width="90" height="48" rx="10" fill="rgba(56,189,248,0.12)" stroke="#38BDF8" strokeWidth={2.5} />
+        <text x="60" y="113" textAnchor="middle" fill="#F8FAFC" fontSize={12} fontWeight={700}>
+          Stage 1
+        </text>
+        {p >= 0.35 && (
+          <>
+            <line x1="105" y1="109" x2="130" y2="109" stroke="#34D399" strokeWidth={2.5} markerEnd="url(#flow-arr)" />
+            <rect x="135" y="85" width="90" height="48" rx="10" fill="rgba(250,204,21,0.12)" stroke="#FACC15" strokeWidth={2.5} />
+            <text x="180" y="113" textAnchor="middle" fill="#F8FAFC" fontSize={12} fontWeight={700}>
+              Stage 2
+            </text>
+          </>
+        )}
+        {p >= 0.7 && (
+          <>
+            <line x1="225" y1="109" x2="250" y2="109" stroke="#34D399" strokeWidth={2.5} markerEnd="url(#flow-arr)" />
+            <rect x="255" y="85" width="90" height="48" rx="10" fill="rgba(52,211,153,0.15)" stroke="#34D399" strokeWidth={2.5} />
+            <text x="300" y="113" textAnchor="middle" fill="#34D399" fontSize={12} fontWeight={700}>
+              Outcome
+            </text>
+          </>
+        )}
+      </svg>
+    );
   }
+
+  if (t.includes('cycle') || t.includes('loop')) {
+    return (
+      <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+        <path d="M 180 35 A 70 70 0 0 1 245 145" fill="none" stroke="#38BDF8" strokeWidth={3} strokeDasharray="5 3" />
+        <path d="M 245 145 A 70 70 0 0 1 115 145" fill="none" stroke="#FACC15" strokeWidth={3} strokeDasharray="5 3" />
+        <path d="M 115 145 A 70 70 0 0 1 180 35" fill="none" stroke="#34D399" strokeWidth={3} strokeDasharray="5 3" />
+        <circle cx="180" cy="35" r="22" fill="#1E293B" stroke="#38BDF8" strokeWidth={2} />
+        <text x="180" y="39" textAnchor="middle" fill="#FFF" fontSize={10} fontWeight={700}>
+          Stage 1
+        </text>
+        {p >= 0.5 && (
+          <>
+            <circle cx="245" cy="145" r="22" fill="#1E293B" stroke="#FACC15" strokeWidth={2} />
+            <text x="245" y="149" textAnchor="middle" fill="#FFF" fontSize={10} fontWeight={700}>
+              Stage 2
+            </text>
+          </>
+        )}
+        {p >= 0.8 && (
+          <>
+            <circle cx="115" cy="145" r="22" fill="#1E293B" stroke="#34D399" strokeWidth={2} />
+            <text x="115" y="149" textAnchor="middle" fill="#FFF" fontSize={10} fontWeight={700}>
+              Stage 3
+            </text>
+          </>
+        )}
+      </svg>
+    );
+  }
+
+  if (t.includes('venn') || t.includes('compare')) {
+    return (
+      <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+        <circle cx="140" cy="110" r="72" fill="rgba(56,189,248,0.18)" stroke="#38BDF8" strokeWidth={2.5} />
+        <text x="100" y="114" textAnchor="middle" fill="#38BDF8" fontSize={12} fontWeight={700}>
+          Set A
+        </text>
+        {p >= 0.45 && (
+          <>
+            <circle cx="220" cy="110" r="72" fill="rgba(250,204,21,0.15)" stroke="#FACC15" strokeWidth={2.5} />
+            <text x="260" y="114" textAnchor="middle" fill="#FACC15" fontSize={12} fontWeight={700}>
+              Set B
+            </text>
+          </>
+        )}
+        {p >= 0.85 && (
+          <text x="180" y="114" textAnchor="middle" fill="#FFF" fontSize={11} fontWeight={700}>
+            Shared
+          </text>
+        )}
+      </svg>
+    );
+  }
+
+  if (t.includes('table')) {
+    return (
+      <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+        <rect x="30" y="30" width="300" height="160" rx="8" fill="rgba(15,23,42,0.6)" stroke="#38BDF8" strokeWidth={2} />
+        <rect x="30" y="30" width="300" height="36" fill="rgba(56,189,248,0.2)" />
+        <text x="105" y="54" textAnchor="middle" fill="#38BDF8" fontSize={12} fontWeight={700}>
+          Aspect
+        </text>
+        <text x="255" y="54" textAnchor="middle" fill="#38BDF8" fontSize={12} fontWeight={700}>
+          Detail
+        </text>
+        <line x1="180" y1="30" x2="180" y2="190" stroke="#334155" strokeWidth={1.5} />
+        <line x1="30" y1="90" x2="330" y2="90" stroke="#334155" strokeWidth={1} />
+        <line x1="30" y1="140" x2="330" y2="140" stroke="#334155" strokeWidth={1} />
+        <text x="105" y="120" textAnchor="middle" fill="#E2E8F0" fontSize={11}>
+          Feature A
+        </text>
+        <text x="255" y="120" textAnchor="middle" fill="#94A3B8" fontSize={11}>
+          Rule / property
+        </text>
+        {p >= 0.6 && (
+          <>
+            <text x="105" y="168" textAnchor="middle" fill="#E2E8F0" fontSize={11}>
+              Feature B
+            </text>
+            <text x="255" y="168" textAnchor="middle" fill="#94A3B8" fontSize={11}>
+              Contrast
+            </text>
+          </>
+        )}
+      </svg>
+    );
+  }
+
+  if (t.includes('physics') || t.includes('force') || t.includes('newton')) {
+    return (
+      <svg viewBox="0 0 360 220" width={width} height={height} className="overflow-visible select-none">
+        <defs>
+          <marker id="ph-y" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#FACC15" />
+          </marker>
+          <marker id="ph-c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#38BDF8" />
+          </marker>
+        </defs>
+        <line x1="20" y1="160" x2="340" y2="160" stroke="#475569" strokeWidth={2.5} strokeDasharray="4 4" />
+        <rect x="130" y="95" width="100" height="65" rx="8" fill="#1E293B" stroke="#94A3B8" strokeWidth={2.5} />
+        <text x="180" y="134" textAnchor="middle" fill="#FFF" fontSize={15} fontWeight={700}>
+          Mass (m)
+        </text>
+        {p >= 0.3 && (
+          <>
+            <line x1="230" y1="127" x2="320" y2="127" stroke="#FACC15" strokeWidth={3} markerEnd="url(#ph-y)" />
+            <text x="275" y="115" fill="#FACC15" fontSize={13} fontWeight={700}>
+              F →
+            </text>
+          </>
+        )}
+        {p >= 0.6 && (
+          <>
+            <line x1="180" y1="95" x2="180" y2="30" stroke="#38BDF8" strokeWidth={2.5} markerEnd="url(#ph-c)" />
+            <text x="190" y="50" fill="#38BDF8" fontSize={12} fontWeight={700}>
+              N
+            </text>
+          </>
+        )}
+      </svg>
+    );
+  }
+
+  // Default: concept mind-map (never empty box)
+  return (
+    <svg viewBox="0 0 360 240" width={width} height={height} className="overflow-visible select-none">
+      <defs>
+        <marker id="cm-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748B" />
+        </marker>
+      </defs>
+      <rect x="120" y="18" width="120" height="40" rx="10" fill="rgba(56,189,248,0.18)" stroke="#38BDF8" strokeWidth={2.5} />
+      <text x="180" y="43" textAnchor="middle" fill="#F8FAFC" fontSize={13} fontWeight={700}>
+        Core Concept
+      </text>
+      {p >= 0.35 && (
+        <>
+          <line x1="150" y1="58" x2="70" y2="100" stroke="#64748B" strokeWidth={2} markerEnd="url(#cm-arr)" />
+          <line x1="180" y1="58" x2="180" y2="100" stroke="#64748B" strokeWidth={2} markerEnd="url(#cm-arr)" />
+          <line x1="210" y1="58" x2="290" y2="100" stroke="#64748B" strokeWidth={2} markerEnd="url(#cm-arr)" />
+          <rect x="20" y="105" width="100" height="36" rx="8" fill="rgba(250,204,21,0.12)" stroke="#FACC15" strokeWidth={2} />
+          <text x="70" y="127" textAnchor="middle" fill="#FACC15" fontSize={11} fontWeight={700}>
+            Branch A
+          </text>
+          <rect x="130" y="105" width="100" height="36" rx="8" fill="rgba(52,211,153,0.12)" stroke="#34D399" strokeWidth={2} />
+          <text x="180" y="127" textAnchor="middle" fill="#34D399" fontSize={11} fontWeight={700}>
+            Branch B
+          </text>
+          <rect x="240" y="105" width="100" height="36" rx="8" fill="rgba(192,132,252,0.12)" stroke="#C084FC" strokeWidth={2} />
+          <text x="290" y="127" textAnchor="middle" fill="#C084FC" fontSize={11} fontWeight={700}>
+            Branch C
+          </text>
+        </>
+      )}
+      {p >= 0.75 && (
+        <>
+          <circle cx="70" cy="185" r="14" fill="#FACC15" opacity={0.85} />
+          <circle cx="180" cy="185" r="14" fill="#34D399" opacity={0.85} />
+          <circle cx="290" cy="185" r="14" fill="#C084FC" opacity={0.85} />
+          <line x1="70" y1="141" x2="70" y2="171" stroke="#64748B" strokeWidth={1.5} />
+          <line x1="180" y1="141" x2="180" y2="171" stroke="#64748B" strokeWidth={1.5} />
+          <line x1="290" y1="141" x2="290" y2="171" stroke="#64748B" strokeWidth={1.5} />
+        </>
+      )}
+    </svg>
+  );
 };
