@@ -1,9 +1,8 @@
 /**
  * Live Board State Manager
- * - Single fixed viewport (0-100% normalized)
- * - Hard clear / retain between concepts
- * - Diagrams are always temporary unless explicitly marked otherwise
- * - Prevents sticky diagrams and overlapping duplicate text
+ * - Fixed viewport positions
+ * - Hard clear between concepts; diagrams always temporary
+ * - Preserves composed diagram JSON from AI
  */
 
 import { BoardAction, LiveBoardElement, BoardState } from '../types/teachingScript';
@@ -45,7 +44,6 @@ export class BoardStateManager {
     this.activeUnderlines.clear();
   }
 
-  /** Remove every diagram currently on the board */
   private clearAllDiagrams() {
     for (const [id, el] of this.elements.entries()) {
       if (el.type === 'diagram' || el.type === 'arrow' || el.type === 'label') {
@@ -68,7 +66,6 @@ export class BoardStateManager {
       }
 
       case 'retain': {
-        // Keep only persistent titles/formulas; wipe diagrams and temporary content
         for (const [id, el] of this.elements.entries()) {
           if (el.persistence !== 'persistent' || el.type === 'diagram' || el.type === 'arrow' || el.type === 'label') {
             this.elements.delete(id);
@@ -107,21 +104,18 @@ export class BoardStateManager {
 
       case 'write': {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 30;
-        const isTitle = posY <= 18 && !action.content?.includes('\n') && (action.content?.length || 0) < 60;
-        const hasLatex = Boolean(action.metadata?.latex);
-        // Only treat as formula when explicit latex is provided — never force math from plain "="
-        const isLatex = hasLatex;
+        const posY = action.position?.y ?? action.metadata?.y ?? 28;
+        const isTitle = posY <= 16 && !action.content?.includes('\n') && (action.content?.length || 0) < 60;
+        const isLatex = Boolean(action.metadata?.latex);
 
         if (isTitle) {
           for (const [existingId, existingEl] of this.elements.entries()) {
-            if (existingEl.position && existingEl.position.y <= 18 && existingEl.type === 'text') {
+            if (existingEl.position && existingEl.position.y <= 16 && existingEl.type === 'text') {
               this.elements.delete(existingId);
             }
           }
         }
 
-        // Deduplicate identical content
         for (const [existingId, existingEl] of this.elements.entries()) {
           if (
             existingEl.content === action.content ||
@@ -131,29 +125,33 @@ export class BoardStateManager {
           }
         }
 
-        // Avoid stacking text at nearly the same position
-        for (const [existingId, existingEl] of this.elements.entries()) {
-          if (
-            (existingEl.type === 'text' || existingEl.type === 'formula') &&
-            Math.abs((existingEl.position?.y ?? 0) - posY) < 8 &&
-            Math.abs((existingEl.position?.x ?? 0) - posX) < 15
-          ) {
-            this.elements.delete(existingId);
+        // Near-position dedupe for non-key-point text only
+        const content = action.content || '';
+        const isBullet = content.trim().startsWith('•') || content.trim().startsWith('-');
+        if (!isBullet) {
+          for (const [existingId, existingEl] of this.elements.entries()) {
+            if (
+              (existingEl.type === 'text' || existingEl.type === 'formula') &&
+              Math.abs((existingEl.position?.y ?? 0) - posY) < 6 &&
+              Math.abs((existingEl.position?.x ?? 0) - posX) < 12
+            ) {
+              this.elements.delete(existingId);
+            }
           }
         }
 
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
-          persistence: isTitle ? 'persistent' : (action.persistence || 'temporary'),
+          persistence: isTitle ? 'persistent' : action.persistence || 'temporary',
           type: isLatex ? 'formula' : 'text',
-          content: action.content || '',
+          content,
           latex: action.metadata?.latex,
           position: {
-            x: Math.max(12, Math.min(88, posX)),
-            y: Math.max(8, Math.min(90, posY)),
+            x: Math.max(10, Math.min(90, posX)),
+            y: Math.max(6, Math.min(92, posY)),
           },
-          fontSize: action.metadata?.fontSize || (isLatex ? '2xl' : 'lg'),
+          fontSize: action.metadata?.fontSize || (isLatex ? '2xl' : isTitle ? 'xl' : 'md'),
           color: action.metadata?.color || (isLatex ? '#38BDF8' : '#FFFFFF'),
           progress: 1.0,
           createdAt: Date.now(),
@@ -163,23 +161,26 @@ export class BoardStateManager {
       }
 
       case 'draw': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 60;
+        const posX = action.position?.x ?? action.metadata?.x ?? 60;
+        const posY = action.position?.y ?? action.metadata?.y ?? 62;
 
-        // Always remove previous diagrams so nothing sticks across boards
         this.clearAllDiagrams();
 
+        const composed = action.metadata?.diagram;
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
-          persistence: 'temporary', // diagrams never persist across concepts
+          persistence: 'temporary',
           type: 'diagram',
-          primitive: action.metadata?.primitive || 'custom',
-          diagramProps: action.metadata?.diagramProps || {},
-          diagram: action.metadata?.diagram,
+          primitive: action.metadata?.primitive || 'concept_map',
+          diagramProps: {
+            ...(action.metadata?.diagramProps || {}),
+            diagram: composed,
+          },
+          diagram: composed,
           position: {
-            x: Math.max(15, Math.min(85, posX)),
-            y: Math.max(40, Math.min(78, posY)),
+            x: Math.max(35, Math.min(75, posX)),
+            y: Math.max(45, Math.min(78, posY)),
           },
           color: action.metadata?.color || '#38BDF8',
           progress: 1.0,
@@ -192,7 +193,6 @@ export class BoardStateManager {
       case 'arrow': {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
         const posY = action.position?.y ?? action.metadata?.y ?? 50;
-
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
@@ -200,8 +200,8 @@ export class BoardStateManager {
           type: 'arrow',
           content: action.content || '',
           position: {
-            x: Math.max(12, Math.min(88, posX)),
-            y: Math.max(12, Math.min(88, posY)),
+            x: Math.max(10, Math.min(90, posX)),
+            y: Math.max(10, Math.min(90, posY)),
           },
           color: action.metadata?.color || '#FACC15',
           progress: 1.0,
@@ -212,9 +212,8 @@ export class BoardStateManager {
       }
 
       case 'label': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 82;
-
+        const posX = action.position?.x ?? action.metadata?.x ?? 55;
+        const posY = action.position?.y ?? action.metadata?.y ?? 86;
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
@@ -222,8 +221,8 @@ export class BoardStateManager {
           type: 'label',
           content: action.content || '',
           position: {
-            x: Math.max(12, Math.min(88, posX)),
-            y: Math.max(12, Math.min(90, posY)),
+            x: Math.max(10, Math.min(90, posX)),
+            y: Math.max(10, Math.min(92, posY)),
           },
           color: action.metadata?.color || '#FACC15',
           fontSize: 'sm',

@@ -14,7 +14,6 @@ export interface TeachingBoardProps {
   className?: string;
 }
 
-/** Character-by-character typing for board text while the lecturer speaks */
 const TypedText: React.FC<{
   text: string;
   className?: string;
@@ -31,7 +30,7 @@ const TypedText: React.FC<{
     setShown('');
     if (!text) return;
     let i = 0;
-    const msPerChar = Math.max(18, Math.min(45, 1400 / Math.max(1, text.length)));
+    const msPerChar = Math.max(16, Math.min(40, 1200 / Math.max(1, text.length)));
     const id = window.setInterval(() => {
       i += 1;
       setShown(text.slice(0, i));
@@ -51,11 +50,11 @@ const TypedText: React.FC<{
 };
 
 /**
- * FIXED SINGLE VIEWPORT WHITEBOARD
- * - Absolute placement in 0-100% safe bounds
- * - No scroll for lesson content
- * - Content only when isAudioReady
- * - Typing animation for text
+ * Fixed viewport whiteboard:
+ * - Title top
+ * - Key points as tight bullets (left / upper)
+ * - Large illustration as visual focus
+ * - Reveal only after voice starts + typing animation
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
@@ -92,7 +91,6 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -104,10 +102,10 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.scale(dpr, dpr);
-      const dotSpacing = 32;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-      for (let x = 16; x < rect.width; x += dotSpacing) {
-        for (let y = 16; y < rect.height; y += dotSpacing) {
+      const spacing = 32;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+      for (let x = 16; x < rect.width; x += spacing) {
+        for (let y = 16; y < rect.height; y += spacing) {
           ctx.beginPath();
           ctx.arc(x, y, 1, 0, Math.PI * 2);
           ctx.fill();
@@ -125,7 +123,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       ref={containerRef}
       className={`relative w-full h-full bg-[#0F172A] rounded-2xl sm:rounded-3xl border border-[#1E293B] shadow-2xl overflow-hidden select-none font-sans text-slate-100 ${className}`}
       style={{
-        background: 'radial-gradient(ellipse at 50% 20%, #131E35 0%, #0B1120 60%, #070B14 100%)',
+        background: 'radial-gradient(ellipse at 50% 18%, #131E35 0%, #0B1120 55%, #070B14 100%)',
       }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-0" />
@@ -133,12 +131,22 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       <div className="relative z-10 w-full h-full overflow-hidden">
         {isAudioReady &&
           elements.map((el) => {
-            const posX = Math.max(12, Math.min(88, el.position?.x ?? 50));
-            const posY = Math.max(8, Math.min(90, el.position?.y ?? 50));
+            const posX = Math.max(10, Math.min(90, el.position?.x ?? 50));
+            const posY = Math.max(6, Math.min(92, el.position?.y ?? 50));
             const isHighlighted = activeHighlights.has(el.id);
             const isCircled = activeCircles.has(el.id);
             const isUnderlined = activeUnderlines.has(el.id);
-            const isTitle = el.type === 'text' && posY <= 18;
+            const isTitle = el.type === 'text' && posY <= 16;
+            const isKeyPoint =
+              el.type === 'text' &&
+              !isTitle &&
+              ((el.content || '').trim().startsWith('•') ||
+                (el.content || '').trim().startsWith('-') ||
+                posX < 40);
+
+            // Diagrams: larger footprint, less vertical emptiness
+            const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 280 : 360;
+            const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 170 : 230;
 
             return (
               <div
@@ -147,16 +155,16 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                 style={{
                   left: `${posX}%`,
                   top: `${posY}%`,
-                  transform: 'translate(-50%, -50%)',
-                  maxWidth: isTitle ? '84%' : '78%',
-                  width: el.type === 'diagram' ? 'min(78%, 340px)' : undefined,
+                  transform: isKeyPoint ? 'translate(0, -50%)' : 'translate(-50%, -50%)',
+                  maxWidth: isTitle ? '88%' : isKeyPoint ? '42%' : el.type === 'diagram' ? '72%' : '70%',
+                  width: el.type === 'diagram' ? `${Math.min(72, diagramWidth / 4)}%` : undefined,
                 }}
               >
                 {(el.type === 'formula' || el.latex) && (
-                  <div className="relative flex flex-col items-center justify-center px-2">
+                  <div className="relative flex flex-col items-center justify-center px-1">
                     <div
-                      className={`text-base sm:text-xl md:text-2xl font-bold tracking-wide break-words text-center ${
-                        isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
+                      className={`text-sm sm:text-xl md:text-2xl font-bold tracking-wide break-words text-center ${
+                        isHighlighted ? 'text-[#38BDF8]' : 'text-white'
                       }`}
                       style={{ color: el.color || '#38BDF8' }}
                       dangerouslySetInnerHTML={{
@@ -167,13 +175,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                       }}
                     />
                     {isUnderlined && (
-                      <svg className="w-full h-2.5 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                      <svg className="w-full h-2 mt-0.5" viewBox="0 0 100 8" preserveAspectRatio="none">
                         <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
-                      </svg>
-                    )}
-                    {isCircled && (
-                      <svg className="absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] pointer-events-none" viewBox="0 0 120 60" preserveAspectRatio="none">
-                        <path d="M 10 30 Q 15 5 60 5 Q 110 5 110 30 Q 110 55 58 55 Q 8 55 12 28" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeDasharray="4 2" />
                       </svg>
                     )}
                   </div>
@@ -182,10 +185,10 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                 {el.type === 'diagram' && (
                   <div className="relative flex flex-col items-center justify-center w-full">
                     <BoardDiagramPrimitives
-                      type={el.primitive || 'custom'}
+                      type={el.primitive || 'concept_map'}
                       diagram={el.diagram}
-                      width={300}
-                      height={180}
+                      width={diagramWidth}
+                      height={diagramHeight}
                       progress={el.progress ?? 1.0}
                       color={el.color || '#38BDF8'}
                       activeHighlights={activeHighlights}
@@ -193,43 +196,46 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                       activeUnderlines={activeUnderlines}
                       metadata={el.diagramProps}
                     />
+                    {isCircled && (
+                      <div className="absolute inset-0 rounded-xl ring-2 ring-[#38BDF8]/60 pointer-events-none" />
+                    )}
                   </div>
                 )}
 
                 {el.type === 'arrow' && (
-                  <div className="flex items-center gap-2 justify-center">
-                    <svg width="40" height="20" viewBox="0 0 40 20">
+                  <div className="flex items-center gap-1.5 justify-center">
+                    <svg width="36" height="18" viewBox="0 0 40 20">
                       <line x1="0" y1="10" x2="32" y2="10" stroke={el.color || '#38BDF8'} strokeWidth="3" strokeLinecap="round" />
                       <polygon points="30,4 40,10 30,16" fill={el.color || '#38BDF8'} />
                     </svg>
                     {el.content && (
-                      <span className="text-xs sm:text-sm font-bold text-[#38BDF8] whitespace-nowrap">
-                        {el.content}
-                      </span>
+                      <span className="text-[10px] sm:text-xs font-bold text-[#38BDF8]">{el.content}</span>
                     )}
                   </div>
                 )}
 
                 {el.type === 'label' && (
-                  <span className="text-xs sm:text-sm font-bold text-[#38BDF8] block text-center px-2">
+                  <span className="text-[10px] sm:text-xs font-bold text-[#FACC15] block text-center px-1">
                     {el.content}
                   </span>
                 )}
 
                 {el.type === 'text' && !el.latex && (
-                  <div className="relative text-center px-2 max-w-full">
+                  <div className={`relative px-1 ${isKeyPoint ? 'text-left' : 'text-center'} max-w-full`}>
                     <TypedText
                       text={el.content || ''}
                       enabled={isAudioReady}
-                      className={`font-semibold tracking-wide break-words ${
+                      className={`tracking-wide break-words leading-snug ${
                         isTitle
-                          ? 'text-sm sm:text-lg md:text-xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-1'
-                          : 'text-xs sm:text-sm md:text-base text-slate-100'
+                          ? 'text-sm sm:text-lg md:text-xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-0.5'
+                          : isKeyPoint
+                            ? 'text-[11px] sm:text-sm md:text-[15px] font-semibold text-slate-200'
+                            : 'text-xs sm:text-sm md:text-base font-semibold text-slate-100'
                       } ${isHighlighted ? 'text-[#38BDF8]' : ''}`}
                       style={{ color: el.color || undefined }}
                     />
                     {isUnderlined && (
-                      <svg className="w-full h-2 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                      <svg className="w-full h-1.5 mt-0.5" viewBox="0 0 100 8" preserveAspectRatio="none">
                         <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
                       </svg>
                     )}
@@ -241,7 +247,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
 
         {tutorPointer && tutorPointer.active && (
           <div
-            className="absolute z-30 w-3.5 h-3.5 rounded-full bg-[#38BDF8] shadow-[0_0_14px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2"
+            className="absolute z-30 w-3 h-3 rounded-full bg-[#38BDF8] shadow-[0_0_12px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${tutorPointer.x}%`, top: `${tutorPointer.y}%` }}
           />
         )}
