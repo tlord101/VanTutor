@@ -133,7 +133,7 @@ export interface BoardAction {
     height?: number;
     color?: string;
     style?: string;               // 'chalk' | 'ink' | 'accent' | 'highlight'
-    fontSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+    fontSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
     subElements?: string[];
     tableData?: { headers: string[]; rows: string[][] };
     latex?: string;
@@ -149,10 +149,21 @@ export interface VisualAction {
   parameters?: Record<string, any>;
 }
 
+export type MannerismType =
+  | 'attention'
+  | 'emphasis'
+  | 'transition'
+  | 'reflection_pause'
+  | 'encouragement'
+  | 'check_understanding'
+  | 'correction';
+
 export interface SpeechBeat {
   id: string;
   text: string;
   purpose: string;
+  mannerism?: MannerismType | null;
+  pauseAfterMs?: number;
   board_actions: BoardAction[];
   visual_actions: VisualAction[];
   focus_target?: string | null;

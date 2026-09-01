@@ -31,7 +31,7 @@ const TypedText: React.FC<{
     setShown('');
     if (!text) return;
     let i = 0;
-    const msPerChar = Math.max(16, Math.min(40, 1200 / Math.max(1, text.length)));
+    const msPerChar = Math.max(16, Math.min(35, 1000 / Math.max(1, text.length)));
     const id = window.setInterval(() => {
       i += 1;
       setShown(text.slice(0, i));
@@ -44,18 +44,18 @@ const TypedText: React.FC<{
     <p className={className} style={style}>
       {shown}
       {enabled && shown.length < text.length && (
-        <span className="inline-block w-[2px] h-[1em] ml-0.5 align-middle bg-[#38BDF8] animate-pulse" />
+        <span className="inline-block w-[3px] h-[1em] ml-0.5 align-middle bg-[#38BDF8] animate-pulse" />
       )}
     </p>
   );
 };
 
 /**
- * Fixed viewport digital chalkboard:
- * - Clean title at top
- * - Concise, progressive text and formulas
- * - AI-generated custom SVG illustration visual anchor
- * - Synchronized highlight / circle overlays
+ * Fixed Viewport Digital Chalkboard:
+ * - High-contrast chalkboard dark gradient
+ * - Large, readable responsive typography (32px-56px targets)
+ * - AI-generated custom SVG scientific illustrations
+ * - KaTeX mathematical notation
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
@@ -103,12 +103,12 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.scale(dpr, dpr);
-      const spacing = 32;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-      for (let x = 16; x < rect.width; x += spacing) {
-        for (let y = 16; y < rect.height; y += spacing) {
+      const spacing = 36;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      for (let x = 18; x < rect.width; x += spacing) {
+        for (let y = 18; y < rect.height; y += spacing) {
           ctx.beginPath();
-          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.arc(x, y, 1.2, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -145,8 +145,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                 (el.content || '').trim().startsWith('-') ||
                 posX < 40);
 
-            const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 300 : 420;
-            const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 190 : 260;
+            const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 320 : 480;
+            const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 320;
 
             const safeSvg = el.type === 'svg' || el.svgContent ? sanitizeSvg(el.svgContent) : null;
 
@@ -159,35 +159,34 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   top: `${posY}%`,
                   transform: isKeyPoint ? 'translate(0, -50%)' : 'translate(-50%, -50%)',
                   maxWidth: isTitle
-                    ? '88%'
+                    ? '90%'
                     : isKeyPoint
-                      ? '42%'
+                      ? '48%'
                       : el.type === 'diagram' || el.type === 'svg'
-                        ? '80%'
-                        : '70%',
-                  width: el.type === 'diagram' || el.type === 'svg' ? `${Math.min(80, diagramWidth / 4)}%` : undefined,
+                        ? '85%'
+                        : '78%',
                 }}
               >
-                {/* SVG Illustration Element */}
+                {/* Custom Scientific SVG Illustration */}
                 {(el.type === 'svg' || safeSvg) && safeSvg && (
-                  <div className="relative flex flex-col items-center justify-center w-full max-h-[220px] sm:max-h-[300px]">
+                  <div className="relative flex flex-col items-center justify-center w-full max-h-[260px] sm:max-h-[360px] md:max-h-[420px]">
                     <div
-                      className="w-full h-full flex items-center justify-center text-slate-100 [&_svg]:max-w-full [&_svg]:max-h-[220px] sm:[&_svg]:max-h-[300px] [&_svg]:w-auto [&_svg]:h-auto"
+                      className="w-full h-full flex items-center justify-center text-slate-100 [&_svg]:max-w-full [&_svg]:max-h-[260px] sm:[&_svg]:max-h-[360px] md:[&_svg]:max-h-[420px] [&_svg]:w-auto [&_svg]:h-auto drop-shadow-md"
                       dangerouslySetInnerHTML={{ __html: safeSvg }}
                     />
                     {isCircled && (
-                      <div className="absolute inset-0 rounded-xl ring-2 ring-[#38BDF8]/60 pointer-events-none animate-pulse" />
+                      <div className="absolute inset-0 rounded-2xl ring-4 ring-[#38BDF8]/70 pointer-events-none animate-pulse" />
                     )}
                   </div>
                 )}
 
-                {/* Formula Element */}
+                {/* Formula / Math Notation (KaTeX) */}
                 {(el.type === 'formula' || el.latex) && (
-                  <div className="relative flex flex-col items-center justify-center px-1">
+                  <div className="relative flex flex-col items-center justify-center px-2 py-1">
                     <div
-                      className={`text-sm sm:text-xl md:text-2xl font-bold tracking-wide break-words text-center ${
-                        isHighlighted ? 'text-[#38BDF8]' : 'text-white'
-                      }`}
+                      className={`text-2xl sm:text-4xl md:text-5xl font-black tracking-wide break-words text-center ${
+                        isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
+                      } transition-transform`}
                       style={{ color: el.color || '#38BDF8' }}
                       dangerouslySetInnerHTML={{
                         __html: katex.renderToString(el.latex || el.content || '', {
@@ -197,14 +196,14 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                       }}
                     />
                     {isUnderlined && (
-                      <svg className="w-full h-2 mt-0.5" viewBox="0 0 100 8" preserveAspectRatio="none">
-                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                      <svg className="w-full h-3 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="3" />
                       </svg>
                     )}
                   </div>
                 )}
 
-                {/* Legacy Diagram Fallback Element */}
+                {/* Legacy Diagram Fallback */}
                 {el.type === 'diagram' && !safeSvg && (
                   <div className="relative flex flex-col items-center justify-center w-full">
                     <BoardDiagramPrimitives
@@ -227,42 +226,42 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
 
                 {/* Arrow Element */}
                 {el.type === 'arrow' && (
-                  <div className="flex items-center gap-1.5 justify-center">
-                    <svg width="36" height="18" viewBox="0 0 40 20">
-                      <line x1="0" y1="10" x2="32" y2="10" stroke={el.color || '#38BDF8'} strokeWidth="3" strokeLinecap="round" />
-                      <polygon points="30,4 40,10 30,16" fill={el.color || '#38BDF8'} />
+                  <div className="flex items-center gap-2 justify-center">
+                    <svg width="48" height="24" viewBox="0 0 40 20">
+                      <line x1="0" y1="10" x2="30" y2="10" stroke={el.color || '#38BDF8'} strokeWidth="4" strokeLinecap="round" />
+                      <polygon points="28,3 40,10 28,17" fill={el.color || '#38BDF8'} />
                     </svg>
                     {el.content && (
-                      <span className="text-[10px] sm:text-xs font-bold text-[#38BDF8]">{el.content}</span>
+                      <span className="text-sm sm:text-base font-bold text-[#38BDF8]">{el.content}</span>
                     )}
                   </div>
                 )}
 
                 {/* Label Element */}
                 {el.type === 'label' && (
-                  <span className="text-[10px] sm:text-xs font-bold text-[#FACC15] block text-center px-1">
+                  <span className="text-xs sm:text-base md:text-xl font-bold text-[#FACC15] block text-center px-1">
                     {el.content}
                   </span>
                 )}
 
-                {/* Text Element */}
+                {/* Main Text Element */}
                 {el.type === 'text' && !el.latex && (
                   <div className={`relative px-1 ${isKeyPoint ? 'text-left' : 'text-center'} max-w-full`}>
                     <TypedText
                       text={el.content || ''}
                       enabled={isAudioReady}
-                      className={`tracking-wide break-words leading-snug ${
+                      className={`tracking-wide break-words leading-tight ${
                         isTitle
-                          ? 'text-sm sm:text-lg md:text-xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-0.5'
+                          ? 'text-lg sm:text-2xl md:text-3xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-1'
                           : isKeyPoint
-                            ? 'text-[11px] sm:text-sm md:text-[15px] font-semibold text-slate-200'
-                            : 'text-xs sm:text-sm md:text-base font-semibold text-slate-100'
-                      } ${isHighlighted ? 'text-[#38BDF8]' : ''}`}
+                            ? 'text-base sm:text-2xl md:text-3xl font-bold text-slate-100'
+                            : 'text-sm sm:text-xl md:text-2xl font-semibold text-slate-200'
+                      } ${isHighlighted ? 'text-[#38BDF8] scale-105' : ''}`}
                       style={{ color: el.color || undefined }}
                     />
                     {isUnderlined && (
-                      <svg className="w-full h-1.5 mt-0.5" viewBox="0 0 100 8" preserveAspectRatio="none">
-                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                      <svg className="w-full h-2 mt-1" viewBox="0 0 100 8" preserveAspectRatio="none">
+                        <path d="M 0 4 Q 50 8 100 3" fill="none" stroke="#38BDF8" strokeWidth="3" />
                       </svg>
                     )}
                   </div>
@@ -273,7 +272,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
 
         {tutorPointer && tutorPointer.active && (
           <div
-            className="absolute z-30 w-3.5 h-3.5 rounded-full bg-[#38BDF8] shadow-[0_0_14px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2 animate-ping"
+            className="absolute z-30 w-4 h-4 rounded-full bg-[#38BDF8] shadow-[0_0_16px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2 animate-ping"
             style={{ left: `${tutorPointer.x}%`, top: `${tutorPointer.y}%` }}
           />
         )}

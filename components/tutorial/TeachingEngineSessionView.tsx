@@ -27,6 +27,9 @@ export interface TeachingEngineSessionViewProps {
   setCustomHeaderConfig?: (config: any) => void;
 }
 
+/** Minimum reading pause duration (ms) after speech ends before auto-advancing */
+const KEY_POINT_PAUSE_MS = 5000;
+
 export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps> = ({
   topicTitle,
   courseName = 'Academic Course',
@@ -88,6 +91,8 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   boardElementsRef.current = boardElements;
   const isGeneratingTestRef = useRef(isGeneratingTest);
   isGeneratingTestRef.current = isGeneratingTest;
+  const currentBoardPerfRef = useRef(currentBoardPerf);
+  currentBoardPerfRef.current = currentBoardPerf;
 
   useEffect(() => {
     const manager = boardManagerRef.current;
@@ -212,6 +217,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           return;
         }
 
+        // Calculate intelligent reading pause after speech finishes
         if (
           !playing &&
           !activeQuestionRef.current &&
@@ -220,9 +226,16 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           !isGeneratingTestRef.current
         ) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
+
+          const perf = currentBoardPerfRef.current;
+          const hasFormulaOrCalculation = perf?.board_actions?.some(
+            (a) => a.metadata?.latex || a.content?.includes('=')
+          );
+          const readingPauseMs = hasFormulaOrCalculation ? KEY_POINT_PAUSE_MS + 2500 : KEY_POINT_PAUSE_MS;
+
           autoContinueTimerRef.current = setTimeout(() => {
             handleNextBoardRef.current();
-          }, 2400);
+          }, readingPauseMs);
         }
       },
       onBoardActionTriggered: (action) => {
@@ -248,7 +261,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
         autoContinueTimerRef.current = setTimeout(() => {
           handleNextBoardRef.current();
-        }, 3200);
+        }, 4000);
       },
       onFinalTestGenerated: (test) => {
         setFinalTest(test);
