@@ -24,17 +24,17 @@ export interface TeachingEngineListener {
 export class TeachingEngineService {
   private appSettings: AppSettings;
   private userProfile: UserProfile | null;
-  private voice: string = 'Jennifer';
+  private voice: string = 'Altair';
   private currentSegment: TeachingSegment | null = null;
   private listeners: Set<TeachingEngineListener> = new Set();
   private isDestroyed = false;
   private activeAudioPlayer: any = null;
   private activeTimers: ReturnType<typeof setTimeout>[] = [];
 
-  constructor(appSettings: AppSettings, userProfile: UserProfile | null = null, voice: string = 'Jennifer') {
+  constructor(appSettings: AppSettings, userProfile: UserProfile | null = null, voice: string = 'Altair') {
     this.appSettings = appSettings;
     this.userProfile = userProfile;
-    this.voice = voice || 'Jennifer';
+    this.voice = voice || 'Altair';
   }
 
   public setVoice(voice: string) {
@@ -126,7 +126,6 @@ export class TeachingEngineService {
 
       this.activeAudioPlayer = unifiedVoiceRouter.playSpeech(speechText, {
         appSettings: this.appSettings,
-        provider: 'grok',
         voice: this.voice,
         speed: 1.15,
         onStart: () => {

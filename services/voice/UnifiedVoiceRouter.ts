@@ -1,7 +1,8 @@
-import { grokVoiceEngine, type GrokSpeechOptions, type GrokAudioPlayer, type GrokTtsResponsePayload } from './GrokVoiceEngine';
+import { grokVoiceEngine, type GrokAudioPlayer, type GrokTtsResponsePayload } from './GrokVoiceEngine';
+import { alibabaVoiceEngine, type AlibabaAudioPlayer, type AlibabaAudioResponsePayload } from './AlibabaVoiceEngine';
 import type { AppSettings } from '../../types';
 
-export type UnifiedVoiceProvider = 'grok';
+export type UnifiedVoiceProvider = 'grok' | 'alibaba';
 
 export interface UnifiedSpeechOptions {
   provider?: UnifiedVoiceProvider;
@@ -20,25 +21,60 @@ export interface UnifiedSpeechOptions {
   onError?: (err: Error) => void;
 }
 
-export type UnifiedAudioPlayer = GrokAudioPlayer;
+export type UnifiedAudioPlayer = GrokAudioPlayer | AlibabaAudioPlayer;
 
 /**
  * Unified Voice Router
- * Strictly routes text-to-speech synthesis requests through GROK VOICE ENGINE (xAI Speech) exclusively.
- * No fallback engines.
+ * Dynamic router supporting both Grok Voice Engine (Altair, Nova, Echo, Shimmer, Onyx, Fable, Alloy)
+ * and Alibaba Cloud DashScope (Qwen3-TTS / CosyVoice - Jennifer, etc.).
  */
 export class UnifiedVoiceRouter {
-  public resolveProvider(_options: UnifiedSpeechOptions = {}): UnifiedVoiceProvider {
+  public resolveProvider(options: UnifiedSpeechOptions = {}): UnifiedVoiceProvider {
+    if (options.provider) {
+      return options.provider;
+    }
+    const voiceLower = (options.voice || '').toLowerCase().trim();
+    if (voiceLower === 'jennifer' || voiceLower.includes('alibaba') || voiceLower.includes('qwen')) {
+      return 'alibaba';
+    }
+    const grokVoices = ['altair', 'nova', 'echo', 'shimmer', 'onyx', 'fable', 'alloy'];
+    if (grokVoices.includes(voiceLower)) {
+      return 'grok';
+    }
+    if (options.appSettings?.active_voice_provider === 'alibaba') {
+      return 'alibaba';
+    }
     return 'grok';
   }
 
   /**
-   * Play speech using Grok Voice Engine exclusively
+   * Play speech using the resolved provider engine (Grok default with Alibaba Qwen3-TTS fallback)
    */
   public playSpeech(
     text: string,
     options: UnifiedSpeechOptions = {}
   ): UnifiedAudioPlayer {
+    const provider = this.resolveProvider(options);
+
+    if (provider === 'alibaba') {
+      const voice = options.voice || options.appSettings?.alibaba_voice_name || 'Jennifer';
+      return alibabaVoiceEngine.playSpeech(text, {
+        appSettings: options.appSettings,
+        voice,
+        model: 'qwen3-tts-flash',
+        language: options.language,
+        cacheKey: options.cacheKey,
+        isPrivate: options.isPrivate,
+        onStart: options.onStart,
+        onReady: options.onReady,
+        onEnd: options.onEnd,
+        onError: (err) => {
+          console.warn('[UnifiedVoiceRouter] Alibaba TTS playback error:', err);
+          options.onError?.(err);
+        },
+      });
+    }
+
     const rawVoice = options.voice || options.appSettings?.grok_voice_id || 'altair';
     const grokVoice = this.normalizeGrokVoice(rawVoice);
 
@@ -78,24 +114,45 @@ export class UnifiedVoiceRouter {
   }
 
   /**
-   * Pre-fetches speech payload using Grok Voice Engine
+   * Pre-fetches speech payload using appropriate voice engine
    */
   public prefetchSpeech(
     text: string,
     options: UnifiedSpeechOptions = {}
   ): void {
-    void grokVoiceEngine.prefetchSpeech(text, options.cacheKey, {
-      isPrivate: options.isPrivate,
-    });
+    const provider = this.resolveProvider(options);
+    if (provider === 'alibaba') {
+      void alibabaVoiceEngine.fetchAlibabaSpeech(text, {
+        appSettings: options.appSettings,
+        voice: options.voice || 'Jennifer',
+        cacheKey: options.cacheKey,
+        isPrivate: options.isPrivate,
+      });
+    } else {
+      void grokVoiceEngine.prefetchSpeech(text, options.cacheKey, {
+        isPrivate: options.isPrivate,
+      });
+    }
   }
 
   /**
-   * Fetches raw audio payload via Grok Voice Engine
+   * Fetches raw audio payload via appropriate voice engine
    */
   public async fetchSpeech(
     text: string,
     options: UnifiedSpeechOptions = {}
-  ): Promise<GrokTtsResponsePayload | null> {
+  ): Promise<GrokTtsResponsePayload | AlibabaAudioResponsePayload | null> {
+    const provider = this.resolveProvider(options);
+    if (provider === 'alibaba') {
+      return await alibabaVoiceEngine.fetchAlibabaSpeech(text, {
+        appSettings: options.appSettings,
+        voice: options.voice || 'Jennifer',
+        language: options.language,
+        cacheKey: options.cacheKey,
+        isPrivate: options.isPrivate,
+      });
+    }
+
     const grokVoice = this.normalizeGrokVoice(options.voice || options.appSettings?.grok_voice_id || 'altair');
     return await grokVoiceEngine.fetchGrokSpeech(text, {
       voice: grokVoice,
@@ -107,10 +164,11 @@ export class UnifiedVoiceRouter {
   }
 
   /**
-   * Universal audio stop
+   * Universal audio stop across all engines
    */
   public stopAudio(): void {
     grokVoiceEngine.stopAudio();
+    alibabaVoiceEngine.stopAudio();
   }
 
   public stopAll(): void {
