@@ -31,14 +31,17 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const { addToast } = useToast();
 
   const [currentVoice, setCurrentVoice] = useState<string>(initialVoice);
-  const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
-  const [showAskModal, setShowAskModal] = useState<boolean>(false);
-  const [isProcessingAsk, setIsProcessingAsk] = useState<boolean>(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showAskModal, setShowAskModal] = useState(false);
+  const [isProcessingAsk, setIsProcessingAsk] = useState(false);
+  const [isAnsweringOnBoard, setIsAnsweringOnBoard] = useState(false);
 
   const engineRef = useRef<TeachingEngineService | null>(null);
   const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
   const autoContinueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSegmentLoadingRef = useRef<boolean>(false);
+  const isSegmentLoadingRef = useRef(false);
+  /** Snapshot of lesson board while we answer a side question */
+  const savedBoardRef = useRef<LiveBoardElement[] | null>(null);
 
   const [currentSegment, setCurrentSegment] = useState<TeachingSegment | null>(null);
   const [segmentNumber, setSegmentNumber] = useState(1);
@@ -68,6 +71,8 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   completedSummaryRef.current = completedSegmentsSummary;
   const activeQuestionRef = useRef(activeQuestion);
   activeQuestionRef.current = activeQuestion;
+  const boardElementsRef = useRef(boardElements);
+  boardElementsRef.current = boardElements;
 
   useEffect(() => {
     const manager = boardManagerRef.current;
@@ -85,7 +90,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
-
     if (!engineRef.current || isSegmentLoadingRef.current) return;
 
     const nextSegNum = segmentNumberRef.current + 1;
@@ -102,7 +106,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     setEvaluationFeedback(null);
     setIsAudioReady(false);
 
-    // Hard wipe before next concept loads so previous diagram/text cannot stick
     boardManagerRef.current.applyAction({ id: 'pre_clear', type: 'clear_board' });
 
     const prevSeg = currentSegmentRef.current;
@@ -137,13 +140,12 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         isSegmentLoadingRef.current = false;
         setCurrentSegment(segment);
         setIsLoadingSegment(false);
-        setIsAudioReady(false); // stay blank until voice starts
+        setIsAudioReady(false);
 
         if (segment.lesson.totalEstimatedSegments) {
           setTotalEstimatedSegments(segment.lesson.totalEstimatedSegments);
         }
 
-        // Always clear (or retain only persistent titles). Never leave old diagrams.
         const transition = segment.teaching.boardTransition || 'clear_board';
         if (transition === 'retain_persistent') {
           manager.applyAction({ id: 'trans_retain', type: 'retain' });
@@ -155,11 +157,62 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       },
       onAudioPlaybackStateChanged: (playing) => {
         setIsSpeaking(playing);
-        if (playing) {
+        if (playing) setIsAudioReady(true);
+
+        // After interruption answer speech ends → restore lesson board & resume
+        if (!playing && isAnsweringOnBoard) {
+          setIsAnsweringOnBoard(false);
+          const snap = savedBoardRef.current;
+          savedBoardRef.current = null;
+          manager.applyAction({ id: 'restore_clear', type: 'clear_board' });
+          if (snap && snap.length) {
+            snap.forEach((el) => {
+              if (el.type === 'diagram') {
+                manager.applyAction({
+                  id: el.id,
+                  type: 'draw',
+                  persistence: el.persistence || 'temporary',
+                  groupId: el.groupId,
+                  position: el.position,
+                  metadata: {
+                    primitive: el.primitive,
+                    diagram: el.diagram,
+                    diagramProps: el.diagramProps,
+                    color: el.color,
+                  },
+                });
+              } else if (el.type === 'text' || el.type === 'formula') {
+                manager.applyAction({
+                  id: el.id,
+                  type: 'write',
+                  persistence: el.persistence || 'temporary',
+                  groupId: el.groupId,
+                  content: el.content,
+                  position: el.position,
+                  metadata: {
+                    latex: el.latex,
+                    fontSize: el.fontSize,
+                    color: el.color,
+                  },
+                });
+              } else if (el.type === 'label') {
+                manager.applyAction({
+                  id: el.id,
+                  type: 'label',
+                  content: el.content,
+                  position: el.position,
+                  groupId: el.groupId,
+                });
+              }
+            });
+          }
           setIsAudioReady(true);
+          // Resume lesson segment audio from current segment
+          setTimeout(() => engineRef.current?.resumeLesson(), 600);
+          return;
         }
 
-        if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current) {
+        if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current && !showAskModal) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = setTimeout(() => {
             handleContinueRef.current();
@@ -217,6 +270,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       engine.destroy();
       unifiedVoiceRouter.stopAll();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicTitle, courseName, syllabusContext]);
 
   const handleCloseSession = useCallback(() => {
@@ -254,20 +308,48 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     });
   };
 
-  const handleAskLecturer = async (studentQuestion: string) => {
-    if (!studentQuestion.trim() || !engineRef.current) return;
+  /** Mic FAB → pause lesson, open wave modal */
+  const handleOpenAsk = () => {
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
+    engineRef.current?.pauseLesson();
+    setIsSpeaking(false);
+    setShowAskModal(true);
+  };
+
+  const handleCloseAsk = () => {
+    setShowAskModal(false);
+    // User cancelled — resume without wiping board
+    engineRef.current?.resumeLesson();
+  };
+
+  const handleAskLecturer = async (studentQuestion: string, _imageDataUrl?: string | null) => {
+    if ((!studentQuestion.trim() && !_imageDataUrl) || !engineRef.current) return;
+    if (autoContinueTimerRef.current) {
+      clearTimeout(autoContinueTimerRef.current);
+      autoContinueTimerRef.current = null;
+    }
+
     setIsProcessingAsk(true);
+
+    // Snapshot current board, then wipe for a fresh answer board
+    savedBoardRef.current = boardElementsRef.current.map((el) => ({ ...el }));
+    boardManagerRef.current.applyAction({ id: 'ask_clear', type: 'clear_board' });
+    setIsAnsweringOnBoard(true);
+    setIsAudioReady(true);
+    setShowAskModal(false);
+
+    addToast('Answering on a fresh board…', 'info');
+
     await engineRef.current.askLecturerQuestion({
       topic: topicTitle,
-      studentQuestion,
+      studentQuestion: studentQuestion.trim() || 'Please explain based on the image I shared.',
     });
+
     setIsProcessingAsk(false);
-    setShowAskModal(false);
-    addToast('Lecturer answering your question on the board...', 'info');
+    // Restore + resume happens in onAudioPlaybackStateChanged when answer speech ends
   };
 
   useEffect(() => {
@@ -280,12 +362,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
               type="button"
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#131E32] hover:bg-[#1E2E4A] border border-[#1E293B] flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95 cursor-pointer shrink-0"
               title="Exit Classroom"
-              aria-label="Exit Classroom"
             >
               <i className="bi bi-arrow-left text-sm sm:text-base"></i>
             </button>
             <div className="min-w-0 flex items-center gap-2">
-              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[150px] xs:max-w-[200px] sm:max-w-md md:max-w-xl">
+              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[150px] sm:max-w-md">
                 {topicTitle}
               </h1>
             </div>
@@ -302,11 +383,10 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
               onClick={() => setShowVoiceModal(true)}
               type="button"
               className="hidden xs:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] hover:bg-[#1E2E4A] border border-[#1E293B] text-[11px] font-bold text-[#60A5FA] transition-colors cursor-pointer"
-              title={`Lecturer: ${currentVoice} (Click to change)`}
+              title={`Lecturer: ${currentVoice}`}
             >
               <i className="bi bi-person-voice text-xs"></i>
               <span className="hidden sm:inline">{currentVoice}</span>
-              <i className="bi bi-chevron-down text-[9px] opacity-70"></i>
             </button>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] border border-[#1E293B]">
               <span
@@ -315,7 +395,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
                 }`}
               />
               <span className="text-[10px] sm:text-xs font-bold text-slate-200 tracking-wider">
-                {isSpeaking ? 'LIVE' : 'READY'}
+                {isAnsweringOnBoard ? 'ANSWER' : isSpeaking ? 'LIVE' : showAskModal ? 'PAUSED' : 'READY'}
               </span>
             </div>
           </div>
@@ -324,11 +404,20 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         className: 'bg-[#070B14] border-b border-[#1E293B]',
       });
     }
-
     return () => {
       if (setCustomHeaderConfig) setCustomHeaderConfig(null);
     };
-  }, [setCustomHeaderConfig, topicTitle, segmentNumber, totalEstimatedSegments, isSpeaking, currentVoice, handleCloseSession]);
+  }, [
+    setCustomHeaderConfig,
+    topicTitle,
+    segmentNumber,
+    totalEstimatedSegments,
+    isSpeaking,
+    currentVoice,
+    handleCloseSession,
+    isAnsweringOnBoard,
+    showAskModal,
+  ]);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#070B14] text-white select-none overflow-hidden relative">
@@ -341,6 +430,16 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           tutorPointer={tutorPointer}
           isAudioReady={isAudioReady}
         />
+
+        {/* Startup / load indicator so blank wait feels intentional */}
+        {(isLoadingSegment || (!isAudioReady && !showAskModal && !isAnsweringOnBoard)) && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+            <div className="w-10 h-10 rounded-full border-2 border-[#38BDF8]/30 border-t-[#38BDF8] animate-spin mb-3" />
+            <p className="text-xs font-semibold text-slate-400 tracking-wide">
+              {isLoadingSegment ? 'Preparing lesson…' : 'Starting lecturer…'}
+            </p>
+          </div>
+        )}
 
         {activeQuestion && (
           <QuestionOverlay
@@ -356,10 +455,10 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         )}
 
         <button
-          onClick={() => setShowAskModal(true)}
+          onClick={handleOpenAsk}
           type="button"
           className="absolute bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/25 shadow-2xl backdrop-blur-xl flex items-center justify-center text-white transition-all cursor-pointer z-30 ring-1 ring-white/15"
-          title="Ask Lecturer"
+          title="Ask Lecturer (pauses lesson)"
         >
           <i className="bi bi-mic-fill text-xl sm:text-2xl text-white"></i>
         </button>
@@ -375,7 +474,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
 
       <LecturerAskModal
         isOpen={showAskModal}
-        onClose={() => setShowAskModal(false)}
+        onClose={handleCloseAsk}
         onSubmitQuestion={handleAskLecturer}
         isProcessing={isProcessingAsk}
         topicTitle={topicTitle}
