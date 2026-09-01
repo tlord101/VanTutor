@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TeachingSegment, TeachingQuestion, StudentAnswerEvaluation, LiveBoardElement } from '../../types/teachingScript';
+import {
+  TeachingBoardPerformance,
+  TeachingQuestion,
+  StudentAnswerEvaluation,
+  LiveBoardElement,
+  FinalTest,
+  FinalTestQuestion,
+  TeachingStructure,
+} from '../../types/teachingScript';
 import { TeachingEngineService } from '../../services/teachingEngineService';
 import { BoardStateManager } from '../../services/boardStateManager';
 import { TeachingBoard } from './live-teaching/TeachingBoard';
@@ -39,14 +47,15 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const engineRef = useRef<TeachingEngineService | null>(null);
   const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
   const autoContinueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSegmentLoadingRef = useRef(false);
-  /** Snapshot of lesson board while we answer a side question */
+  const isLoadingBoardRef = useRef(false);
   const savedBoardRef = useRef<LiveBoardElement[] | null>(null);
 
-  const [currentSegment, setCurrentSegment] = useState<TeachingSegment | null>(null);
-  const [segmentNumber, setSegmentNumber] = useState(1);
-  const [totalEstimatedSegments, setTotalEstimatedSegments] = useState(10);
-  const [isLoadingSegment, setIsLoadingSegment] = useState(true);
+  const [structure, setStructure] = useState<TeachingStructure | null>(null);
+  const [currentBoardPerf, setCurrentBoardPerf] = useState<TeachingBoardPerformance | null>(null);
+  const [boardIndex, setBoardIndex] = useState(0);
+  const [totalBoards, setTotalBoards] = useState(5);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState('Planning live lesson structure…');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioReady, setIsAudioReady] = useState(false);
 
@@ -59,20 +68,26 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [activeQuestion, setActiveQuestion] = useState<TeachingQuestion | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<StudentAnswerEvaluation | null>(null);
-  const [completedSegmentsSummary, setCompletedSegmentsSummary] = useState<string[]>([]);
+  const [completedBoardTitles, setCompletedBoardTitles] = useState<string[]>([]);
 
-  const segmentNumberRef = useRef(segmentNumber);
-  segmentNumberRef.current = segmentNumber;
-  const totalSegmentsRef = useRef(totalEstimatedSegments);
-  totalSegmentsRef.current = totalEstimatedSegments;
-  const currentSegmentRef = useRef(currentSegment);
-  currentSegmentRef.current = currentSegment;
-  const completedSummaryRef = useRef(completedSegmentsSummary);
-  completedSummaryRef.current = completedSegmentsSummary;
+  // Final Test State
+  const [finalTest, setFinalTest] = useState<FinalTest | null>(null);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [testSubmitted, setTestSubmitted] = useState(false);
+
+  const boardIndexRef = useRef(boardIndex);
+  boardIndexRef.current = boardIndex;
+  const totalBoardsRef = useRef(totalBoards);
+  totalBoardsRef.current = totalBoards;
+  const completedTitlesRef = useRef(completedBoardTitles);
+  completedTitlesRef.current = completedBoardTitles;
   const activeQuestionRef = useRef(activeQuestion);
   activeQuestionRef.current = activeQuestion;
   const boardElementsRef = useRef(boardElements);
   boardElementsRef.current = boardElements;
+  const isGeneratingTestRef = useRef(isGeneratingTest);
+  isGeneratingTestRef.current = isGeneratingTest;
 
   useEffect(() => {
     const manager = boardManagerRef.current;
@@ -85,137 +100,128 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     return unsub;
   }, []);
 
-  const handleContinueNextSegment = useCallback(async () => {
+  const handleNextBoard = useCallback(async () => {
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
-    if (!engineRef.current || isSegmentLoadingRef.current) return;
+    if (!engineRef.current || isLoadingBoardRef.current) return;
 
-    const nextSegNum = segmentNumberRef.current + 1;
-    if (nextSegNum > totalSegmentsRef.current) {
-      addToast('Lesson complete! Well done.', 'success');
-      onClose?.();
+    const nextIdx = boardIndexRef.current + 1;
+    if (nextIdx >= totalBoardsRef.current) {
+      // Last board complete! Clear board and start final test
+      boardManagerRef.current.clearBoard();
+      setIsGeneratingTest(true);
+      setStatusMessage('Preparing your final mini test…');
+      addToast('Lesson boards complete! Generating mini test…', 'info');
+      await engineRef.current.generateFinalTest();
+      setIsGeneratingTest(false);
       return;
     }
 
-    isSegmentLoadingRef.current = true;
-    setSegmentNumber(nextSegNum);
-    setIsLoadingSegment(true);
+    isLoadingBoardRef.current = true;
+    setBoardIndex(nextIdx);
+    setIsLoading(true);
+    setStatusMessage(`Preparing Board ${nextIdx + 1} of ${totalBoardsRef.current}…`);
     setActiveQuestion(null);
     setEvaluationFeedback(null);
     setIsAudioReady(false);
 
-    boardManagerRef.current.applyAction({ id: 'pre_clear', type: 'clear_board' });
+    // Hard reset board elements between boards
+    boardManagerRef.current.clearBoard();
 
-    const prevSeg = currentSegmentRef.current;
-    if (prevSeg) {
-      setCompletedSegmentsSummary((prev) => [...prev, prevSeg.lesson.title]);
+    if (currentBoardPerf?.title) {
+      setCompletedBoardTitles((prev) => [...prev, currentBoardPerf.title]);
     }
 
-    const summaryHistory = prevSeg
-      ? [...completedSummaryRef.current, prevSeg.lesson.title].join(' -> ')
-      : completedSummaryRef.current.join(' -> ');
-
-    await engineRef.current.loadSegment({
-      topic: topicTitle,
-      courseName,
-      syllabusContext,
-      segmentNumber: nextSegNum,
-      previousSegmentsSummary: summaryHistory,
+    await engineRef.current.loadBoardPerformance({
+      boardIndex: nextIdx,
+      completedBoardsSummary: completedTitlesRef.current,
     });
-  }, [topicTitle, courseName, syllabusContext, onClose, addToast]);
+    isLoadingBoardRef.current = false;
+  }, [addToast, currentBoardPerf]);
 
-  const handleContinueRef = useRef(handleContinueNextSegment);
-  handleContinueRef.current = handleContinueNextSegment;
+  const handleNextBoardRef = useRef(handleNextBoard);
+  handleNextBoardRef.current = handleNextBoard;
 
   useEffect(() => {
     const engine = new TeachingEngineService(appSettings, null, currentVoice);
     engineRef.current = engine;
     const manager = boardManagerRef.current;
-    isSegmentLoadingRef.current = true;
+    isLoadingBoardRef.current = true;
 
     const unsubscribe = engine.subscribe({
-      onSegmentLoaded: (segment) => {
-        isSegmentLoadingRef.current = false;
-        setCurrentSegment(segment);
-        setIsLoadingSegment(false);
+      onStructureLoaded: (struct) => {
+        setStructure(struct);
+        if (struct.boards && struct.boards.length > 0) {
+          setTotalBoards(struct.boards.length);
+          setStatusMessage(`Preparing Board 1 of ${struct.boards.length}…`);
+          engine.loadBoardPerformance({
+            boardIndex: 0,
+            completedBoardsSummary: [],
+          });
+        }
+      },
+      onBoardLoaded: (perf) => {
+        isLoadingBoardRef.current = false;
+        setCurrentBoardPerf(perf);
+        setIsLoading(false);
         setIsAudioReady(false);
 
-        if (segment.lesson.totalEstimatedSegments) {
-          setTotalEstimatedSegments(segment.lesson.totalEstimatedSegments);
-        }
-
-        const transition = segment.teaching.boardTransition || 'clear_board';
-        if (transition === 'retain_persistent') {
-          manager.applyAction({ id: 'trans_retain', type: 'retain' });
-        } else {
-          manager.applyAction({ id: 'trans_clear', type: 'clear_board' });
-        }
-
-        engine.playSegmentSpeech(segment);
+        manager.clearBoard();
+        engine.playBoardSpeech(perf);
       },
       onAudioPlaybackStateChanged: (playing) => {
         setIsSpeaking(playing);
         if (playing) setIsAudioReady(true);
 
-        // After interruption answer speech ends → restore lesson board & resume
         if (!playing && isAnsweringOnBoard) {
           setIsAnsweringOnBoard(false);
           const snap = savedBoardRef.current;
           savedBoardRef.current = null;
-          manager.applyAction({ id: 'restore_clear', type: 'clear_board' });
+          manager.clearBoard();
           if (snap && snap.length) {
             snap.forEach((el) => {
-              if (el.type === 'diagram') {
+              if (el.type === 'svg') {
                 manager.applyAction({
                   id: el.id,
                   type: 'draw',
-                  persistence: el.persistence || 'temporary',
-                  groupId: el.groupId,
                   position: el.position,
                   metadata: {
-                    primitive: el.primitive,
-                    diagram: el.diagram,
-                    diagramProps: el.diagramProps,
-                    color: el.color,
+                    primitive: 'custom_svg',
+                    svgContent: el.svgContent,
                   },
                 });
               } else if (el.type === 'text' || el.type === 'formula') {
                 manager.applyAction({
                   id: el.id,
                   type: 'write',
-                  persistence: el.persistence || 'temporary',
-                  groupId: el.groupId,
                   content: el.content,
                   position: el.position,
                   metadata: {
                     latex: el.latex,
-                    fontSize: el.fontSize,
+                    fontSize: el.fontSize as any,
                     color: el.color,
                   },
-                });
-              } else if (el.type === 'label') {
-                manager.applyAction({
-                  id: el.id,
-                  type: 'label',
-                  content: el.content,
-                  position: el.position,
-                  groupId: el.groupId,
                 });
               }
             });
           }
           setIsAudioReady(true);
-          // Resume lesson segment audio from current segment
           setTimeout(() => engineRef.current?.resumeLesson(), 600);
           return;
         }
 
-        if (!playing && !activeQuestionRef.current && !isSegmentLoadingRef.current && !showAskModal) {
+        if (
+          !playing &&
+          !activeQuestionRef.current &&
+          !isLoadingBoardRef.current &&
+          !showAskModal &&
+          !isGeneratingTestRef.current
+        ) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = setTimeout(() => {
-            handleContinueRef.current();
+            handleNextBoardRef.current();
           }, 2400);
         }
       },
@@ -233,35 +239,33 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           clearTimeout(autoContinueTimerRef.current);
           autoContinueTimerRef.current = null;
         }
-        if (segmentNumberRef.current >= totalSegmentsRef.current) {
-          setActiveQuestion(question);
-          setEvaluationFeedback(null);
-        } else {
-          autoContinueTimerRef.current = setTimeout(() => {
-            handleContinueRef.current();
-          }, 2400);
-        }
+        setActiveQuestion(question);
+        setEvaluationFeedback(null);
       },
       onAnswerEvaluated: (evalResult) => {
         setEvaluationFeedback(evalResult);
         setIsSubmittingAnswer(false);
         if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
         autoContinueTimerRef.current = setTimeout(() => {
-          handleContinueRef.current();
-        }, 3400);
+          handleNextBoardRef.current();
+        }, 3200);
+      },
+      onFinalTestGenerated: (test) => {
+        setFinalTest(test);
+        setIsLoading(false);
       },
       onError: (err) => {
         console.error('[TeachingEngineView] Error:', err);
-        isSegmentLoadingRef.current = false;
-        setIsLoadingSegment(false);
+        isLoadingBoardRef.current = false;
+        setIsLoading(false);
       },
     });
 
-    engine.loadSegment({
+    // Start Phase 1: Generate Teaching Structure
+    engine.generateTeachingStructure({
       topic: topicTitle,
       courseName,
       syllabusContext,
-      segmentNumber: 1,
     });
 
     return () => {
@@ -291,9 +295,9 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     setShowVoiceModal(false);
     if (engineRef.current) {
       engineRef.current.setVoice(newVoice);
-      if (currentSegment) {
+      if (currentBoardPerf) {
         setIsAudioReady(false);
-        engineRef.current.playSegmentSpeech(currentSegment);
+        engineRef.current.playBoardSpeech(currentBoardPerf);
       }
     }
     addToast(`Lecturer voice switched to ${newVoice}`, 'success');
@@ -308,7 +312,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     });
   };
 
-  /** Mic FAB → pause lesson, open wave modal */
   const handleOpenAsk = () => {
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
@@ -321,22 +324,19 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
 
   const handleCloseAsk = () => {
     setShowAskModal(false);
-    // User cancelled — resume without wiping board
     engineRef.current?.resumeLesson();
   };
 
-  const handleAskLecturer = async (studentQuestion: string, _imageDataUrl?: string | null) => {
-    if ((!studentQuestion.trim() && !_imageDataUrl) || !engineRef.current) return;
+  const handleAskLecturer = async (studentQuestion: string) => {
+    if (!studentQuestion.trim() || !engineRef.current) return;
     if (autoContinueTimerRef.current) {
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
 
     setIsProcessingAsk(true);
-
-    // Snapshot current board, then wipe for a fresh answer board
     savedBoardRef.current = boardElementsRef.current.map((el) => ({ ...el }));
-    boardManagerRef.current.applyAction({ id: 'ask_clear', type: 'clear_board' });
+    boardManagerRef.current.clearBoard();
     setIsAnsweringOnBoard(true);
     setIsAudioReady(true);
     setShowAskModal(false);
@@ -345,13 +345,13 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
 
     await engineRef.current.askLecturerQuestion({
       topic: topicTitle,
-      studentQuestion: studentQuestion.trim() || 'Please explain based on the image I shared.',
+      studentQuestion: studentQuestion.trim(),
     });
 
     setIsProcessingAsk(false);
-    // Restore + resume happens in onAudioPlaybackStateChanged when answer speech ends
   };
 
+  // Header configuration sync
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
@@ -374,11 +374,13 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         ),
         rightActions: (
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] border border-[#1E293B] text-[10px] sm:text-xs font-mono text-slate-300">
-              <span className="text-[#38BDF8] font-bold">{String(segmentNumber).padStart(2, '0')}</span>
-              <span className="text-slate-500">/</span>
-              <span className="text-slate-400">{String(totalEstimatedSegments).padStart(2, '0')}</span>
-            </div>
+            {!finalTest && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131E32] border border-[#1E293B] text-[10px] sm:text-xs font-mono text-slate-300">
+                <span className="text-[#38BDF8] font-bold">{String(boardIndex + 1).padStart(2, '0')}</span>
+                <span className="text-slate-500">/</span>
+                <span className="text-slate-400">{String(totalBoards).padStart(2, '0')}</span>
+              </div>
+            )}
             <button
               onClick={() => setShowVoiceModal(true)}
               type="button"
@@ -395,7 +397,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
                 }`}
               />
               <span className="text-[10px] sm:text-xs font-bold text-slate-200 tracking-wider">
-                {isAnsweringOnBoard ? 'ANSWER' : isSpeaking ? 'LIVE' : showAskModal ? 'PAUSED' : 'READY'}
+                {finalTest ? 'TEST' : isAnsweringOnBoard ? 'ANSWER' : isSpeaking ? 'LIVE' : showAskModal ? 'PAUSED' : 'READY'}
               </span>
             </div>
           </div>
@@ -410,38 +412,147 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   }, [
     setCustomHeaderConfig,
     topicTitle,
-    segmentNumber,
-    totalEstimatedSegments,
+    boardIndex,
+    totalBoards,
     isSpeaking,
     currentVoice,
     handleCloseSession,
     isAnsweringOnBoard,
     showAskModal,
+    finalTest,
   ]);
+
+  // Calculate score for final mini test
+  const calculateScore = () => {
+    if (!finalTest) return 0;
+    let correct = 0;
+    finalTest.questions.forEach((q) => {
+      if (selectedAnswers[q.id] === q.correctAnswer) correct += 1;
+    });
+    return correct;
+  };
 
   return (
     <div className="flex flex-col h-full w-full bg-[#070B14] text-white select-none overflow-hidden relative">
       <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden p-1.5 sm:p-3">
-        <TeachingBoard
-          elements={boardElements}
-          activeHighlights={activeHighlights}
-          activeCircles={activeCircles}
-          activeUnderlines={activeUnderlines}
-          tutorPointer={tutorPointer}
-          isAudioReady={isAudioReady}
-        />
+        {/* Render Final Test View or Board View */}
+        {finalTest ? (
+          <div className="w-full h-full bg-[#0F172A] rounded-2xl sm:rounded-3xl border border-[#1E293B] p-4 sm:p-6 overflow-y-auto flex flex-col items-center">
+            <div className="max-w-2xl w-full flex flex-col gap-6">
+              <div className="text-center border-b border-[#1E293B] pb-4">
+                <span className="px-3 py-1 rounded-full bg-[#38BDF8]/10 text-[#38BDF8] text-xs font-bold uppercase tracking-wider">
+                  Final Mini Assessment
+                </span>
+                <h2 className="text-xl sm:text-2xl font-bold text-white mt-2">{finalTest.topic}</h2>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                  Test what you learned from today's live lecture boards.
+                </p>
+              </div>
 
-        {/* Startup / load indicator so blank wait feels intentional */}
-        {(isLoadingSegment || (!isAudioReady && !showAskModal && !isAnsweringOnBoard)) && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+              {finalTest.questions.map((q: FinalTestQuestion, idx: number) => {
+                const isSelected = Boolean(selectedAnswers[q.id]);
+                const isCorrect = selectedAnswers[q.id] === q.correctAnswer;
+
+                return (
+                  <div key={q.id} className="p-4 rounded-xl bg-[#131E32] border border-[#1E293B] flex flex-col gap-3">
+                    <p className="text-sm sm:text-base font-semibold text-slate-100">
+                      <span className="text-[#38BDF8] font-bold mr-2">{idx + 1}.</span> {q.question}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                      {q.options?.map((opt) => {
+                        const active = selectedAnswers[q.id] === opt;
+                        let optionStyle = 'bg-[#0F172A] border-[#1E293B] text-slate-300 hover:border-[#38BDF8]';
+
+                        if (testSubmitted) {
+                          if (opt === q.correctAnswer) {
+                            optionStyle = 'bg-[#34D399]/20 border-[#34D399] text-[#34D399] font-bold';
+                          } else if (active && !isCorrect) {
+                            optionStyle = 'bg-[#F43F5E]/20 border-[#F43F5E] text-[#F43F5E]';
+                          }
+                        } else if (active) {
+                          optionStyle = 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#38BDF8] font-bold';
+                        }
+
+                        return (
+                          <button
+                            key={opt}
+                            disabled={testSubmitted}
+                            onClick={() => setSelectedAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                            className={`p-3 rounded-lg border text-xs sm:text-sm text-left transition-all cursor-pointer ${optionStyle}`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {testSubmitted && (
+                      <div
+                        className={`mt-2 p-3 rounded-lg text-xs border ${
+                          isCorrect ? 'bg-[#34D399]/10 border-[#34D399]/30 text-[#34D399]' : 'bg-[#F43F5E]/10 border-[#F43F5E]/30 text-rose-300'
+                        }`}
+                      >
+                        <p className="font-bold">{isCorrect ? '✓ Correct' : '✗ Incorrect'}</p>
+                        <p className="mt-1 text-slate-300">{q.explanation}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {!testSubmitted ? (
+                <button
+                  onClick={() => {
+                    setTestSubmitted(true);
+                    addToast('Mini test submitted!', 'success');
+                  }}
+                  disabled={Object.keys(selectedAnswers).length < finalTest.questions.length}
+                  className="w-full py-3 sm:py-3.5 rounded-xl bg-[#38BDF8] hover:bg-[#0284C7] disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-lg transition-all cursor-pointer"
+                >
+                  Submit Mini Test
+                </button>
+              ) : (
+                <div className="flex flex-col items-center gap-4 bg-[#131E32] p-6 rounded-2xl border border-[#1E293B] text-center">
+                  <div className="text-3xl font-black text-[#38BDF8]">
+                    Score: {calculateScore()} / {finalTest.questions.length}
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-300">
+                    {calculateScore() === finalTest.questions.length
+                      ? 'Perfect score! You mastered every concept taught in this live lecture.'
+                      : 'Great effort! Review the explanations above to solidify your understanding.'}
+                  </p>
+                  <button
+                    onClick={handleCloseSession}
+                    className="px-6 py-2.5 rounded-full bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-bold text-sm tracking-wide shadow-lg transition-all cursor-pointer"
+                  >
+                    Finish Lesson
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <TeachingBoard
+            elements={boardElements}
+            activeHighlights={activeHighlights}
+            activeCircles={activeCircles}
+            activeUnderlines={activeUnderlines}
+            tutorPointer={tutorPointer}
+            isAudioReady={isAudioReady}
+          />
+        )}
+
+        {/* Loading Indicator */}
+        {(isLoading || (!isAudioReady && !showAskModal && !isAnsweringOnBoard && !finalTest)) && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none bg-[#070B14]/60 backdrop-blur-sm">
             <div className="w-10 h-10 rounded-full border-2 border-[#38BDF8]/30 border-t-[#38BDF8] animate-spin mb-3" />
-            <p className="text-xs font-semibold text-slate-400 tracking-wide">
-              {isLoadingSegment ? 'Preparing lesson…' : 'Starting lecturer…'}
-            </p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-300 tracking-wide">{statusMessage}</p>
           </div>
         )}
 
-        {activeQuestion && (
+        {/* Question Overlay */}
+        {activeQuestion && !finalTest && (
           <QuestionOverlay
             question={activeQuestion}
             evaluationFeedback={evaluationFeedback}
@@ -449,19 +560,22 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
             onSubmitAnswer={handleSubmitAnswer}
             onDismiss={() => {
               setActiveQuestion(null);
-              handleContinueNextSegment();
+              handleNextBoard();
             }}
           />
         )}
 
-        <button
-          onClick={handleOpenAsk}
-          type="button"
-          className="absolute bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/25 shadow-2xl backdrop-blur-xl flex items-center justify-center text-white transition-all cursor-pointer z-30 ring-1 ring-white/15"
-          title="Ask Lecturer (pauses lesson)"
-        >
-          <i className="bi bi-mic-fill text-xl sm:text-2xl text-white"></i>
-        </button>
+        {/* Ask Lecturer Mic FAB */}
+        {!finalTest && (
+          <button
+            onClick={handleOpenAsk}
+            type="button"
+            className="absolute bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/25 shadow-2xl backdrop-blur-xl flex items-center justify-center text-white transition-all cursor-pointer z-30 ring-1 ring-white/15"
+            title="Ask Lecturer (pauses lesson)"
+          >
+            <i className="bi bi-mic-fill text-xl sm:text-2xl text-white"></i>
+          </button>
+        )}
       </main>
 
       <LiveTutorialVoiceSelectorModal

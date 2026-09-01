@@ -3,6 +3,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { LiveBoardElement } from '../../../types/teachingScript';
 import { BoardDiagramPrimitives } from './BoardDiagramPrimitives';
+import { sanitizeSvg } from '../../../utils/svgSanitizer';
 
 export interface TeachingBoardProps {
   elements: LiveBoardElement[];
@@ -50,11 +51,11 @@ const TypedText: React.FC<{
 };
 
 /**
- * Fixed viewport whiteboard:
- * - Title top
- * - Key points as tight bullets (left / upper)
- * - Large illustration as visual focus
- * - Reveal only after voice starts + typing animation
+ * Fixed viewport digital chalkboard:
+ * - Clean title at top
+ * - Concise, progressive text and formulas
+ * - AI-generated custom SVG illustration visual anchor
+ * - Synchronized highlight / circle overlays
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
@@ -144,22 +145,43 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                 (el.content || '').trim().startsWith('-') ||
                 posX < 40);
 
-            // Diagrams: larger footprint, less vertical emptiness
-            const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 280 : 360;
-            const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 170 : 230;
+            const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 300 : 420;
+            const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 190 : 260;
+
+            const safeSvg = el.type === 'svg' || el.svgContent ? sanitizeSvg(el.svgContent) : null;
 
             return (
               <div
                 key={el.id}
-                className="absolute pointer-events-none"
+                className="absolute pointer-events-none transition-all duration-300"
                 style={{
                   left: `${posX}%`,
                   top: `${posY}%`,
                   transform: isKeyPoint ? 'translate(0, -50%)' : 'translate(-50%, -50%)',
-                  maxWidth: isTitle ? '88%' : isKeyPoint ? '42%' : el.type === 'diagram' ? '72%' : '70%',
-                  width: el.type === 'diagram' ? `${Math.min(72, diagramWidth / 4)}%` : undefined,
+                  maxWidth: isTitle
+                    ? '88%'
+                    : isKeyPoint
+                      ? '42%'
+                      : el.type === 'diagram' || el.type === 'svg'
+                        ? '80%'
+                        : '70%',
+                  width: el.type === 'diagram' || el.type === 'svg' ? `${Math.min(80, diagramWidth / 4)}%` : undefined,
                 }}
               >
+                {/* SVG Illustration Element */}
+                {(el.type === 'svg' || safeSvg) && safeSvg && (
+                  <div className="relative flex flex-col items-center justify-center w-full max-h-[220px] sm:max-h-[300px]">
+                    <div
+                      className="w-full h-full flex items-center justify-center text-slate-100 [&_svg]:max-w-full [&_svg]:max-h-[220px] sm:[&_svg]:max-h-[300px] [&_svg]:w-auto [&_svg]:h-auto"
+                      dangerouslySetInnerHTML={{ __html: safeSvg }}
+                    />
+                    {isCircled && (
+                      <div className="absolute inset-0 rounded-xl ring-2 ring-[#38BDF8]/60 pointer-events-none animate-pulse" />
+                    )}
+                  </div>
+                )}
+
+                {/* Formula Element */}
                 {(el.type === 'formula' || el.latex) && (
                   <div className="relative flex flex-col items-center justify-center px-1">
                     <div
@@ -182,7 +204,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
-                {el.type === 'diagram' && (
+                {/* Legacy Diagram Fallback Element */}
+                {el.type === 'diagram' && !safeSvg && (
                   <div className="relative flex flex-col items-center justify-center w-full">
                     <BoardDiagramPrimitives
                       type={el.primitive || 'concept_map'}
@@ -202,6 +225,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
+                {/* Arrow Element */}
                 {el.type === 'arrow' && (
                   <div className="flex items-center gap-1.5 justify-center">
                     <svg width="36" height="18" viewBox="0 0 40 20">
@@ -214,12 +238,14 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
+                {/* Label Element */}
                 {el.type === 'label' && (
                   <span className="text-[10px] sm:text-xs font-bold text-[#FACC15] block text-center px-1">
                     {el.content}
                   </span>
                 )}
 
+                {/* Text Element */}
                 {el.type === 'text' && !el.latex && (
                   <div className={`relative px-1 ${isKeyPoint ? 'text-left' : 'text-center'} max-w-full`}>
                     <TypedText
@@ -247,7 +273,7 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
 
         {tutorPointer && tutorPointer.active && (
           <div
-            className="absolute z-30 w-3 h-3 rounded-full bg-[#38BDF8] shadow-[0_0_12px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2"
+            className="absolute z-30 w-3.5 h-3.5 rounded-full bg-[#38BDF8] shadow-[0_0_14px_#38BDF8] pointer-events-none -translate-x-1/2 -translate-y-1/2 animate-ping"
             style={{ left: `${tutorPointer.x}%`, top: `${tutorPointer.y}%` }}
           />
         )}
