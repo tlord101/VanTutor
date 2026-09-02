@@ -1,12 +1,18 @@
 /**
- * Live Board State Manager
- * - Handles fixed viewport board elements (text, formulas, custom SVG, diagrams, labels)
- * - Managed runtime state machine (IDLE, PREPARING, RENDERING, SPEAKING, WAITING_FOR_ANSWER, etc.)
- * - Provides clean clearBoard() operation resetting text, formulas, SVG, highlights, pointers, question elements, and focus state.
+ * Live Board State Manager — illustration-first layout enforcement
  */
 
 import { BoardAction, LiveBoardElement, BoardState, TeachingRuntimeState } from '../types/teachingScript';
 import { sanitizeSvg } from '../utils/svgSanitizer';
+import {
+  clampTitlePosition,
+  clampTextPosition,
+  clampFormulaPosition,
+  clampIllustrationPosition,
+  truncateBoardText,
+  MAX_TEXT_ELEMENTS,
+  ILLUSTRATION_COLORS,
+} from './boardIllustrationRules';
 
 export class BoardStateManager {
   private elements: Map<string, LiveBoardElement> = new Map();
@@ -67,6 +73,14 @@ export class BoardStateManager {
     this.notify();
   }
 
+  private countTextElements(): number {
+    let n = 0;
+    for (const el of this.elements.values()) {
+      if (el.type === 'text' || el.type === 'label') n += 1;
+    }
+    return n;
+  }
+
   public applyAction(action: BoardAction): void {
     const actionId = action.id || `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
@@ -122,10 +136,19 @@ export class BoardStateManager {
 
       case 'reveal':
       case 'write': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 28;
-        const isTitle = posY <= 16 && !action.content?.includes('\n') && (action.content?.length || 0) < 60;
+        const rawX = action.position?.x ?? action.metadata?.x ?? 50;
+        const rawY = action.position?.y ?? action.metadata?.y ?? 28;
         const isLatex = Boolean(action.metadata?.latex);
+        const isTitle =
+          !isLatex &&
+          rawY <= 16 &&
+          !action.content?.includes('\n') &&
+          (action.content?.length || 0) < 60;
+
+        // Cap secondary text so the figure stays primary
+        if (!isLatex && !isTitle && this.countTextElements() >= MAX_TEXT_ELEMENTS) {
+          break;
+        }
 
         if (isTitle) {
           for (const [existingId, existingEl] of this.elements.entries()) {
@@ -135,19 +158,24 @@ export class BoardStateManager {
           }
         }
 
+        const pos = isLatex
+          ? clampFormulaPosition(rawX, rawY)
+          : isTitle
+            ? clampTitlePosition(rawX, rawY)
+            : clampTextPosition(rawX, rawY);
+
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
           persistence: isTitle ? 'persistent' : action.persistence || 'temporary',
           type: isLatex ? 'formula' : 'text',
-          content: action.content || '',
+          content: truncateBoardText(action.content || ''),
           latex: action.metadata?.latex,
-          position: {
-            x: Math.max(10, Math.min(90, posX)),
-            y: Math.max(6, Math.min(92, posY)),
-          },
+          position: pos,
           fontSize: action.metadata?.fontSize || (isLatex ? '3xl' : isTitle ? '2xl' : 'xl'),
-          color: action.metadata?.color || (isLatex ? '#38BDF8' : '#FFFFFF'),
+          color:
+            action.metadata?.color ||
+            (isLatex ? ILLUSTRATION_COLORS.accent : ILLUSTRATION_COLORS.white),
           progress: 1.0,
           createdAt: Date.now(),
         };
@@ -156,10 +184,13 @@ export class BoardStateManager {
       }
 
       case 'draw': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 60;
+        const rawX = action.position?.x ?? action.metadata?.x ?? 50;
+        const rawY = action.position?.y ?? action.metadata?.y ?? 55;
+        const pos = clampIllustrationPosition(rawX, rawY);
 
-        const rawSvg = action.metadata?.svgContent || (typeof action.content === 'string' && action.content.includes('<svg') ? action.content : null);
+        const rawSvg =
+          action.metadata?.svgContent ||
+          (typeof action.content === 'string' && action.content.includes('<svg') ? action.content : null);
         const cleanSvg = sanitizeSvg(rawSvg);
 
         if (cleanSvg) {
@@ -170,16 +201,13 @@ export class BoardStateManager {
             type: 'svg',
             svgContent: cleanSvg,
             primitive: 'custom_svg',
-            position: {
-              x: Math.max(15, Math.min(85, posX)),
-              y: Math.max(25, Math.min(85, posY)),
-            },
+            position: pos,
             progress: 1.0,
             createdAt: Date.now(),
           };
           this.elements.set(svgEl.id, svgEl);
-        } else if ((action.metadata as any)?.drawType) {
-          const meta = action.metadata as any;
+        } else if (action.metadata?.drawType) {
+          const meta = action.metadata;
           const pathEl: LiveBoardElement = {
             id: action.id || actionId,
             groupId: action.groupId,
@@ -197,15 +225,12 @@ export class BoardStateManager {
               cy: meta.cy,
               r: meta.r,
               label: meta.label || action.content,
-              strokeWidth: meta.strokeWidth || 2.5,
+              strokeWidth: meta.strokeWidth || 2.8,
               durationMs: meta.durationMs || 900,
               fill: meta.fill,
             },
-            position: {
-              x: Math.max(10, Math.min(90, posX)),
-              y: Math.max(15, Math.min(90, posY)),
-            },
-            color: action.metadata?.color || '#38BDF8',
+            position: pos,
+            color: meta.color || ILLUSTRATION_COLORS.accent,
             progress: 0,
             createdAt: Date.now(),
           };
@@ -236,11 +261,8 @@ export class BoardStateManager {
               diagram: composed,
             },
             diagram: composed,
-            position: {
-              x: Math.max(25, Math.min(75, posX)),
-              y: Math.max(35, Math.min(80, posY)),
-            },
-            color: action.metadata?.color || '#38BDF8',
+            position: pos,
+            color: action.metadata?.color || ILLUSTRATION_COLORS.accent,
             progress: 1.0,
             createdAt: Date.now(),
           };
@@ -250,19 +272,18 @@ export class BoardStateManager {
       }
 
       case 'arrow': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 50;
-        const posY = action.position?.y ?? action.metadata?.y ?? 50;
+        const pos = clampIllustrationPosition(
+          action.position?.x ?? action.metadata?.x,
+          action.position?.y ?? action.metadata?.y
+        );
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
           persistence: 'temporary',
           type: 'arrow',
-          content: action.content || '',
-          position: {
-            x: Math.max(10, Math.min(90, posX)),
-            y: Math.max(10, Math.min(90, posY)),
-          },
-          color: action.metadata?.color || '#FACC15',
+          content: truncateBoardText(action.content || '', 40),
+          position: pos,
+          color: action.metadata?.color || ILLUSTRATION_COLORS.warn,
           progress: 1.0,
           createdAt: Date.now(),
         };
@@ -271,19 +292,19 @@ export class BoardStateManager {
       }
 
       case 'label': {
-        const posX = action.position?.x ?? action.metadata?.x ?? 55;
-        const posY = action.position?.y ?? action.metadata?.y ?? 86;
+        const pos = clampTextPosition(
+          action.position?.x ?? action.metadata?.x ?? 55,
+          action.position?.y ?? action.metadata?.y ?? 86
+        );
+        if (this.countTextElements() >= MAX_TEXT_ELEMENTS) break;
         const newEl: LiveBoardElement = {
           id: action.id || actionId,
           groupId: action.groupId,
           persistence: 'temporary',
           type: 'label',
-          content: action.content || '',
-          position: {
-            x: Math.max(10, Math.min(90, posX)),
-            y: Math.max(10, Math.min(92, posY)),
-          },
-          color: action.metadata?.color || '#FACC15',
+          content: truncateBoardText(action.content || '', 40),
+          position: pos,
+          color: action.metadata?.color || ILLUSTRATION_COLORS.warn,
           fontSize: 'lg',
           progress: 1.0,
           createdAt: Date.now(),
