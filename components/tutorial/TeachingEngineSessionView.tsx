@@ -14,20 +14,28 @@ import { TeachingBoard } from './live-teaching/TeachingBoard';
 import { QuestionOverlay } from './live-teaching/QuestionOverlay';
 import { LecturerAskModal } from './live-teaching/LecturerAskModal';
 import { LiveTutorialVoiceSelectorModal } from './LiveTutorialVoiceSelectorModal';
+import { LessonDurationModal, type LessonDurationMode } from './LessonDurationModal';
 import { unifiedVoiceRouter } from '../../services/voice/UnifiedVoiceRouter';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useToast } from '../../hooks/useToast';
+import {
+  topicKeyFromTitle,
+  getLiveTeachingProgress,
+  saveLiveTeachingProgress,
+  formatResumeLabel,
+} from '../../services/liveTeachingProgressService';
 
 export interface TeachingEngineSessionViewProps {
   topicTitle: string;
   courseName?: string;
   syllabusContext?: string;
   initialVoice?: string;
+  initialDurationMode?: LessonDurationMode;
+  userId?: string;
   onClose?: () => void;
   setCustomHeaderConfig?: (config: any) => void;
 }
 
-/** Minimum reading pause duration (ms) after speech ends before auto-advancing */
 const KEY_POINT_PAUSE_MS = 5000;
 
 export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps> = ({
@@ -35,6 +43,8 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   courseName = 'Academic Course',
   syllabusContext,
   initialVoice = 'Altair',
+  initialDurationMode,
+  userId = 'anon',
   onClose,
   setCustomHeaderConfig,
 }) => {
@@ -46,6 +56,16 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [showAskModal, setShowAskModal] = useState(false);
   const [isProcessingAsk, setIsProcessingAsk] = useState(false);
   const [isAnsweringOnBoard, setIsAnsweringOnBoard] = useState(false);
+
+  const topicKey = topicKeyFromTitle(topicTitle, courseName);
+  const savedProgress = getLiveTeachingProgress(userId, topicKey);
+  const [durationMode, setDurationMode] = useState<LessonDurationMode | null>(initialDurationMode ?? null);
+  const [showDurationModal, setShowDurationModal] = useState(!initialDurationMode);
+  const [sessionStarted, setSessionStarted] = useState(Boolean(initialDurationMode));
+  const [resumeInfo] = useState(() =>
+    savedProgress && !savedProgress.isCompleted && savedProgress.structure ? savedProgress : null
+  );
+  const startBoardIndexRef = useRef(0);
 
   const engineRef = useRef<TeachingEngineService | null>(null);
   const boardManagerRef = useRef<BoardStateManager>(new BoardStateManager());
@@ -73,7 +93,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
   const [evaluationFeedback, setEvaluationFeedback] = useState<StudentAnswerEvaluation | null>(null);
   const [completedBoardTitles, setCompletedBoardTitles] = useState<string[]>([]);
 
-  // Final Test State
   const [finalTest, setFinalTest] = useState<FinalTest | null>(null);
   const [isGeneratingTest, setIsGeneratingTest] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
@@ -114,7 +133,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
 
     const nextIdx = boardIndexRef.current + 1;
     if (nextIdx >= totalBoardsRef.current) {
-      // Last board complete! Clear board and start final test
       boardManagerRef.current.clearBoard();
       setIsGeneratingTest(true);
       setStatusMessage('Preparing your final mini test…');
@@ -131,8 +149,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     setActiveQuestion(null);
     setEvaluationFeedback(null);
     setIsAudioReady(false);
-
-    // Hard reset board elements between boards
     boardManagerRef.current.clearBoard();
 
     if (currentBoardPerf?.title) {
@@ -161,10 +177,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         if (struct.boards && struct.boards.length > 0) {
           setTotalBoards(struct.boards.length);
           setStatusMessage(`Preparing Board 1 of ${struct.boards.length}…`);
-          engine.loadBoardPerformance({
-            boardIndex: 0,
-            completedBoardsSummary: [],
-          });
+          engine.loadBoardPerformance({ boardIndex: 0, completedBoardsSummary: [] });
         }
       },
       onBoardLoaded: (perf) => {
@@ -172,9 +185,23 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
         setCurrentBoardPerf(perf);
         setIsLoading(false);
         setIsAudioReady(false);
-
         manager.clearBoard();
         engine.playBoardSpeech(perf);
+
+        const struct = engine.getCurrentStructure();
+        const idx = engine.getCurrentBoardIndex();
+        void saveLiveTeachingProgress(userId, {
+          topicKey,
+          topicTitle,
+          courseName,
+          durationMode: engine.getDurationMode(),
+          boardIndex: idx,
+          totalBoards: struct?.boards?.length || totalBoardsRef.current,
+          chapterTitle: (struct?.boards?.[idx] as any)?.chapter || perf.title,
+          structure: struct,
+          lastBoardTitle: perf.title,
+          isCompleted: false,
+        });
       },
       onAudioPlaybackStateChanged: (playing) => {
         setIsSpeaking(playing);
@@ -192,10 +219,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
                   id: el.id,
                   type: 'draw',
                   position: el.position,
-                  metadata: {
-                    primitive: 'custom_svg',
-                    svgContent: el.svgContent,
-                  },
+                  metadata: { primitive: 'custom_svg', svgContent: el.svgContent },
                 });
               } else if (el.type === 'text' || el.type === 'formula') {
                 manager.applyAction({
@@ -203,11 +227,14 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
                   type: 'write',
                   content: el.content,
                   position: el.position,
-                  metadata: {
-                    latex: el.latex,
-                    fontSize: el.fontSize as any,
-                    color: el.color,
-                  },
+                  metadata: { latex: el.latex, fontSize: el.fontSize as any, color: el.color },
+                });
+              } else if (el.type === 'diagram' && el.diagramProps?.drawType) {
+                manager.applyAction({
+                  id: el.id,
+                  type: 'draw',
+                  position: el.position,
+                  metadata: { ...el.diagramProps, color: el.color } as any,
                 });
               }
             });
@@ -217,7 +244,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           return;
         }
 
-        // Calculate intelligent reading pause after speech finishes
         if (
           !playing &&
           !activeQuestionRef.current &&
@@ -226,13 +252,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           !isGeneratingTestRef.current
         ) {
           if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
-
           const perf = currentBoardPerfRef.current;
           const hasFormulaOrCalculation = perf?.board_actions?.some(
             (a) => a.metadata?.latex || a.content?.includes('=')
           );
           const readingPauseMs = hasFormulaOrCalculation ? KEY_POINT_PAUSE_MS + 2500 : KEY_POINT_PAUSE_MS;
-
           autoContinueTimerRef.current = setTimeout(() => {
             handleNextBoardRef.current();
           }, readingPauseMs);
@@ -266,6 +290,17 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       onFinalTestGenerated: (test) => {
         setFinalTest(test);
         setIsLoading(false);
+        void saveLiveTeachingProgress(userId, {
+          topicKey,
+          topicTitle,
+          courseName,
+          durationMode: engine.getDurationMode(),
+          boardIndex: totalBoardsRef.current,
+          totalBoards: totalBoardsRef.current,
+          structure: engine.getCurrentStructure(),
+          lastBoardTitle: 'Final test',
+          isCompleted: true,
+        });
       },
       onError: (err) => {
         console.error('[TeachingEngineView] Error:', err);
@@ -274,12 +309,33 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       },
     });
 
-    // Start Phase 1: Generate Teaching Structure
-    engine.generateTeachingStructure({
-      topic: topicTitle,
-      courseName,
-      syllabusContext,
-    });
+    if (!sessionStarted || !durationMode) {
+      return () => {
+        unsubscribe();
+      };
+    }
+
+    engine.setDurationMode(durationMode);
+
+    if (startBoardIndexRef.current > 0 && resumeInfo?.structure) {
+      engine.setStructure(resumeInfo.structure);
+      setStructure(resumeInfo.structure);
+      setTotalBoards(resumeInfo.structure.boards?.length || resumeInfo.totalBoards);
+      setBoardIndex(startBoardIndexRef.current);
+      setStatusMessage(`Resuming Board ${startBoardIndexRef.current + 1}…`);
+      engine.loadBoardPerformance({
+        boardIndex: startBoardIndexRef.current,
+        completedBoardsSummary:
+          resumeInfo.structure.boards?.slice(0, startBoardIndexRef.current).map((b: any) => b.title) || [],
+      });
+    } else {
+      engine.generateTeachingStructure({
+        topic: topicTitle,
+        courseName,
+        syllabusContext,
+        durationMode,
+      });
+    }
 
     return () => {
       if (autoContinueTimerRef.current) clearTimeout(autoContinueTimerRef.current);
@@ -288,7 +344,7 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       unifiedVoiceRouter.stopAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topicTitle, courseName, syllabusContext]);
+  }, [topicTitle, courseName, syllabusContext, sessionStarted, durationMode]);
 
   const handleCloseSession = useCallback(() => {
     if (autoContinueTimerRef.current) {
@@ -346,25 +402,20 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
       clearTimeout(autoContinueTimerRef.current);
       autoContinueTimerRef.current = null;
     }
-
     setIsProcessingAsk(true);
     savedBoardRef.current = boardElementsRef.current.map((el) => ({ ...el }));
     boardManagerRef.current.clearBoard();
     setIsAnsweringOnBoard(true);
     setIsAudioReady(true);
     setShowAskModal(false);
-
     addToast('Answering on a fresh board…', 'info');
-
     await engineRef.current.askLecturerQuestion({
       topic: topicTitle,
       studentQuestion: studentQuestion.trim(),
     });
-
     setIsProcessingAsk(false);
   };
 
-  // Header configuration sync
   useEffect(() => {
     if (setCustomHeaderConfig) {
       setCustomHeaderConfig({
@@ -382,6 +433,11 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
               <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[150px] sm:max-w-md">
                 {topicTitle}
               </h1>
+              {durationMode && (
+                <span className="hidden sm:inline text-[10px] font-mono text-slate-400 border border-[#1E293B] px-1.5 py-0.5 rounded">
+                  {durationMode}m
+                </span>
+              )}
             </div>
           </div>
         ),
@@ -433,9 +489,9 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     isAnsweringOnBoard,
     showAskModal,
     finalTest,
+    durationMode,
   ]);
 
-  // Calculate score for final mini test
   const calculateScore = () => {
     if (!finalTest) return 0;
     let correct = 0;
@@ -445,10 +501,46 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
     return correct;
   };
 
+  const handleDurationConfirm = (mode: LessonDurationMode) => {
+    setDurationMode(mode);
+    startBoardIndexRef.current = 0;
+    setShowDurationModal(false);
+    setSessionStarted(true);
+    setIsLoading(true);
+    setStatusMessage('Planning live lesson structure…');
+  };
+
+  const handleResume = () => {
+    if (!resumeInfo) return;
+    setDurationMode(resumeInfo.durationMode);
+    startBoardIndexRef.current = resumeInfo.boardIndex;
+    setShowDurationModal(false);
+    setSessionStarted(true);
+    setIsLoading(true);
+    setStatusMessage(`Resuming from Board ${resumeInfo.boardIndex + 1}…`);
+    addToast('Continuing where you left off', 'info');
+  };
+
+  if (showDurationModal || !sessionStarted) {
+    return (
+      <div className="flex flex-col h-full w-full bg-[#070B14] text-white relative">
+        <LessonDurationModal
+          isOpen
+          topicTitle={topicTitle}
+          onClose={() => onClose?.()}
+          onConfirm={handleDurationConfirm}
+          initialMode={30}
+          resumeAvailable={Boolean(resumeInfo)}
+          resumeLabel={resumeInfo ? formatResumeLabel(resumeInfo) : undefined}
+          onResume={handleResume}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full w-full bg-[#070B14] text-white select-none overflow-hidden relative">
       <main className="flex-1 relative flex flex-col min-h-0 w-full overflow-hidden p-1.5 sm:p-3">
-        {/* Render Final Test View or Board View */}
         {finalTest ? (
           <div className="w-full h-full bg-[#0F172A] rounded-2xl sm:rounded-3xl border border-[#1E293B] p-4 sm:p-6 overflow-y-auto flex flex-col items-center">
             <div className="max-w-2xl w-full flex flex-col gap-6">
@@ -463,30 +555,22 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
               </div>
 
               {finalTest.questions.map((q: FinalTestQuestion, idx: number) => {
-                const isSelected = Boolean(selectedAnswers[q.id]);
                 const isCorrect = selectedAnswers[q.id] === q.correctAnswer;
-
                 return (
                   <div key={q.id} className="p-4 rounded-xl bg-[#131E32] border border-[#1E293B] flex flex-col gap-3">
                     <p className="text-sm sm:text-base font-semibold text-slate-100">
                       <span className="text-[#38BDF8] font-bold mr-2">{idx + 1}.</span> {q.question}
                     </p>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                       {q.options?.map((opt) => {
                         const active = selectedAnswers[q.id] === opt;
                         let optionStyle = 'bg-[#0F172A] border-[#1E293B] text-slate-300 hover:border-[#38BDF8]';
-
                         if (testSubmitted) {
-                          if (opt === q.correctAnswer) {
-                            optionStyle = 'bg-[#34D399]/20 border-[#34D399] text-[#34D399] font-bold';
-                          } else if (active && !isCorrect) {
-                            optionStyle = 'bg-[#F43F5E]/20 border-[#F43F5E] text-[#F43F5E]';
-                          }
+                          if (opt === q.correctAnswer) optionStyle = 'bg-[#34D399]/20 border-[#34D399] text-[#34D399] font-bold';
+                          else if (active && !isCorrect) optionStyle = 'bg-[#F43F5E]/20 border-[#F43F5E] text-[#F43F5E]';
                         } else if (active) {
                           optionStyle = 'bg-[#38BDF8]/20 border-[#38BDF8] text-[#38BDF8] font-bold';
                         }
-
                         return (
                           <button
                             key={opt}
@@ -499,11 +583,12 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
                         );
                       })}
                     </div>
-
                     {testSubmitted && (
                       <div
                         className={`mt-2 p-3 rounded-lg text-xs border ${
-                          isCorrect ? 'bg-[#34D399]/10 border-[#34D399]/30 text-[#34D399]' : 'bg-[#F43F5E]/10 border-[#F43F5E]/30 text-rose-300'
+                          isCorrect
+                            ? 'bg-[#34D399]/10 border-[#34D399]/30 text-[#34D399]'
+                            : 'bg-[#F43F5E]/10 border-[#F43F5E]/30 text-rose-300'
                         }`}
                       >
                         <p className="font-bold">{isCorrect ? '✓ Correct' : '✗ Incorrect'}</p>
@@ -556,7 +641,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           />
         )}
 
-        {/* Loading Indicator */}
         {(isLoading || (!isAudioReady && !showAskModal && !isAnsweringOnBoard && !finalTest)) && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none bg-[#070B14]/60 backdrop-blur-sm">
             <div className="w-10 h-10 rounded-full border-2 border-[#38BDF8]/30 border-t-[#38BDF8] animate-spin mb-3" />
@@ -564,7 +648,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           </div>
         )}
 
-        {/* Question Overlay */}
         {activeQuestion && !finalTest && (
           <QuestionOverlay
             question={activeQuestion}
@@ -578,7 +661,6 @@ export const TeachingEngineSessionView: React.FC<TeachingEngineSessionViewProps>
           />
         )}
 
-        {/* Ask Lecturer Mic FAB */}
         {!finalTest && (
           <button
             onClick={handleOpenAsk}
