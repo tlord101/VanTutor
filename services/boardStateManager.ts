@@ -61,10 +61,6 @@ export class BoardStateManager {
     this.focusedElementId = null;
   }
 
-  /**
-   * Resets and clears the board completely between boards:
-   * Clears text, formulas, custom SVGs, diagrams, labels, overlays, and focus targets.
-   */
   public clearBoard() {
     this.elements.clear();
     this.clearOverlays();
@@ -150,7 +146,7 @@ export class BoardStateManager {
             x: Math.max(10, Math.min(90, posX)),
             y: Math.max(6, Math.min(92, posY)),
           },
-          fontSize: action.metadata?.fontSize || (isLatex ? '2xl' : isTitle ? 'xl' : 'md'),
+          fontSize: action.metadata?.fontSize || (isLatex ? '3xl' : isTitle ? '2xl' : 'xl'),
           color: action.metadata?.color || (isLatex ? '#38BDF8' : '#FFFFFF'),
           progress: 1.0,
           createdAt: Date.now(),
@@ -163,7 +159,6 @@ export class BoardStateManager {
         const posX = action.position?.x ?? action.metadata?.x ?? 50;
         const posY = action.position?.y ?? action.metadata?.y ?? 60;
 
-        // If action contains raw SVG content (or custom SVG primitive)
         const rawSvg = action.metadata?.svgContent || (typeof action.content === 'string' && action.content.includes('<svg') ? action.content : null);
         const cleanSvg = sanitizeSvg(rawSvg);
 
@@ -183,6 +178,51 @@ export class BoardStateManager {
             createdAt: Date.now(),
           };
           this.elements.set(svgEl.id, svgEl);
+        } else if ((action.metadata as any)?.drawType) {
+          const meta = action.metadata as any;
+          const pathEl: LiveBoardElement = {
+            id: action.id || actionId,
+            groupId: action.groupId,
+            persistence: 'temporary',
+            type: 'diagram',
+            primitive: 'custom',
+            diagramProps: {
+              drawType: meta.drawType,
+              d: meta.d,
+              x1: meta.x1,
+              y1: meta.y1,
+              x2: meta.x2,
+              y2: meta.y2,
+              cx: meta.cx,
+              cy: meta.cy,
+              r: meta.r,
+              label: meta.label || action.content,
+              strokeWidth: meta.strokeWidth || 2.5,
+              durationMs: meta.durationMs || 900,
+              fill: meta.fill,
+            },
+            position: {
+              x: Math.max(10, Math.min(90, posX)),
+              y: Math.max(15, Math.min(90, posY)),
+            },
+            color: action.metadata?.color || '#38BDF8',
+            progress: 0,
+            createdAt: Date.now(),
+          };
+          this.elements.set(pathEl.id, pathEl);
+          const elId = pathEl.id;
+          const dur = meta.durationMs || 900;
+          const start = Date.now();
+          const tick = () => {
+            const el = this.elements.get(elId);
+            if (!el) return;
+            const t = Math.min(1, (Date.now() - start) / dur);
+            el.progress = t;
+            this.elements.set(elId, { ...el });
+            this.notify();
+            if (t < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
         } else {
           const composed = action.metadata?.diagram;
           const diagramEl: LiveBoardElement = {
@@ -244,7 +284,7 @@ export class BoardStateManager {
             y: Math.max(10, Math.min(92, posY)),
           },
           color: action.metadata?.color || '#FACC15',
-          fontSize: 'sm',
+          fontSize: 'lg',
           progress: 1.0,
           createdAt: Date.now(),
         };
