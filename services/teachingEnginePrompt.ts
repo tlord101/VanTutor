@@ -1,67 +1,71 @@
 /**
  * Teaching Director Prompts — Live Digital Lecturer Architecture
- *
- * Request 1: Teaching Structure Planner (Creates overall board sequence)
- * Request 2: Single Board Performance Generator (Generates speech, beats, actions, custom SVG, question)
- * Request 3: Final Mini Test Generator (3-5 questions testing taught material)
+ * Duration modes: 15 / 30 / 60 with distinct mechanisms.
+ * Board: illustration-first via path commands; text secondary; large readable type.
  */
+
+import type { LessonDurationMode } from '../components/tutorial/LessonDurationModal';
+import { getDurationProfile } from './durationTeachingProfiles';
 
 export const TEACHING_DIRECTOR_SYSTEM_PROMPT = `You are Avelut's AI Teaching Director performing as a world-class university lecturer at a live digital chalkboard.
 
 CORE PHILOSOPHY:
 - You are an EDUCATIONAL SCIENTIFIC ILLUSTRATOR and LECTURER, NOT a text generator or icon picker.
-- You talk directly to the student in natural spoken language with realistic lecturer mannerisms ("Alright, let's look at this...", "Now, notice what happens when...", "Keep this idea in mind.").
-- You use the board as a visual workspace — concise key notes, clean LaTeX formulas, and concept-specific SVG illustrations.
-- You NEVER put giant walls of text on the board. The speech provides the verbal depth; the board provides clean visual anchors.
-- You synchronize speech beats with progressive board writing and animatable SVG component reveals.
+- You talk directly to the student in natural spoken language.
+- BOARD PRIORITY: illustrations first (drawn with path/line/arrow/circle commands). Text is secondary — short titles, bullets, definitions, or one worked line/formula.
+- NEVER put giant walls of text on the board. Speech carries verbal depth.
+- Do NOT use predefined diagram primitives (no physics_block, scene_classroom, etc.). Compose scenes from path commands or optional full SVG.
+- Synchronize speech beats with progressive board drawing.
 
 HARD OUTPUT REQUIREMENT:
 Return ONLY clean, valid JSON matching the exact schema requested without markdown wrappers or trailing comments.`;
 
-/**
- * REQUEST 1: TEACHING STRUCTURE PLANNER
- */
 export function buildTeachingStructurePrompt(params: {
   topic: string;
   courseName?: string;
   syllabusContext?: string;
   studentName?: string;
+  durationMode?: LessonDurationMode;
 }): string {
-  const { topic, courseName, syllabusContext, studentName } = params;
+  const { topic, courseName, syllabusContext, studentName, durationMode = 30 } = params;
   const resolvedName = studentName || 'Student';
+  const profile = getDurationProfile(durationMode);
 
   return `Prepare a pedagogical Teaching Structure for the topic: "${topic}"
 ${courseName ? `Course: ${courseName}\n` : ''}${syllabusContext ? `Syllabus/Context: ${syllabusContext}\n` : ''}Student Name: ${resolvedName}
+TARGET DURATION MODE: ${durationMode} minutes
 
-You are an expert university professor planning a complete live lesson.
-Determine the optimal 4 to 8 teaching board progression for this exact topic.
+You are an expert university professor planning a live lesson for ~${durationMode} minutes of content.
 
-Do NOT force a generic sequence. Craft a sequence suited specifically to "${topic}":
-- What intuition or hook is needed first?
-- What definitions or prerequisites are needed?
-- What physical/conceptual mechanism needs a custom SVG diagram?
-- Where should a worked calculation or step-by-step example occur?
-- Where should a check-for-understanding question occur?
-- How should the lesson conclude?
+BOARD COUNT: ${profile.boardCountHint}
+
+Do NOT force a generic sequence. Craft a sequence suited specifically to "${topic}".
+
+${profile.structureExtra}
+
+${durationMode === 60 ? `For 60-minute mode: organize boards into chapters (put chapter in titles). Include natural break-friendly boards. The student may pause and resume later.` : ''}
 
 JSON OUTPUT SCHEMA:
 {
   "topic": "${topic}",
-  "teaching_strategy": "Brief description of the pedagogical strategy used",
+  "teaching_strategy": "Brief description including duration mode ${durationMode}m",
   "learning_goal": "Clear statement of what the student will master by the end",
+  "duration_minutes": ${durationMode},
+  "chapters": ["optional chapter titles for 30/60 mode"],
   "boards": [
     {
       "board_id": "board_1",
       "board_number": 1,
       "title": "Clear concise board title",
+      "chapter": "optional chapter name",
       "step_type": "hook" | "intuition" | "concept" | "definition" | "mechanism" | "comparison" | "derivation" | "worked_example" | "application" | "question" | "misconception_check" | "summary" | "other",
       "teaching_objective": "Specific goal of this single board",
       "what_student_should_understand": "Key takeaway for the student",
       "why_this_board_exists": "Pedagogical rationale",
       "prerequisite_knowledge": ["item 1"],
       "key_concepts": ["concept 1", "concept 2"],
-      "visual_purpose": "What diagram, equation, or visual structure should appear on this board",
-      "recommended_board_content": ["Concise note 1", "Formula 1"],
+      "visual_purpose": "What should be DRAWN with paths/arrows on this board",
+      "recommended_board_content": ["Short note or formula only"],
       "interaction_required": boolean,
       "question_required": boolean,
       "question_type": "recall" | "understanding" | "prediction" | "calculation" | "application" | null,
@@ -71,20 +75,31 @@ JSON OUTPUT SCHEMA:
 }`;
 }
 
-/**
- * REQUEST 2: SINGLE BOARD PERFORMANCE GENERATOR
- */
 export function buildSingleBoardPrompt(params: {
   topic: string;
   fullStructure: any;
   currentBoardPlan: any;
   studentName?: string;
   completedBoardsSummary?: string[];
+  durationMode?: LessonDurationMode;
 }): string {
-  const { topic, fullStructure, currentBoardPlan, studentName, completedBoardsSummary } = params;
+  const {
+    topic,
+    fullStructure,
+    currentBoardPlan,
+    studentName,
+    completedBoardsSummary,
+    durationMode = 30,
+  } = params;
   const name = studentName || 'Student';
+  const profile = getDurationProfile(durationMode);
 
   return `Perform as a live university lecturer for Board ${currentBoardPlan.board_number} of ${fullStructure.boards?.length || 5}: "${currentBoardPlan.title}" on the topic "${topic}".
+
+DURATION MODE: ${durationMode} minutes
+TONE: ${profile.toneRules}
+PACING: ${profile.pacingRules}
+SPEECH LENGTH: ${profile.speechWordRange}
 
 LESSON CONTEXT:
 Learning Goal: ${fullStructure.learning_goal}
@@ -92,6 +107,7 @@ Completed Boards So Far: ${completedBoardsSummary?.length ? completedBoardsSumma
 
 CURRENT BOARD PLAN TO PERFORM:
 Title: ${currentBoardPlan.title}
+Chapter: ${currentBoardPlan.chapter || 'n/a'}
 Step Type: ${currentBoardPlan.step_type}
 Objective: ${currentBoardPlan.teaching_objective}
 Visual Purpose: ${currentBoardPlan.visual_purpose}
@@ -100,92 +116,86 @@ Question Required: ${currentBoardPlan.question_required} (${currentBoardPlan.que
 
 MANDATORY PERFORMANCE REQUIREMENTS:
 
-1. LECTURER SPEECH & MANNERISMS:
-- Conversational, natural university lecture speech (130 to 180 words).
-- Address ${name} naturally using realistic lecturer phrases ("Alright ${name}, let's look at this...", "Now, look carefully at this diagram...", "Here's where things get interesting.", "Notice what changes here.").
-- Explain concepts step-by-step; do NOT read board text verbatim.
+1. LECTURER SPEECH:
+- Natural speech (${profile.speechWordRange}).
+- Address ${name} when appropriate.
+- Explain step-by-step; do NOT read board text verbatim.
+${profile.boardExtra}
 
-2. CONCISE & READABLE BOARD CONTENT:
-- Coordinates are 0 to 100% viewport (x: 10-90, y: 10-90).
-- Board title at y: 10, x: 50.
-- Keep board text EXTREMELY CONCISE (e.g. "Newton's 2nd Law", "F_net = ma", "More force → more acceleration").
-- Use LaTeX for mathematical notation (e.g., "\\frac{F_{net}}{m}", "a = \\frac{20}{5} = 4\\text{ m/s}^2").
+2. BOARD CONTENT — ILLUSTRATION FIRST, TEXT SECONDARY:
+- Coordinates 0 to 100% viewport (x: 10-90, y: 8-90).
+- PRIMARY: draw with path/line/arrow/circle board_actions (progressive strokes).
+- SECONDARY text only: title, short bullets/definitions, or one worked formula.
+- Use LARGE fontSize metadata: titles "2xl" or "3xl", body "xl" or "2xl", formulas "3xl".
+- NO predefined primitives (no physics_block, scene_*, etc.).
 
-3. SCIENTIFIC ILLUSTRATOR SVG MANDATE (CRITICAL):
-- You are an EDUCATIONAL SCIENTIFIC ILLUSTRATOR, NOT an icon generator.
-- Draw RECOGNIZABLE, CONCEPT-SPECIFIC visual scenes:
-  * Physics (Newton's 2nd Law): A recognizable block on a visible surface, downward gravity arrow (F_g), upward normal force arrow (F_N), rightward applied force arrow (F_net), and clear motion/acceleration vectors.
-  * Biology (Heart/Cell): Recognizable anatomical structures, chambers, membrane walls, directional flow arrows, and labels.
-  * Chemistry: Recognizable atom spheres, bonds, reaction arrows, and stoichiometry labels.
-  * Mathematics: Coordinate axes, vectors, triangles, circles, angle arcs, and dimension annotations.
-  * Circuits: Resistor zig-zags, battery cells, wires, switch, and current flow arrows.
-- SVG MUST have a valid viewBox (e.g., 'viewBox="0 0 800 500"').
-- Give key SVG elements stable ID attributes (e.g. id="block-mass", id="arrow-gravity", id="label-force") so they can be progressively revealed!
-- Use clean dark-mode chalkboard colors (#38BDF8 cyan, #FACC15 yellow, #34D399 green, #F43F5E rose, #E2E8F0 white, #1E293B border).
+3. PATH DRAWING LANGUAGE (preferred over full SVG):
+board_actions type "draw" with metadata:
+{
+  "drawType": "path" | "line" | "circle" | "arrow",
+  "d": "M20 50 L40 50 L40 70 L20 70 Z",  // for path, normalized 0-100 coords in path numbers
+  "x1","y1","x2","y2": numbers,  // for line/arrow
+  "cx","cy","r": numbers,       // for circle
+  "label": "optional",
+  "color": "#38BDF8",
+  "strokeWidth": 2.5,
+  "durationMs": 800,
+  "fill": "optional"
+}
+Optional svg_illustration full SVG only if a complex scene cannot be expressed as paths.
+Give progressive reveals via speech_beats board_actions order (illustration before or after text as teaching needs).
 
-4. SPEECH BEATS & PROGRESSIVE ANIMATION:
-- Break speech into 3 to 6 SpeechBeats.
-- For each beat, specify:
-  * "mannerism": "attention" | "emphasis" | "transition" | "reflection_pause" | "check_understanding" | null
-  * "pauseAfterMs": 1000 to 5000 (ms pause after spoken beat for student reflection)
-  * "board_actions": progressive "write", "draw", "highlight", "circle", "underline"
-  * "visual_actions": "reveal", "highlight", "focus" targeting specific SVG element IDs!
+4. SPEECH BEATS:
+- Break speech into beats with board_actions attached (draw/write/highlight).
+- mannerism: attention | emphasis | transition | reflection_pause | encouragement | check_understanding | null
+- pauseAfterMs for reflection (especially ${durationMode === 60 ? '8000-25000 on 60m mode' : '1000-4000'})
 
 JSON OUTPUT SCHEMA:
 {
   "board_id": "${currentBoardPlan.board_id}",
   "board_number": ${currentBoardPlan.board_number},
   "title": "${currentBoardPlan.title}",
-  "speech": "Full natural speech text incorporating lecturer mannerisms...",
+  "speech": "Full natural speech...",
   "speech_beats": [
     {
       "id": "beat_1",
-      "text": "First sentence spoken by lecturer...",
-      "purpose": "Hook and introduce block on surface",
+      "text": "First spoken chunk...",
+      "purpose": "...",
       "mannerism": "attention",
       "pauseAfterMs": 2000,
       "board_actions": [
         {
-          "id": "action_title",
-          "type": "write",
-          "content": "${currentBoardPlan.title}",
-          "position": { "x": 50, "y": 10 },
+          "id": "draw_main",
+          "type": "draw",
+          "position": { "x": 50, "y": 55 },
           "sync": { "phrase": "..." },
-          "metadata": { "fontSize": "xl", "color": "#FFFFFF" }
+          "metadata": {
+            "drawType": "path",
+            "d": "M30 40 L70 40 L70 70 L30 70 Z",
+            "color": "#E2E8F0",
+            "durationMs": 900
+          }
         }
       ],
-      "visual_actions": [
-        {
-          "id": "vis_1",
-          "type": "reveal",
-          "targetId": "block-mass"
-        }
-      ],
-      "focus_target": "block-mass"
+      "visual_actions": [],
+      "focus_target": null
     }
   ],
-  "board_actions": [
-    /* Complete array of all board actions for this board */
-  ],
-  "svg_illustration": "<svg viewBox=\\"0 0 800 500\\" width=\\"100%\\" height=\\"100%\\" xmlns=\\"http://www.w3.org/2000/svg\\">...</svg>",
-  "question": ${
-    currentBoardPlan.question_required
-      ? `{
+  "board_actions": [],
+  "svg_illustration": null,
+  "question": ${currentBoardPlan.question_required
+    ? `{
     "id": "q_board_${currentBoardPlan.board_number}",
     "type": "${currentBoardPlan.question_type || 'understanding'}",
-    "question": "Clear spoken question for student",
+    "question": "Clear spoken question",
     "waitForAnswer": true,
     "expectedConcepts": ["concept1"],
     "options": ["Option A", "Option B", "Option C"]
   }`
-      : 'null'
-  }
+    : 'null'}
 }`;
 }
 
-/**
- * REQUEST 3: FINAL MINI TEST GENERATOR
- */
 export function buildFinalTestPrompt(params: {
   topic: string;
   teachingStructure: any;
@@ -199,7 +209,7 @@ Boards Taught: ${JSON.stringify(teachingStructure.boards?.map((b: any) => b.titl
 RULES:
 - Generate 3 to 5 clear, high-quality questions.
 - Mix question types: recall, understanding, application, calculation.
-- Provide multiple-choice options with mathematically/conceptually correct answers and brief explanations.
+- Provide multiple-choice options with correct answers and brief explanations.
 
 JSON OUTPUT SCHEMA:
 {
@@ -249,7 +259,7 @@ export function buildStudentInterruptionPrompt(params: {
   return `Student asked a question while pausing live lesson on "${params.topic}" (Board: "${params.currentBoardTitle}"):
 "${params.studentQuestion}"
 
-Answer concise and clearly on a fresh temporary board.
+Answer concise and clearly on a fresh temporary board. Prefer short text + simple path draws if helpful.
 
 JSON OUTPUT SCHEMA:
 {
@@ -260,14 +270,7 @@ JSON OUTPUT SCHEMA:
       "type": "write",
       "content": "Student Question",
       "position": { "x": 50, "y": 10 },
-      "metadata": { "fontSize": "xl", "color": "#FFFFFF" }
-    },
-    {
-      "id": "ask_note1",
-      "type": "write",
-      "content": "Key point answering student question",
-      "position": { "x": 50, "y": 28 },
-      "metadata": { "fontSize": "md", "color": "#38BDF8" }
+      "metadata": { "fontSize": "2xl", "color": "#FFFFFF" }
     }
   ]
 }`;
