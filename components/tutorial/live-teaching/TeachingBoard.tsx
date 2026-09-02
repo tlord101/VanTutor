@@ -31,7 +31,7 @@ const TypedText: React.FC<{
     setShown('');
     if (!text) return;
     let i = 0;
-    const msPerChar = Math.max(16, Math.min(35, 1000 / Math.max(1, text.length)));
+    const msPerChar = Math.max(14, Math.min(32, 900 / Math.max(1, text.length)));
     const id = window.setInterval(() => {
       i += 1;
       setShown(text.slice(0, i));
@@ -50,12 +50,93 @@ const TypedText: React.FC<{
   );
 };
 
+/** Progressive stroke animation for pure LLM path commands (coords 0–100 → viewBox 0 0 100 100) */
+const ProgressivePathDraw: React.FC<{
+  drawType: string;
+  d?: string;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  cx?: number;
+  cy?: number;
+  r?: number;
+  label?: string;
+  color: string;
+  strokeWidth: number;
+  fill?: string;
+  progress: number;
+}> = ({
+  drawType,
+  d,
+  x1 = 20,
+  y1 = 50,
+  x2 = 80,
+  y2 = 50,
+  cx = 50,
+  cy = 50,
+  r = 12,
+  label,
+  color,
+  strokeWidth,
+  fill,
+  progress,
+}) => {
+  const p = Math.max(0.02, Math.min(1, progress ?? 1));
+  const common = {
+    stroke: color,
+    strokeWidth: strokeWidth || 2.5,
+    fill: fill || 'none',
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    pathLength: 1 as number,
+    strokeDasharray: 1 as number,
+    strokeDashoffset: 1 - p,
+  };
+
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const ah = 4;
+  const ax = x2 - ah * Math.cos(angle - 0.4);
+  const ay = y2 - ah * Math.sin(angle - 0.4);
+  const bx = x2 - ah * Math.cos(angle + 0.4);
+  const by = y2 - ah * Math.sin(angle + 0.4);
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="w-full max-w-[560px] h-auto max-h-[300px] sm:max-h-[380px] overflow-visible drop-shadow-md"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {drawType === 'path' && d && <path d={d} {...common} />}
+      {drawType === 'line' && <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} />}
+      {drawType === 'circle' && <circle cx={cx} cy={cy} r={r} {...common} />}
+      {drawType === 'arrow' && (
+        <>
+          <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} />
+          <polygon points={`${x2},${y2} ${ax},${ay} ${bx},${by}`} fill={color} opacity={p} />
+        </>
+      )}
+      {label && (
+        <text
+          x={drawType === 'circle' ? cx : (x1 + x2) / 2}
+          y={(drawType === 'circle' ? cy : (y1 + y2) / 2) - 5}
+          textAnchor="middle"
+          fill={color}
+          fontSize="5.5"
+          fontWeight={700}
+          opacity={p}
+          style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
+        >
+          {label}
+        </text>
+      )}
+    </svg>
+  );
+};
+
 /**
- * Fixed Viewport Digital Chalkboard:
- * - High-contrast chalkboard dark gradient
- * - Large, readable responsive typography (32px-56px targets)
- * - AI-generated custom SVG scientific illustrations
- * - KaTeX mathematical notation
+ * Fixed Viewport Digital Chalkboard — production teaching board
+ * Illustration-first progressive paths, large readable type, KaTeX, custom SVG
  */
 export const TeachingBoard: React.FC<TeachingBoardProps> = ({
   elements,
@@ -132,8 +213,8 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
       <div className="relative z-10 w-full h-full overflow-hidden">
         {isAudioReady &&
           elements.map((el) => {
-            const posX = Math.max(10, Math.min(90, el.position?.x ?? 50));
-            const posY = Math.max(6, Math.min(92, el.position?.y ?? 50));
+            const posX = Math.max(8, Math.min(92, el.position?.x ?? 50));
+            const posY = Math.max(6, Math.min(94, el.position?.y ?? 50));
             const isHighlighted = activeHighlights.has(el.id);
             const isCircled = activeCircles.has(el.id);
             const isUnderlined = activeUnderlines.has(el.id);
@@ -143,12 +224,13 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
               !isTitle &&
               ((el.content || '').trim().startsWith('•') ||
                 (el.content || '').trim().startsWith('-') ||
-                posX < 40);
+                posX < 38);
 
             const diagramWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 320 : 480;
             const diagramHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 320;
 
             const safeSvg = el.type === 'svg' || el.svgContent ? sanitizeSvg(el.svgContent) : null;
+            const drawType = el.diagramProps?.drawType as string | undefined;
 
             return (
               <div
@@ -159,19 +241,18 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   top: `${posY}%`,
                   transform: isKeyPoint ? 'translate(0, -50%)' : 'translate(-50%, -50%)',
                   maxWidth: isTitle
-                    ? '90%'
+                    ? '92%'
                     : isKeyPoint
-                      ? '48%'
+                      ? '50%'
                       : el.type === 'diagram' || el.type === 'svg'
-                        ? '85%'
-                        : '78%',
+                        ? '88%'
+                        : '80%',
                 }}
               >
-                {/* Custom Scientific SVG Illustration */}
                 {(el.type === 'svg' || safeSvg) && safeSvg && (
-                  <div className="relative flex flex-col items-center justify-center w-full max-h-[260px] sm:max-h-[360px] md:max-h-[420px]">
+                  <div className="relative flex flex-col items-center justify-center w-full max-h-[280px] sm:max-h-[380px] md:max-h-[440px]">
                     <div
-                      className="w-full h-full flex items-center justify-center text-slate-100 [&_svg]:max-w-full [&_svg]:max-h-[260px] sm:[&_svg]:max-h-[360px] md:[&_svg]:max-h-[420px] [&_svg]:w-auto [&_svg]:h-auto drop-shadow-md"
+                      className="w-full h-full flex items-center justify-center text-slate-100 [&_svg]:max-w-full [&_svg]:max-h-[280px] sm:[&_svg]:max-h-[380px] md:[&_svg]:max-h-[440px] [&_svg]:w-auto [&_svg]:h-auto drop-shadow-md"
                       dangerouslySetInnerHTML={{ __html: safeSvg }}
                     />
                     {isCircled && (
@@ -180,11 +261,10 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
-                {/* Formula / Math Notation (KaTeX) */}
                 {(el.type === 'formula' || el.latex) && (
                   <div className="relative flex flex-col items-center justify-center px-2 py-1">
                     <div
-                      className={`text-2xl sm:text-4xl md:text-5xl font-black tracking-wide break-words text-center ${
+                      className={`text-3xl sm:text-5xl md:text-6xl font-black tracking-wide break-words text-center ${
                         isHighlighted ? 'text-[#38BDF8] scale-105' : 'text-white'
                       } transition-transform`}
                       style={{ color: el.color || '#38BDF8' }}
@@ -203,8 +283,31 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
-                {/* Legacy Diagram Fallback */}
-                {el.type === 'diagram' && !safeSvg && (
+                {el.type === 'diagram' && drawType && !safeSvg && (
+                  <div className="relative flex flex-col items-center justify-center w-full">
+                    <ProgressivePathDraw
+                      drawType={drawType}
+                      d={el.diagramProps?.d}
+                      x1={el.diagramProps?.x1}
+                      y1={el.diagramProps?.y1}
+                      x2={el.diagramProps?.x2}
+                      y2={el.diagramProps?.y2}
+                      cx={el.diagramProps?.cx}
+                      cy={el.diagramProps?.cy}
+                      r={el.diagramProps?.r}
+                      label={el.diagramProps?.label}
+                      color={el.color || '#38BDF8'}
+                      strokeWidth={el.diagramProps?.strokeWidth || 2.5}
+                      fill={el.diagramProps?.fill}
+                      progress={el.progress ?? 1}
+                    />
+                    {isCircled && (
+                      <div className="absolute inset-0 rounded-xl ring-2 ring-[#38BDF8]/60 pointer-events-none" />
+                    )}
+                  </div>
+                )}
+
+                {el.type === 'diagram' && !drawType && !safeSvg && (
                   <div className="relative flex flex-col items-center justify-center w-full">
                     <BoardDiagramPrimitives
                       type={el.primitive || 'concept_map'}
@@ -224,38 +327,35 @@ export const TeachingBoard: React.FC<TeachingBoardProps> = ({
                   </div>
                 )}
 
-                {/* Arrow Element */}
                 {el.type === 'arrow' && (
                   <div className="flex items-center gap-2 justify-center">
-                    <svg width="48" height="24" viewBox="0 0 40 20">
+                    <svg width="56" height="28" viewBox="0 0 40 20">
                       <line x1="0" y1="10" x2="30" y2="10" stroke={el.color || '#38BDF8'} strokeWidth="4" strokeLinecap="round" />
                       <polygon points="28,3 40,10 28,17" fill={el.color || '#38BDF8'} />
                     </svg>
                     {el.content && (
-                      <span className="text-sm sm:text-base font-bold text-[#38BDF8]">{el.content}</span>
+                      <span className="text-base sm:text-lg font-bold text-[#38BDF8]">{el.content}</span>
                     )}
                   </div>
                 )}
 
-                {/* Label Element */}
                 {el.type === 'label' && (
-                  <span className="text-xs sm:text-base md:text-xl font-bold text-[#FACC15] block text-center px-1">
+                  <span className="text-base sm:text-lg md:text-2xl font-bold text-[#FACC15] block text-center px-1">
                     {el.content}
                   </span>
                 )}
 
-                {/* Main Text Element */}
                 {el.type === 'text' && !el.latex && (
                   <div className={`relative px-1 ${isKeyPoint ? 'text-left' : 'text-center'} max-w-full`}>
                     <TypedText
                       text={el.content || ''}
                       enabled={isAudioReady}
-                      className={`tracking-wide break-words leading-tight ${
+                      className={`tracking-wide break-words leading-snug ${
                         isTitle
-                          ? 'text-lg sm:text-2xl md:text-3xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-1'
+                          ? 'text-2xl sm:text-3xl md:text-4xl font-black uppercase text-white border-b-2 border-[#38BDF8] pb-1'
                           : isKeyPoint
-                            ? 'text-base sm:text-2xl md:text-3xl font-bold text-slate-100'
-                            : 'text-sm sm:text-xl md:text-2xl font-semibold text-slate-200'
+                            ? 'text-xl sm:text-2xl md:text-3xl font-bold text-slate-100'
+                            : 'text-lg sm:text-2xl md:text-3xl font-semibold text-slate-200'
                       } ${isHighlighted ? 'text-[#38BDF8] scale-105' : ''}`}
                       style={{ color: el.color || undefined }}
                     />
