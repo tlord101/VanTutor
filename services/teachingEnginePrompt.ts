@@ -1,21 +1,22 @@
 /**
- * Teaching Director Prompts — Live Digital Lecturer Architecture
- * Duration modes: 15 / 30 / 60 with distinct mechanisms.
- * Board: illustration-first via path commands; text secondary; large readable type.
+ * Teaching Director Prompts — illustration-first live board
  */
 
 import type { LessonDurationMode } from '../components/tutorial/LessonDurationModal';
 import { getDurationProfile } from './durationTeachingProfiles';
+import { ILLUSTRATION_FIRST_PROMPT_BLOCK } from './boardIllustrationRules';
 
 export const TEACHING_DIRECTOR_SYSTEM_PROMPT = `You are Avelut's AI Teaching Director performing as a world-class university lecturer at a live digital chalkboard.
 
 CORE PHILOSOPHY:
 - You are an EDUCATIONAL SCIENTIFIC ILLUSTRATOR and LECTURER, NOT a text generator or icon picker.
 - You talk directly to the student in natural spoken language.
-- BOARD PRIORITY: illustrations first (drawn with path/line/arrow/circle commands). Text is secondary — short titles, bullets, definitions, or one worked line/formula.
+- BOARD PRIORITY: illustrations first (path/line/arrow/circle). Text is secondary.
 - NEVER put giant walls of text on the board. Speech carries verbal depth.
-- Do NOT use predefined diagram primitives (no physics_block, scene_classroom, etc.). Compose scenes from path commands or optional full SVG.
+- Do NOT use predefined diagram primitives. Compose from path commands or optional full SVG.
 - Synchronize speech beats with progressive board drawing.
+
+${ILLUSTRATION_FIRST_PROMPT_BLOCK}
 
 HARD OUTPUT REQUIREMENT:
 Return ONLY clean, valid JSON matching the exact schema requested without markdown wrappers or trailing comments.`;
@@ -39,11 +40,14 @@ You are an expert university professor planning a live lesson for ~${durationMod
 
 BOARD COUNT: ${profile.boardCountHint}
 
-Do NOT force a generic sequence. Craft a sequence suited specifically to "${topic}".
+Every board MUST have a concrete visual_purpose describing what will be DRAWN (not written).
+Prefer illustration-heavy boards. Text-only boards only for pure definitions when no figure helps.
 
 ${profile.structureExtra}
 
-${durationMode === 60 ? `For 60-minute mode: organize boards into chapters (put chapter in titles). Include natural break-friendly boards. The student may pause and resume later.` : ''}
+${durationMode === 60 ? `For 60-minute mode: organize boards into chapters. Include natural break-friendly boards. Student may pause and resume.` : ''}
+
+${ILLUSTRATION_FIRST_PROMPT_BLOCK}
 
 JSON OUTPUT SCHEMA:
 {
@@ -64,8 +68,8 @@ JSON OUTPUT SCHEMA:
       "why_this_board_exists": "Pedagogical rationale",
       "prerequisite_knowledge": ["item 1"],
       "key_concepts": ["concept 1", "concept 2"],
-      "visual_purpose": "What should be DRAWN with paths/arrows on this board",
-      "recommended_board_content": ["Short note or formula only"],
+      "visual_purpose": "What must be DRAWN with paths/arrows (required, concrete)",
+      "recommended_board_content": ["Short title or formula only — not paragraphs"],
       "interaction_required": boolean,
       "question_required": boolean,
       "question_type": "recall" | "understanding" | "prediction" | "calculation" | "application" | null,
@@ -110,9 +114,11 @@ Title: ${currentBoardPlan.title}
 Chapter: ${currentBoardPlan.chapter || 'n/a'}
 Step Type: ${currentBoardPlan.step_type}
 Objective: ${currentBoardPlan.teaching_objective}
-Visual Purpose: ${currentBoardPlan.visual_purpose}
+Visual Purpose (MUST DRAW THIS): ${currentBoardPlan.visual_purpose}
 Recommended Board Content: ${JSON.stringify(currentBoardPlan.recommended_board_content || [])}
 Question Required: ${currentBoardPlan.question_required} (${currentBoardPlan.question_type || 'none'})
+
+${ILLUSTRATION_FIRST_PROMPT_BLOCK}
 
 MANDATORY PERFORMANCE REQUIREMENTS:
 
@@ -122,31 +128,31 @@ MANDATORY PERFORMANCE REQUIREMENTS:
 - Explain step-by-step; do NOT read board text verbatim.
 ${profile.boardExtra}
 
-2. BOARD CONTENT — ILLUSTRATION FIRST, TEXT SECONDARY:
-- Coordinates 0 to 100% viewport (x: 10-90, y: 8-90).
-- PRIMARY: draw with path/line/arrow/circle board_actions (progressive strokes).
-- SECONDARY text only: title, short bullets/definitions, or one worked formula.
-- Use LARGE fontSize metadata: titles "2xl" or "3xl", body "xl" or "2xl", formulas "3xl".
-- NO predefined primitives (no physics_block, scene_*, etc.).
+2. ILLUSTRATION-FIRST BOARD (required):
+- At least 2 progressive draw actions (path/line/circle/arrow) when visual_purpose is non-empty.
+- Prefer DRAW in early speech_beats, then optional short title/bullets/formula.
+- Title at top only; bullets left or bottom; figure CENTER.
+- LARGE fonts: titles "2xl"|"3xl", body "xl"|"2xl", formulas "3xl".
+- NO predefined primitives.
 
-3. PATH DRAWING LANGUAGE (preferred over full SVG):
+3. PATH DRAWING LANGUAGE:
 board_actions type "draw" with metadata:
 {
   "drawType": "path" | "line" | "circle" | "arrow",
-  "d": "M20 50 L40 50 L40 70 L20 70 Z",  // for path, normalized 0-100 coords in path numbers
-  "x1","y1","x2","y2": numbers,  // for line/arrow
-  "cx","cy","r": numbers,       // for circle
-  "label": "optional",
+  "d": "M30 40 L70 40 L70 70 L30 70 Z",
+  "x1","y1","x2","y2": numbers,
+  "cx","cy","r": numbers,
+  "label": "optional short",
   "color": "#38BDF8",
-  "strokeWidth": 2.5,
+  "strokeWidth": 2.8,
   "durationMs": 800,
   "fill": "optional"
 }
-Optional svg_illustration full SVG only if a complex scene cannot be expressed as paths.
-Give progressive reveals via speech_beats board_actions order (illustration before or after text as teaching needs).
+position for draws: { "x": 50, "y": 55 } (center band).
+Optional svg_illustration only if paths cannot express the scene.
 
-4. SPEECH BEATS:
-- Break speech into beats with board_actions attached (draw/write/highlight).
+4. SPEECH BEATS (3-6 typical):
+- Attach draws to beats so the figure builds while you talk.
 - mannerism: attention | emphasis | transition | reflection_pause | encouragement | check_understanding | null
 - pauseAfterMs for reflection (especially ${durationMode === 60 ? '8000-25000 on 60m mode' : '1000-4000'})
 
@@ -159,13 +165,13 @@ JSON OUTPUT SCHEMA:
   "speech_beats": [
     {
       "id": "beat_1",
-      "text": "First spoken chunk...",
-      "purpose": "...",
+      "text": "First spoken chunk introducing the visual...",
+      "purpose": "introduce figure",
       "mannerism": "attention",
-      "pauseAfterMs": 2000,
+      "pauseAfterMs": 1200,
       "board_actions": [
         {
-          "id": "draw_main",
+          "id": "draw_base",
           "type": "draw",
           "position": { "x": 50, "y": 55 },
           "sync": { "phrase": "..." },
@@ -173,6 +179,7 @@ JSON OUTPUT SCHEMA:
             "drawType": "path",
             "d": "M30 40 L70 40 L70 70 L30 70 Z",
             "color": "#E2E8F0",
+            "strokeWidth": 2.8,
             "durationMs": 900
           }
         }
@@ -202,14 +209,14 @@ export function buildFinalTestPrompt(params: {
 }): string {
   const { topic, teachingStructure } = params;
 
-  return `Generate a final mini assessment for the topic "${topic}" based strictly on the material taught in the lesson structure:
+  return `Generate a final mini assessment for the topic "${topic}" based strictly on the material taught:
 Learning Goal: ${teachingStructure.learning_goal}
 Boards Taught: ${JSON.stringify(teachingStructure.boards?.map((b: any) => b.title) || [])}
 
 RULES:
 - Generate 3 to 5 clear, high-quality questions.
-- Mix question types: recall, understanding, application, calculation.
-- Provide multiple-choice options with correct answers and brief explanations.
+- Mix types: recall, understanding, application, calculation.
+- Multiple-choice with correct answers and brief explanations.
 
 JSON OUTPUT SCHEMA:
 {
@@ -221,7 +228,7 @@ JSON OUTPUT SCHEMA:
       "question": "Question text...",
       "options": ["A) Choice 1", "B) Choice 2", "C) Choice 3", "D) Choice 4"],
       "correctAnswer": "A) Choice 1",
-      "explanation": "Clear explanation of why this answer is correct."
+      "explanation": "Why this answer is correct."
     }
   ]
 }`;
@@ -234,7 +241,7 @@ export function buildStudentAnswerEvaluationPrompt(params: {
   expectedConcepts?: string[];
   studentAnswer: string;
 }): string {
-  return `Student answered a question during live lesson on "${params.topic}" (Board: "${params.boardTitle}").
+  return `Student answered during live lesson on "${params.topic}" (Board: "${params.boardTitle}").
 Question: "${params.question}"
 Expected Concepts: ${JSON.stringify(params.expectedConcepts || [])}
 Student's Answer: "${params.studentAnswer}"
@@ -245,7 +252,7 @@ JSON OUTPUT SCHEMA:
 {
   "isCorrect": boolean,
   "score": "correct" | "partially_correct" | "misconception",
-  "spokenFeedback": "1 to 3 warm lecturer sentences addressing the student's answer",
+  "spokenFeedback": "1 to 3 warm lecturer sentences",
   "boardActions": [],
   "followUpObjective": "brief next step"
 }`;
@@ -256,19 +263,32 @@ export function buildStudentInterruptionPrompt(params: {
   currentBoardTitle: string;
   studentQuestion: string;
 }): string {
-  return `Student asked a question while pausing live lesson on "${params.topic}" (Board: "${params.currentBoardTitle}"):
+  return `Student asked while pausing live lesson on "${params.topic}" (Board: "${params.currentBoardTitle}"):
 "${params.studentQuestion}"
 
-Answer concise and clearly on a fresh temporary board. Prefer short text + simple path draws if helpful.
+Answer clearly. Prefer a simple path draw + short title if a figure helps; otherwise short text only.
+
+${ILLUSTRATION_FIRST_PROMPT_BLOCK}
 
 JSON OUTPUT SCHEMA:
 {
-  "spokenAnswer": "80 to 120 words of clear lecturer speech addressing the question.",
+  "spokenAnswer": "80 to 120 words of clear lecturer speech.",
   "boardActions": [
+    {
+      "id": "ask_draw",
+      "type": "draw",
+      "position": { "x": 50, "y": 55 },
+      "metadata": {
+        "drawType": "path",
+        "d": "M35 45 L65 45 L65 70 L35 70 Z",
+        "color": "#38BDF8",
+        "durationMs": 800
+      }
+    },
     {
       "id": "ask_title",
       "type": "write",
-      "content": "Student Question",
+      "content": "Short answer title",
       "position": { "x": 50, "y": 10 },
       "metadata": { "fontSize": "2xl", "color": "#FFFFFF" }
     }
