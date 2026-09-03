@@ -1,12 +1,8 @@
 import React from 'react';
 import type { NavItem, UserProfile } from '../types';
-import { ShieldCheckIcon } from './icons/ShieldCheckIcon';
-import { navigationItems, secondaryNavigationItems, adminNavigationItems } from '../constants';
+import { navigationItems, adminNavigationItems } from '../constants';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
-
-
-
 
 interface SidebarProps {
   activeItem: string;
@@ -21,201 +17,213 @@ interface SidebarProps {
   unreadMessagesCount?: number;
 }
 
-const getGradientClasses = (id: string) => {
-    switch (id) {
-        case 'dashboard': return 'from-blue-500 to-indigo-500';
-        case 'messenger': return 'from-emerald-400 to-teal-500';
-        case 'visual_solver': return 'from-purple-500 to-pink-500';
-        case 'study_guide': return 'from-sky-400 to-blue-500';
-        case 'upload_center': return 'from-green-400 to-emerald-500';
-        case 'leaderboard': return 'from-sky-500 to-blue-600';
-        case 'admin_panel': return 'from-rose-500 to-red-600';
-        case 'ai_tutor': return 'from-cyan-400 to-blue-500';
-        case 'help': return 'from-sky-400 to-indigo-400';
-        case 'settings': return 'from-slate-400 to-slate-600';
-        default: return 'from-indigo-400 to-purple-500';
-    }
-};
-
 const NavButton: React.FC<{
-    item: NavItem;
-    isActive: boolean;
-    isExpanded: boolean;
-    isModal?: boolean;
-    onClick: () => void;
-    unreadCount?: number;
-    unreadMessagesCount?: number;
-}> = ({ item, isActive, isExpanded, isModal, onClick, unreadCount = 0, unreadMessagesCount = 0 }) => {
-    const gradientClasses = getGradientClasses(item.id);
-    
+  item: NavItem;
+  isActive: boolean;
+  isExpanded: boolean;
+  isModal?: boolean;
+  onClick: () => void;
+  unreadMessagesCount?: number;
+}> = ({ item, isActive, isExpanded, isModal, onClick, unreadMessagesCount = 0 }) => {
+  if (isModal) {
     return (
-    <li className="relative">
-        {isModal ? (
-            <div className={`p-[2px] rounded-2xl bg-gradient-to-br ${gradientClasses} h-full transition-transform duration-300 hover:scale-[1.02] group shadow-sm`}>
-                <button
-                    onClick={onClick}
-                    data-tour-id={`sidebar-${item.id}`}
-                    className={`w-full flex flex-col items-center justify-center p-3 rounded-[14px] gap-2 text-center h-full ${
-                        isActive
-                        ? 'bg-blue-50/90 dark:bg-slate-900/90 text-blue-700 dark:text-blue-300 font-bold'
-                        : 'bg-white dark:bg-black/90 text-slate-700 dark:text-gray-300 hover:bg-white/90 dark:hover:bg-slate-800'
-                    }`}
-                >
-                    <span className={`flex-shrink-0 transition-all duration-300 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-gray-400 group-hover:scale-110'}`}>
-                        {item.icon}
-                    </span>
-                    <span className={`font-semibold overflow-hidden flex-1 text-xs leading-tight`}>
-                        {item.label}
-                    </span>
-                    {item.id === 'messenger' && unreadMessagesCount > 0 && (
-                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" />
-                    )}
-                </button>
-            </div>
-        ) : (
-            <button
-                onClick={onClick}
-                data-tour-id={`sidebar-${item.id}`}
-                className={`w-full flex transition-all duration-350 ease-in-out group hover:scale-[1.02] items-center p-3 rounded-xl text-left ${isExpanded ? 'justify-start' : 'justify-center'} ${
-                    isActive
-                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/10'
-                    : 'text-slate-655 opacity-85 hover:bg-white dark:bg-black/50 hover:text-blue-600 hover:opacity-100'
-                }`}
-            >
-                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-white dark:bg-black rounded-r-full"></div>}
-                <span className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isExpanded ? 'mr-4' : 'mr-0'} ${isActive ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-blue-600'}`}>{item.icon}</span>
-                <span className={`font-semibold overflow-hidden transition-opacity duration-300 ease-in-out flex-1 ${isExpanded ? 'opacity-100 whitespace-nowrap' : 'opacity-0 whitespace-nowrap'}`}>
-                    {item.label}
-                </span>
-                {isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
-                    <span className="bg-[#0066FF] text-white text-[9px] font-black rounded-full h-4 min-w-4 px-1 flex items-center justify-center shadow-sm">
-                        {unreadMessagesCount}
-                    </span>
-                )}
-                {!isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
-                    <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" />
-                )}
-            </button>
-        )}
-    </li>
+      <li className="relative">
+        <button
+          onClick={onClick}
+          data-tour-id={`sidebar-${item.id}`}
+          className={`w-full flex flex-col items-center justify-center p-3 rounded-2xl gap-2 text-center h-full transition-colors ${
+            isActive
+              ? 'bg-neutral-100 text-black font-semibold'
+              : 'bg-white text-neutral-700 hover:bg-neutral-50'
+          }`}
+        >
+          <span className={`flex-shrink-0 ${isActive ? 'text-black' : 'text-neutral-800'}`}>{item.icon}</span>
+          <span className="font-medium text-xs leading-tight">{item.label}</span>
+          {item.id === 'messenger' && unreadMessagesCount > 0 && (
+            <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-black ring-2 ring-white" />
+          )}
+        </button>
+      </li>
     );
+  }
+
+  return (
+    <li className="relative">
+      <button
+        onClick={onClick}
+        data-tour-id={`sidebar-${item.id}`}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
+          isExpanded ? 'justify-start' : 'justify-center'
+        } ${
+          isActive
+            ? 'bg-neutral-100 text-black font-semibold'
+            : 'text-neutral-700 hover:bg-neutral-50 hover:text-black'
+        }`}
+      >
+        <span className={`flex-shrink-0 ${isActive ? 'text-black' : 'text-neutral-800'}`}>{item.icon}</span>
+        <span
+          className={`font-medium overflow-hidden transition-opacity flex-1 text-sm ${
+            isExpanded ? 'opacity-100 whitespace-nowrap' : 'opacity-0 whitespace-nowrap'
+          }`}
+        >
+          {item.label}
+        </span>
+        {isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
+          <span className="bg-black text-white text-[9px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
+            {unreadMessagesCount}
+          </span>
+        )}
+        {!isExpanded && item.id === 'messenger' && unreadMessagesCount > 0 && (
+          <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-black ring-2 ring-white" />
+        )}
+      </button>
+    </li>
+  );
 };
 
 const SidebarContent: React.FC<{
-    isExpanded: boolean;
-    isModal?: boolean;
-    activeItem: string;
-    onItemClick: (id: string) => void;
-    userProfile: UserProfile | null;
-    onLogout: () => void;
-    items?: NavItem[];
-    secondaryItems?: NavItem[];
-    unreadCount?: number;
-    unreadMessagesCount?: number;
-}> = ({ isExpanded, isModal, activeItem, onItemClick, userProfile, onLogout, items = navigationItems, secondaryItems = secondaryNavigationItems, unreadCount = 0, unreadMessagesCount = 0 }) => (
-    <div className={`h-full p-4 flex flex-col ${isModal ? '' : 'bg-transparent'}`}>
-      {/* Top Section: Logo */}
-      <div className={`flex items-center flex-shrink-0 px-2 pt-2 ${isModal ? 'mb-6 justify-center' : 'mb-10'}`}>
-        {isExpanded ? (
-          <>
-            <img src="/logo_full_black.png" alt="AVELUT Logo" className={`object-contain dark:hidden ${isModal ? 'h-8' : 'h-10'}`} />
-            <img src="/logo_full_white.png" alt="AVELUT Logo" className={`object-contain hidden dark:block ${isModal ? 'h-8' : 'h-10'}`} />
-          </>
-        ) : (
-          <>
-            <img src="/logo_icon_black_glyph.png" alt="AVELUT Logo" className="w-10 h-10 object-contain dark:hidden" />
-            <img src="/logo_icon_white_glyph.png" alt="AVELUT Logo" className="w-10 h-10 object-contain hidden dark:block" />
-          </>
-        )}
-      </div>
-      
-      {/* Middle Section: Navigation */}
-      <nav className="flex-grow overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {!isModal && <p className={`text-[10px] font-black text-slate-400 opacity-80 uppercase tracking-widest mb-4 transition-opacity duration-300 ease-in-out ${isExpanded ? 'pl-3 opacity-100' : 'opacity-0'}`}>Menu</p>}
-        <ul className={isModal ? "grid grid-cols-3 gap-3" : "space-y-1"}>
-          {items.map((item) => (
-              <NavButton key={item.id} item={item} isActive={activeItem === item.id} isExpanded={isExpanded} isModal={isModal} onClick={() => onItemClick(item.id)} unreadCount={unreadCount} unreadMessagesCount={unreadMessagesCount} />
-          ))}
-        </ul>
-      </nav>
-      
-      {/* Bottom Section: Profile & Logout */}
-      <div className="flex-shrink-0">
-        <div className={`mt-6 p-3 rounded-xl border relative ${isModal ? 'bg-slate-50 dark:bg-black dark:bg-slate-800/50 border-slate-100 dark:border-slate-700' : 'bg-white dark:bg-black/45 backdrop-blur-sm border-white/50 shadow-sm'}`}>
-          {unreadCount > 0 && (
-             <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-[#0066FF] ring-2 ring-white dark:ring-black" title={`${unreadCount} unread notifications`} />
-          )}
-          <div className="flex items-center">
-            <Avatar display_name={userProfile?.display_name || null} photo_url={userProfile?.photo_url} className="w-10 h-10 flex-shrink-0" />
-            <div className={`ml-3 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-              <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <span>{userProfile?.display_name}</span>
-                <VerificationBadge status={userProfile?.subscription_status} />
-              </p>
-              <p className="text-[10px] text-slate-500 dark:text-gray-400 dark:text-slate-400 font-extrabold uppercase tracking-widest">{userProfile?.level} Level</p>
-            </div>
-          </div>
-        </div>
-      </div>
+  isExpanded: boolean;
+  isModal?: boolean;
+  activeItem: string;
+  onItemClick: (id: string) => void;
+  userProfile: UserProfile | null;
+  items?: NavItem[];
+  unreadCount?: number;
+  unreadMessagesCount?: number;
+}> = ({
+  isExpanded,
+  isModal,
+  activeItem,
+  onItemClick,
+  userProfile,
+  items = navigationItems,
+  unreadCount = 0,
+  unreadMessagesCount = 0,
+}) => (
+  <div className="h-full p-4 flex flex-col bg-white">
+    <div className={`flex items-center flex-shrink-0 px-2 pt-2 ${isModal ? 'mb-6 justify-center' : 'mb-8'}`}>
+      {isExpanded ? (
+        <img src="/logo_full_black.png" alt="AVELUT Logo" className={`object-contain ${isModal ? 'h-8' : 'h-9'}`} />
+      ) : (
+        <img src="/logo_icon_black_glyph.png" alt="AVELUT Logo" className="w-9 h-9 object-contain" />
+      )}
     </div>
+
+    <nav className="flex-grow overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {!isModal && (
+        <p
+          className={`text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-3 ${
+            isExpanded ? 'pl-3 opacity-100' : 'opacity-0'
+          }`}
+        >
+          Menu
+        </p>
+      )}
+      <ul className={isModal ? 'grid grid-cols-3 gap-2' : 'space-y-0.5'}>
+        {items.map((item) => (
+          <NavButton
+            key={item.id}
+            item={item}
+            isActive={activeItem === item.id}
+            isExpanded={isExpanded}
+            isModal={isModal}
+            onClick={() => onItemClick(item.id)}
+            unreadMessagesCount={unreadMessagesCount}
+          />
+        ))}
+      </ul>
+    </nav>
+
+    {/* Profile → opens Settings hub */}
+    <div className="flex-shrink-0 mt-4">
+      <button
+        type="button"
+        onClick={() => onItemClick('settings')}
+        data-tour-id="sidebar-profile-settings"
+        className={`w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-left relative ${
+          activeItem === 'settings' || activeItem === 'billing' || activeItem === 'user_profile'
+            ? 'ring-1 ring-neutral-300 bg-neutral-50'
+            : ''
+        }`}
+      >
+        {unreadCount > 0 && (
+          <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-black ring-2 ring-white" />
+        )}
+        <Avatar
+          display_name={userProfile?.display_name || null}
+          photo_url={userProfile?.photo_url}
+          className="w-10 h-10 flex-shrink-0"
+        />
+        <div className={`min-w-0 flex-1 ${isExpanded ? 'opacity-100' : 'opacity-0 overflow-hidden'}`}>
+          <p className="font-semibold text-black text-sm flex items-center gap-1.5 truncate">
+            <span className="truncate">{userProfile?.display_name || 'Profile'}</span>
+            <VerificationBadge status={userProfile?.subscription_status} />
+          </p>
+          <p className="text-[11px] text-neutral-500 font-medium">Settings & billing</p>
+        </div>
+      </button>
+    </div>
+  </div>
 );
 
-
-export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, userProfile, onLogout, isMobileSidebarOpen, onCloseMobileSidebar, items, secondaryItems, unreadCount = 0, unreadMessagesCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeItem,
+  onItemClick,
+  userProfile,
+  onLogout,
+  isMobileSidebarOpen,
+  onCloseMobileSidebar,
+  items,
+  secondaryItems,
+  unreadCount = 0,
+  unreadMessagesCount = 0,
+}) => {
   const handleMobileItemClick = (id: string) => {
     onItemClick(id);
     onCloseMobileSidebar();
   };
 
-  const handleMobileLogout = () => {
-    onLogout();
-    onCloseMobileSidebar();
-  };
-
-  const navItems = items || (userProfile?.is_admin ? adminNavigationItems : navigationItems);
+  const baseItems = items || navigationItems;
+  const navItems =
+    userProfile?.is_admin && !items
+      ? [...baseItems, ...adminNavigationItems]
+      : baseItems;
 
   return (
     <>
-      {/* Mobile Sidebar (Fly-in Modal) */}
       <div
-        className={`fixed inset-0 z-[125] flex items-center justify-center p-4 transition-all duration-300 md:hidden ${isMobileSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-[125] flex items-center justify-center p-4 transition-all duration-300 md:hidden ${
+          isMobileSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
       >
-        <div
-          className="absolute inset-0 bg-charcoal/40 dark:bg-black/60 backdrop-blur-sm"
-          onClick={onCloseMobileSidebar}
-          aria-hidden="true"
-        ></div>
-        
-        <aside className={`relative w-full max-w-sm max-h-[85vh] bg-white dark:bg-black/80 dark:bg-black/80 backdrop-blur-xl border border-white/40 dark:border-slate-700 shadow-2xl rounded-3xl overflow-hidden transform transition-all duration-400 cubic-bezier(0.34, 1.56, 0.64, 1) ${isMobileSidebarOpen ? 'scale-100 translate-y-0 opacity-100 rotate-0' : 'scale-75 translate-y-8 opacity-0 -rotate-2'}`}>
-            <SidebarContent 
-                isExpanded={true}
-                isModal={true}
-                activeItem={activeItem}
-                onItemClick={handleMobileItemClick}
-                userProfile={userProfile}
-                onLogout={handleMobileLogout}
-                items={navItems}
-                secondaryItems={secondaryItems}
-                unreadCount={unreadCount}
-                unreadMessagesCount={unreadMessagesCount}
-            />
-        </aside>
-      </div>
-      
-      {/* Desktop Sidebar */}
-      <aside 
-          className={`hidden md:block flex-shrink-0 bg-white dark:bg-black/60 dark:bg-card/40 backdrop-blur-lg border-r border-white/40 dark:border-border shadow-sm w-72 h-full`}
-      >
-        <SidebarContent 
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCloseMobileSidebar} aria-hidden="true" />
+        <aside
+          className={`relative w-full max-w-sm max-h-[85vh] bg-white border border-neutral-200 shadow-2xl rounded-3xl overflow-hidden transform transition-all duration-300 ${
+            isMobileSidebarOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+          }`}
+        >
+          <SidebarContent
             isExpanded={true}
+            isModal={true}
             activeItem={activeItem}
-            onItemClick={onItemClick}
+            onItemClick={handleMobileItemClick}
             userProfile={userProfile}
-            onLogout={onLogout}
             items={navItems}
-            secondaryItems={secondaryItems}
             unreadCount={unreadCount}
             unreadMessagesCount={unreadMessagesCount}
+          />
+        </aside>
+      </div>
+
+      <aside className="hidden md:block flex-shrink-0 bg-white border-r border-neutral-200 w-64 h-full">
+        <SidebarContent
+          isExpanded={true}
+          activeItem={activeItem}
+          onItemClick={onItemClick}
+          userProfile={userProfile}
+          items={navItems}
+          unreadCount={unreadCount}
+          unreadMessagesCount={unreadMessagesCount}
         />
       </aside>
     </>

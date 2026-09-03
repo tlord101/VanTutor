@@ -5,6 +5,8 @@ import { useToast } from '../hooks/useToast';
 import { ConfirmationModal } from './ConfirmationModal';
 import { isNative } from '../utils/capacitorUtils';
 import { useTheme } from '../contexts/ThemeContext';
+import { VerificationBadge } from './VerificationBadge';
+import { Avatar } from './Avatar';
 
 interface SettingsProps {
   user: any | null;
@@ -15,26 +17,60 @@ interface SettingsProps {
   onNavigate: (route: string) => void;
 }
 
-const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
+const Switch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({
+  checked,
+  onChange,
+  disabled,
+}) => (
   <button
     type="button"
     role="switch"
     aria-checked={checked}
     onClick={() => onChange(!checked)}
     disabled={disabled}
-    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-      checked ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none disabled:opacity-50 ${
+      checked ? 'bg-black' : 'bg-neutral-300'
     }`}
   >
     <span
-      className={`inline-block w-4 h-4 transform bg-white dark:bg-slate-900 rounded-full transition-transform duration-200 ease-in-out shadow-sm ${
+      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform shadow-sm ${
         checked ? 'translate-x-6' : 'translate-x-1'
       }`}
     />
   </button>
 );
 
-export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onLogout, onProfileUpdate, onDeleteAccount, onNavigate }) => {
+const LinkRow: React.FC<{ label: string; hint?: string; onClick: () => void; danger?: boolean }> = ({
+  label,
+  hint,
+  onClick,
+  danger,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left rounded-xl transition-colors hover:bg-neutral-50 ${
+      danger ? 'text-red-600' : 'text-black'
+    }`}
+  >
+    <div className="min-w-0">
+      <span className="font-semibold text-sm block">{label}</span>
+      {hint && <span className="text-xs text-neutral-500 font-medium">{hint}</span>}
+    </div>
+    <svg className="w-4 h-4 text-neutral-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  </button>
+);
+
+export const SettingsScreen: React.FC<SettingsProps> = ({
+  user,
+  userProfile,
+  onLogout,
+  onProfileUpdate,
+  onDeleteAccount,
+  onNavigate,
+}) => {
   const { mode, setMode } = useTheme();
   const [isNotificationSwitchOn, setIsNotificationSwitchOn] = useState(userProfile.notifications_enabled);
   const [isNotificationSaving, setIsNotificationSaving] = useState(false);
@@ -49,7 +85,6 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
 
   const handleNotificationToggle = async (enabled: boolean) => {
     setIsNotificationSaving(true);
-    
     if (isNative()) {
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications');
@@ -76,7 +111,6 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
       }
       return;
     }
-
     addToast('Push notifications are only supported in the native mobile app.', 'info');
     setIsNotificationSaving(false);
   };
@@ -89,12 +123,9 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
     setIsResetEmailSending(true);
     try {
       const res = await supabaseAuthService.sendPasswordReset(user.email);
-      if (!res.success) {
-        throw new Error(res.error || 'Failed to send password reset email');
-      }
+      if (!res.success) throw new Error(res.error || 'Failed to send password reset email');
       addToast('Password reset email sent! Check your inbox.', 'success');
     } catch (error: any) {
-      console.error(error);
       addToast(error.message || 'Failed to send password reset email.', 'error');
     } finally {
       setIsResetEmailSending(false);
@@ -105,124 +136,132 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ user, userProfile, onL
     setIsDeleting(true);
     const result = await onDeleteAccount();
     if (!result.success) {
-        addToast(result.error || 'Failed to delete account.', 'error');
-        setIsDeleting(false);
-        setIsDeleteModalOpen(false);
+      addToast(result.error || 'Failed to delete account.', 'error');
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 animate-in fade-in duration-300 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <i className="bi bi-gear-fill text-amber-500"></i>
-          <span>Account Settings</span>
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">Manage your security, notifications, and preferences.</p>
+    <div className="p-4 sm:p-6 space-y-5 animate-in fade-in duration-300 max-w-2xl mx-auto bg-white min-h-full">
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-black tracking-tight">Settings</h2>
+        <p className="text-sm text-neutral-500 font-medium mt-1">Account, billing, and preferences</p>
       </div>
 
-      {/* Security */}
-      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
-          <i className="bi bi-shield-lock text-amber-500"></i>
-          <span>Security</span>
-        </h3>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Change Password</span>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">We will send a secure link to your email to reset your password.</p>
-            </div>
-            <button
-                onClick={handlePasswordReset}
-                disabled={isResetEmailSending}
-                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
-            >
-                {isResetEmailSending ? 'Sending...' : 'Send Reset Link'}
-            </button>
+      {/* Balance card */}
+      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <Avatar display_name={userProfile.display_name} photo_url={userProfile.photo_url} className="w-12 h-12" />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-black flex items-center gap-1.5 truncate">
+              {userProfile.display_name}
+              <VerificationBadge status={userProfile.subscription_status} />
+            </p>
+            <p className="text-xs text-neutral-500 font-medium truncate">{user?.email || userProfile.email}</p>
           </div>
         </div>
-      </div>
-
-      {/* Appearance */}
-      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
-          <i className="bi bi-moon-stars text-amber-500"></i>
-          <span>Appearance</span>
-        </h3>
-        <div className="space-y-6">
-          <div className="flex justify-between items-center gap-4">
-              <div>
-                  <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Dark Mode</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      Toggle between light and dark mode.
-                  </p>
-              </div>
-              <Switch 
-                  checked={mode === 'dark'} 
-                  onChange={(checked) => setMode(checked ? 'dark' : 'light')}
-              />
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">
+              Credits balance
+            </span>
+            <span className="text-3xl font-black text-black tracking-tight">
+              {userProfile.ai_credits_balance ?? 0}
+            </span>
           </div>
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-neutral-200 text-neutral-700 capitalize">
+            {userProfile.subscription_status || 'Free'}
+          </span>
         </div>
-      </div>
-
-      {/* Notifications */}
-      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
-          <i className="bi bi-bell text-amber-500"></i>
-          <span>Notifications</span>
-        </h3>
-        <div className="flex justify-between items-center gap-4">
-            <div>
-                <span className="text-slate-900 dark:text-slate-100 font-bold block mb-1">Push Notifications</span>
-                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Get reminders, progress updates, and message alerts.
-                </p>
-            </div>
-            <Switch 
-                checked={isNotificationSwitchOn} 
-                onChange={handleNotificationToggle}
-                disabled={isNotificationSaving}
-            />
-        </div>
-      </div>
-
-      {/* Legal & Support */}
-      <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
-          <i className="bi bi-file-earmark-text text-amber-500"></i>
-          <span>Legal & Support</span>
-        </h3>
-         <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-           <a
-              href="/t&c"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <span>Terms & Conditions</span>
-              <i className="bi bi-chevron-right text-slate-400 text-sm"></i>
-            </a>
-            <a
-              href="https://www.avelut.xyz/policy"
-              className="flex justify-between items-center w-full text-left p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <span>Privacy Policy</span>
-              <i className="bi bi-chevron-right text-slate-400 text-sm"></i>
-            </a>
-         </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-rose-50 dark:bg-rose-950/20 p-6 sm:p-8 rounded-2xl border border-rose-200 dark:border-rose-900/40 shadow-sm">
-        <h3 className="text-lg font-bold text-rose-900 dark:text-rose-300 mb-2 flex items-center gap-2">
-          <i className="bi bi-exclamation-triangle-fill text-rose-500"></i>
-          <span>Danger Zone</span>
-        </h3>
-        <p className="text-sm text-rose-700/80 dark:text-rose-400/80 font-medium mb-6">Once you delete your account, there is no going back. Please be certain.</p>
         <button
-          onClick={() => setIsDeleteModalOpen(true)}
-          className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/60 hover:border-rose-400 text-rose-600 dark:text-rose-400 text-sm font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+          type="button"
+          onClick={() => onNavigate('billing')}
+          className="mt-4 w-full py-2.5 rounded-xl bg-[#0066FF] text-white text-sm font-semibold hover:bg-[#0052cc] transition-colors"
         >
-          Delete Account
+          Manage billing
+        </button>
+      </div>
+
+      {/* Navigation links */}
+      <div className="rounded-2xl border border-neutral-200 bg-white divide-y divide-neutral-100 overflow-hidden">
+        <LinkRow label="Profile" hint="Name, photo, academic info" onClick={() => onNavigate('user_profile')} />
+        <LinkRow label="Billing & plans" hint="Credits, subscriptions, payments" onClick={() => onNavigate('billing')} />
+        <LinkRow label="Help" hint="Guides and support" onClick={() => onNavigate('help')} />
+        <LinkRow label="Feedback" hint="Tell us what to improve" onClick={() => onNavigate('feedback')} />
+        <LinkRow label="History" hint="Past activity" onClick={() => onNavigate('history')} />
+      </div>
+
+      {/* Preferences */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 space-y-4">
+        <h3 className="text-sm font-bold text-black px-1">Preferences</h3>
+        <div className="flex justify-between items-center gap-4 px-1">
+          <div>
+            <span className="text-sm font-semibold text-black block">Dark mode</span>
+            <p className="text-xs text-neutral-500">Toggle light / dark appearance</p>
+          </div>
+          <Switch checked={mode === 'dark'} onChange={(c) => setMode(c ? 'dark' : 'light')} />
+        </div>
+        <div className="flex justify-between items-center gap-4 px-1">
+          <div>
+            <span className="text-sm font-semibold text-black block">Push notifications</span>
+            <p className="text-xs text-neutral-500">Reminders and message alerts</p>
+          </div>
+          <Switch
+            checked={isNotificationSwitchOn}
+            onChange={handleNotificationToggle}
+            disabled={isNotificationSaving}
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 pt-1">
+          <div>
+            <span className="text-sm font-semibold text-black block">Password</span>
+            <p className="text-xs text-neutral-500">Send a reset link to your email</p>
+          </div>
+          <button
+            type="button"
+            onClick={handlePasswordReset}
+            disabled={isResetEmailSending}
+            className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-black text-sm font-semibold transition-colors disabled:opacity-50"
+          >
+            {isResetEmailSending ? 'Sending…' : 'Send reset link'}
+          </button>
+        </div>
+      </div>
+
+      {/* Legal */}
+      <div className="rounded-2xl border border-neutral-200 bg-white divide-y divide-neutral-100 overflow-hidden">
+        <a href="/t&c" className="flex justify-between items-center px-4 py-3.5 text-sm font-semibold text-black hover:bg-neutral-50">
+          Terms &amp; Conditions
+          <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+        <a
+          href="https://www.avelut.xyz/policy"
+          className="flex justify-between items-center px-4 py-3.5 text-sm font-semibold text-black hover:bg-neutral-50"
+        >
+          Privacy Policy
+          <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-black text-sm font-semibold transition-colors"
+        >
+          Log out
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsDeleteModalOpen(true)}
+          className="w-full py-3 rounded-xl bg-white border border-red-200 hover:bg-red-50 text-red-600 text-sm font-semibold transition-colors"
+        >
+          Delete account
         </button>
       </div>
 
