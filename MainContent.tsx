@@ -15,13 +15,12 @@ import {
     PageSkeleton,
 } from './components/Skeleton';
 
-// Lazy load large components to reduce initial bundle size and improve TTI
-const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
 const StudyGuide = lazy(() => import('./components/StudyGuide').then(module => ({ default: module.StudyGuide })));
+const MyNotebooks = lazy(() => import('./components/MyNotebooks').then(module => ({ default: module.MyNotebooks })));
+const Playground = lazy(() => import('./components/Playground').then(module => ({ default: module.Playground })));
 const VisualSolver = lazy(() => import('./components/VisualSolver').then(module => ({ default: module.VisualSolver })));
 const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
 const Settings = lazy(() => import('./components/Settings').then(module => ({ default: module.SettingsScreen })));
-
 const UserProfilePage = lazy(() => import('./components/UserProfile').then(module => ({ default: module.UserProfileScreen })));
 const BillingSettingsPage = lazy(() => import('./components/BillingSettings').then(module => ({ default: module.BillingSettingsScreen })));
 const Help = lazy(() => import('./components/Help'));
@@ -36,10 +35,9 @@ const Notifications = lazy(() => import('./components/Notifications').then(modul
 const Feedback = lazy(() => import('./components/Feedback').then(module => ({ default: module.Feedback })));
 const VoiceTutorialPage = lazy(() => import('./components/VoiceTutorialPage').then(module => ({ default: module.default || module.VoiceTutorialPage })));
 
-// Per-route skeleton fallbacks — each matches the shape of its real UI
 const skeletonMap: Record<string, React.ReactNode> = {
     dashboard:      <DashboardSkeleton />,
-    leaderboard:    <div className="flex-1 flex flex-col w-full bg-white dark:bg-black p-4 sm:p-6 rounded-xl border border-gray-200"><LeaderboardSkeleton /></div>,
+    leaderboard:    <div className="flex-1 flex flex-col w-full bg-white p-4 sm:p-6 rounded-xl border border-neutral-200"><LeaderboardSkeleton /></div>,
     notifications:  <div className="flex-1 w-full max-w-4xl mx-auto"><NotificationsSkeleton /></div>,
     study_partners: <StudyPartnersSkeleton />,
     user_profile:   <UserProfileSkeleton />,
@@ -48,6 +46,8 @@ const skeletonMap: Record<string, React.ReactNode> = {
     messenger:      <MessengerSkeleton />,
     feedback:       <PageSkeleton />,
     voice_tutorial: <PageSkeleton />,
+    playground:     <PageSkeleton />,
+    notebooks:      <PageSkeleton />,
 };
 
 const getSkeletonFallback = (activeItem: string): React.ReactNode => {
@@ -72,12 +72,10 @@ interface MainContentProps {
     onNavigate?: (tab: string) => void;
     setCustomHeaderConfig: (config: any) => void;
     handleOnboardingComplete?: (profileData: { schoolId: string; collegeId: string; departmentId: string; level: string }) => Promise<void>;
-    notifications?: any[]; // Passed from App.tsx
+    notifications?: any[];
     onMarkAsRead?: (id: string) => void;
     onMarkAllAsRead?: () => void;
 }
-
-
 
 export const MainContent: React.FC<MainContentProps> = ({
     activeItem,
@@ -108,32 +106,43 @@ export const MainContent: React.FC<MainContentProps> = ({
                 switch (activeItem) {
                     case 'onboarding':
                         return (
-                                <div className="p-4 sm:p-6 md:p-10 max-w-7xl mx-auto min-h-[calc(100vh-140px)] flex items-center justify-center">
-                                    <Onboarding user={user!} onOnboardingComplete={handleOnboardingComplete!} />
-                                </div>
+                            <div className="p-4 sm:p-6 md:p-10 max-w-7xl mx-auto min-h-[calc(100vh-140px)] flex items-center justify-center">
+                                <Onboarding user={user!} onOnboardingComplete={handleOnboardingComplete!} />
+                            </div>
                         );
                     case 'dashboard':
+                    case 'chat':
                         return (
                             <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />
                         );
+                    case 'notebooks':
+                        return (
+                            <MyNotebooks
+                                userProfile={userProfile}
+                                onNavigate={onNavigate}
+                                setCustomHeaderConfig={setCustomHeaderConfig}
+                            />
+                        );
                     case 'study_guide':
                         return <StudyGuide userProfile={userProfile} userProgress={userProgress} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
+                    case 'playground':
+                        return <Playground />;
                     case 'voice_tutorial':
                         return <VoiceTutorialPage userProfile={userProfile} appSettings={appSettings} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />;
                     case 'leaderboard':
                         return <Leaderboard userProfile={userProfile} />;
                     case 'visual_solver':
                         return (
-                                <VisualSolver
-                                    userProfile={userProfile}
-                                    onStartChat={(payload) => {
-                                        if (typeof payload === 'object' && payload !== null) {
-                                            writeCachedJson('avelut_active_voice_tutorial', payload);
-                                        }
-                                        onNavigate?.('study_guide');
-                                    }}
-                                    triggerScanRef={triggerScanRef}
-                                />
+                            <VisualSolver
+                                userProfile={userProfile}
+                                onStartChat={(payload) => {
+                                    if (typeof payload === 'object' && payload !== null) {
+                                        writeCachedJson('avelut_active_voice_tutorial', payload);
+                                    }
+                                    onNavigate?.('study_guide');
+                                }}
+                                triggerScanRef={triggerScanRef}
+                            />
                         );
                     case 'history':
                         return <History userProfile={userProfile} />;
@@ -142,47 +151,48 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'billing':
                         return <BillingSettingsPage userProfile={userProfile} appSettings={appSettings} onProfileUpdate={handleProfileUpdate} />;
                     case 'settings':
-                        return <Settings user={user} userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onDeleteAccount={handleDeleteAccount} onNavigate={onNavigate!} />;
-
+                        return (
+                            <Settings
+                                user={user}
+                                userProfile={userProfile}
+                                onLogout={handleLogout}
+                                onProfileUpdate={handleProfileUpdate}
+                                onDeleteAccount={handleDeleteAccount}
+                                onNavigate={onNavigate!}
+                            />
+                        );
                     case 'help':
                         return <Help onStartTour={startTour} />;
                     case 'feedback':
-                        return (
-                                <Feedback userProfile={userProfile} />
-                        );
+                        return <Feedback userProfile={userProfile} />;
                     case 'messenger':
                         return (
-                                <Messenger userProfile={userProfile} initialChatId={initialMessengerChatId} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} />
-                        );
-                    case 'chat':
-                        return (
-                                <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />
+                            <Messenger
+                                userProfile={userProfile}
+                                initialChatId={initialMessengerChatId}
+                                onNavigate={onNavigate}
+                                setCustomHeaderConfig={setCustomHeaderConfig}
+                            />
                         );
                     case 'admin':
                         return userProfile.is_admin
-                            ? (
-                                        <AdminPanel userProfile={userProfile} />
-                                )
+                            ? <AdminPanel userProfile={userProfile} />
                             : <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
                     case 'notifications':
                         return (
-                                <Notifications 
-                                    notifications={notifications} 
-                                    onMarkAsRead={onMarkAsRead || (() => {})} 
-                                    onMarkAllAsRead={onMarkAllAsRead || (() => {})} 
-                                    onNavigate={onNavigate!} 
-                                />
+                            <Notifications
+                                notifications={notifications}
+                                onMarkAsRead={onMarkAsRead || (() => {})}
+                                onMarkAllAsRead={onMarkAllAsRead || (() => {})}
+                                onNavigate={onNavigate!}
+                            />
                         );
                     case 'study_partners':
-                        return (
-                                <StudyPartners userProfile={userProfile} onNavigate={onNavigate!} />
-                        );
+                        return <StudyPartners userProfile={userProfile} onNavigate={onNavigate!} />;
                     default:
                         if (activeItem.startsWith('public_profile_')) {
                             const targetUid = activeItem.replace('public_profile_', '');
-                            return (
-                                    <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />
-                            );
+                            return <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />;
                         }
                         return <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
                 }
