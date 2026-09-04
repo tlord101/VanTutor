@@ -4,12 +4,14 @@
  * Users get a fixed allowance of included minutes (monthly or weekly).
  * Starting a lesson either consumes from the pool (no credits) or charges
  * credits when the pool cannot cover the full duration.
+ *
+ * Credit deduction is performed by the caller (TeachingEngineSessionView)
+ * via deductAICredits to avoid circular imports with usage.ts.
  */
 
 import type { UserProfile, AppSettings } from '../types';
 import { DEFAULT_USAGE_SETTINGS } from './appSettings';
 import { readCachedJson, writeCachedJson } from './cache';
-import { deductAICredits } from './usage';
 
 export type LiveDurationMinutes = 15 | 30 | 60;
 
@@ -81,12 +83,6 @@ function getTierConfig(userProfile?: UserProfile | null, appSettings?: AppSettin
   return tiers[key] || tiers.free || DEFAULT_USAGE_SETTINGS.tiers.free;
 }
 
-/**
- * Included live minutes for the current billing period.
- * Free: 15 / month
- * Weekly: 105 / week
- * Pro / Semester: 150 / month
- */
 export function getLiveMinuteAllowance(
   userProfile?: UserProfile | null,
   appSettings?: AppSettings | null
@@ -241,6 +237,7 @@ export function evaluateLiveTutorialStart(
   };
 }
 
+/** Persist included-minute usage. Credits must be deducted by the caller. */
 export async function commitLiveTutorialStart(
   userProfile: UserProfile,
   decision: LiveTutorialStartDecision,
@@ -258,20 +255,10 @@ export async function commitLiveTutorialStart(
       updatedAt: Date.now(),
     };
     writeCachedJson(storageKey(userProfile.uid), next);
-    return;
   }
-
-  if (decision.payment === 'credits' && decision.creditCost > 0) {
-    await deductAICredits(
-      userProfile.uid,
-      decision.creditCost,
-      `Live tutorial ${decision.durationMinutes}m`,
-      appSettings || undefined
-    );
-  }
+  // payment === 'credits' → caller charges decision.creditCost via deductAICredits
 }
 
-/** Back-compat for headers / launch buttons */
 export function hasLiveTutorialAccess(
   userProfile?: UserProfile | null,
   appSettings?: AppSettings | null
