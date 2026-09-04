@@ -3,7 +3,6 @@ import type { UserProfile, AppSettings } from '../types';
 import { DEFAULT_USAGE_SETTINGS, DEFAULT_APP_SETTINGS } from './appSettings';
 import { saveLocalCredits, recordLocalCreditDeduction } from '../services/creditsStorageService';
 
-// Load Paystack script dynamically
 const loadPaystackScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
     if ((window as any).PaystackPop) {
@@ -34,7 +33,7 @@ interface PaystackPurchaseOptions {
 }
 
 export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) => {
-  const { publicKey, email, amount, userId, userName, purchaseType, metadata, onSuccess, onCancel, onError, addToast } = options;
+  const { publicKey, email, amount, userId, purchaseType, metadata, onSuccess, onCancel, onError, addToast } = options;
 
   let paymentLogId = 'pay_' + Date.now();
   if (isSupabaseConfigured && userId) {
@@ -85,18 +84,16 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
     const handler = (window as any).PaystackPop.setup({
       key: publicKey,
       email: email,
-      amount: amount * 100, // in kobo
+      amount: amount * 100,
       currency: 'NGN',
       metadata: paystackMetadata,
       callback: (response: any) => {
         const runAsyncCallback = async () => {
           const reference = response?.reference || 'ref_missing';
-
           if (response?.status && response.status !== 'success') {
             if (onError) onError(new Error(response.message || 'Transaction was not successful'));
             return;
           }
-
           try {
             await onSuccess(reference);
           } catch (e) {
@@ -118,9 +115,19 @@ export const triggerPaystackPurchase = async (options: PaystackPurchaseOptions) 
   }
 };
 
-// Helper to get dynamic costs from app settings with fallbacks
 export const getFeatureCost = (
-  feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'live_tutorial' | 'live_tutorial_question',
+  feature:
+    | 'visual_solve'
+    | 'chat_interaction'
+    | 'flashcard_generation'
+    | 'study_guide_extraction'
+    | 'ai_quiz_generation'
+    | 'study_guide_lesson'
+    | 'live_tutorial'
+    | 'live_tutorial_15'
+    | 'live_tutorial_30'
+    | 'live_tutorial_60'
+    | 'live_tutorial_question',
   appSettings?: AppSettings | null
 ): number => {
   const costs = appSettings?.usage_settings?.feature_costs as any;
@@ -135,22 +142,17 @@ export const getFeatureModel = (
   return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || 'qwen3.7-flash';
 };
 
-// Legacy object for backward compatibility, mapped to dynamic getter
 export const AI_COSTS = {
   get VISUAL_SOLVE() { return DEFAULT_USAGE_SETTINGS.feature_costs.visual_solve; },
   get CHAT_INTERACTION() { return DEFAULT_USAGE_SETTINGS.feature_costs.chat_interaction; },
   get FLASHCARD_GENERATION() { return DEFAULT_USAGE_SETTINGS.feature_costs.flashcard_generation; },
 };
 
-// Check if user is exempt from limits
 export const isExempt = (userProfile?: UserProfile | null): boolean => {
   if (!userProfile) return false;
   return !!(userProfile.is_admin || userProfile.use_personal_token || userProfile.subscription_status === 'personal_token');
 };
 
-/**
- * Checks if the user is on an active paid plan (Weekly, Monthly, Semester, Pro, Premium).
- */
 export const isPaidSubscriber = (userProfile?: UserProfile | null): boolean => {
   if (!userProfile) return false;
   if (isExempt(userProfile)) return true;
@@ -158,28 +160,15 @@ export const isPaidSubscriber = (userProfile?: UserProfile | null): boolean => {
   return status === 'weekly' || status === 'monthly' || status === 'semester' || status === 'basic' || status === 'pro' || status === 'premium';
 };
 
-/**
- * Checks whether the user has access to Live Voice Tutorial:
- * - Paid subscribers (Weekly: 1/day, Monthly: 10/day, Semester: 10/day)
- * - Free users with at least 300 credits (pay-as-you-go topic cost)
- */
-export const hasLiveTutorialAccess = (userProfile?: UserProfile | null): { allowed: boolean; reason?: 'locked_free' | 'insufficient_credits' | 'allowed' } => {
-  if (!userProfile) return { allowed: false, reason: 'locked_free' };
-  if (isExempt(userProfile)) return { allowed: true, reason: 'allowed' };
-  if (isPaidSubscriber(userProfile)) return { allowed: true, reason: 'allowed' };
+/** Live tutorial access — minute pool + credits (see liveTutorialQuota.ts) */
+export { hasLiveTutorialAccess } from './liveTutorialQuota';
+export {
+  evaluateLiveTutorialStart,
+  commitLiveTutorialStart,
+  getLiveMinutesRemaining,
+  getLiveDurationCreditCost,
+} from './liveTutorialQuota';
 
-  // Pay-As-You-Go single topic pass requires 300 credits (₦300)
-  const balance = userProfile.ai_credits_balance ?? 0;
-  if (balance >= 300) {
-    return { allowed: true, reason: 'allowed' };
-  }
-
-  return { allowed: false, reason: 'locked_free' };
-};
-
-/**
- * Validates if the user has enough AI credits for a given action.
- */
 export const checkAICredits = (
   userProfile: UserProfile,
   cost: number,
@@ -189,37 +178,31 @@ export const checkAICredits = (
     return { allowed: true, balance: Infinity, cost: 0 };
   }
 
-  const subStatus = userProfile?.subscription_status || 'free';
   const isSubscriber = isPaidSubscriber(userProfile);
 
-  // If user is a paid subscriber and doing standard chat/scan/flashcards, allow
   if (isSubscriber && cost <= 50) {
     return { allowed: true, balance: Infinity, cost: 0 };
   }
 
   const usageSettings = appSettings?.usage_settings || DEFAULT_USAGE_SETTINGS;
   const tiers = usageSettings?.tiers || (usageSettings as any)?.plans || DEFAULT_USAGE_SETTINGS.tiers;
+  const subStatus = userProfile?.subscription_status || 'free';
   const planKey = (subStatus === 'pro' ? 'monthly' : subStatus) as string;
   const allocation = (tiers as any)[planKey]?.credit_allocation ?? DEFAULT_USAGE_SETTINGS.tiers.free.credit_allocation;
-  
+
   const balance = userProfile?.ai_credits_balance ?? allocation;
   const allowed = balance >= cost;
 
   return { allowed, balance, cost };
 };
 
-/**
- * Safely decrements user AI credit balance in Supabase and local SQLite.
- */
 export const deductAICredits = async (userId: string, cost: number, featureName: string, appSettings?: AppSettings) => {
   if (!userId || cost <= 0) return;
 
-  // Always record deduction locally first for instant zero-latency UI updates
   recordLocalCreditDeduction(userId, cost, featureName).catch(console.warn);
 
   if (isSupabaseConfigured) {
     try {
-      // 1. Try atomic RPC deduction first
       const { data: rpcRes, error: rpcErr } = await supabase.rpc('deduct_user_credits', {
         p_user_id: userId,
         p_amount: cost,
@@ -230,7 +213,6 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
           saveLocalCredits(userId, rpcRes.remaining_credits, 'free').catch(console.warn);
         }
       } else {
-        // Fallback: direct update on profiles
         const { data: profile } = await supabase
           .from('profiles')
           .select('ai_credits')
@@ -247,7 +229,6 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
         }
       }
 
-      // 2. Audit log to usage_records table asynchronously
       void supabase.from('usage_records').insert({
         user_id: userId,
         feature: featureName,
@@ -259,6 +240,3 @@ export const deductAICredits = async (userId: string, cost: number, featureName:
     }
   }
 };
-
-// LEGACY trackers kept temporarily for smooth migration or removed if not referenced.
-// We will replace their calls in components in the next step.
