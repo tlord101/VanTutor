@@ -2,46 +2,62 @@ import type { AppSettings } from '../types';
 
 export const APP_SETTINGS_PATH = 'app_settings/global';
 
+/**
+ * Pricing model (NGN):
+ * - Free: unlimited Avelut AI chat; everything else heavily capped → push to paid
+ * - Weekly: short exam-crunch plan
+ * - Pro (₦3,999/mo): only monthly Pro plan — unlimited study tools; 15-min live 1×/day included
+ * - 30-min & 60-min live tutorials: always credit top-up (all tiers)
+ */
 export const DEFAULT_USAGE_SETTINGS = {
   tiers: {
     free: {
       tier_id: 'free',
-      display_name: 'Free Tier',
-      description: 'Standard access with daily limits. 30 chat messages/day, 3 camera scans/day. Live tutorial locked.',
+      display_name: 'Free',
+      description:
+        'Unlimited Avelut AI chat. Study tools heavily limited: 3 flashcard sets/day, 1 quiz/day, 1 camera scan/day. One 15-min live voice tutorial per month. Upgrade for unlimited study tools & daily live lessons.',
       price_ngn: 0,
-      credit_allocation: 30,
-      max_saved_courses: 5,
+      credit_allocation: 50,
+      max_saved_courses: 3,
+      // Live: 15 min only, once per month
       live_tutorial_daily_topics: 0,
-      live_tutorial_minutes_label: '0 mins',
-      chat_daily_limit: 50,
-      scan_daily_limit: 3,
+      live_tutorial_monthly_topics: 1,
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min lesson / month',
+      // Avelut AI main chat = unlimited; study-guide / notebook tutor chats capped
+      chat_daily_limit: -1,
+      study_chat_daily_limit: 15,
+      scan_daily_limit: 1,
       flashcard_daily_limit: 3,
-      quiz_daily_limit: 3,
-      max_notebooks: 100,
-      sources_per_notebook: 50,
-      max_source_words: 500000,
-      max_source_mb: 200,
-      deep_research_monthly: 10,
-      audio_overviews_daily: 3,
-      video_overviews_daily: 3,
-      reports_daily: 10,
+      quiz_daily_limit: 1,
+      max_notebooks: 20,
+      sources_per_notebook: 10,
+      max_source_words: 100000,
+      max_source_mb: 50,
+      deep_research_monthly: 2,
+      audio_overviews_daily: 0,
+      video_overviews_daily: 0,
+      reports_daily: 2,
       has_verification_badge: false,
       badge_color: 'none',
     },
     weekly: {
       tier_id: 'weekly',
-      display_name: 'Weekly Plan',
-      description: 'Unlimited chats & camera scans, unlimited uploads. 1 Live Voice Tutorial topic per day (7 topics per week). Generated content accessible offline.',
-      price_ngn: 1200,
-      credit_allocation: 500,
+      display_name: 'Weekly',
+      description:
+        '7-day boost: unlimited study chats, scans, flashcards & quizzes. 15-min live voice tutorial 1×/day (7/week). 30-min & 60-min lessons available via credits.',
+      price_ngn: 1499,
+      credit_allocation: 400,
       max_saved_courses: -1,
-      live_tutorial_daily_topics: 1,       // 1 per day = 7 per week
+      live_tutorial_daily_topics: 1,
       live_tutorial_weekly_topics: 7,
-      live_tutorial_minutes_label: '1 topic / day (7/week)',
-      chat_daily_limit: -1, // unlimited
-      scan_daily_limit: -1, // unlimited
-      flashcard_daily_limit: 3,
-      quiz_daily_limit: 3,
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min / day (7/week)',
+      chat_daily_limit: -1,
+      study_chat_daily_limit: -1,
+      scan_daily_limit: -1,
+      flashcard_daily_limit: -1,
+      quiz_daily_limit: -1,
       max_notebooks: 100,
       sources_per_notebook: 50,
       max_source_words: 500000,
@@ -49,17 +65,21 @@ export const DEFAULT_USAGE_SETTINGS = {
       has_verification_badge: true,
       badge_color: 'blue',
     },
+    // Sole monthly Pro plan
     monthly: {
       tier_id: 'monthly',
-      display_name: 'Monthly Plan',
-      description: 'Unlimited chats, scans & flashcards. Max 3 Live Voice Tutorial topics per day, 15 topics total per month. All content saved for offline access.',
-      price_ngn: 4000,
-      credit_allocation: 2500,
+      display_name: 'Pro',
+      description:
+        'Unlimited study tools (chat, scans, flashcards, quizzes). 15-min live voice tutorial 1× per day. Longer 30-min & 60-min lessons unlock with credits.',
+      price_ngn: 3999,
+      credit_allocation: 2000,
       max_saved_courses: -1,
-      live_tutorial_daily_topics: 3,       // max 3 per day
-      live_tutorial_monthly_topics: 15,    // 15 total per month
-      live_tutorial_minutes_label: 'Max 3 topics/day · 15/month',
+      live_tutorial_daily_topics: 1,
+      live_tutorial_monthly_topics: 30,
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min / day included',
       chat_daily_limit: -1,
+      study_chat_daily_limit: -1,
       scan_daily_limit: -1,
       flashcard_daily_limit: -1,
       quiz_daily_limit: -1,
@@ -70,17 +90,21 @@ export const DEFAULT_USAGE_SETTINGS = {
       has_verification_badge: true,
       badge_color: 'purple',
     },
+    // Optional long prepaid (not a monthly charge)
     semester: {
       tier_id: 'semester',
-      display_name: 'Semester Plan',
-      description: 'All-inclusive academic access for the entire semester. Max 3 Live Tutorial topics per day, 15/month. All generated content saved offline. Best academic value.',
-      price_ngn: 12000,
+      display_name: 'Semester',
+      description:
+        'Pro access for a full semester (~4 months). Same Pro limits: unlimited study tools + 15-min live 1×/day. 30/60-min via credits.',
+      price_ngn: 11999,
       credit_allocation: 8000,
       max_saved_courses: -1,
-      live_tutorial_daily_topics: 3,       // max 3 per day
-      live_tutorial_monthly_topics: 15,    // 15 total per month
-      live_tutorial_minutes_label: 'Max 3 topics/day · 15/month',
+      live_tutorial_daily_topics: 1,
+      live_tutorial_monthly_topics: 30,
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min / day included',
       chat_daily_limit: -1,
+      study_chat_daily_limit: -1,
       scan_daily_limit: -1,
       flashcard_daily_limit: -1,
       quiz_daily_limit: -1,
@@ -91,43 +115,51 @@ export const DEFAULT_USAGE_SETTINGS = {
       has_verification_badge: true,
       badge_color: 'gold',
     },
-    // Legacy tier aliases
+    // Legacy aliases → map to weekly / Pro
     basic: {
       tier_id: 'basic',
-      display_name: 'Weekly Plan',
-      description: 'Unlimited chats, scans, 1 Live Voice Tutorial topic per day (7 per week). Content saved offline.',
-      price_ngn: 1200,
-      credit_allocation: 500,
+      display_name: 'Weekly',
+      description:
+        '7-day boost: unlimited study tools. 15-min live 1×/day. 30/60-min via credits.',
+      price_ngn: 1499,
+      credit_allocation: 400,
       max_saved_courses: -1,
       live_tutorial_daily_topics: 1,
       live_tutorial_weekly_topics: 7,
-      live_tutorial_minutes_label: '1 topic / day (7/week)',
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min / day (7/week)',
       has_verification_badge: true,
       badge_color: 'blue',
     },
     premium: {
       tier_id: 'premium',
-      display_name: 'Monthly Plan',
-      description: 'Unlimited chats, scans & flashcards. Max 3 Live Tutorial topics per day, 15 per month. All content saved offline.',
-      price_ngn: 4000,
-      credit_allocation: 2500,
+      display_name: 'Pro',
+      description:
+        'Unlimited study tools. 15-min live 1×/day included. 30-min & 60-min via credits.',
+      price_ngn: 3999,
+      credit_allocation: 2000,
       max_saved_courses: -1,
-      live_tutorial_daily_topics: 3,
-      live_tutorial_monthly_topics: 15,
-      live_tutorial_minutes_label: 'Max 3 topics/day · 15/month',
+      live_tutorial_daily_topics: 1,
+      live_tutorial_monthly_topics: 30,
+      live_tutorial_included_minutes: 15,
+      live_tutorial_minutes_label: '1 × 15-min / day included',
       has_verification_badge: true,
       badge_color: 'purple',
     },
   },
   feature_costs: {
-    live_tutorial: 150,           // ₦150 per full topic (pay-as-you-go)
-    live_tutorial_question: 50,   // 50 credits per question asked during live tutorial
-    flashcard_generation: 50,     // ₦50 per flashcard
-    chat_interaction: 1,          // 1 credit per AI response (Notebook Chat & Study Guide Chat)
-    visual_solve: 5,              // 5 credits per scan (covers Gemini HIGH thinking cost)
+    // Live duration pricing (credits ≈ ₦1 each for PAYG)
+    live_tutorial: 150,              // 15-min when over free/plan quota
+    live_tutorial_15: 150,
+    live_tutorial_30: 350,           // always credit-paid (not in plan allowance)
+    live_tutorial_60: 650,           // always credit-paid
+    live_tutorial_question: 50,
+    flashcard_generation: 50,
+    chat_interaction: 1,             // study-guide / notebook chat only; main Avelut chat free on Free
+    visual_solve: 5,
     ai_quiz_generation: 50,
     study_guide_lesson: 300,
-    study_guide_extraction: 10,   // 10 credits per extraction (no longer free)
+    study_guide_extraction: 10,
   },
   feature_models: {
     visual_solve: 'qwen3.7-flash',
@@ -140,6 +172,8 @@ export const DEFAULT_USAGE_SETTINGS = {
   },
   additional_prices: {
     live_tutorial_pass: 150,
+    live_tutorial_30_pass: 350,
+    live_tutorial_60_pass: 650,
     flashcards_pack_10: 500,
     visual_messages_price: 200,
     visual_messages_count: 10,
@@ -169,7 +203,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   paystack_public_key: '',
   custom_user_limit_rpm: 10,
   custom_user_limit_tpm: 250000,
-  usage_settings: DEFAULT_USAGE_SETTINGS as any, // Temporary cast until types propagate fully
+  usage_settings: DEFAULT_USAGE_SETTINGS as any,
   youtube_api_key: '',
   google_client_id: '',
   google_api_key: '',
@@ -242,6 +276,10 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
       ai_quiz_generation: typeof raw.usage_settings.feature_costs?.ai_quiz_generation === 'number' ? raw.usage_settings.feature_costs.ai_quiz_generation : DEFAULT_USAGE_SETTINGS.feature_costs.ai_quiz_generation,
       study_guide_lesson: typeof raw.usage_settings.feature_costs?.study_guide_lesson === 'number' ? raw.usage_settings.feature_costs.study_guide_lesson : DEFAULT_USAGE_SETTINGS.feature_costs.study_guide_lesson,
       study_guide_extraction: typeof raw.usage_settings.feature_costs?.study_guide_extraction === 'number' ? raw.usage_settings.feature_costs.study_guide_extraction : DEFAULT_USAGE_SETTINGS.feature_costs.study_guide_extraction,
+      live_tutorial: typeof (raw.usage_settings.feature_costs as any)?.live_tutorial === 'number' ? (raw.usage_settings.feature_costs as any).live_tutorial : DEFAULT_USAGE_SETTINGS.feature_costs.live_tutorial,
+      live_tutorial_15: typeof (raw.usage_settings.feature_costs as any)?.live_tutorial_15 === 'number' ? (raw.usage_settings.feature_costs as any).live_tutorial_15 : DEFAULT_USAGE_SETTINGS.feature_costs.live_tutorial_15,
+      live_tutorial_30: typeof (raw.usage_settings.feature_costs as any)?.live_tutorial_30 === 'number' ? (raw.usage_settings.feature_costs as any).live_tutorial_30 : DEFAULT_USAGE_SETTINGS.feature_costs.live_tutorial_30,
+      live_tutorial_60: typeof (raw.usage_settings.feature_costs as any)?.live_tutorial_60 === 'number' ? (raw.usage_settings.feature_costs as any).live_tutorial_60 : DEFAULT_USAGE_SETTINGS.feature_costs.live_tutorial_60,
     },
     feature_models: {
       visual_solve: raw.usage_settings.feature_models?.visual_solve || DEFAULT_USAGE_SETTINGS.feature_models.visual_solve,
@@ -254,6 +292,8 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
     },
     tiers: {
       free: {
+        ...(DEFAULT_USAGE_SETTINGS.tiers.free as any),
+        ...(raw.usage_settings.tiers?.free || {}),
         tier_id: raw.usage_settings.tiers?.free?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.free.tier_id,
         display_name: raw.usage_settings.tiers?.free?.display_name || DEFAULT_USAGE_SETTINGS.tiers.free.display_name,
         description: raw.usage_settings.tiers?.free?.description || DEFAULT_USAGE_SETTINGS.tiers.free.description,
@@ -264,6 +304,8 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
         badge_color: raw.usage_settings.tiers?.free?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.free.badge_color,
       },
       basic: {
+        ...(DEFAULT_USAGE_SETTINGS.tiers.basic as any),
+        ...(raw.usage_settings.tiers?.basic || {}),
         tier_id: raw.usage_settings.tiers?.basic?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.basic.tier_id,
         display_name: raw.usage_settings.tiers?.basic?.display_name || DEFAULT_USAGE_SETTINGS.tiers.basic.display_name,
         description: raw.usage_settings.tiers?.basic?.description || DEFAULT_USAGE_SETTINGS.tiers.basic.description,
@@ -274,6 +316,8 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
         badge_color: raw.usage_settings.tiers?.basic?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.basic.badge_color,
       },
       premium: {
+        ...(DEFAULT_USAGE_SETTINGS.tiers.premium as any),
+        ...(raw.usage_settings.tiers?.premium || {}),
         tier_id: raw.usage_settings.tiers?.premium?.tier_id || DEFAULT_USAGE_SETTINGS.tiers.premium.tier_id,
         display_name: raw.usage_settings.tiers?.premium?.display_name || DEFAULT_USAGE_SETTINGS.tiers.premium.display_name,
         description: raw.usage_settings.tiers?.premium?.description || DEFAULT_USAGE_SETTINGS.tiers.premium.description,
@@ -282,13 +326,16 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
         max_saved_courses: typeof raw.usage_settings.tiers?.premium?.max_saved_courses === 'number' ? raw.usage_settings.tiers.premium.max_saved_courses : DEFAULT_USAGE_SETTINGS.tiers.premium.max_saved_courses,
         has_verification_badge: typeof raw.usage_settings.tiers?.premium?.has_verification_badge === 'boolean' ? raw.usage_settings.tiers.premium.has_verification_badge : DEFAULT_USAGE_SETTINGS.tiers.premium.has_verification_badge,
         badge_color: raw.usage_settings.tiers?.premium?.badge_color || DEFAULT_USAGE_SETTINGS.tiers.premium.badge_color,
-      }
+      },
     },
     additional_prices: {
       visual_messages_price: typeof raw.usage_settings.additional_prices?.visual_messages_price === 'number' ? raw.usage_settings.additional_prices.visual_messages_price : DEFAULT_USAGE_SETTINGS.additional_prices.visual_messages_price,
       visual_messages_count: typeof raw.usage_settings.additional_prices?.visual_messages_count === 'number' ? raw.usage_settings.additional_prices.visual_messages_count : DEFAULT_USAGE_SETTINGS.additional_prices.visual_messages_count,
       studyguide_course_price: typeof raw.usage_settings.additional_prices?.studyguide_course_price === 'number' ? raw.usage_settings.additional_prices.studyguide_course_price : DEFAULT_USAGE_SETTINGS.additional_prices.studyguide_course_price,
       studyguide_request_price: typeof raw.usage_settings.additional_prices?.studyguide_request_price === 'number' ? raw.usage_settings.additional_prices.studyguide_request_price : DEFAULT_USAGE_SETTINGS.additional_prices.studyguide_request_price,
-    }
+      live_tutorial_pass: typeof (raw.usage_settings.additional_prices as any)?.live_tutorial_pass === 'number' ? (raw.usage_settings.additional_prices as any).live_tutorial_pass : DEFAULT_USAGE_SETTINGS.additional_prices.live_tutorial_pass,
+      live_tutorial_30_pass: typeof (raw.usage_settings.additional_prices as any)?.live_tutorial_30_pass === 'number' ? (raw.usage_settings.additional_prices as any).live_tutorial_30_pass : DEFAULT_USAGE_SETTINGS.additional_prices.live_tutorial_30_pass,
+      live_tutorial_60_pass: typeof (raw.usage_settings.additional_prices as any)?.live_tutorial_60_pass === 'number' ? (raw.usage_settings.additional_prices as any).live_tutorial_60_pass : DEFAULT_USAGE_SETTINGS.additional_prices.live_tutorial_60_pass,
+    },
   } : (DEFAULT_USAGE_SETTINGS as any),
 });
