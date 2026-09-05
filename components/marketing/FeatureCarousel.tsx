@@ -4,31 +4,45 @@ import { useSwipeable } from 'react-swipeable';
 
 const features = [
     {
-        id: 'tutor',
-        title: 'Context-Aware AI Tutor',
-        description: 'Chat with an AI that has literally read your textbook. It knows your syllabus, your department, and exactly what you need to know for the exam.',
-        icon: <i className="bi bi-cpu text-3xl"></i>,
+        id: 'live',
+        title: 'Live Tutorial',
+        description: 'A private classroom: voice that teaches like a lecturer, illustrations that draw on the board as the idea forms, and room to ask questions mid-lesson. 15, 30, or 60 minutes — resume anytime.',
+        icon: <i className="bi bi-easel2 text-3xl"></i>,
+        bgImage: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+        id: 'chat',
+        title: 'Unlimited Avelut AI Chat',
+        description: 'Stuck at any hour? Ask again and again. Main Avelut chat stays unlimited so you can dig into the hard part until it clicks — no daily message wall on the core tutor chat.',
+        icon: <i className="bi bi-chat-square-text text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'scanner',
-        title: 'Visual Problem Scanner',
-        description: 'Stuck on a problem? Snap a photo. The AI extracts the text, math, and context instantly and provides step-by-step guidance.',
+        title: 'Scan & Solve',
+        description: 'Snap a problem or diagram. Get a clear, step-by-step walkthrough instead of a one-line answer you can’t use on the exam.',
         icon: <i className="bi bi-camera text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1516383740770-fbcc5ccbece0?auto=format&fit=crop&w=800&q=80'
     },
     {
-        id: 'import',
-        title: 'Cloud Document Import',
-        description: 'Import textbooks directly from Google Drive. We parse it, chunk it, and index it into your personal study environment in seconds.',
-        icon: <i className="bi bi-cloud-arrow-up text-3xl"></i>,
-        bgImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80'
+        id: 'guides',
+        title: 'Study Guides & Notebooks',
+        description: 'Turn messy material into structured guides. Keep notebooks, flashcards, and quizzes in one home so revision actually happens.',
+        icon: <i className="bi bi-journal-bookmark text-3xl"></i>,
+        bgImage: 'https://images.unsplash.com/photo-1456513080880-7d93aaa2ba29?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+        id: 'practice',
+        title: 'Quizzes that explain',
+        description: 'Timed practice with explanations for every miss — not just a score. Focus the next hour where it actually moves your grade.',
+        icon: <i className="bi bi-ui-checks-grid text-3xl"></i>,
+        bgImage: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80'
     },
     {
         id: 'messenger',
-        title: 'Real-Time Peer Messenger',
-        description: 'Collaborate with your classmates, share notes, and discuss complex topics in dedicated course channels instantly.',
-        icon: <i className="bi bi-chat-dots text-3xl"></i>,
+        title: 'Study with peers',
+        description: 'Messenger and course spaces so you can share what’s working — without leaving the app that already holds your lessons.',
+        icon: <i className="bi bi-people text-3xl"></i>,
         bgImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80'
     }
 ];
@@ -54,9 +68,9 @@ export const FeatureCarousel: React.FC = () => {
     return (
         <section className="py-24 px-6 max-w-7xl mx-auto overflow-hidden" id="features">
             <div className="text-center mb-16 space-y-4">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">An Ecosystem of Intelligence</h2>
-                <p className="text-lg text-slate-600 font-medium max-w-2xl mx-auto">
-                    Everything you need to demolish your coursework, built into one seamless, blazingly fast platform. Swipe to explore.
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">Built to teach — not only summarize</h2>
+                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium max-w-2xl mx-auto">
+                    Live lessons, unlimited chat, practice that explains, and notebooks in one place. Swipe to explore.
                 </p>
             </div>
 
@@ -67,8 +81,7 @@ export const FeatureCarousel: React.FC = () => {
                         const isCenter = offset === 0;
                         const isLeft = offset === -1 || (currentIndex === 0 && index === features.length - 1);
                         const isRight = offset === 1 || (currentIndex === features.length - 1 && index === 0);
-                        
-                        // If it's not the center, immediate left, or immediate right, don't render it (or hide it)
+
                         if (!isCenter && !isLeft && !isRight) return null;
 
                         const rotateY = isLeft ? 45 : isRight ? -45 : 0;
@@ -102,15 +115,13 @@ export const FeatureCarousel: React.FC = () => {
                                 }}
                                 style={{ transformStyle: "preserve-3d" }}
                             >
-                                {/* Background Image */}
                                 <div className="absolute inset-0 z-0 bg-slate-900">
                                     <img src={feature.bgImage} alt={feature.title} className="w-full h-full object-cover opacity-30 group-hover:scale-110 transition duration-700" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                                 </div>
 
-                                {/* Content */}
                                 <div className="relative z-10 flex-1 p-8 flex flex-col justify-end">
-                                    <div className="text-white mb-6 bg-white dark:bg-black/20 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30 shadow-lg">
+                                    <div className="text-white mb-6 bg-white/15 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30 shadow-lg">
                                         {feature.icon}
                                     </div>
                                     <h3 className="text-3xl font-black text-white mb-4 leading-tight">{feature.title}</h3>
@@ -123,9 +134,8 @@ export const FeatureCarousel: React.FC = () => {
                     })}
                 </AnimatePresence>
 
-                {/* Controls */}
                 <div className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 flex items-center gap-6">
-                    <button 
+                    <button
                         onClick={handlePrev}
                         className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-md border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 hover:scale-110 transition cursor-pointer"
                     >
@@ -133,13 +143,13 @@ export const FeatureCarousel: React.FC = () => {
                     </button>
                     <div className="flex gap-2">
                         {features.map((_, i) => (
-                            <div 
-                                key={i} 
-                                className={`h-2.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-amber-500 w-6' : 'bg-slate-300 dark:bg-slate-700 w-2.5'}`} 
+                            <div
+                                key={i}
+                                className={`h-2.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-amber-500 w-6' : 'bg-slate-300 dark:bg-slate-700 w-2.5'}`}
                             />
                         ))}
                     </div>
-                    <button 
+                    <button
                         onClick={handleNext}
                         className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-md border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 hover:scale-110 transition cursor-pointer"
                     >

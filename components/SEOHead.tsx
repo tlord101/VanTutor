@@ -19,10 +19,10 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     url = 'https://avelut.xyz'
 }) => {
     const [seoData, setSeoData] = useState({
-        default_title: 'Avelut - AI Tutoring Platform',
-        default_description: 'Upload your textbooks, snap a photo of any problem, and let Avelut\'s advanced AI engine guide you to complete mastery in minutes.',
-        default_keywords: 'education, AI, study guide, past questions, learning',
-        og_image_url: 'https://avelut.xyz/logo_full.png',
+        default_title: 'Avelut — Live AI Tutor with Voice, Board & Unlimited Chat',
+        default_description: "Avelut teaches, not only summarizes. Live Tutorial: real voice + visual board lessons. Unlimited Avelut AI chat when you're stuck. Study guides, quizzes, scan-to-solve. Free to start at avelut.xyz.",
+        default_keywords: 'Avelut, live AI tutor, voice tutorial, study board, unlimited AI chat, study guide, exam practice, visual problem solver, online tutor',
+        og_image_url: 'https://avelut.xyz/og-image.jpg',
         twitter_handle: '@avelut'
     });
 
@@ -45,20 +45,18 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
 
     return (
         <Helmet>
-            {/* Primary Meta Tags */}
             <title>{fullTitle}</title>
             <meta name="title" content={fullTitle} />
             <meta name="description" content={finalDescription} />
             <meta name="keywords" content={finalKeywords} />
 
-            {/* Open Graph / Facebook */}
             <meta property="og:type" content="website" />
             <meta property="og:url" content={url} />
             <meta property="og:title" content={fullTitle} />
             <meta property="og:description" content={finalDescription} />
             <meta property="og:image" content={finalOgImage} />
+            <meta property="og:site_name" content="Avelut" />
 
-            {/* Twitter */}
             <meta property="twitter:card" content="summary_large_image" />
             <meta property="twitter:url" content={url} />
             <meta property="twitter:title" content={fullTitle} />
@@ -66,8 +64,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
             <meta property="twitter:image" content={finalOgImage} />
             {seoData.twitter_handle && <meta property="twitter:site" content={seoData.twitter_handle} />}
             {seoData.twitter_handle && <meta property="twitter:creator" content={seoData.twitter_handle} />}
-            
-            {/* Canonical Link */}
+
             <link rel="canonical" href={url} />
         </Helmet>
     );

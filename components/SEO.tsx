@@ -11,14 +11,13 @@ interface SEOProps {
 }
 
 export const SEO: React.FC<SEOProps> = ({
-  title = "Avelut - AI Study Guide & Visual Problem Solver",
-  description = "Transforming education with AI-powered study guides, visual problem solving, and adaptive learning.",
-  keywords = "education, AI, study guide, past questions, learning, visual problem solver",
+  title = "Avelut — Live AI Tutor with Voice, Board & Unlimited Chat",
+  description = "Avelut teaches, not only summarizes. Live Tutorial: real voice + visual board lessons (15–60 min). Unlimited Avelut AI chat when you're stuck. Study guides, quizzes, and scan-to-solve in one place. Free to start.",
+  keywords = "Avelut, live AI tutor, voice tutorial, study board, unlimited AI chat, study guide, flashcards, exam practice, visual problem solver, online tutor for students, learn with AI",
   image = "https://avelut.xyz/og-image.jpg",
   url = "https://avelut.xyz/",
   type = "website",
 }) => {
-  // Advanced JSON-LD Schema for Local Education Organization
   const schemaMarkup = {
     "@context": "https://schema.org",
     "@type": "EducationalOrganization",
@@ -28,39 +27,41 @@ export const SEO: React.FC<SEOProps> = ({
     "description": description,
     "sameAs": [
       "https://twitter.com/avelut",
-      // add other social links here
     ],
     "contactPoint": {
       "@type": "ContactPoint",
       "contactType": "customer support",
       "email": "support@avelut.xyz"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "NGN",
+      "description": "Free plan with unlimited Avelut AI chat"
     }
   };
 
   return (
     <Helmet>
-      {/* Standard SEO Tags */}
       <title>{title}</title>
       <meta name="description" content={description} />
       <meta name="keywords" content={keywords} />
-      <meta name="author" content="AVELUT Team" />
+      <meta name="author" content="AVELUT" />
       <link rel="canonical" href={url} />
 
-      {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
       <meta property="og:url" content={url} />
+      <meta property="og:site_name" content="Avelut" />
 
-      {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
       <meta name="twitter:site" content="@avelut" />
 
-      {/* JSON-LD Schema */}
       <script type="application/ld+json">
         {JSON.stringify(schemaMarkup)}
       </script>
