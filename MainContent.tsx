@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { writeCachedJson } from './utils/cache';
 import type { FirebaseUser } from './firebase';
-import type { UserProfile, UserProgress, DashboardData, AppSettings } from './types';
+import type { UserProfile, UserProgress, DashboardData, AppSettings, ChatConversation } from './types';
 import {
     DashboardSkeleton,
     LeaderboardSkeleton,
@@ -75,6 +75,8 @@ interface MainContentProps {
     notifications?: any[];
     onMarkAsRead?: (id: string) => void;
     onMarkAllAsRead?: () => void;
+    onConversationsUpdate?: (conversations: ChatConversation[]) => void;
+    onOpenMenu?: () => void;
 }
 
 export const MainContent: React.FC<MainContentProps> = ({
@@ -97,6 +99,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     notifications = [],
     onMarkAsRead,
     onMarkAllAsRead,
+    onConversationsUpdate,
+    onOpenMenu,
 }) => {
     if (!userProfile) return null;
 
@@ -113,7 +117,14 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'dashboard':
                     case 'chat':
                         return (
-                            <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />
+                            <AvelutAI
+                                userProfile={userProfile}
+                                onNavigate={onNavigate}
+                                setCustomHeaderConfig={setCustomHeaderConfig}
+                                unreadMessagesCount={unreadMessagesCount}
+                                onConversationsUpdate={onConversationsUpdate}
+                                onOpenMenu={onOpenMenu}
+                            />
                         );
                     case 'notebooks':
                         return (
@@ -177,7 +188,14 @@ export const MainContent: React.FC<MainContentProps> = ({
                     case 'admin':
                         return userProfile.is_admin
                             ? <AdminPanel userProfile={userProfile} />
-                            : <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
+                            : <AvelutAI
+                                userProfile={userProfile}
+                                onNavigate={onNavigate}
+                                setCustomHeaderConfig={setCustomHeaderConfig}
+                                unreadMessagesCount={unreadMessagesCount}
+                                onConversationsUpdate={onConversationsUpdate}
+                                onOpenMenu={onOpenMenu}
+                            />;
                     case 'notifications':
                         return (
                             <Notifications
@@ -194,7 +212,14 @@ export const MainContent: React.FC<MainContentProps> = ({
                             const targetUid = activeItem.replace('public_profile_', '');
                             return <PublicProfile targetUid={targetUid} onNavigate={onNavigate!} />;
                         }
-                        return <AvelutAI userProfile={userProfile} onNavigate={onNavigate} setCustomHeaderConfig={setCustomHeaderConfig} unreadMessagesCount={unreadMessagesCount} />;
+                        return <AvelutAI
+                            userProfile={userProfile}
+                            onNavigate={onNavigate}
+                            setCustomHeaderConfig={setCustomHeaderConfig}
+                            unreadMessagesCount={unreadMessagesCount}
+                            onConversationsUpdate={onConversationsUpdate}
+                            onOpenMenu={onOpenMenu}
+                        />;
                 }
             })()}
         </Suspense>
