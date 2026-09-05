@@ -1,79 +1,130 @@
- <div align="center">
-  <svg width="120" height="120" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M4.33331 17.5L26 4.375L47.6666 17.5L26 30.625L4.33331 17.5Z" stroke="#A3E635" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M41.5 21V29.75C41.5 30.825 40.85 32.55 39.4166 33.25L27.75 39.375C26.6666 39.9 25.3333 39.9 24.25 39.375L12.5833 33.25C11.15 32.55 10.5 30.825 10.5 29.75V21" stroke="#A3E635" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M47.6667 17.5V26.25" stroke="#A3E635" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-  
-  # AVELUT: Your Personal AI University Companion
-  
-  [![Vercel Deployment](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel)](https://vercel.com)
-  [![AI Engine](https://img.shields.io/badge/AI-Avelut_AI_Flash--Lite-blue?logo=google-gemini)](https://deepmind.google/technologies/gemini/)
-  [![Database](https://img.shields.io/badge/Database-Firebase-orange?logo=firebase)](https://firebase.google.com/)
+<div align="center">
 
-  **The ultimate all-in-one learning platform that turns your textbooks and past questions into an interactive, personalized tutoring experience.**
+# AVELUT
+
+### The study partner that actually teaches you — out loud, on a board, until it clicks.
+
+**Stop reading. Start learning.**  
+Avelut is the AI study app built for students who are tired of passive notes and generic chatbots.
+
+[**Open Avelut →**](https://avelut.xyz)
+
 </div>
 
 ---
 
-## 🌟 What is AVELUT?
+## Why students switch to Avelut
 
-AVELUT is your advanced AI-powered academic companion, built to ensure you never feel lost in your studies again. Unlike generic AI, AVELUT is **tailored to your curriculum**. It understands your department, your level, and your specific local university requirements, providing a learning experience that actually matters for your grades.
+Most “AI study tools” give you a summary and leave you alone.
 
-### Why Students Love AVELUT:
-*   **Context-Aware Learning**: No more generic answers. Get help based on the actual textbooks and syllabus used in your department.
-*   **Precision Prep**: Practice with real past questions that are automatically extracted and organized for your level.
-*   **Confidence Building**: Master complex topics through interactive, bite-sized lessons that adapt to your pace.
+Avelut does the opposite.
 
----
+It **teaches** — the way a real lecturer would: voice, board, examples, pauses, questions, and the patience to go again when something doesn’t land.
 
-## 🔥 Key Features for Students
-
-### 🧠 Avelut AI Tutoring
-Experience a tutor that never sleeps and knows everything about your course. 
-*   **Deep Understanding**: Powered by lightning-fast Avelut AI (`gemini-3.1-flash-lite`), AVELUT can digest thousands of pages of textbooks to answer your most specific questions instantly.
-*   **Bite-sized Lessons**: Complex chapters are broken down into easy-to-digest modules with interactive quizzes.
-*   **Visual Solver**: Simply snap a photo of a math problem or diagram, and get an instant, step-by-step walkthrough.
-
-### ✍️ The Ultimate Exam Prep
-Stop hunting for "Past Questions" in dusty photocopies.
-*   **Simulated Mock Exams**: Take timed, realistic tests designed to mimic your actual university exams.
-*   **Instant Feedback**: Don't just see your score—get detailed AI-generated explanations for every wrong answer.
-*   **Performance Tracking**: See your strengths and weaknesses at a glance to focus your study time where it counts.
-
-### 🏆 Gamified Community
-Learning is better together.
-*   **Department Leaderboards**: See how you rank against peers in your department and level.
-*   **Messenger & Collaboration**: Connect with students on your same path to share study tips and resources.
-*   **XP & Rewards**: Earn experience points for every milestone, keeping you motivated through the semester.
+If you’ve ever wished your textbook could *explain itself*… that’s Avelut.
 
 ---
 
-## 🚀 Upcoming Updates (Roadmap)
+## Live Tutorial — a private classroom in your pocket
 
-We are constantly evolving to provide the most futuristic learning experience possible. Here’s what’s coming soon:
+This is the feature that changes everything.
 
-*   **🎙️ Real-time Visual AI Assistant**: An interactive AI avatar that you can talk to naturally. It will see what you're working on, speak back to you in real-time, and guide you through problems interactively like a human tutor.
-*   **📅 AI Study Planner**: Automatically generate a study schedule based on your exam dates and current progress.
-*   **📱 Native Mobile App**: A dedicated iOS and Android experience for offline studying and instant notifications.
+Open a topic. Choose how long you want to study — **15, 30, or 60 minutes**.  
+Then walk into a live classroom that feels human:
+
+- **A real voice** walks you through the topic — not a robotic dump of text
+- **Illustrations appear on the board** as the lesson unfolds — diagrams, arrows, steps, formulas drawn in sequence so you *see* the idea form
+- **You can interrupt** — ask a question mid-lesson and get an answer on a clean board, then continue where you left off
+- **Longer lessons feel like a real lecturer** — pacing, emphasis, jokes when it fits, and room to breathe — not a nonstop monologue
+- **Resume later** — life happens; Avelut remembers where you stopped
+
+This isn’t “chat about a PDF.”  
+It’s a **live lesson** with a board and a voice that stays with you until the concept is clear.
+
+That gap — between reading notes and actually understanding — is exactly what Live Tutorial was built to close.
 
 ---
 
-## 🛠️ Technology Stack (For the Curious)
+## Unlimited Avelut AI chat
 
-*   **Frontend**: React & TypeScript (Modern, robust web technology).
-*   **Styling**: Tailwind CSS (Clean, fast, mobile-first design).
-*   **AI Engine**: Avelut AI / Google GenAI (`gemini-3.1-flash-lite` for ultra-fast response times).
-*   **Backend**: Firebase Realtime Database & Storage (Real-time updates and secure file handling).
-*   **Hosting**: Vercel (Fast, reliable global delivery).
+Stuck at 2 a.m.? Confused by one paragraph in your notes? Need a second explanation in simpler words?
+
+**Talk to Avelut AI as much as you need.**
+
+No daily message walls on the main chat. No “come back tomorrow.”  
+Ask the same question three ways. Drill into the hard part. Get a worked example. Ask for a checklist before your test.
+
+It’s always on. It’s built for your courses. And it doesn’t judge how many times you ask.
 
 ---
 
-##  Privacy & Security
-AVELUT respects your data. All academic progress is private, and collaboration tools are strictly isolated within your department to ensure a safe learning environment.
+## Everything else you need in one place
+
+| What you need | What Avelut does |
+|---|---|
+| **Study Guides** | Turn messy material into clear, structured guides you can actually revise from |
+| **My Notebooks** | Keep your materials, notes, and study flow in one home |
+| **Flashcards** | Generate decks fast — practice until the ideas stick |
+| **Quizzes & exam mode** | Timed practice with explanations, not just a score |
+| **Scan & solve** | Snap a problem or diagram and get a clear walkthrough |
+| **Messenger** | Study with people on the same path |
+| **Progress that makes sense** | See where you’re strong and where to spend the next hour |
+
+You don’t need five apps and a stack of photocopies.  
+You need one place that *teaches*, *practices*, and *stays with you*.
+
+---
+
+## Not another note summarizer
+
+Tools that only summarize your uploads are useful — until the exam asks for *understanding*.
+
+Avelut is built for the harder part:
+
+- **Teaching**, not only summarizing  
+- **Voice + visual board**, not only a wall of text  
+- **Interactive lessons** you can interrupt and resume  
+- **Unlimited chat** when you need another angle  
+- **Practice that explains**, not only grades  
+
+If a tool leaves you with nicer notes but the same confusion — you’ve still got work to do.  
+Avelut is for the work that turns confusion into clarity.
+
+---
+
+## Built for how students actually study
+
+- **Your pace** — short sessions or deep 60‑minute lessons  
+- **Your questions** — interrupt, ask, continue  
+- **Your materials** — guides, notebooks, quizzes in one flow  
+- **Your schedule** — resume when life interrupts  
+
+No jargon. No “AI engineer” setup.  
+Open the app. Pick a topic. Start learning.
+
+---
+
+## Get started
+
+1. Go to **[avelut.xyz](https://avelut.xyz)**  
+2. Create your account  
+3. Open a topic — or just start chatting with Avelut AI  
+4. When you’re ready for the real jump: **start a Live Tutorial**
+
+The first time the board draws while a voice explains the hard part — you’ll feel the difference.
+
+---
+
+## Privacy
+
+Your progress and study data stay private. Collaboration stays in the spaces you choose. We build for students who need focus — not noise.
 
 ---
 
 <div align="center">
-  Built with ❤️ for students everywhere.
+
+**Avelut** — learn it once, properly.
+
+[Start free at avelut.xyz](https://avelut.xyz)
+
 </div>
