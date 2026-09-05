@@ -1,5 +1,5 @@
 -- Avelut: Messenger + notifications on Supabase (Realtime / WebSockets)
--- Run in Supabase SQL editor if not already applied.
+-- Safe to re-run. Compatible with existing `reports.reporter_id` column.
 
 -- Chats (1:1 for now; extendable to groups)
 create table if not exists public.chats (
@@ -53,14 +53,62 @@ create table if not exists public.notifications (
 
 create index if not exists notifications_user_idx on public.notifications(user_id, created_at desc);
 
+-- reports may already exist with reporter_id (not reporter_uid)
 create table if not exists public.reports (
   id uuid primary key default gen_random_uuid(),
-  reporter_uid uuid references auth.users(id),
-  reported_uid uuid,
+  reporter_id uuid references auth.users(id),
+  reported_id uuid,
   chat_id uuid,
   reason text,
   created_at timestamptz default now()
 );
+
+-- Ensure expected columns exist on legacy reports tables
+do $$
+begin
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'reports'
+  ) then
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'reporter_id'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'reporter_uid'
+    ) then
+      alter table public.reports rename column reporter_uid to reporter_id;
+    end if;
+
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'reporter_id'
+    ) then
+      alter table public.reports add column reporter_id uuid references auth.users(id);
+    end if;
+
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'reported_id'
+    ) then
+      alter table public.reports add column reported_id uuid;
+    end if;
+
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'chat_id'
+    ) then
+      alter table public.reports add column chat_id uuid;
+    end if;
+
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'reports' and column_name = 'reason'
+    ) then
+      alter table public.reports add column reason text;
+    end if;
+  end if;
+end $$;
 
 create table if not exists public.study_partners (
   user_id uuid references auth.users(id) on delete cascade,
@@ -94,7 +142,6 @@ alter table public.reports enable row level security;
 alter table public.study_partners enable row level security;
 alter table public.user_blocks enable row level security;
 
--- Members can see chats they belong to
 drop policy if exists chat_members_select on public.chat_members;
 create policy chat_members_select on public.chat_members for select using (auth.uid() = user_id);
 
@@ -118,8 +165,9 @@ create policy messages_update on public.messages for update using (auth.uid() = 
 drop policy if exists notifications_own on public.notifications;
 create policy notifications_own on public.notifications for all using (auth.uid() = user_id);
 
+-- Use reporter_id (existing column name in your DB)
 drop policy if exists reports_insert on public.reports;
-create policy reports_insert on public.reports for insert with check (auth.uid() = reporter_uid);
+create policy reports_insert on public.reports for insert with check (auth.uid() = reporter_id);
 
 drop policy if exists study_partners_own on public.study_partners;
 create policy study_partners_own on public.study_partners for all using (auth.uid() = user_id);
@@ -135,7 +183,7 @@ create policy chats_select on public.chats for select using (
 drop policy if exists chats_insert on public.chats;
 create policy chats_insert on public.chats for insert with check (true);
 
--- Realtime publication (ignore errors if already added)
+-- Realtime publication (ignore if already added)
 do $$
 begin
   begin
