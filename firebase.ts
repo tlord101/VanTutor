@@ -1,6 +1,6 @@
 /**
  * Legacy entrypoint — NO Firebase SDK.
- * Auth + realtime DB are Supabase. Storage media prefers R2; uploads use supabase storage helper.
+ * Auth + realtime DB are Supabase. Storage uses Supabase Storage / R2 callers.
  */
 
 import { supabaseAuthService } from './services/supabaseAuthService';
@@ -31,7 +31,6 @@ export type FirebaseUser = {
 
 const auth = {
   get currentUser(): FirebaseUser | null {
-    // sync placeholder; real session via onAuthStateChanged
     return (auth as any)._currentUser || null;
   },
   _currentUser: null as FirebaseUser | null,
@@ -93,29 +92,67 @@ const signInAnonymously = async () => {
   return { user: { uid: res.user.id, email: res.user.email } };
 };
 
-/** Minimal storage shim — prefer R2 in app code; this uses Supabase Storage bucket `uploads` */
-const storage = {
-  app: { name: 'supabase-storage' },
-};
-
-async function uploadBytes(pathRef: { fullPath: string }, blob: Blob) {
-  const path = pathRef.fullPath || pathRef.toString();
-  const { error } = await supabase.storage.from('uploads').upload(path, blob, { upsert: true });
-  if (error) throw error;
-  return { metadata: { fullPath: path } };
-}
-
-async function getDownloadURL(pathRef: { fullPath: string }) {
-  const path = pathRef.fullPath || pathRef.toString();
-  const { data } = supabase.storage.from('uploads').getPublicUrl(path);
-  return data.publicUrl;
-}
+const storage = { app: { name: 'supabase-storage' } };
 
 function storageRef(_storage: any, path: string) {
   return { fullPath: path, toString: () => path };
 }
 
-// Dummy Google provider for any leftover imports
+async function uploadBytes(pathRef: { fullPath: string }, blob: Blob) {
+  const path = pathRef.fullPath || String(pathRef);
+  const { error } = await supabase.storage.from('uploads').upload(path, blob, { upsert: true });
+  if (error) throw error;
+  return { metadata: { fullPath: path } };
+}
+
+function uploadBytesResumable(pathRef: { fullPath: string }, blob: Blob) {
+  const listeners: Record<string, Function[]> = { state_changed: [] };
+  const task: any = {
+    on(event: string, next?: any, _err?: any, complete?: any) {
+      if (event === 'state_changed' && next) listeners.state_changed.push(next);
+      void uploadBytes(pathRef, blob)
+        .then(() => {
+          listeners.state_changed.forEach((fn) =>
+            fn({ bytesTransferred: blob.size, totalBytes: blob.size, state: 'success' })
+          );
+          complete?.();
+        })
+        .catch((e) => _err?.(e));
+      return task;
+    },
+    snapshot: { ref: pathRef },
+    then(onFulfilled: any, onRejected?: any) {
+      return uploadBytes(pathRef, blob).then(onFulfilled, onRejected);
+    },
+  };
+  return task;
+}
+
+async function getDownloadURL(pathRef: { fullPath: string }) {
+  const path = pathRef.fullPath || String(pathRef);
+  const { data } = supabase.storage.from('uploads').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function deleteObject(pathRef: { fullPath: string }) {
+  const path = pathRef.fullPath || String(pathRef);
+  await supabase.storage.from('uploads').remove([path]);
+}
+
+function httpsCallable(_functions: any, name: string) {
+  return async (_payload?: any) => {
+    console.warn(`[shim] httpsCallable('${name}') not on Supabase — add an Edge Function if needed.`);
+    return { data: null };
+  };
+}
+
+function orderByChild(key: string) {
+  return { __op: 'orderByChild', key };
+}
+function equalTo(value: any) {
+  return { __op: 'equalTo', value };
+}
+
 class GoogleAuthProvider {}
 const googleProvider = new GoogleAuthProvider();
 const signInWithPopup = async () => {
@@ -145,7 +182,6 @@ export {
   signInWithPopup,
   sendPasswordResetEmail,
   firebaseSignOut,
-  // re-export path API so callers can migrate off firebase/database gradually
   dbRef as ref,
   onValue,
   off,
@@ -158,7 +194,12 @@ export {
   query,
   limitToLast,
   increment,
+  orderByChild,
+  equalTo,
   uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
+  deleteObject,
   storageRef,
+  httpsCallable,
 };

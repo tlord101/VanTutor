@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { db } from '../firebase';
-import { ref as dbRef, onValue } from 'firebase/database';
+import { db, ref as dbRef, onValue } from '../firebase';
 
 interface SEOHeadProps {
     title?: string;
@@ -27,10 +26,12 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     });
 
     useEffect(() => {
+        // Prefer Supabase profiles/settings; path shim may no-op until app_kv exists
         const seoRef = dbRef(db, 'seo_settings');
         const unsubscribe = onValue(seoRef, (snapshot) => {
-            if (snapshot.exists()) {
-                setSeoData(prev => ({ ...prev, ...snapshot.val() }));
+            const val = snapshot.val();
+            if (val) {
+                setSeoData(prev => ({ ...prev, ...val }));
             }
         });
         return () => unsubscribe();
