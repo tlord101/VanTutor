@@ -4,7 +4,7 @@ import { Type } from './utils/inference';
 import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
 import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
 import { DEFAULT_USAGE_SETTINGS } from './utils/appSettings';
-import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment, HeaderConfig } from './types';
+import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment, HeaderConfig, ChatConversation } from './types';
 import { awardDailyStreak } from './utils/streaks';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp'; 
@@ -21,7 +21,6 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const SendIntent = registerPlugin<any>('SendIntent');
 
-
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const AboutUsPage = lazy(() => import('./components/marketing/AboutUsPage').then(m => ({ default: m.AboutUsPage })));
@@ -31,7 +30,7 @@ const DeleteAccountWeb = lazy(() => import('./components/marketing/DeleteAccount
 const RefillCreditsWeb = lazy(() => import('./components/marketing/RefillCreditsWeb').then(m => ({ default: m.RefillCreditsWeb })));
 const PlansWeb = lazy(() => import('./components/marketing/PlansWeb').then(m => ({ default: m.PlansWeb })));
 const PaymentSuccessWeb = lazy(() => import('./components/marketing/PaymentSuccessWeb').then(m => ({ default: m.PaymentSuccessWeb })));
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, FloatingMenuButton } from './components/Sidebar';
 import { Header } from './components/Header';
 import { NativePullToRefresh } from './components/NativePullToRefresh';
 import { MainContent } from './MainContent';
@@ -46,7 +45,6 @@ import { navigationItems, adminNavigationItems } from './constants';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import GuidedTour, { TourStep } from './components/GuidedTour';
 import { getWindowPathname } from './utils/pathname';
-import { MenuIcon } from './components/icons/MenuIcon';
 import { ComingSoonScreen } from './components/ComingSoonScreen';
 import { SharedChatView } from './components/SharedChatView';
 import TermsAndConditions from './components/TermsAndConditions';
@@ -65,7 +63,6 @@ declare var __app_id: string;
 const AppLoader: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] dark:bg-background overflow-hidden animate-pulse">
-        {/* Fake Sidebar */}
         <div className="hidden lg:flex w-64 bg-white dark:bg-black dark:bg-card border-r border-slate-200 dark:border-white/10 dark:border-border flex-col p-4">
             <div className="flex items-center gap-3 mb-8 px-2">
                 <Skeleton className="w-8 h-8 rounded-lg" />
@@ -75,16 +72,11 @@ const AppLoader: React.FC = () => {
                 {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
             </div>
         </div>
-        
-        {/* Fake Main Content */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Fake Header */}
             <div className="h-16 bg-white dark:bg-black dark:bg-card border-b border-slate-200 dark:border-white/10 dark:border-border flex items-center justify-between px-4 sm:px-6">
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-8 w-8 rounded-full" />
             </div>
-            
-            {/* Fake Page */}
             <div className="flex-1 p-6 overflow-hidden">
                 <PageSkeleton />
             </div>
@@ -93,9 +85,6 @@ const AppLoader: React.FC = () => {
   );
 };
 
-// =========================================================================
-// HIGH ACCURACY PWA AUTO-INSTALL HOOK & INTERFACE COMPONENT
-// =========================================================================
 const usePWAInstallEngine = () => {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isIOS, setIsIOS] = useState(false);
@@ -103,13 +92,10 @@ const usePWAInstallEngine = () => {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-
-        // Check if application environment is running standalone already
         const isAppStandalone = window.matchMedia('(display-mode: standalone)').matches 
             || (window.navigator as any).standalone === true;
         setIsStandalone(isAppStandalone);
 
-        // Track Apple hardware environment profiles
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isAppleDevice = /iphone|ipad|ipod/.test(userAgent);
         setIsIOS(isAppleDevice);
@@ -350,9 +336,6 @@ const AppUpdateDropModal: React.FC<{
     );
 };
 
-// ==========================================
-// UTILITY ROUTING PROTOCOLS
-// ==========================================
 const normalizeRouteSegment = (segment: string): string => (segment || '').toLowerCase().replace(/-/g, '_');
 
 const ALLOWED_ROUTE_ITEMS = new Set([
@@ -427,7 +410,6 @@ const playAlarmSound = () => {
         };
         
         const now = ctx.currentTime;
-        // Two-tone bell chime played twice
         playBeep(now, 880, 0.4);
         playBeep(now + 0.1, 1109.73, 0.5);
         
@@ -438,13 +420,9 @@ const playAlarmSound = () => {
     }
 };
 
-// ==========================================
-// CORE APP CONTEXT ENGINE INITIALIZATION
-// ==========================================
 const App: React.FC = () => {
     const { updatePrompt, dismissUpdatePrompt, openUpdateInStore } = useAppUpdate();
     useOTAUpdater();
-    // Auto permissions moved inside the App to allow profile updates
     useGlobalRefresh();
     const [currentPath, setCurrentPath] = useState(getWindowPathname());
     const [user, setUser] = useState<FirebaseUser | null>(() => firebaseAuth.currentUser);
@@ -459,15 +437,15 @@ const App: React.FC = () => {
     });
     const userProfileRef = useRef<UserProfile | null>(userProfile);
     const [isReadyForBackgroundSync, setIsReadyForBackgroundSync] = useState(false);
+    const [recentConversations, setRecentConversations] = useState<ChatConversation[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
-    // Dismiss native splash screen immediately for lightning-fast launch
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
             SplashScreen.hide({ fadeOutDuration: 150 }).catch(() => {});
         }
     }, []);
 
-    // Initialize local SQLite database, hydrate cache & clean expired AI cache on app startup
     useEffect(() => {
         getDatabaseConnection().then(() => {
             initCacheFromSqlite().catch(() => {});
@@ -477,7 +455,6 @@ const App: React.FC = () => {
         });
     }, []);
 
-    // Start background cloud sync engine when user profile is loaded
     useEffect(() => {
         if (userProfile?.uid) {
             cloudSyncEngine.start(userProfile.uid);
@@ -667,7 +644,6 @@ const App: React.FC = () => {
         }
     }, [loadSharedImagePreview]);
 
-    // Attempt to detect an image in the clipboard when the app is opened or focused without base64 bloat
     useEffect(() => {
         let mounted = true;
         const tryReadClipboardImage = async () => {
@@ -693,21 +669,14 @@ const App: React.FC = () => {
                         return;
                     }
                 }
-            } catch (err) {
-                // Reading clipboard may be blocked by browser without a user gesture; ignore failures.
-            }
+            } catch (err) {}
         };
 
-        // Try once on mount
         void tryReadClipboardImage();
-
-        // Also try when window gains focus (useful if user copied before switching to app)
         const onFocus = () => { void tryReadClipboardImage(); };
         window.addEventListener('focus', onFocus);
         return () => { mounted = false; window.removeEventListener('focus', onFocus); };
     }, []);
-
-
 
     const globalTouchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -773,8 +742,6 @@ const App: React.FC = () => {
         }
     }, []);
 
-
-
     useEffect(() => {
         const handlePopState = () => syncItemFromPath(getWindowPathname());
         handlePopState();
@@ -823,7 +790,6 @@ const App: React.FC = () => {
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
     const ai = useMemo(() => (
         createAvelutAI(appSettings, userProfile)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     ), [
         appSettings,
         userProfile?.uid,
@@ -834,37 +800,36 @@ const App: React.FC = () => {
     const isUploadCenterRoute = getWindowPathname().startsWith('/upload-center');
     const isAdminRoute = getWindowPathname().startsWith('/admin');
 
-        const applyMessengerTarget = useCallback((chatId: string | null | undefined) => {
-                if (!chatId) return;
-                setActiveItem('messenger');
-                setPendingMessengerChatId(chatId);
-                // Clear notifications when entering a specific chat
-                if (Capacitor.isNativePlatform()) {
-                    PushNotifications.removeAllDeliveredNotifications().catch(console.error);
-                }
-        }, [setActiveItem]);
+    const applyMessengerTarget = useCallback((chatId: string | null | undefined) => {
+        if (!chatId) return;
+        setActiveItem('messenger');
+        setPendingMessengerChatId(chatId);
+        if (Capacitor.isNativePlatform()) {
+            PushNotifications.removeAllDeliveredNotifications().catch(console.error);
+        }
+    }, [setActiveItem]);
 
-        useEffect(() => {
-                if (typeof window === 'undefined') return;
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
 
-                const url = new URL(window.location.href);
-                const chatId = url.searchParams.get('openMessengerChatId');
-                if (chatId) {
-                    applyMessengerTarget(chatId);
-                    url.searchParams.delete('openMessengerChatId');
-                    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-                }
+        const url = new URL(window.location.href);
+        const chatId = url.searchParams.get('openMessengerChatId');
+        if (chatId) {
+            applyMessengerTarget(chatId);
+            url.searchParams.delete('openMessengerChatId');
+            window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+        }
 
-                const handleServiceWorkerMessage = (event: MessageEvent) => {
-                    const data = event.data || {};
-                    if (data?.type === 'open-messenger-chat' && data.chatId) {
-                        applyMessengerTarget(String(data.chatId));
-                    }
-                };
+        const handleServiceWorkerMessage = (event: MessageEvent) => {
+            const data = event.data || {};
+            if (data?.type === 'open-messenger-chat' && data.chatId) {
+                applyMessengerTarget(String(data.chatId));
+            }
+        };
 
-                navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
-                return () => navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
-        }, [applyMessengerTarget]);
+        navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
+        return () => navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
+    }, [applyMessengerTarget]);
 
     const { attemptApiCall } = useApiLimiter();
     const tourStatusRef = useRef<'unknown' | 'checked' | 'shown'>('unknown');
@@ -904,7 +869,6 @@ const App: React.FC = () => {
               window.localStorage.setItem('avelut_last_uid', uid);
             } catch (_) {}
 
-            // Preload user profile and data immediately from SQLite / cache (0ms instant render)
             const cachedProfile = readCachedJson<UserProfile | null>(`avelut_profile_${uid}`, null);
             if (cachedProfile) {
               setUserProfile(cachedProfile);
@@ -950,8 +914,7 @@ const App: React.FC = () => {
             
             if (url.protocol.replace(':', '') === 'avelut' && url.host === 'payment-success') {
                 addToast('Payment Successful! Refreshing profile...', 'success');
-                setActiveItem('dashboard'); // Optionally navigate to dashboard or billing
-                // You could also fetch latest user profile here if needed
+                setActiveItem('dashboard');
                 return;
             }
             if (url.protocol.replace(':', '') === 'avelut' && url.host === 'action') {
@@ -964,7 +927,7 @@ const App: React.FC = () => {
                          const messagesRef = dbRef(db, `messages/${chatId}`);
                          const newMsgRef = push(messagesRef);
                          await set(newMsgRef, {
-                             senderId: user.uid,   // must match Messenger's senderId field
+                             senderId: user.uid,
                              text: replyText,
                              timestamp: Date.now(),
                              isRead: false
@@ -975,7 +938,6 @@ const App: React.FC = () => {
                          addToast('Failed to send reply', 'error');
                      }
                 } else if (actionId === 'open_chat' && chatId) {
-                     // Open Chat button from notification drawer
                      setActiveItem('messenger');
                      setPendingMessengerChatId(chatId);
                 } else if (actionId === 'study_guide' || actionId === 'timetable') {
@@ -989,11 +951,9 @@ const App: React.FC = () => {
                 } else if (actionId === 'leaderboard') {
                      setActiveItem('leaderboard');
                 } else if (chatId) {
-                     // Notification tap without specific action — open to chat
                      setActiveItem('messenger');
                      setPendingMessengerChatId(chatId);
                 } else if (actionId) {
-                     // Generic navigation fallback for any other route
                      setActiveItem(actionId);
                 }
             }
@@ -1001,7 +961,6 @@ const App: React.FC = () => {
 
         const appStateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
-                // Clear all notifications when app comes to foreground (WhatsApp style)
                 PushNotifications.removeAllDeliveredNotifications().catch(console.error);
             }
         });
@@ -1010,7 +969,6 @@ const App: React.FC = () => {
             urlListener.then(listener => listener.remove());
             appStateListener.then(listener => listener.remove());
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, addToast]);
 
     useEffect(() => {
@@ -1076,7 +1034,6 @@ const App: React.FC = () => {
         };
         const timer = setTimeout(requestPermissions, 2500);
         return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid, handleProfileUpdate, userProfile?.notifications_enabled]);
 
     useEffect(() => {
@@ -1106,9 +1063,6 @@ const App: React.FC = () => {
                     return;
                 }
                 
-                // Guard against partial optimistic updates from syncAuthIdentityToProfile.
-                // If the snapshot is missing all onboarding fields AND we already have a loaded
-                // profile with department_id, skip this event — it's a local optimistic write.
                 const hasOnboardingFields = !!(data.department_id && data.school_id && data.college_id);
                 const isLikelyPartialOptimistic = !hasOnboardingFields && !data.created_at && !data.is_activated;
                 const hasPriorCompleteProfile = !!(userProfileRef.current?.department_id);
@@ -1133,7 +1087,6 @@ const App: React.FC = () => {
                         }
                     }
 
-                    // --- Auto Notification Logic ---
                     if (!sessionStorage.getItem('session_notifications_sent')) {
                         sessionStorage.setItem('session_notifications_sent', 'true');
                         const today = new Date().toISOString().split('T')[0];
@@ -1149,12 +1102,9 @@ const App: React.FC = () => {
                             localStorage.setItem('last_seen_app_version', currentAppVersion);
                         }
                     }
-                    // -------------------------------
                 }
                 setIsProfileLoading(false);
             } else {
-                // If profile snapshot doesn't exist in Realtime Database, construct a default profile object
-                // so the user is immediately transitioned to onboarding or dashboard instead of getting stuck on AppLoader.
                 const defaultProfile: UserProfile = {
                     uid: user.uid,
                     display_name: user.displayName || 'AVELITE',
@@ -1183,16 +1133,11 @@ const App: React.FC = () => {
             }
         }, (error) => {
             console.error("Error fetching user profile:", error);
-            // Silently wait for retry — rely on the network banner
         });
         
         return () => { off(userRef, 'value', unsubscribeProfile); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, addToast, startTour]);
 
-    // =====================================================
-    // BACKGROUND SYNC DELAY ENGINE
-    // =====================================================
     useEffect(() => {
         if (userProfile && !isReadyForBackgroundSync) {
             const timer = setTimeout(() => setIsReadyForBackgroundSync(true), 1500);
@@ -1202,24 +1147,15 @@ const App: React.FC = () => {
         }
     }, [userProfile, isReadyForBackgroundSync]);
 
-    // =====================================================
-    // SESSION STREAK: award after 10 seconds in the app
-    // =====================================================
     useEffect(() => {
         if (!userProfile) return;
-        const SESSION_STREAK_THRESHOLD_MS = 1000; // Reduced to 1 sec to immediately register streak
+        const SESSION_STREAK_THRESHOLD_MS = 1000;
         const timer = window.setTimeout(async () => {
             await awardDailyStreak(userProfile.uid);
         }, SESSION_STREAK_THRESHOLD_MS);
         return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userProfile?.uid]); // Only re-run if user changes (not on every profile update)
+    }, [userProfile?.uid]);
 
-
-    // Delay syncing auth identity to profile until the profile listener has had a chance
-    // to receive the full server data. This prevents the update() from firing a local
-    // optimistic event that creates a partial snapshot (missing department_id) before
-    // the full profile arrives, which was causing a false redirect to onboarding.
     useEffect(() => {
         if (!user || isProfileLoading) return;
         const syncAuthIdentityToProfile = async () => {
@@ -1250,12 +1186,9 @@ const App: React.FC = () => {
                 console.error('Failed to sync auth identity to profile:', error);
             }
         };
-        // Small delay to let the onValue listener settle with the full server snapshot first
         const timer = setTimeout(syncAuthIdentityToProfile, 800);
         return () => clearTimeout(timer);
     }, [user, isProfileLoading]);
-
-
 
     useEffect(() => {
         if (!userProfile || !user) return;
@@ -1282,13 +1215,11 @@ const App: React.FC = () => {
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             off(connectedRef, 'value', unsubscribeConnected);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.uid, user]);
     
     useEffect(() => {
         if (!userProfile?.uid) return;
         const cacheKey = `avelut_progress_${userProfile.uid}`;
-        // No cache preload — always fetch fresh from Firebase
 
         if (!isReadyForBackgroundSync) return;
 
@@ -1307,9 +1238,6 @@ const App: React.FC = () => {
             setNotifications([]);
             return;
         }
-
-        const cacheKeyDashboard = `avelut_dashboard_${userProfile.uid}`;
-        // No cache preload — always fetch fresh from Firebase
 
         const cacheKeyNotif = `avelut_notifications_${userProfile.uid}`;
 
@@ -1367,16 +1295,12 @@ const App: React.FC = () => {
         }
 
         const deptCacheKey = `avelut_dept_data_${userProfile.department_id}`;
-        // No cache preload — always fetch fresh from Firebase
 
         if (!isReadyForBackgroundSync) return;
 
-        // Always fetch courses from departments_data (the canonical course store)
-        // schools_data only contains dept metadata (name, levels), NOT courses.
         const coursesRef = dbRef(db, `departments_data/${userProfile.department_id}`);
         get(coursesRef).then((coursesSnap) => {
             const coursesVal = coursesSnap.val() || {};
-            // Also fetch dept metadata (name etc.) from schools_data for display purposes
             const metaRef = dbRef(db, `schools_data/${userProfile.school_id}/colleges/${userProfile.college_id}/departments/${userProfile.department_id}`);
             get(metaRef).then((metaSnap) => {
                 const metaVal = metaSnap.val() || {};
@@ -1386,7 +1310,6 @@ const App: React.FC = () => {
                     setDepartmentData(merged);
                 }
             }).catch(err => {
-                // Meta fetch failed — use courses data alone
                 if (coursesVal && Object.keys(coursesVal).length > 0) {
                     writeCachedJson(deptCacheKey, coursesVal);
                     setDepartmentData(coursesVal);
@@ -1476,8 +1399,6 @@ const App: React.FC = () => {
         examHistory,
         departmentData
     ]);
-
-
 
     const handleLogout = async () => {
         try {
@@ -1605,9 +1526,6 @@ const App: React.FC = () => {
       { target: 'body', title: "🎉 You're all set!", content: 'Enjoy exploring your learning journey. Tap "Finish" to start!', placement: 'center' },
     ];
 
-    // Only show full-screen loader when we have NO data at all (no cached user profile).
-    // If we have a cached userProfile (stored in SQLite/localStorage), allow instant app launch
-    // and sync in the background without blocking the user on startup.
     if (!userProfile && (isAuthChecking || isLoading || (isProfileLoading && user))) {
         return <div key="app-loader-state"><AppLoader /></div>;
     }
@@ -1796,8 +1714,6 @@ const App: React.FC = () => {
             </div>
         );
     }
-
-
     
     if (!userProfile) {
         return (
@@ -1806,8 +1722,6 @@ const App: React.FC = () => {
             </div>
         );
     }
-
-
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -1831,13 +1745,17 @@ const App: React.FC = () => {
                 onSkip={dismissUpdatePrompt}
             />
 
-            {/* Automatic PWA App Intercept Modal Overlay */}
             <PWAInstallBannerOverlay />
             <SharedImagePromptModal
                 visible={showSharedImagePrompt}
                 imagePreview={sharedImagePreview}
                 onScan={handleSharedImageScan}
                 onCancel={handleSharedImageCancel}
+            />
+
+            <FloatingMenuButton
+                onClick={() => setIsMobileSidebarOpen(true)}
+                visible={activeItem !== 'messenger'}
             />
 
             <Sidebar
@@ -1849,6 +1767,16 @@ const App: React.FC = () => {
                 onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
+                recentConversations={recentConversations}
+                activeConversationId={activeConversationId}
+                onSelectConversation={(id) => {
+                    setActiveConversationId(id);
+                    setActiveItem('chat');
+                }}
+                onNewChat={() => {
+                    setActiveConversationId(null);
+                    setActiveItem('chat');
+                }}
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
@@ -1887,7 +1815,7 @@ const App: React.FC = () => {
                             appSettings={appSettings}
                             userProgress={userProgress}
                             dashboardData={dashboardData}
-                                    initialMessengerChatId={pendingMessengerChatId}
+                            initialMessengerChatId={pendingMessengerChatId}
                             unreadMessagesCount={unreadMessagesCount}
                             handleLogout={handleLogout}
                             handleProfileUpdate={handleProfileUpdate}
@@ -1900,6 +1828,8 @@ const App: React.FC = () => {
                             notifications={notifications}
                             onMarkAsRead={handleMarkNotificationRead}
                             onMarkAllAsRead={handleMarkAllNotificationsRead}
+                            onConversationsUpdate={setRecentConversations}
+                            onOpenMenu={() => setIsMobileSidebarOpen(true)}
                         />
                     )}
                 </div>
@@ -1937,7 +1867,6 @@ const App: React.FC = () => {
                 onClose={handleTourClose}
             />
 
-            {/* Global Offline/Online Banner */}
             {(isOffline || showOnlineRestored) && (
                 <div 
                     className={`fixed bottom-[calc(max(env(safe-area-inset-bottom),0px)+65px)] md:bottom-0 left-0 right-0 z-[100] h-[30px] flex items-center justify-center text-[12px] font-bold text-white transition-all duration-300 shadow-md ${isOffline ? 'bg-red-500' : 'bg-green-500'}`}
