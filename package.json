@@ -1,7 +1,7 @@
 {
   "name": "avelut",
   "private": true,
-  "version": "5.9.0",
+  "version": "5.9.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -38,7 +38,6 @@
     "@ai-sdk/react": "^3.0.193",
     "@base-ui/react": "^1.5.0",
     "@capacitor-community/sqlite": "^8.1.1",
-    "@capacitor-firebase/authentication": "^8.3.0",
     "@capacitor-mlkit/text-recognition": "^8.2.0",
     "@capacitor/android": "^8.4.0",
     "@capacitor/app": "^8.1.0",
@@ -63,7 +62,6 @@
     "capacitor-plugin-send-intent": "^0.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "firebase": "^12.5.0",
     "framer-motion": "^12.40.0",
     "html2canvas": "^1.4.1",
     "jeep-sqlite": "^2.8.0",
