@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { supabaseAuthService } from '../services/supabaseAuthService';
-import { ref as dbRef, update, get } from 'firebase/database';
-import { db } from '../firebase';
+import { db, ref as dbRef, update, get } from '../firebase';
 
 export type Mode = 'light' | 'dark';
 
@@ -30,7 +29,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const snapshot = await get(prefsRef);
                 if (snapshot.exists()) {
                     const data = snapshot.val();
-                    if (data.mode) {
+                    if (data?.mode) {
                         setModeState(data.mode);
                         writeCachedJson('app_mode', data.mode, user.id);
                     }
@@ -56,12 +55,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   }, [mode]);
 
-  const updateFirebasePref = (key: string, value: string) => {
+  const updateThemePref = (key: string, value: string) => {
       if (userUid) {
           try {
               update(dbRef(db, `users/${userUid}/theme_preferences`), { [key]: value });
           } catch (err) {
-              console.error("Failed to update theme in Firebase", err);
+              console.error("Failed to update theme preferences:", err);
           }
       }
   };
@@ -69,7 +68,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setMode = (newMode: Mode) => {
     setModeState(newMode);
     writeCachedJson('app_mode', newMode, userUid || 'global');
-    updateFirebasePref('mode', newMode);
+    updateThemePref('mode', newMode);
   };
 
 

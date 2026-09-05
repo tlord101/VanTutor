@@ -16,6 +16,36 @@ const listeners = new Map<string, Set<(snap: { val: () => any; exists: () => boo
 const pathDataCache = new Map<string, any>();
 const channelByPath = new Map<string, ReturnType<typeof supabase.channel>>();
 
+let isAppKvAvailable: boolean | null = typeof window !== 'undefined' && window.sessionStorage?.getItem('avelut_app_kv_missing') === '1' ? false : null;
+
+function getLocalCache(path: string): any {
+  if (pathDataCache.has(path)) return pathDataCache.get(path);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(`rtdb_kv_${path}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        pathDataCache.set(path, parsed);
+        return parsed;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+function setLocalCache(path: string, val: any) {
+  pathDataCache.set(path, val);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      if (val === null || val === undefined) {
+        window.localStorage.removeItem(`rtdb_kv_${path}`);
+      } else {
+        window.localStorage.setItem(`rtdb_kv_${path}`, JSON.stringify(val));
+      }
+    } catch {}
+  }
+}
+
 function makeSnap(value: any) {
   return {
     val: () => value ?? null,
@@ -213,11 +243,45 @@ async function loadPath(path: string): Promise<any> {
     return pathDataCache.get(path) || {};
   }
 
+  // Handle app_settings/* via public.app_settings table
+  if (parts[0] === 'app_settings' && parts.length >= 2) {
+    try {
+      const { data, error } = await supabase.from('app_settings').select('value_json').eq('key', parts[1]).maybeSingle();
+      if (!error && data?.value_json) {
+        if (parts.length === 3 && typeof data.value_json === 'object') {
+          return data.value_json[parts[2]] ?? null;
+        }
+        return data.value_json;
+      }
+    } catch {}
+  }
+
+  const cached = getLocalCache(path);
+
+  if (isAppKvAvailable === false || !isSupabaseConfigured) {
+    return cached ?? null;
+  }
+
   try {
-    const { data } = await supabase.from('app_kv').select('value').eq('key', path).maybeSingle();
-    return data?.value ?? pathDataCache.get(path) ?? null;
+    const { data, error } = await supabase.from('app_kv').select('value').eq('key', path).maybeSingle();
+    if (error) {
+      if (error.code === '42P01' || (error as any).status === 404 || error.message?.includes('does not exist')) {
+        isAppKvAvailable = false;
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem('avelut_app_kv_missing', '1');
+        }
+      }
+      return cached ?? null;
+    }
+    isAppKvAvailable = true;
+    if (data && 'value' in data) {
+      setLocalCache(path, data.value);
+      return data.value;
+    }
+    return cached ?? null;
   } catch {
-    return pathDataCache.get(path) ?? null;
+    isAppKvAvailable = false;
+    return cached ?? null;
   }
 }
 
@@ -423,8 +487,26 @@ export async function set(r: DbRef, value: any): Promise<void> {
     return;
   }
 
-  pathDataCache.set(r.path, value);
+  setLocalCache(r.path, value);
   notify(r.path, value);
+
+  if (isAppKvAvailable !== false && isSupabaseConfigured) {
+    try {
+      const { error } = await supabase.from('app_kv').upsert({
+        key: r.path,
+        value: value,
+        updated_at: new Date().toISOString(),
+      });
+      if (error && (error.code === '42P01' || (error as any).status === 404 || error.message?.includes('does not exist'))) {
+        isAppKvAvailable = false;
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem('avelut_app_kv_missing', '1');
+        }
+      }
+    } catch {
+      isAppKvAvailable = false;
+    }
+  }
 }
 
 export async function update(r: DbRef, values: Record<string, any>): Promise<void> {

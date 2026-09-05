@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import { readCachedJson, writeCachedJson, clearCachedKey, initCacheFromSqlite } from './utils/cache';
-import { Type } from './utils/inference'; 
-import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser } from './firebase';
-import { ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from 'firebase/database';
+import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser, ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from './firebase';
 import { DEFAULT_USAGE_SETTINGS } from './utils/appSettings';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment, HeaderConfig, ChatConversation } from './types';
 import { awardDailyStreak } from './utils/streaks';
@@ -839,21 +837,6 @@ const App: React.FC = () => {
         setTimeout(() => setIsTourOpen(true), 300);
     }, [setActiveItem]);
 
-    useEffect(() => {
-        const checkAndSeedUsageSettings = async () => {
-            try {
-                const usageSettingsRef = dbRef(db, 'app_settings/global/usage_settings');
-                const snapshot = await get(usageSettingsRef);
-                if (!snapshot.exists()) {
-                    await set(usageSettingsRef, DEFAULT_USAGE_SETTINGS);
-                    console.log('Seeded default usage settings to Firebase successfully.');
-                }
-            } catch (err) {
-                console.error('Failed to seed usage settings:', err);
-            }
-        };
-        checkAndSeedUsageSettings();
-    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
