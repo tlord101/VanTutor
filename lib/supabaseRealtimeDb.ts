@@ -58,7 +58,6 @@ export function limitToLast(n: number) {
 }
 
 export function query(r: DbRef, ..._constraints: any[]): DbRef {
-  // Constraints applied ad-hoc in onValue/get for messages
   return r;
 }
 
@@ -66,7 +65,6 @@ async function loadPath(path: string): Promise<any> {
   if (!isSupabaseConfigured) return null;
   const parts = parsePath(path);
 
-  // user_chats/{uid}
   if (parts[0] === 'user_chats' && parts.length === 2) {
     const userId = parts[1];
     const { data } = await supabase
@@ -93,7 +91,6 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // user_chats/{uid}/{chatId}
   if (parts[0] === 'user_chats' && parts.length === 3) {
     const [, userId, chatId] = parts;
     const { data } = await supabase
@@ -117,7 +114,6 @@ async function loadPath(path: string): Promise<any> {
     };
   }
 
-  // messages/{chatId} or private_messages/{chatId}
   if ((parts[0] === 'messages' || parts[0] === 'private_messages') && parts.length === 2) {
     const chatId = parts[1];
     const { data } = await supabase
@@ -142,7 +138,6 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // notifications/{uid}
   if (parts[0] === 'notifications' && parts.length === 2) {
     const userId = parts[1];
     const { data } = await supabase
@@ -166,7 +161,6 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // users/{uid} presence/profile fields
   if (parts[0] === 'users' && parts.length === 2) {
     const { data } = await supabase.from('profiles').select('*').eq('id', parts[1]).maybeSingle();
     if (!data) return null;
@@ -180,7 +174,6 @@ async function loadPath(path: string): Promise<any> {
     };
   }
 
-  // users (directory — limited)
   if (parts[0] === 'users' && parts.length === 1) {
     const { data } = await supabase.from('profiles').select('id, full_name, avatar_url, is_online, last_seen, school_id, department_id, level').limit(200);
     const map: Record<string, any> = {};
@@ -198,7 +191,6 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // study_partners/{uid}
   if (parts[0] === 'study_partners' && parts.length === 2) {
     const { data } = await supabase.from('study_partners').select('partner_id').eq('user_id', parts[1]);
     const map: Record<string, boolean> = {};
@@ -208,7 +200,6 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // users/{uid}/blocked_users
   if (parts[0] === 'users' && parts[2] === 'blocked_users' && parts.length === 3) {
     const { data } = await supabase.from('user_blocks').select('blocked_id').eq('user_id', parts[1]);
     const map: Record<string, boolean> = {};
@@ -218,12 +209,10 @@ async function loadPath(path: string): Promise<any> {
     return map;
   }
 
-  // chat_meta_data typing — memory only / broadcast
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing') {
     return pathDataCache.get(path) || {};
   }
 
-  // Fallback: key-value via optional app_kv table (ignore if missing)
   try {
     const { data } = await supabase.from('app_kv').select('value').eq('key', path).maybeSingle();
     return data?.value ?? pathDataCache.get(path) ?? null;
@@ -242,12 +231,10 @@ export function onValue(r: DbRef, callback: (snap: any) => void): Unsub {
   if (!listeners.has(path)) listeners.set(path, new Set());
   listeners.get(path)!.add(callback);
 
-  // Initial load
   loadPath(path).then((v) => notify(path, v));
 
   const parts = parsePath(path);
 
-  // Subscribe WebSocket channels for live updates
   if ((parts[0] === 'messages' || parts[0] === 'private_messages') && parts.length === 2) {
     const chatId = parts[1];
     const chName = `messages:${chatId}`;
@@ -279,7 +266,6 @@ export function onValue(r: DbRef, callback: (snap: any) => void): Unsub {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'chat_members', filter: `user_id=eq.${userId}` },
           async () => {
-            // refresh list + specific
             const listPath = `user_chats/${userId}`;
             notify(listPath, await loadPath(listPath));
             if (parts.length === 3) {
@@ -309,7 +295,6 @@ export function onValue(r: DbRef, callback: (snap: any) => void): Unsub {
     }
   }
 
-  // Typing: pure WebSocket broadcast (no DB cost)
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing') {
     const chatId = parts[1];
     const chName = `typing:${chatId}`;
@@ -350,7 +335,6 @@ export function off(r?: DbRef, _event?: string, callback?: (snap: any) => void) 
 export async function set(r: DbRef, value: any): Promise<void> {
   const parts = parsePath(r.path);
 
-  // typing state via broadcast
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing') {
     const chatId = parts[1];
     const uid = parts[3];
@@ -389,7 +373,6 @@ export async function set(r: DbRef, value: any): Promise<void> {
       last_message_is_read: value.last_message?.isRead ?? true,
       unread_count: value.unreadCount ?? value.unread_count ?? 0,
     });
-    // ensure chat row exists
     await supabase.from('chats').upsert({ id: chatId });
     notify(`user_chats/${userId}`, await loadPath(`user_chats/${userId}`));
     return;
@@ -403,8 +386,8 @@ export async function set(r: DbRef, value: any): Promise<void> {
   if (parts[0] === 'reports') {
     await supabase.from('reports').insert({
       id: parts[1],
-      reporter_uid: value.reporter_uid,
-      reported_uid: value.reported_uid,
+      reporter_id: value.reporter_id ?? value.reporter_uid,
+      reported_id: value.reported_id ?? value.reported_uid,
       chat_id: value.chat_id,
       reason: value.reason,
     });
@@ -440,7 +423,6 @@ export async function set(r: DbRef, value: any): Promise<void> {
     return;
   }
 
-  // messages push handled via push()
   pathDataCache.set(r.path, value);
   notify(r.path, value);
 }
@@ -482,10 +464,6 @@ export async function update(r: DbRef, values: Record<string, any>): Promise<voi
     return;
   }
 
-  // Multi-path update object (Firebase style keys with /)
-  // When update is called with parent ref and nested keys — Messenger uses update(dbRef(db), updates)
-  // Handled by callers that pass full path refs mostly.
-
   const current = (await loadPath(r.path)) || {};
   const next = { ...current, ...values };
   await set(r, next);
@@ -511,7 +489,6 @@ export function push(r: DbRef, value?: any): { key: string | null; then?: any } 
       };
       await supabase.from('messages').insert(row);
 
-      // bump both members' last_message
       const text = row.text || (row.media_url ? '📎 Media' : '');
       await supabase
         .from('chat_members')
@@ -523,7 +500,6 @@ export function push(r: DbRef, value?: any): { key: string | null; then?: any } 
         })
         .eq('chat_id', chatId);
 
-      // increment unread for others
       try {
         const { data: members } = await supabase.from('chat_members').select('user_id, unread_count').eq('chat_id', chatId);
         for (const m of members || []) {
@@ -569,14 +545,11 @@ export async function remove(r: DbRef): Promise<void> {
   await set(r, null);
 }
 
-/** Presence offline on disconnect — best-effort via beforeunload + heartbeat */
 export function onDisconnect(r: DbRef) {
   return {
     update: async (values: Record<string, any>) => {
       if (typeof window === 'undefined') return;
-      const path = r.path;
       const handler = () => {
-        // fire-and-forget; may not always complete
         void update(r, values);
       };
       window.addEventListener('pagehide', handler);
