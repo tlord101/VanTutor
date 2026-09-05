@@ -3,6 +3,7 @@ import type { UserProfile, ChatConversation } from '../types';
 import { Chat } from './Chat';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, off } from 'firebase/database';
+import { db, ref as dbRef, onValue, off } from '../firebase';
 import { getLocalConversations } from '../services/chatStorageService';
 
 interface AvelutAIProps {

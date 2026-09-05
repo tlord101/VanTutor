@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from 'firebase/database';
+import { db, ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from '../firebase';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { useToast } from '../hooks/useToast';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
@@ -422,6 +423,15 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
         sender: 'user',
         timestamp: serverTimestamp(),
       }).catch(console.error);
+      try {
+        push(messagesRef, {
+          text: currentInput,
+          sender: 'user',
+          timestamp: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error(e);
+      }
 
       update(dbRef(db, `chat_conversations/${userProfile.uid}/${currentConvoId}`), { last_updated_at: Date.now() });
 
@@ -484,6 +494,15 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
         sender: 'ai',
         timestamp: serverTimestamp(),
       }).catch(console.error);
+      try {
+        push(messagesRef, {
+          text: responseText,
+          sender: 'ai',
+          timestamp: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error(e);
+      }
 
       void deductAICredits(userProfile.uid, cost, 'AI Chat Assistant', appSettings);
     } catch (err) {

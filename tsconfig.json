@@ -16,6 +16,7 @@
       "react",
       "react-dom"
     ],
+    "baseUrl": ".",
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -29,5 +30,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
+  "include": ["**/*", "vite-env.d.ts"],
   "exclude": ["node_modules", "dist", "android", "ios"]
 }
