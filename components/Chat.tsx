@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
-import { db } from '../firebase';
-import { ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from 'firebase/database';
 import { db, ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from '../firebase';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { useToast } from '../hooks/useToast';
@@ -418,11 +416,6 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
       setMessages((prev) => [...prev, { id: userMsgId, text: currentInput, sender: 'user', timestamp: now }]);
 
       const messagesRef = dbRef(db, `chat_messages/${currentConvoId}`);
-      push(messagesRef, {
-        text: currentInput,
-        sender: 'user',
-        timestamp: serverTimestamp(),
-      }).catch(console.error);
       try {
         push(messagesRef, {
           text: currentInput,
@@ -489,11 +482,6 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
 
       setMessages((prev) => [...prev, { id: aiMsgId, text: responseText, sender: 'bot', timestamp: Date.now() }]);
 
-      push(messagesRef, {
-        text: responseText,
-        sender: 'ai',
-        timestamp: serverTimestamp(),
-      }).catch(console.error);
       try {
         push(messagesRef, {
           text: responseText,
