@@ -41,8 +41,6 @@ export default defineConfig(({ command, mode }) => {
         'process.env.VITE_KITTENML_API_KEY': JSON.stringify(kittenApiKey),
         'process.env.KITTENML_API_KEY': JSON.stringify(kittenApiKey),
       },
-      // Use './' as base when building for Capacitor (native) so asset paths are relative.
-      // Use '/' for Vercel web deployments so dynamic nested routes can load assets.
       base: process.env.VERCEL ? '/' : (command === 'build' ? './' : '/'),
       server: {
         port: 3000,
@@ -68,6 +66,13 @@ export default defineConfig(({ command, mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          // Full Firebase removal: map SDK import paths → Supabase shims
+          'firebase/app': path.resolve(__dirname, 'lib/shims/firebase-app.ts'),
+          'firebase/auth': path.resolve(__dirname, 'lib/shims/firebase-auth.ts'),
+          'firebase/database': path.resolve(__dirname, 'lib/database.ts'),
+          'firebase/storage': path.resolve(__dirname, 'lib/shims/firebase-storage.ts'),
+          'firebase/functions': path.resolve(__dirname, 'lib/shims/firebase-functions.ts'),
+          'firebase/messaging': path.resolve(__dirname, 'lib/shims/firebase-messaging.ts'),
         }
       },
       build: {
@@ -79,8 +84,8 @@ export default defineConfig(({ command, mode }) => {
           output: {
             manualChunks(id) {
               if (id.includes('node_modules')) {
-                if (id.includes('firebase')) {
-                  return 'vendor-firebase';
+                if (id.includes('@supabase')) {
+                  return 'vendor-supabase';
                 }
                 if (id.includes('katex') || id.includes('rehype-katex') || id.includes('remark-math')) {
                   return 'vendor-katex';
