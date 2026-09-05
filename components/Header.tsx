@@ -100,7 +100,11 @@ export const Header: React.FC<HeaderProps> = ({
                     title
                 ) : (React.isValidElement(currentPageLabel) ? (
                     currentPageLabel
-                ) : null)}
+                ) : (typeof currentPageLabel === 'string' && !hideTitle ? (
+                    <span className="text-[17px] font-semibold text-slate-900 dark:text-white tracking-tight">
+                        {currentPageLabel}
+                    </span>
+                ) : null))}
             </div>
 
             {/* Right Slot: Default Actions + Avatar Dropdown Menu */}

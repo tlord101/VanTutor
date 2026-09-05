@@ -67,7 +67,7 @@ const UserOutlineIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-
 );
 
 export const navigationItems: NavItem[] = [
-  { id: 'chat', label: 'Avelut AI', icon: React.createElement(AIIcon, { className: 'w-5 h-5' }) },
+  { id: 'chat', label: 'Avelut', icon: React.createElement(AIIcon, { className: 'w-5 h-5' }) },
   { id: 'notebooks', label: 'My Notebooks', icon: React.createElement(NotebooksIcon) },
   { id: 'messenger', label: 'Messages', icon: React.createElement(MessengerIcon, { className: 'w-5 h-5' }) },
   { id: 'study_guide', label: 'Study Guide', icon: React.createElement(StudyGuideIcon, { className: 'w-5 h-5' }) },

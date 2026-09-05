@@ -32,6 +32,7 @@ export default function AvelutAI({
         onConversationsUpdate(
           local.map((c) => ({
             id: c.id,
+            user_id: c.user_id || userProfile.uid,
             title: c.title || 'New Chat',
             created_at: c.created_at || 0,
             last_updated_at: c.last_updated_at || c.created_at || 0,
@@ -45,7 +46,8 @@ export default function AvelutAI({
       if (snapshot.exists()) {
         const data: any[] = [];
         snapshot.forEach((child) => {
-          data.push({ id: child.key, ...child.val() });
+          const val = child.val() || {};
+          data.push({ id: child.key, user_id: val.user_id || userProfile.uid, ...val });
         });
         const sorted = data.sort((a, b) => b.last_updated_at - a.last_updated_at);
         if (isMounted) onConversationsUpdate(sorted as ChatConversation[]);
@@ -62,7 +64,12 @@ export default function AvelutAI({
 
   return (
     <div className="flex-1 flex flex-col h-full w-full overflow-hidden bg-white dark:bg-[#121212]">
-      <Chat userProfile={userProfile} onNavigate={onNavigate} onOpenMenu={onOpenMenu} />
+      <Chat
+        userProfile={userProfile}
+        onNavigate={onNavigate}
+        onOpenMenu={onOpenMenu}
+        setCustomHeaderConfig={setCustomHeaderConfig}
+      />
     </div>
   );
 }
