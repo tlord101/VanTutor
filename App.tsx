@@ -1419,18 +1419,22 @@ const App: React.FC = () => {
             const userRef = dbRef(db, `users/${user.uid}`);
             await update(userRef, userProfileData);
             
-            const notificationRef = dbRef(db, `notifications/${user.uid}`);
-            const newNotifRef = push(notificationRef);
-            await set(newNotifRef, {
-                type: 'welcome',
-                title: 'Welcome to AVELUT!',
-                message: 'Your learning journey starts now. Explore the study guide to begin.',
-                is_read: false,
-                timestamp: serverTimestamp(),
-                route: 'study_guide',
-                audience: 'single',
-                category: 'welcome'
-            });
+            try {
+                const notificationRef = dbRef(db, `notifications/${user.uid}`);
+                const newNotifRef = push(notificationRef);
+                await set(newNotifRef, {
+                    type: 'welcome',
+                    title: 'Welcome to AVELUT!',
+                    message: 'Your learning journey starts now. Explore the study guide to begin.',
+                    is_read: false,
+                    timestamp: serverTimestamp(),
+                    route: 'study_guide',
+                    audience: 'single',
+                    category: 'welcome'
+                });
+            } catch (notifErr) {
+                console.warn("Could not dispatch welcome notification (non-blocking):", notifErr);
+            }
             
             setUserProfile(prev => ({...prev, ...userProfileData } as UserProfile));
             setActiveItem('chat');

@@ -199,6 +199,11 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure all notification columns exist if table was previously created
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS metadata_json JSONB;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS action_url TEXT;
+
 -- ==============================================================================
 -- 6. MESSENGER, CHATS & SOCIAL
 -- ==============================================================================
@@ -494,7 +499,15 @@ CREATE POLICY "Users can manage their own exam history" ON public.exam_history F
 
 -- Notifications
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON public.notifications;
-CREATE POLICY "Users can manage their own notifications" ON public.notifications FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Anyone can insert notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.notifications;
+
+CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id OR auth.role() = 'anon');
+CREATE POLICY "Anyone can insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING (auth.uid() = user_id);
 
 -- Messenger & Chats
 DROP POLICY IF EXISTS "chat_members_select" ON public.chat_members;

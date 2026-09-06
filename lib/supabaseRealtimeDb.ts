@@ -67,12 +67,16 @@ function notify(path: string, value: any) {
   });
 }
 
-function parsePath(path: string): string[] {
-  return path.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+function parsePath(pathOrRef: any): string[] {
+  if (!pathOrRef) return [];
+  const rawPath = typeof pathOrRef === 'string' ? pathOrRef : (pathOrRef?.path ?? pathOrRef?._path ?? '');
+  if (!rawPath || typeof rawPath !== 'string') return [];
+  return rawPath.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
 }
 
 export function ref(_db: unknown, path: string): DbRef {
-  return { path: path.replace(/^\/+|\/+$/g, '') };
+  const safePath = typeof path === 'string' ? path.replace(/^\/+|\/+$/g, '') : '';
+  return { path: safePath };
 }
 
 export function serverTimestamp(): number {
@@ -517,31 +521,114 @@ export async function set(r: DbRef, value: any): Promise<void> {
   }
 
   if (parts[0] === 'notifications' && parts.length === 3) {
+    const userId = parts[1];
+    const notifId = parts[2];
     if (value === null) {
-      await supabase.from('notifications').delete().eq('id', parts[2]);
+      try {
+        await supabase.from('notifications').delete().eq('id', notifId);
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] delete notification error', e);
+      }
     } else {
-      await supabase.from('notifications').upsert({
-        id: parts[2],
-        user_id: parts[1],
-        title: value.title,
-        body: value.body || value.message,
-        type: value.type,
-        data: value.data || {},
-        is_read: value.is_read ?? false,
-      });
+      const dataPayload = {
+        ...(typeof value.data === 'object' && value.data ? value.data : {}),
+        ...(value.route ? { route: value.route } : {}),
+        ...(value.category ? { category: value.category } : {}),
+        ...(value.audience ? { audience: value.audience } : {}),
+        ...(value.timestamp ? { timestamp: value.timestamp } : {}),
+      };
+      try {
+        await supabase.from('notifications').upsert({
+          id: notifId,
+          user_id: userId,
+          title: value.title ?? null,
+          body: value.body || value.message || null,
+          type: value.type || 'general',
+          data: dataPayload,
+          is_read: value.is_read ?? false,
+        });
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] upsert notification error', e);
+      }
     }
-    notify(`notifications/${parts[1]}`, await loadPath(`notifications/${parts[1]}`));
+    setLocalCache(`notifications/${userId}/${notifId}`, value);
+    notify(`notifications/${userId}`, await loadPath(`notifications/${userId}`));
+    return;
+  }
+
+  if ((parts[0] === 'messages' || parts[0] === 'private_messages') && parts.length === 3) {
+    const chatId = parts[1];
+    const msgId = parts[2];
+    if (value === null) {
+      try {
+        await supabase.from('messages').update({ is_deleted: true }).eq('id', msgId);
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] delete message error', e);
+      }
+    } else {
+      const row = {
+        id: msgId,
+        chat_id: chatId,
+        sender_id: value.sender_id,
+        text: value.text ?? value.message ?? '',
+        media_url: value.media_url || value.imageUrl || value.fileUrl || null,
+        media_type: value.media_type || value.type || null,
+        reply_to: value.reply_to || null,
+        is_deleted: value.is_deleted ?? false,
+        created_at: value.created_at ? new Date(value.created_at).toISOString() : new Date().toISOString(),
+      };
+      try {
+        await supabase.from('messages').upsert(row);
+        const text = row.text || (row.media_url ? '📎 Media' : '');
+        await supabase
+          .from('chat_members')
+          .update({
+            last_message_text: text,
+            last_message_at: row.created_at,
+            last_message_sender_id: row.sender_id,
+            last_message_is_read: false,
+          })
+          .eq('chat_id', chatId);
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] upsert message error', e);
+      }
+    }
+    notify(`messages/${chatId}`, await loadPath(`messages/${chatId}`));
     return;
   }
 
   if (parts[0] === 'users' && parts.length === 2) {
-    await supabase
-      .from('profiles')
-      .update({
-        is_online: value.isOnline ?? value.is_online,
-        last_seen: value.lastSeen ? new Date(value.lastSeen).toISOString() : new Date().toISOString(),
-      })
-      .eq('id', parts[1]);
+    const userId = parts[1];
+    const patch: any = {};
+    if ('isOnline' in value || 'is_online' in value) patch.is_online = value.isOnline ?? value.is_online;
+    if ('lastSeen' in value || 'last_seen' in value) {
+      const ls = value.lastSeen ?? value.last_seen;
+      patch.last_seen = typeof ls === 'number' ? new Date(ls).toISOString() : ls;
+    }
+    if ('display_name' in value || 'displayName' in value || 'full_name' in value) {
+      patch.full_name = value.full_name ?? value.display_name ?? value.displayName;
+    }
+    if ('photo_url' in value || 'photoURL' in value || 'avatar_url' in value) {
+      patch.avatar_url = value.avatar_url ?? value.photo_url ?? value.photoURL;
+    }
+    if ('school_id' in value || 'schoolId' in value) patch.school_id = value.school_id ?? value.schoolId;
+    if ('school_name' in value || 'schoolName' in value) patch.school_name = value.school_name ?? value.schoolName;
+    if ('college_id' in value || 'collegeId' in value) patch.college_id = value.college_id ?? value.collegeId;
+    if ('department_id' in value || 'departmentId' in value) patch.department_id = value.department_id ?? value.departmentId;
+    if ('department_name' in value || 'departmentName' in value) patch.department_name = value.department_name ?? value.departmentName;
+    if ('level' in value) patch.level = value.level;
+    if ('current_streak' in value || 'streak' in value) patch.streak = value.streak ?? value.current_streak;
+    if ('ai_credits_balance' in value || 'ai_credits' in value) patch.ai_credits = value.ai_credits ?? value.ai_credits_balance;
+    if ('fcm_token' in value || 'fcmToken' in value) patch.fcm_token = value.fcm_token ?? value.fcmToken;
+    patch.updated_at = new Date().toISOString();
+
+    try {
+      await supabase.from('profiles').update(patch).eq('id', userId);
+    } catch (e) {
+      console.warn('[supabaseRealtimeDb] update profile error', e);
+    }
+    setLocalCache(r.path, { ...(getLocalCache(r.path) || {}), ...value });
+    notify(r.path, await loadPath(r.path));
     return;
   }
 
@@ -576,15 +663,39 @@ export async function update(r: DbRef, values: Record<string, any>): Promise<voi
   }
 
   if (parts[0] === 'users' && parts.length === 2) {
+    const userId = parts[1];
     const patch: any = {};
     if ('isOnline' in values || 'is_online' in values) patch.is_online = values.isOnline ?? values.is_online;
     if ('lastSeen' in values || 'last_seen' in values) {
       const ls = values.lastSeen ?? values.last_seen;
       patch.last_seen = typeof ls === 'number' ? new Date(ls).toISOString() : ls;
     }
-    if (Object.keys(patch).length) {
-      await supabase.from('profiles').update(patch).eq('id', parts[1]);
+    if ('display_name' in values || 'displayName' in values || 'full_name' in values) {
+      patch.full_name = values.full_name ?? values.display_name ?? values.displayName;
     }
+    if ('photo_url' in values || 'photoURL' in values || 'avatar_url' in values) {
+      patch.avatar_url = values.avatar_url ?? values.photo_url ?? values.photoURL;
+    }
+    if ('school_id' in values || 'schoolId' in values) patch.school_id = values.school_id ?? values.schoolId;
+    if ('school_name' in values || 'schoolName' in values) patch.school_name = values.school_name ?? values.schoolName;
+    if ('college_id' in values || 'collegeId' in values) patch.college_id = values.college_id ?? values.collegeId;
+    if ('department_id' in values || 'departmentId' in values) patch.department_id = values.department_id ?? values.departmentId;
+    if ('department_name' in values || 'departmentName' in values) patch.department_name = values.department_name ?? values.departmentName;
+    if ('level' in values) patch.level = values.level;
+    if ('current_streak' in values || 'streak' in values) patch.streak = values.streak ?? values.current_streak;
+    if ('ai_credits_balance' in values || 'ai_credits' in values) patch.ai_credits = values.ai_credits ?? values.ai_credits_balance;
+    if ('fcm_token' in values || 'fcmToken' in values) patch.fcm_token = values.fcm_token ?? values.fcmToken;
+    patch.updated_at = new Date().toISOString();
+
+    if (Object.keys(patch).length > 1) {
+      try {
+        await supabase.from('profiles').update(patch).eq('id', userId);
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] update profile error', e);
+      }
+    }
+    setLocalCache(r.path, { ...(getLocalCache(r.path) || {}), ...values });
+    notify(r.path, await loadPath(r.path));
     return;
   }
 
@@ -609,11 +720,16 @@ export async function update(r: DbRef, values: Record<string, any>): Promise<voi
   await set(r, next);
 }
 
-export function push(r: DbRef, value?: any): { key: string | null; then?: any } {
-  const parts = parsePath(r.path);
+export function push(r: DbRef, value?: any): DbRef & { key: string; ref: DbRef; then: any; catch: any } {
+  const path = r?.path || (typeof r === 'string' ? r : '');
+  const parts = parsePath(path);
   const key = crypto.randomUUID();
+  const childPath = path ? `${path}/${key}` : key;
+  const childRef: DbRef = { path: childPath };
 
-  const promise = (async () => {
+  let promise: Promise<any>;
+
+  if (value !== undefined) {
     if ((parts[0] === 'messages' || parts[0] === 'private_messages') && parts.length === 2) {
       const chatId = parts[1];
       const row = {
@@ -627,57 +743,77 @@ export function push(r: DbRef, value?: any): { key: string | null; then?: any } 
         is_deleted: false,
         created_at: new Date().toISOString(),
       };
-      await supabase.from('messages').insert(row);
+      promise = (async () => {
+        try {
+          await supabase.from('messages').insert(row);
+          const text = row.text || (row.media_url ? '📎 Media' : '');
+          await supabase
+            .from('chat_members')
+            .update({
+              last_message_text: text,
+              last_message_at: row.created_at,
+              last_message_sender_id: row.sender_id,
+              last_message_is_read: false,
+            })
+            .eq('chat_id', chatId);
 
-      const text = row.text || (row.media_url ? '📎 Media' : '');
-      await supabase
-        .from('chat_members')
-        .update({
-          last_message_text: text,
-          last_message_at: row.created_at,
-          last_message_sender_id: row.sender_id,
-          last_message_is_read: false,
-        })
-        .eq('chat_id', chatId);
-
-      try {
-        const { data: members } = await supabase.from('chat_members').select('user_id, unread_count').eq('chat_id', chatId);
-        for (const m of members || []) {
-          if (m.user_id !== row.sender_id) {
-            await supabase
-              .from('chat_members')
-              .update({ unread_count: (m.unread_count || 0) + 1 })
-              .eq('chat_id', chatId)
-              .eq('user_id', m.user_id);
+          try {
+            const { data: members } = await supabase.from('chat_members').select('user_id, unread_count').eq('chat_id', chatId);
+            for (const m of members || []) {
+              if (m.user_id !== row.sender_id) {
+                await supabase
+                  .from('chat_members')
+                  .update({ unread_count: (m.unread_count || 0) + 1 })
+                  .eq('chat_id', chatId)
+                  .eq('user_id', m.user_id);
+              }
+            }
+          } catch {
+            /* ignore */
           }
+        } catch (e) {
+          console.warn('[supabaseRealtimeDb] push message error', e);
         }
-      } catch {
-        /* ignore */
-      }
-
-      notify(r.path, await loadPath(r.path));
-      return;
+        notify(path, await loadPath(path));
+      })();
+    } else if (parts[0] === 'notifications' && parts.length === 2) {
+      promise = (async () => {
+        try {
+          const dataPayload = {
+            ...(typeof value?.data === 'object' && value?.data ? value.data : {}),
+            ...(value?.route ? { route: value.route } : {}),
+            ...(value?.category ? { category: value.category } : {}),
+            ...(value?.audience ? { audience: value.audience } : {}),
+            ...(value?.timestamp ? { timestamp: value.timestamp } : {}),
+          };
+          await supabase.from('notifications').insert({
+            id: key,
+            user_id: parts[1],
+            title: value?.title ?? null,
+            body: value?.body || value?.message || null,
+            type: value?.type || 'general',
+            data: dataPayload,
+            is_read: value?.is_read ?? false,
+          });
+        } catch (e) {
+          console.warn('[supabaseRealtimeDb] push notification error', e);
+        }
+        notify(path, await loadPath(path));
+      })();
+    } else {
+      promise = set(childRef, value);
     }
+  } else {
+    promise = Promise.resolve();
+  }
 
-    if (parts[0] === 'notifications' && parts.length === 2) {
-      await supabase.from('notifications').insert({
-        id: key,
-        user_id: parts[1],
-        title: value?.title,
-        body: value?.body || value?.message,
-        type: value?.type || 'general',
-        data: value?.data || {},
-      });
-      notify(r.path, await loadPath(r.path));
-      return;
-    }
-
-    pathDataCache.set(`${r.path}/${key}`, value);
-  })();
-
-  const result: any = { key };
-  result.then = promise.then.bind(promise);
-  result.catch = promise.catch.bind(promise);
+  const result: any = {
+    path: childPath,
+    key,
+    ref: childRef,
+    then: promise.then.bind(promise),
+    catch: promise.catch.bind(promise),
+  };
   return result;
 }
 
