@@ -201,7 +201,9 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 
 -- Ensure all notification columns exist if table was previously created
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
-ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS metadata_json JSONB;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS body TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS action_url TEXT;
 
 -- ==============================================================================

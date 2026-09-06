@@ -217,13 +217,18 @@ async function loadPath(path: string): Promise<any> {
       .limit(100);
     const map: Record<string, any> = {};
     (data || []).forEach((row: any) => {
+      const msg = row.message || row.body || '';
+      const meta = row.metadata_json || row.data || {};
       map[row.id] = {
         id: row.id,
         title: row.title,
-        body: row.body,
+        body: msg,
+        message: msg,
         type: row.type,
-        data: row.data,
+        data: meta,
+        metadata_json: meta,
         is_read: row.is_read,
+        action_url: row.action_url,
         timestamp: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
       };
     });
@@ -530,7 +535,8 @@ export async function set(r: DbRef, value: any): Promise<void> {
         console.warn('[supabaseRealtimeDb] delete notification error', e);
       }
     } else {
-      const dataPayload = {
+      const metadata = {
+        ...(typeof value.metadata_json === 'object' && value.metadata_json ? value.metadata_json : {}),
         ...(typeof value.data === 'object' && value.data ? value.data : {}),
         ...(value.route ? { route: value.route } : {}),
         ...(value.category ? { category: value.category } : {}),
@@ -542,9 +548,10 @@ export async function set(r: DbRef, value: any): Promise<void> {
           id: notifId,
           user_id: userId,
           title: value.title ?? null,
-          body: value.body || value.message || null,
+          message: value.message || value.body || '',
           type: value.type || 'general',
-          data: dataPayload,
+          metadata_json: metadata,
+          action_url: value.action_url || value.actionUrl || null,
           is_read: value.is_read ?? false,
         });
       } catch (e) {
@@ -779,7 +786,8 @@ export function push(r: DbRef, value?: any): DbRef & { key: string; ref: DbRef; 
     } else if (parts[0] === 'notifications' && parts.length === 2) {
       promise = (async () => {
         try {
-          const dataPayload = {
+          const metadata = {
+            ...(typeof value?.metadata_json === 'object' && value?.metadata_json ? value.metadata_json : {}),
             ...(typeof value?.data === 'object' && value?.data ? value.data : {}),
             ...(value?.route ? { route: value.route } : {}),
             ...(value?.category ? { category: value.category } : {}),
@@ -790,9 +798,10 @@ export function push(r: DbRef, value?: any): DbRef & { key: string; ref: DbRef; 
             id: key,
             user_id: parts[1],
             title: value?.title ?? null,
-            body: value?.body || value?.message || null,
+            message: value?.message || value?.body || '',
             type: value?.type || 'general',
-            data: dataPayload,
+            metadata_json: metadata,
+            action_url: value?.action_url || value?.actionUrl || null,
             is_read: value?.is_read ?? false,
           });
         } catch (e) {
