@@ -92,7 +92,7 @@ const signInAnonymously = async () => {
   return { user: { uid: res.user.id, email: res.user.email } };
 };
 
-const storage = { app: { name: 'supabase-storage' } };
+const storage: any = { app: { name: 'supabase-storage' } };
 
 function storageRef(_storage: any, path: string) {
   return { fullPath: path, toString: () => path };
@@ -183,6 +183,7 @@ export {
   sendPasswordResetEmail,
   firebaseSignOut,
   dbRef as ref,
+  dbRef,
   onValue,
   off,
   set,

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db, auth } from '../firebase';
-import { ref as dbRef, onValue, set, push, update, increment, get } from 'firebase/database';
+import { db, auth, dbRef, onValue, set, push, update, increment, get } from '../firebase';
 import { UserProfile } from '../types';
 import { Avatar } from './Avatar';
 import { useToast } from '../hooks/useToast';

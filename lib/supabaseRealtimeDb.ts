@@ -1432,4 +1432,4 @@ export function onDisconnect(r: DbRef) {
   };
 }
 
-export const db = { __supabaseRealtime: true };
+export const db: any = { __supabaseRealtime: true };
