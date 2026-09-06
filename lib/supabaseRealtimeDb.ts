@@ -6,7 +6,7 @@
  * Messages / chats / notifications use tables + postgres_changes WebSockets.
  */
 
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, supabaseAdmin, isSupabaseConfigured } from './supabaseClient';
 
 export type DbRef = { path: string };
 
@@ -95,7 +95,143 @@ export function query(r: DbRef, ..._constraints: any[]): DbRef {
   return r;
 }
 
+async function loadSchoolsDataTree(): Promise<Record<string, any>> {
+  const client = supabaseAdmin || supabase;
+  const [schoolsRes, collegesRes, deptsRes] = await Promise.all([
+    client.from('schools').select('*'),
+    client.from('colleges').select('*'),
+    client.from('departments').select('*'),
+  ]);
+
+  const tree: Record<string, any> = {};
+
+  (schoolsRes.data || []).forEach((s: any) => {
+    tree[s.id] = {
+      id: s.id,
+      name: s.name,
+      short_name: s.short_name,
+      colleges: {},
+    };
+  });
+
+  if (Object.keys(tree).length === 0) {
+    tree['fupre'] = {
+      id: 'fupre',
+      name: 'Federal University of Petroleum Resources Effurun',
+      short_name: 'FUPRE',
+      colleges: {},
+    };
+  }
+
+  (collegesRes.data || []).forEach((c: any) => {
+    const sId = c.school_id || Object.keys(tree)[0] || 'fupre';
+    if (!tree[sId]) {
+      tree[sId] = { id: sId, name: sId.toUpperCase(), colleges: {} };
+    }
+    tree[sId].colleges[c.id] = {
+      id: c.id,
+      name: c.name,
+      short_name: c.short_name,
+      departments: {},
+    };
+  });
+
+  (deptsRes.data || []).forEach((d: any) => {
+    const sId = d.school_id || Object.keys(tree)[0] || 'fupre';
+    if (!tree[sId]) tree[sId] = { id: sId, name: sId.toUpperCase(), colleges: {} };
+
+    let cId = d.college_id;
+    if (!cId || !tree[sId].colleges[cId]) {
+      const existingCollegeIds = Object.keys(tree[sId].colleges);
+      if (existingCollegeIds.length > 0) {
+        cId = existingCollegeIds[0];
+      } else {
+        cId = 'college_of_engineering';
+        tree[sId].colleges[cId] = { id: cId, name: 'College of Engineering', departments: {} };
+      }
+    }
+
+    if (!tree[sId].colleges[cId].departments) {
+      tree[sId].colleges[cId].departments = {};
+    }
+
+    tree[sId].colleges[cId].departments[d.id] = {
+      id: d.id,
+      name: d.name,
+      department_name: d.name,
+      short_name: d.short_name,
+      levels: ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'],
+    };
+  });
+
+  return tree;
+}
+
+async function loadDepartmentsData(): Promise<Record<string, any>> {
+  const client = supabaseAdmin || supabase;
+  const [deptsRes, coursesRes] = await Promise.all([
+    client.from('departments').select('*'),
+    client.from('courses').select('*, topics(*)'),
+  ]);
+
+  const map: Record<string, any> = {};
+
+  (deptsRes.data || []).forEach((d: any) => {
+    map[d.id] = {
+      id: d.id,
+      department_name: d.name,
+      name: d.name,
+      short_name: d.short_name,
+      school_id: d.school_id || 'fupre',
+      college_id: d.college_id || null,
+      course_list: [],
+      courses: [],
+    };
+  });
+
+  (coursesRes.data || []).forEach((c: any) => {
+    const courseObj = {
+      course_id: c.id,
+      course_name: c.title || c.code,
+      course_code: c.code,
+      level: c.level || '100lvl',
+      semester: c.semester === 2 ? 'second' : 'first',
+      description: c.description || '',
+      department_id: c.department_id,
+      school_id: c.school_id,
+      textbook_url: c.textbook_url || '',
+      topics: ((c.topics || []) as any[]).map((t: any) => ({
+        topic_id: t.id,
+        topic_name: t.topic_name,
+        topic_order: t.topic_order,
+        topic_context: t.overview_json?.overview || t.overview_json?.topic_context || '',
+        start_point: t.overview_json?.start_point || '',
+        end_point: t.overview_json?.end_point || '',
+        is_complete: false,
+      })),
+    };
+
+    if (c.department_id && map[c.department_id]) {
+      map[c.department_id].course_list.push(courseObj);
+      map[c.department_id].courses.push(courseObj);
+    } else if (c.department_id) {
+      map[c.department_id] = {
+        id: c.department_id,
+        department_name: c.department_id.replace(/_/g, ' '),
+        name: c.department_id.replace(/_/g, ' '),
+        school_id: c.school_id || 'fupre',
+        college_id: null,
+        course_list: [courseObj],
+        courses: [courseObj],
+      };
+    }
+  });
+
+  return map;
+}
+
 async function loadPath(path: string): Promise<any> {
+
   if (!path || path === 'undefined' || path === 'null') return null;
 
   if (path === '.info/connected' || path.startsWith('.info/')) {
@@ -249,20 +385,95 @@ async function loadPath(path: string): Promise<any> {
   }
 
   if (parts[0] === 'users' && parts.length === 1) {
-    const { data } = await supabase.from('profiles').select('id, full_name, avatar_url, is_online, last_seen, school_id, department_id, level').limit(200);
+    const client = supabaseAdmin || supabase;
+    const { data } = await client.from('profiles').select('*').limit(500);
     const map: Record<string, any> = {};
     (data || []).forEach((row: any) => {
       map[row.id] = {
-        display_name: row.full_name,
-        photo_url: row.avatar_url,
-        isOnline: row.is_online,
-        lastSeen: row.last_seen,
+        uid: row.id,
+        id: row.id,
+        email: row.email || '',
+        display_name: row.full_name || row.username || 'User',
+        full_name: row.full_name || '',
+        photo_url: row.avatar_url || '',
+        avatar_url: row.avatar_url || '',
+        isOnline: row.is_online || false,
+        is_online: row.is_online || false,
+        lastSeen: row.last_seen ? new Date(row.last_seen).getTime() : null,
+        last_seen: row.last_seen ? new Date(row.last_seen).getTime() : null,
         school_id: row.school_id,
+        school_name: row.school_name,
+        college_id: row.college_id,
         department_id: row.department_id,
+        department_name: row.department_name,
         level: row.level,
+        xp: row.xp || 0,
+        current_streak: row.streak || 0,
+        streak: row.streak || 0,
+        ai_credits_balance: row.ai_credits ?? 50,
+        is_admin: row.is_admin || false,
+        role: row.is_admin ? 'superadmin' : 'user',
+        subscription_status: row.is_paid_subscriber ? 'semester' : (row.subscription_status || 'free'),
       };
     });
     return map;
+  }
+
+  if (parts[0] === 'schools_data') {
+    const tree = await loadSchoolsDataTree();
+    if (parts.length === 1) return tree;
+    if (parts.length === 2) return tree[parts[1]] || null;
+    if (parts.length === 4 && parts[2] === 'colleges') {
+      return tree[parts[1]]?.colleges?.[parts[3]] || null;
+    }
+    if (parts.length === 6 && parts[4] === 'departments') {
+      return tree[parts[1]]?.colleges?.[parts[3]]?.departments?.[parts[5]] || null;
+    }
+    if (parts.length >= 7) {
+      const deptObj = tree[parts[1]]?.colleges?.[parts[3]]?.departments?.[parts[5]];
+      if (parts[6] === 'levels') return deptObj?.levels || ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'];
+      return deptObj || null;
+    }
+    return tree;
+  }
+
+  if (parts[0] === 'departments_data') {
+    const map = await loadDepartmentsData();
+    if (parts.length === 1) return map;
+
+    const rawDeptKey = parts[1];
+    const dept = map[rawDeptKey] || map[`${rawDeptKey}_`] || map[rawDeptKey.replace(/_+$/, '')];
+
+    if (parts.length === 2) return dept || null;
+    if (parts.length === 3 && parts[2] === 'course_list') {
+      return dept?.course_list || [];
+    }
+    if (parts.length === 4 && parts[2] === 'course_list') {
+      const targetCourseId = parts[3].toLowerCase();
+      const course = (dept?.course_list || []).find((c: any) => c.course_id?.toLowerCase() === targetCourseId);
+      return course || null;
+    }
+    return dept || null;
+  }
+
+  if (parts[0] === 'past_questions') {
+    const client = supabaseAdmin || supabase;
+    if (parts.length === 1) {
+      const { data } = await client.from('past_questions').select('*');
+      const map: Record<string, any> = {};
+      (data || []).forEach((pq: any) => {
+        map[pq.id] = pq.questions_json || pq;
+      });
+      return map;
+    } else if (parts.length >= 2) {
+      const queryId = parts.slice(1).join('_');
+      const { data } = await client
+        .from('past_questions')
+        .select('*')
+        .or(`id.eq.${queryId},id.eq.${parts[1]}`)
+        .maybeSingle();
+      if (data) return data.questions_json || data;
+    }
   }
 
   if (parts[0] === 'study_partners' && parts.length === 2) {
@@ -288,16 +499,28 @@ async function loadPath(path: string): Promise<any> {
   }
 
   // Handle app_settings/* via public.app_settings table
-  if (parts[0] === 'app_settings' && parts.length >= 2) {
-    try {
-      const { data, error } = await supabase.from('app_settings').select('value_json').eq('key', parts[1]).maybeSingle();
-      if (!error && data?.value_json) {
-        if (parts.length === 3 && typeof data.value_json === 'object') {
-          return data.value_json[parts[2]] ?? null;
-        }
-        return data.value_json;
+  if (parts[0] === 'app_settings') {
+    const client = supabaseAdmin || supabase;
+    if (parts.length === 1) {
+      const { data, error } = await client.from('app_settings').select('*');
+      if (!error && data) {
+        const map: Record<string, any> = {};
+        data.forEach((row: any) => {
+          map[row.key] = row.value_json;
+        });
+        return map;
       }
-    } catch {}
+    } else if (parts.length >= 2) {
+      try {
+        const { data, error } = await client.from('app_settings').select('value_json').eq('key', parts[1]).maybeSingle();
+        if (!error && data?.value_json) {
+          if (parts.length === 3 && typeof data.value_json === 'object') {
+            return data.value_json[parts[2]] ?? null;
+          }
+          return data.value_json;
+        }
+      } catch {}
+    }
   }
 
   const cached = getLocalCache(path);
@@ -634,11 +857,179 @@ export async function set(r: DbRef, value: any): Promise<void> {
     patch.updated_at = new Date().toISOString();
 
     try {
-      await supabase.from('profiles').update(patch).eq('id', userId);
+      const client = supabaseAdmin || supabase;
+      await client.from('profiles').update(patch).eq('id', userId);
     } catch (e) {
       console.warn('[supabaseRealtimeDb] update profile error', e);
     }
     setLocalCache(r.path, { ...(getLocalCache(r.path) || {}), ...value });
+    notify(r.path, await loadPath(r.path));
+    return;
+  }
+
+  // ── Handle schools_data in Supabase ──────────────────────────────────────
+  if (parts[0] === 'schools_data') {
+    const client = supabaseAdmin || supabase;
+    if (value === null) {
+      if (parts.length === 2) {
+        await client.from('schools').delete().eq('id', parts[1]);
+      } else if (parts.length === 4 && parts[2] === 'colleges') {
+        await client.from('colleges').delete().eq('id', parts[3]);
+      } else if (parts.length === 6 && parts[4] === 'departments') {
+        await client.from('departments').delete().eq('id', parts[5]);
+      }
+    } else {
+      if (parts.length === 2) {
+        await client.from('schools').upsert({
+          id: parts[1],
+          name: value.name || parts[1],
+          short_name: value.short_name || value.name || parts[1],
+        });
+      } else if (parts.length === 4 && parts[2] === 'colleges') {
+        await client.from('colleges').upsert({
+          id: parts[3],
+          school_id: parts[1],
+          name: typeof value === 'string' ? value : (value.name || parts[3]),
+          short_name: value.short_name || parts[3],
+        });
+      } else if (parts.length === 6 && parts[4] === 'departments') {
+        await client.from('departments').upsert({
+          id: parts[5],
+          school_id: parts[1],
+          college_id: parts[3],
+          name: value.name || value.department_name || parts[5],
+          short_name: value.short_name || parts[5],
+        });
+      }
+    }
+    setLocalCache(r.path, value);
+    notify(r.path, await loadPath(r.path));
+    return;
+  }
+
+  // ── Handle departments_data in Supabase ──────────────────────────────────
+  if (parts[0] === 'departments_data') {
+    const client = supabaseAdmin || supabase;
+    const deptId = parts[1];
+    if (value === null) {
+      if (parts.length === 2) {
+        await client.from('departments').delete().eq('id', deptId);
+      } else if (parts.length === 4 && parts[2] === 'course_list') {
+        await client.from('courses').delete().eq('id', parts[3]);
+      }
+    } else {
+      if (parts.length === 2) {
+        await client.from('departments').upsert({
+          id: deptId,
+          name: value.department_name || value.name || deptId,
+          school_id: value.school_id || 'fupre',
+          college_id: value.college_id || null,
+        });
+        if (value.course_list) {
+          const courses = Array.isArray(value.course_list) ? value.course_list : Object.values(value.course_list);
+          for (const c of courses) {
+            if (!c) continue;
+            const cId = (c.course_id || c.id || '').toString();
+            if (!cId) continue;
+            await client.from('courses').upsert({
+              id: cId,
+              code: c.course_code || c.code || cId.toUpperCase(),
+              title: c.course_name || c.title || cId,
+              level: c.level || '100lvl',
+              semester: c.semester === 'second' || c.semester === 2 ? 2 : 1,
+              description: c.description || null,
+              department_id: deptId,
+              school_id: value.school_id || 'fupre',
+            });
+          }
+        }
+      } else if (parts.length === 3 && parts[2] === 'course_list') {
+        const courses = Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
+        for (const c of courses) {
+          if (!c) continue;
+          const cId = (c.course_id || c.id || '').toString();
+          if (!cId) continue;
+          await client.from('courses').upsert({
+            id: cId,
+            code: c.course_code || c.code || cId.toUpperCase(),
+            title: c.course_name || c.title || cId,
+            level: c.level || '100lvl',
+            semester: c.semester === 'second' || c.semester === 2 ? 2 : 1,
+            description: c.description || null,
+            department_id: deptId,
+            school_id: 'fupre',
+          });
+        }
+      } else if (parts.length === 4 && parts[2] === 'course_list') {
+        const c = value;
+        if (c) {
+          const cId = (parts[3] || c.course_id || c.id || '').toString();
+          await client.from('courses').upsert({
+            id: cId,
+            code: c.course_code || c.code || cId.toUpperCase(),
+            title: c.course_name || c.title || cId,
+            level: c.level || '100lvl',
+            semester: c.semester === 'second' || c.semester === 2 ? 2 : 1,
+            description: c.description || null,
+            department_id: deptId,
+            school_id: 'fupre',
+          });
+        }
+      }
+    }
+    setLocalCache(r.path, value);
+    notify(r.path, await loadPath(r.path));
+    return;
+  }
+
+  // ── Handle app_settings in Supabase ──────────────────────────────────────
+  if (parts[0] === 'app_settings' && parts.length >= 2) {
+    const client = supabaseAdmin || supabase;
+    const settingKey = parts[1];
+    if (value === null) {
+      await client.from('app_settings').delete().eq('key', settingKey);
+    } else {
+      if (parts.length === 2) {
+        await client.from('app_settings').upsert({
+          key: settingKey,
+          value_json: typeof value === 'object' && value !== null ? value : { value },
+          updated_at: new Date().toISOString(),
+        });
+      } else if (parts.length === 3) {
+        const subKey = parts[2];
+        const { data: existing } = await client.from('app_settings').select('value_json').eq('key', settingKey).maybeSingle();
+        const base = (existing?.value_json && typeof existing.value_json === 'object') ? existing.value_json : {};
+        base[subKey] = value;
+        await client.from('app_settings').upsert({
+          key: settingKey,
+          value_json: base,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+    setLocalCache(r.path, value);
+    notify(r.path, await loadPath(r.path));
+    return;
+  }
+
+  // ── Handle past_questions in Supabase ────────────────────────────────────
+  if (parts[0] === 'past_questions' && parts.length >= 2) {
+    const client = supabaseAdmin || supabase;
+    const pqId = parts.slice(1).join('_');
+    if (value === null) {
+      await client.from('past_questions').delete().eq('id', pqId);
+    } else {
+      await client.from('past_questions').upsert({
+        id: pqId,
+        department_id: parts[1] || 'general',
+        level: parts[2] || '100lvl',
+        course_id: parts[3] || pqId,
+        year: parts[4] || String(new Date().getFullYear()),
+        questions_json: value,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    setLocalCache(r.path, value);
     notify(r.path, await loadPath(r.path));
     return;
   }
@@ -666,12 +1057,22 @@ export async function set(r: DbRef, value: any): Promise<void> {
 }
 
 export async function update(r: DbRef, values: Record<string, any>): Promise<void> {
+  // Multi-location update handler (e.g. update(dbRef(db), { 'schools_data/...': val, 'departments_data/...': val }))
+  if (!r.path || Object.keys(values).some((k) => k.includes('/'))) {
+    for (const [subPath, subVal] of Object.entries(values)) {
+      const fullPath = r.path ? `${r.path}/${subPath}` : subPath;
+      await set(ref(null, fullPath), subVal);
+    }
+    return;
+  }
+
   const parts = parsePath(r.path);
 
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing' && parts.length >= 4) {
     await set(r, values);
     return;
   }
+
 
   if (parts[0] === 'users' && parts.length === 2) {
     const userId = parts[1];

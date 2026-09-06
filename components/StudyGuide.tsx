@@ -14,6 +14,7 @@ import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage
 import CourseChatTutor from './CourseChatTutor';
 import { avelutVoice, VoiceEngineStatus } from '../services/voice/AvelutVoiceEngine';
 import MyNotebooks from './MyNotebooks';
+import { supabaseDataService } from '../services/supabaseDataService';
 
 // --- UTILITIES ---
 const normalizeLevelValue = (value?: string): string => {
@@ -530,6 +531,18 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
             updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
 
             await update(dbRef(db), updates);
+            await supabaseDataService.upsertCourse({
+                course_id: courseId,
+                course_code: courseCode.toUpperCase(),
+                course_name: courseName,
+                title: courseName,
+                code: courseCode.toUpperCase(),
+                level: userProfile.level,
+                semester: filter.semester === 'all' ? 1 : (filter.semester === 'second' ? 2 : 1),
+                description,
+                department_id: userProfile.department_id,
+                school_id: userProfile.school_id,
+            });
             void deductAICredits(userProfile.uid, cost, 'Study Guide Manual Course Generation', appSettings);
             addToast(`Added ${courseData.course_code} successfully!`, 'success');
             setManualCourseCode('');
@@ -609,11 +622,29 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     updates[`departments_data/${userProfile.department_id}/course_list/${courseId}`] = courseData;
                 });
                 await update(dbRef(db), updates);
+                await Promise.all(
+                    data.courses.map((c: any) => {
+                        const courseId = c.course_code.trim().toLowerCase().replace(/\s+/g, '');
+                        return supabaseDataService.upsertCourse({
+                            course_id: courseId,
+                            course_code: c.course_code.trim().toUpperCase(),
+                            course_name: c.course_name.trim(),
+                            title: c.course_name.trim(),
+                            code: c.course_code.trim().toUpperCase(),
+                            level: userProfile.level,
+                            semester: filter.semester === 'all' ? 1 : (filter.semester === 'second' ? 2 : 1),
+                            description: `Extracted course for ${userProfile.department_id}`,
+                            department_id: userProfile.department_id,
+                            school_id: userProfile.school_id,
+                        });
+                    })
+                );
                 void deductAICredits(userProfile.uid, cost, 'Study Guide PDF Extraction', appSettings);
                 addToast(`Successfully extracted and saved ${data.courses.length} courses!`, 'success');
             } else {
                 throw new Error("No courses found in the document");
             }
+
         } catch (err: any) {
             console.error(err);
             addToast(err.message || 'Failed to extract courses', 'error');
@@ -627,6 +658,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         const fetchCourses = async () => {
             const cached = readCachedJson<Course[]>(`avelut_courses_${userProfile.uid}`, []);
             if (cached && cached.length > 0) {
+                setCourses(cached);
                 setIsLoading(false);
             } else {
                 setIsLoading(true);
@@ -641,6 +673,13 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     return;
                 }
 
+                // 1. Fetch courses directly from Supabase courses table (filtered by department & level)
+                const supabaseCourses = await supabaseDataService.fetchCourses(
+                    userProfile.department_id,
+                    userProfile.level
+                );
+
+                // 2. Also query department data via RTDB shim (which bridges to Supabase)
                 let resolvedDepartmentData: any = null;
                 const deptCoursesSnap = await get(dbRef(db, `departments_data/${userProfile.department_id}`));
                 if (deptCoursesSnap.exists()) {
@@ -656,16 +695,50 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                     normalizeLevelValue(course.level) === normalizedUserLevel
                 ));
 
+                // 3. Merge Supabase courses + department courses
+                const mergedCoursesMap = new Map<string, Course>();
+
+                // Add Supabase courses first
+                supabaseCourses.forEach((c) => {
+                    if (c && c.course_id) {
+                        mergedCoursesMap.set(c.course_id.toLowerCase(), c);
+                    }
+                });
+
+                // Merge in any courses from course_list
+                coursesForLevel.forEach((c: any) => {
+                    const normId = (c.course_id || c.course_code || '').toLowerCase().trim();
+                    if (!normId) return;
+                    if (!mergedCoursesMap.has(normId)) {
+                        mergedCoursesMap.set(normId, {
+                            ...c,
+                            course_id: normId,
+                            course_name: c.course_name || c.title || normId.toUpperCase(),
+                            course_code: c.course_code || c.code || normId.toUpperCase(),
+                            level: c.level || userProfile.level || '100lvl',
+                            semester: c.semester === 'second' || c.semester === 2 ? 'second' : 'first',
+                            topics: Array.isArray(c.topics) ? c.topics : [],
+                        });
+                    }
+                });
+
+                const rawCourseList = Array.from(mergedCoursesMap.values());
+
+                // 4. Enrich syllabus topics (from textbook_contexts if topics are empty)
                 const enrichedCourses: Course[] = await Promise.all(
-                    coursesForLevel.map(async (course) => {
+                    rawCourseList.map(async (course) => {
                         try {
+                            if (Array.isArray(course.topics) && course.topics.length > 0) {
+                                return course;
+                            }
+
                             if (course.textbook_shared_key) {
                                 const sharedRef = dbRef(db, `textbook_contexts/shared/${course.textbook_shared_key}`);
                                 const sharedSnap = await get(sharedRef);
                                 if (sharedSnap.exists()) {
                                     const sharedVal = sharedSnap.val();
                                     const syllabus = Array.isArray(sharedVal.syllabus) ? sharedVal.syllabus.map((t: any, i: number) => sanitizeTopicMetadata(t, i)) : [];
-                                    return { ...course, topics: syllabus };
+                                    if (syllabus.length > 0) return { ...course, topics: syllabus };
                                 }
                             }
 
@@ -674,10 +747,23 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
                             if (perDeptSnap.exists()) {
                                 const val = perDeptSnap.val();
                                 const syllabus = Array.isArray(val.syllabus) ? val.syllabus.map((t: any, i: number) => sanitizeTopicMetadata(t, i)) : [];
-                                return { ...course, topics: syllabus };
+                                if (syllabus.length > 0) return { ...course, topics: syllabus };
                             }
 
-                            return course;
+                            // Provide foundational default topic if course has no topics
+                            return {
+                                ...course,
+                                topics: [
+                                    {
+                                        topic_id: `${course.course_id}_core`,
+                                        topic_name: 'Core Principles & Syllabus Overview',
+                                        topic_context: `Overview, foundational principles, and core examination scope for ${course.course_name} (${course.course_code || course.course_id.toUpperCase()}).`,
+                                        start_point: 'Introduction',
+                                        end_point: 'Summary',
+                                        is_complete: false,
+                                    },
+                                ],
+                            };
                         } catch (e) {
                             console.error('Error enriching course with textbook syllabus:', e);
                             return course;

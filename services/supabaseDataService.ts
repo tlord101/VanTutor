@@ -1,5 +1,15 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin, isSupabaseConfigured } from '../lib/supabaseClient';
 import type { UserProfile, Course, Topic } from '../types';
+
+const normalizeLevel = (val?: string): string => {
+  if (!val) return '';
+  return val.toLowerCase().replace(/\s+/g, '').replace(/level/g, '').replace(/lvl/g, '');
+};
+
+const normalizeDept = (val?: string): string => {
+  if (!val) return '';
+  return val.toLowerCase().trim().replace(/[\s-]+/g, '_').replace(/[^\w_]/g, '').replace(/_+$/, '');
+};
 
 export interface UserSubscriptionInfo {
   plan_type: 'free' | 'weekly' | 'monthly' | 'semester';
@@ -146,7 +156,8 @@ class SupabaseDataService {
   public async upsertSchool(school: { id: string; name: string; short_name?: string }): Promise<void> {
     if (!isSupabaseConfigured || !school.id) return;
     try {
-      await supabase.from('schools').upsert(school);
+      const client = supabaseAdmin || supabase;
+      await client.from('schools').upsert(school);
     } catch (err) {
       console.error('[SupabaseDataService] Error upserting school:', err);
     }
@@ -155,7 +166,8 @@ class SupabaseDataService {
   public async upsertCollege(college: { id: string; name: string; school_id: string }): Promise<void> {
     if (!isSupabaseConfigured || !college.id) return;
     try {
-      await supabase.from('colleges').upsert(college);
+      const client = supabaseAdmin || supabase;
+      await client.from('colleges').upsert(college);
     } catch (err) {
       console.error('[SupabaseDataService] Error upserting college:', err);
     }
@@ -164,7 +176,8 @@ class SupabaseDataService {
   public async upsertDepartment(department: { id: string; name: string; school_id?: string; college_id?: string }): Promise<void> {
     if (!isSupabaseConfigured || !department.id) return;
     try {
-      await supabase.from('departments').upsert(department);
+      const client = supabaseAdmin || supabase;
+      await client.from('departments').upsert(department);
     } catch (err) {
       console.error('[SupabaseDataService] Error upserting department:', err);
     }
@@ -175,29 +188,205 @@ class SupabaseDataService {
   public async fetchCourses(departmentId?: string, level?: string): Promise<Course[]> {
     if (!isSupabaseConfigured) return [];
     try {
-      let query = supabase.from('courses').select('*, topics(*)');
-      if (departmentId) query = query.eq('department_id', departmentId);
-      if (level) query = query.eq('level', level);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*, topics(*)');
 
-      const { data, error } = await query;
       if (error) {
         console.warn('[SupabaseDataService] Error fetching courses:', error);
         return [];
       }
-      return (data || []).map((c: any) => ({
+
+      let filtered = data || [];
+      if (departmentId) {
+        const targetDeptNorm = normalizeDept(departmentId);
+        filtered = filtered.filter((c: any) => {
+          if (!c.department_id) return true;
+          const courseDeptNorm = normalizeDept(c.department_id);
+          return courseDeptNorm === targetDeptNorm || c.department_id === departmentId;
+        });
+      }
+
+      if (level) {
+        const targetLevelNorm = normalizeLevel(level);
+        filtered = filtered.filter((c: any) => {
+          if (!c.level) return true;
+          return normalizeLevel(c.level) === targetLevelNorm;
+        });
+      }
+
+      return filtered.map((c: any) => ({
         course_id: c.id,
         course_name: c.title || c.code,
         course_code: c.code,
         level: c.level || '100lvl',
         semester: c.semester === 2 ? 'second' : 'first',
-        topics: ((c.topics || []) as any[]).map(t => ({
+        description: c.description || '',
+        textbook_url: c.textbook_url || '',
+        department_id: c.department_id,
+        school_id: c.school_id,
+        topics: ((c.topics || []) as any[]).map((t: any) => ({
           topic_id: t.id,
           topic_name: t.topic_name,
-          topic_context: t.overview_json?.overview || '',
+          topic_order: t.topic_order,
+          topic_context: t.overview_json?.overview || t.overview_json?.topic_context || '',
+          start_point: t.overview_json?.start_point || '',
+          end_point: t.overview_json?.end_point || '',
+          is_complete: false,
         })),
       })) as Course[];
     } catch (err) {
       console.warn('[SupabaseDataService] Exception fetching courses:', err);
+      return [];
+    }
+  }
+
+  public async upsertCourse(course: {
+    course_id: string;
+    course_code?: string;
+    course_name?: string;
+    title?: string;
+    code?: string;
+    level?: string;
+    semester?: number | string;
+    description?: string;
+    department_id?: string;
+    school_id?: string;
+  }): Promise<boolean> {
+    if (!isSupabaseConfigured || !course.course_id) return false;
+    try {
+      const code = course.course_code || course.code || course.course_id.toUpperCase();
+      const title = course.course_name || course.title || code;
+      const sem = course.semester === 'second' || course.semester === 2 ? 2 : 1;
+      const payload: any = {
+        id: course.course_id,
+        code,
+        title,
+        level: course.level || '100lvl',
+        semester: sem,
+        description: course.description || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (course.department_id) payload.department_id = course.department_id;
+      if (course.school_id) payload.school_id = course.school_id;
+
+      const client = supabaseAdmin || supabase;
+      const { error } = await client.from('courses').upsert(payload);
+      if (error) {
+        console.warn('[SupabaseDataService] Error upserting course:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('[SupabaseDataService] Exception upserting course:', err);
+      return false;
+    }
+  }
+
+  public async deleteCourse(courseId: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !courseId) return false;
+    try {
+      const client = supabaseAdmin || supabase;
+      const { error } = await client.from('courses').delete().eq('id', courseId);
+      if (error) {
+        console.warn('[SupabaseDataService] Error deleting course:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('[SupabaseDataService] Exception deleting course:', err);
+      return false;
+    }
+  }
+
+  public async upsertTopic(topic: {
+    topic_id: string;
+    course_id: string;
+    topic_name: string;
+    topic_order?: number;
+    topic_context?: string;
+    start_point?: string;
+    end_point?: string;
+  }): Promise<boolean> {
+    if (!isSupabaseConfigured || !topic.topic_id || !topic.course_id) return false;
+    try {
+      const client = supabaseAdmin || supabase;
+      const { error } = await client.from('topics').upsert({
+        id: topic.topic_id,
+        course_id: topic.course_id,
+        topic_name: topic.topic_name,
+        topic_order: topic.topic_order || 1,
+        overview_json: {
+          overview: topic.topic_context || '',
+          start_point: topic.start_point || null,
+          end_point: topic.end_point || null,
+        },
+      });
+      if (error) {
+        console.warn('[SupabaseDataService] Error upserting topic:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('[SupabaseDataService] Exception upserting topic:', err);
+      return false;
+    }
+  }
+
+  public async deleteTopic(topicId: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !topicId) return false;
+    try {
+      const client = supabaseAdmin || supabase;
+      const { error } = await client.from('topics').delete().eq('id', topicId);
+      if (error) {
+        console.warn('[SupabaseDataService] Error deleting topic:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('[SupabaseDataService] Exception deleting topic:', err);
+      return false;
+    }
+  }
+
+  public async fetchAllUsers(): Promise<UserProfile[]> {
+    if (!isSupabaseConfigured) return [];
+    try {
+      const client = supabaseAdmin || supabase;
+      const { data, error } = await client
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
+        console.warn('[SupabaseDataService] Error fetching all users:', error);
+        return [];
+      }
+
+      return data.map((d: any) => ({
+        uid: d.id,
+        display_name: d.full_name || d.username || 'User',
+        photo_url: d.avatar_url || '',
+        email: d.email || '',
+        school_id: d.school_id,
+        school_name: d.school_name,
+        college_id: d.college_id,
+        department_id: d.department_id,
+        department_name: d.department_name,
+        level: d.level,
+        xp: d.xp || 0,
+        current_streak: d.streak || 0,
+        last_activity_date: d.last_seen ? new Date(d.last_seen).getTime() : Date.now(),
+        notifications_enabled: true,
+        ai_credits_balance: d.ai_credits ?? 50,
+        is_admin: d.is_admin || false,
+        role: d.is_admin ? 'superadmin' : 'user',
+        subscription_status: d.is_paid_subscriber ? 'semester' : (d.subscription_status || 'free'),
+        is_online: d.is_online || false,
+        last_seen: d.last_seen ? new Date(d.last_seen).getTime() : undefined,
+      })) as UserProfile[];
+    } catch (err) {
+      console.warn('[SupabaseDataService] Exception fetching all users:', err);
       return [];
     }
   }
