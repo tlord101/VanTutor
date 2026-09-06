@@ -125,10 +125,8 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         }
 
         if (!targetCollegeId) {
-            targetCollegeId = 'default_college';
-            await set(dbRef(db, `schools_data/${schoolId}/colleges/${targetCollegeId}`), {
-                name: 'Main College',
-            });
+            const existingColleges = Object.keys(collegesObj);
+            targetCollegeId = existingColleges.length > 0 ? existingColleges[0] : 'college_of_engineering';
         }
 
         const deptId = trimmedName.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, '');
@@ -139,15 +137,25 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
             const updates: Record<string, any> = {};
 
             updates[`schools_data/${schoolId}/colleges/${targetCollegeId}/departments/${deptId}`] = {
+                id: deptId,
                 name: trimmedName,
+                department_name: trimmedName,
                 code: deptCode,
+                short_name: deptCode,
+                school_id: schoolId,
+                college_id: targetCollegeId,
                 contact_person: newContactPerson.trim(),
                 levels: Object.fromEntries(LEVELS.map((lvl) => [lvl, { courses: {} }])),
             };
 
             updates[`departments_data/${deptId}`] = {
+                id: deptId,
+                name: trimmedName,
                 department_name: trimmedName,
                 code: deptCode,
+                short_name: deptCode,
+                school_id: schoolId,
+                college_id: targetCollegeId,
                 course_list: [],
             };
 
@@ -170,7 +178,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
     const handleRenameDepartment = async (dept: any, newName: string) => {
         try {
             const updates: Record<string, any> = {};
-            const targetColId = dept.collegeId || collegeId || 'default_college';
+            const targetColId = dept.collegeId || collegeId || Object.keys(collegesObj)[0] || 'college_of_engineering';
             updates[`schools_data/${schoolId}/colleges/${targetColId}/departments/${dept.id}/name`] = newName;
             updates[`departments_data/${dept.id}/department_name`] = newName;
 
@@ -189,7 +197,7 @@ export const Level2DepartmentManager: React.FC<Level2DepartmentManagerProps> = (
         setIsDeleting(true);
         try {
             const deptId = deleteTarget.id;
-            const targetColId = deleteTarget.collegeId || collegeId || 'default_college';
+            const targetColId = deleteTarget.collegeId || collegeId || Object.keys(collegesObj)[0] || 'college_of_engineering';
             const updates: Record<string, any> = {};
 
             // 1. Fetch courses in this department to check orphaned status

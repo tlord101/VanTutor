@@ -163,12 +163,21 @@ async function loadSchoolsDataTree(): Promise<Record<string, any>> {
 
     let cId = d.college_id;
     if (!cId || !tree[sId].colleges[cId]) {
-      const existingCollegeIds = Object.keys(tree[sId].colleges);
-      if (existingCollegeIds.length > 0) {
-        cId = existingCollegeIds[0];
+      if (cId) {
+        tree[sId].colleges[cId] = {
+          id: cId,
+          name: cId.replace(/_/g, ' ').toUpperCase(),
+          short_name: cId.toUpperCase(),
+          departments: {},
+        };
       } else {
-        cId = 'college_of_engineering';
-        tree[sId].colleges[cId] = { id: cId, name: 'College of Engineering', departments: {} };
+        const existingCollegeIds = Object.keys(tree[sId].colleges);
+        if (existingCollegeIds.length > 0) {
+          cId = existingCollegeIds[0];
+        } else {
+          cId = 'college_of_engineering';
+          tree[sId].colleges[cId] = { id: cId, name: 'College of Engineering', short_name: 'COE', departments: {} };
+        }
       }
     }
 
@@ -181,6 +190,11 @@ async function loadSchoolsDataTree(): Promise<Record<string, any>> {
       name: d.name,
       department_name: d.name,
       short_name: d.short_name,
+      code: d.short_name,
+      collegeId: cId,
+      college_id: cId,
+      schoolId: sId,
+      school_id: sId,
       levels: ['100lvl', '200lvl', '300lvl', '400lvl', '500lvl'],
     };
   });
@@ -537,6 +551,63 @@ async function loadPath(path: string): Promise<any> {
       return course || null;
     }
     return dept || null;
+  }
+
+  if (parts[0] === 'global_courses') {
+    const client = supabaseAdmin || supabase;
+    if (parts.length === 1) {
+      const { data: courses } = await client.from('courses').select('*, topics(*)');
+      const map: Record<string, any> = {};
+      (courses || []).forEach((c: any) => {
+        map[c.id] = {
+          course_id: c.id,
+          id: c.id,
+          course_name: c.title || c.code,
+          course_code: c.code,
+          level: c.level || '100lvl',
+          semester: c.semester === 2 ? 'second' : 'first',
+          description: c.description || '',
+          department_id: c.department_id,
+          school_id: c.school_id,
+          linked_departments: c.department_id ? [c.department_id] : [],
+          topics: ((c.topics || []) as any[]).map((t: any) => ({
+            topic_id: t.id,
+            topic_name: t.topic_name,
+            topic_order: t.topic_order,
+            topic_context: t.overview_json?.overview || '',
+            start_point: t.overview_json?.start_point || '',
+            end_point: t.overview_json?.end_point || '',
+            subtopics: t.overview_json?.subtopics || [],
+          })),
+        };
+      });
+      return map;
+    }
+    if (parts.length === 2) {
+      const { data: c } = await client.from('courses').select('*, topics(*)').eq('id', parts[1]).maybeSingle();
+      if (!c) return null;
+      return {
+        course_id: c.id,
+        id: c.id,
+        course_name: c.title || c.code,
+        course_code: c.code,
+        level: c.level || '100lvl',
+        semester: c.semester === 2 ? 'second' : 'first',
+        description: c.description || '',
+        department_id: c.department_id,
+        school_id: c.school_id,
+        linked_departments: c.department_id ? [c.department_id] : [],
+        topics: ((c.topics || []) as any[]).map((t: any) => ({
+          topic_id: t.id,
+          topic_name: t.topic_name,
+          topic_order: t.topic_order,
+          topic_context: t.overview_json?.overview || '',
+          start_point: t.overview_json?.start_point || '',
+          end_point: t.overview_json?.end_point || '',
+          subtopics: t.overview_json?.subtopics || [],
+        })),
+      };
+    }
   }
 
   if (parts[0] === 'past_questions') {
@@ -1204,34 +1275,83 @@ export async function set(r: DbRef, value: any): Promise<void> {
     const client = supabaseAdmin || supabase;
     if (value === null) {
       if (parts.length === 2) {
-        await client.from('schools').delete().eq('id', parts[1]);
+        const { error } = await client.from('schools').delete().eq('id', parts[1]);
+        if (error) console.error('[supabaseRealtimeDb] delete school error:', error);
       } else if (parts.length === 4 && parts[2] === 'colleges') {
-        await client.from('colleges').delete().eq('id', parts[3]);
+        const { error } = await client.from('colleges').delete().eq('id', parts[3]);
+        if (error) console.error('[supabaseRealtimeDb] delete college error:', error);
       } else if (parts.length === 6 && parts[4] === 'departments') {
-        await client.from('departments').delete().eq('id', parts[5]);
+        const { error } = await client.from('departments').delete().eq('id', parts[5]);
+        if (error) console.error('[supabaseRealtimeDb] delete department error:', error);
       }
     } else {
       if (parts.length === 2) {
-        await client.from('schools').upsert({
+        const { error } = await client.from('schools').upsert({
           id: parts[1],
           name: value.name || parts[1],
-          short_name: value.short_name || value.name || parts[1],
+          short_name: value.short_name || value.code || value.name || parts[1],
         });
+        if (error) {
+          console.error('[supabaseRealtimeDb] upsert school error:', error);
+          throw new Error(error.message);
+        }
       } else if (parts.length === 4 && parts[2] === 'colleges') {
-        await client.from('colleges').upsert({
+        // Ensure parent school exists in Supabase
+        await client.from('schools').upsert({
+          id: parts[1],
+          name: parts[1].toUpperCase(),
+          short_name: parts[1].toUpperCase(),
+        }, { onConflict: 'id', ignoreDuplicates: true });
+
+        const { error } = await client.from('colleges').upsert({
           id: parts[3],
           school_id: parts[1],
           name: typeof value === 'string' ? value : (value.name || parts[3]),
-          short_name: value.short_name || parts[3],
+          short_name: value.short_name || value.code || parts[3],
         });
+        if (error) {
+          console.error('[supabaseRealtimeDb] upsert college error:', error);
+          throw new Error(error.message);
+        }
       } else if (parts.length === 6 && parts[4] === 'departments') {
-        await client.from('departments').upsert({
-          id: parts[5],
-          school_id: parts[1],
-          college_id: parts[3],
-          name: value.name || value.department_name || parts[5],
-          short_name: value.short_name || parts[5],
+        const school_id = parts[1];
+        const college_id = parts[3];
+        const dept_id = parts[5];
+
+        // Ensure parent school exists in Supabase
+        await client.from('schools').upsert({
+          id: school_id,
+          name: school_id.toUpperCase(),
+          short_name: school_id.toUpperCase(),
+        }, { onConflict: 'id', ignoreDuplicates: true });
+
+        // Ensure parent college exists in Supabase
+        await client.from('colleges').upsert({
+          id: college_id,
+          school_id: school_id,
+          name: college_id.replace(/_/g, ' ').toUpperCase(),
+          short_name: college_id.toUpperCase(),
+        }, { onConflict: 'id', ignoreDuplicates: true });
+
+        const { error } = await client.from('departments').upsert({
+          id: dept_id,
+          school_id: school_id,
+          college_id: college_id,
+          name: value.name || value.department_name || dept_id,
+          short_name: value.short_name || value.code || dept_id,
         });
+        if (error) {
+          console.error('[supabaseRealtimeDb] upsert department error:', error);
+          throw new Error(error.message);
+        }
+      } else if (parts.length === 7 && parts[4] === 'departments' && (parts[6] === 'name' || parts[6] === 'department_name')) {
+        const { error } = await client.from('departments').update({
+          name: typeof value === 'string' ? value : (value?.name || parts[5]),
+        }).eq('id', parts[5]);
+        if (error) {
+          console.error('[supabaseRealtimeDb] rename department error:', error);
+          throw new Error(error.message);
+        }
       }
     }
     setLocalCache(r.path, value);
@@ -1245,25 +1365,41 @@ export async function set(r: DbRef, value: any): Promise<void> {
     const deptId = parts[1];
     if (value === null) {
       if (parts.length === 2) {
-        await client.from('departments').delete().eq('id', deptId);
+        const { error } = await client.from('departments').delete().eq('id', deptId);
+        if (error) console.error('[supabaseRealtimeDb] delete department error:', error);
       } else if (parts.length === 4 && parts[2] === 'course_list') {
-        await client.from('courses').delete().eq('id', parts[3]);
+        const { error } = await client.from('courses').delete().eq('id', parts[3]);
+        if (error) console.error('[supabaseRealtimeDb] delete course error:', error);
       }
     } else {
       if (parts.length === 2) {
-        await client.from('departments').upsert({
+        const deptPayload: Record<string, any> = {
           id: deptId,
           name: value.department_name || value.name || deptId,
-          school_id: value.school_id || 'fupre',
-          college_id: value.college_id || null,
-        });
+        };
+        if (value.short_name || value.code) {
+          deptPayload.short_name = value.short_name || value.code;
+        }
+        if (value.school_id) {
+          deptPayload.school_id = value.school_id;
+        }
+        if (value.college_id) {
+          deptPayload.college_id = value.college_id;
+        }
+
+        const { error } = await client.from('departments').upsert(deptPayload);
+        if (error) {
+          console.error('[supabaseRealtimeDb] upsert department_data error:', error);
+          throw new Error(error.message);
+        }
+
         if (value.course_list) {
           const courses = Array.isArray(value.course_list) ? value.course_list : Object.values(value.course_list);
           for (const c of courses) {
             if (!c) continue;
             const cId = (c.course_id || c.id || '').toString();
             if (!cId) continue;
-            await client.from('courses').upsert({
+            const { error: cErr } = await client.from('courses').upsert({
               id: cId,
               code: c.course_code || c.code || cId.toUpperCase(),
               title: c.course_name || c.title || cId,
@@ -1273,7 +1409,36 @@ export async function set(r: DbRef, value: any): Promise<void> {
               department_id: deptId,
               school_id: value.school_id || 'fupre',
             });
+            if (cErr) console.error('[supabaseRealtimeDb] upsert course error:', cErr);
+
+            if (Array.isArray(c.topics)) {
+              for (let i = 0; i < c.topics.length; i++) {
+                const t = c.topics[i];
+                if (!t) continue;
+                const tId = t.topic_id || t.id || `${cId}_topic_${i + 1}`;
+                await client.from('topics').upsert({
+                  id: tId,
+                  course_id: cId,
+                  topic_name: t.topic_name || `Topic ${i + 1}`,
+                  topic_order: t.topic_order ?? (i + 1),
+                  overview_json: {
+                    overview: t.topic_context || '',
+                    start_point: t.start_point || '',
+                    end_point: t.end_point || '',
+                    subtopics: t.subtopics || [],
+                  },
+                });
+              }
+            }
           }
+        }
+      } else if (parts.length === 3 && (parts[2] === 'department_name' || parts[2] === 'name')) {
+        const { error } = await client.from('departments').update({
+          name: typeof value === 'string' ? value : (value?.department_name || value?.name || deptId),
+        }).eq('id', deptId);
+        if (error) {
+          console.error('[supabaseRealtimeDb] rename department error:', error);
+          throw new Error(error.message);
         }
       } else if (parts.length === 3 && parts[2] === 'course_list') {
         const courses = Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
@@ -1281,7 +1446,7 @@ export async function set(r: DbRef, value: any): Promise<void> {
           if (!c) continue;
           const cId = (c.course_id || c.id || '').toString();
           if (!cId) continue;
-          await client.from('courses').upsert({
+          const { error: cErr } = await client.from('courses').upsert({
             id: cId,
             code: c.course_code || c.code || cId.toUpperCase(),
             title: c.course_name || c.title || cId,
@@ -1291,12 +1456,33 @@ export async function set(r: DbRef, value: any): Promise<void> {
             department_id: deptId,
             school_id: 'fupre',
           });
+          if (cErr) console.error('[supabaseRealtimeDb] upsert course error:', cErr);
+
+          if (Array.isArray(c.topics)) {
+            for (let i = 0; i < c.topics.length; i++) {
+              const t = c.topics[i];
+              if (!t) continue;
+              const tId = t.topic_id || t.id || `${cId}_topic_${i + 1}`;
+              await client.from('topics').upsert({
+                id: tId,
+                course_id: cId,
+                topic_name: t.topic_name || `Topic ${i + 1}`,
+                topic_order: t.topic_order ?? (i + 1),
+                overview_json: {
+                  overview: t.topic_context || '',
+                  start_point: t.start_point || '',
+                  end_point: t.end_point || '',
+                  subtopics: t.subtopics || [],
+                },
+              });
+            }
+          }
         }
       } else if (parts.length === 4 && parts[2] === 'course_list') {
         const c = value;
         if (c) {
           const cId = (parts[3] || c.course_id || c.id || '').toString();
-          await client.from('courses').upsert({
+          const { error: cErr } = await client.from('courses').upsert({
             id: cId,
             code: c.course_code || c.code || cId.toUpperCase(),
             title: c.course_name || c.title || cId,
@@ -1305,6 +1491,75 @@ export async function set(r: DbRef, value: any): Promise<void> {
             description: c.description || null,
             department_id: deptId,
             school_id: 'fupre',
+          });
+          if (cErr) console.error('[supabaseRealtimeDb] upsert course error:', cErr);
+        }
+      }
+    }
+    setLocalCache(r.path, value);
+    notify(r.path, await loadPath(r.path));
+    return;
+  }
+
+  // ── Handle global_courses in Supabase ────────────────────────────────────
+  if (parts[0] === 'global_courses' && parts.length >= 2) {
+    const client = supabaseAdmin || supabase;
+    const courseId = parts[1];
+    if (value === null) {
+      if (parts.length === 2) {
+        const { error } = await client.from('courses').delete().eq('id', courseId);
+        if (error) console.error('[supabaseRealtimeDb] delete global_course error:', error);
+      }
+    } else {
+      if (parts.length === 2) {
+        const { error } = await client.from('courses').upsert({
+          id: courseId,
+          code: value.course_code || value.code || courseId.toUpperCase(),
+          title: value.course_name || value.title || courseId,
+          level: value.level || '100lvl',
+          semester: value.semester === 'second' || value.semester === 2 ? 2 : 1,
+          description: value.description || null,
+          department_id: value.department_id || (Array.isArray(value.linked_departments) && value.linked_departments[0]) || null,
+          school_id: value.school_id || 'fupre',
+        });
+        if (error) console.error('[supabaseRealtimeDb] upsert global_course error:', error);
+
+        if (Array.isArray(value.topics)) {
+          for (let i = 0; i < value.topics.length; i++) {
+            const t = value.topics[i];
+            if (!t) continue;
+            const tId = t.topic_id || t.id || `${courseId}_topic_${i + 1}`;
+            await client.from('topics').upsert({
+              id: tId,
+              course_id: courseId,
+              topic_name: t.topic_name || `Topic ${i + 1}`,
+              topic_order: t.topic_order ?? (i + 1),
+              overview_json: {
+                overview: t.topic_context || '',
+                start_point: t.start_point || '',
+                end_point: t.end_point || '',
+                subtopics: t.subtopics || [],
+              },
+            });
+          }
+        }
+      } else if (parts.length === 3 && parts[2] === 'topics') {
+        const topicsList = Array.isArray(value) ? value : Object.values(value || {});
+        for (let i = 0; i < topicsList.length; i++) {
+          const t = topicsList[i];
+          if (!t) continue;
+          const tId = t.topic_id || t.id || `${courseId}_topic_${i + 1}`;
+          await client.from('topics').upsert({
+            id: tId,
+            course_id: courseId,
+            topic_name: t.topic_name || `Topic ${i + 1}`,
+            topic_order: t.topic_order ?? (i + 1),
+            overview_json: {
+              overview: t.topic_context || '',
+              start_point: t.start_point || '',
+              end_point: t.end_point || '',
+              subtopics: t.subtopics || [],
+            },
           });
         }
       }
