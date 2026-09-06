@@ -1,4 +1,4 @@
-﻿-- ==============================================================================
+-- ==============================================================================
 -- AVELUT COMPLETE, UPDATED, AND CONSOLIDATED SUPABASE SCHEMA
 -- ==============================================================================
 -- Run this entire script in your Supabase Project SQL Editor (Database > SQL Editor).
@@ -44,7 +44,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;
 
 -- Trigger to automatically create profile on auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO public.profiles (
         id, 
@@ -70,7 +70,7 @@ BEGIN
         updated_at = NOW();
     RETURN NEW;
 END;
- LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -339,7 +339,7 @@ CREATE OR REPLACE FUNCTION public.deduct_user_credits(
     p_user_id UUID,
     p_amount INTEGER
 )
-RETURNS JSONB AS 
+RETURNS JSONB AS $$
 DECLARE
     v_current_credits INT;
     v_new_credits INT;
@@ -370,13 +370,13 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'remaining_credits', v_new_credits);
 END;
- LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.increment_user_credits(
     p_user_id UUID,
     p_amount INTEGER
 )
-RETURNS JSONB AS 
+RETURNS JSONB AS $$
 DECLARE
     v_new_credits INT;
 BEGIN
@@ -391,13 +391,13 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'credits', v_new_credits);
 END;
- LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.increment_user_xp(
     p_user_id UUID,
     p_amount INTEGER
 )
-RETURNS JSONB AS 
+RETURNS JSONB AS $$
 DECLARE
     v_new_xp INT;
 BEGIN
@@ -412,7 +412,7 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'xp', v_new_xp);
 END;
- LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==============================================================================
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
@@ -600,15 +600,17 @@ USING (bucket_id = 'profile_avatars' AND (storage.foldername(name))[1] = auth.ui
 -- 12. ENABLE REALTIME PUBLICATION
 -- ==============================================================================
 
-DO 
+DO $$
 BEGIN
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.messages; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.chats; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_members; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.user_progress; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.subscriptions; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_kv; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_settings; EXCEPTION WHEN duplicate_object THEN NULL; END;
-END ;
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.messages; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.chats; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_members; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.user_progress; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.subscriptions; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_kv; EXCEPTION WHEN duplicate_object THEN NULL; END;
+        BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_settings; EXCEPTION WHEN duplicate_object THEN NULL; END;
+    END IF;
+END $$;
