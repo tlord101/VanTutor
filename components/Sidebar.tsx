@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { NavItem, UserProfile, ChatConversation } from '../types';
 import { navigationItems, adminNavigationItems } from '../constants';
 import { Avatar } from './Avatar';
@@ -220,11 +220,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? [...baseItems, ...adminNavigationItems]
       : baseItems;
 
+  const sidebarTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleSidebarTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    sidebarTouchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleSidebarTouchMove = (e: React.TouchEvent) => {
+    if (!sidebarTouchStartRef.current) return;
+    const diffX = e.touches[0].clientX - sidebarTouchStartRef.current.x;
+    const diffY = e.touches[0].clientY - sidebarTouchStartRef.current.y;
+    // Sliding to the left on the drawer to close
+    if (diffX < -45 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+      sidebarTouchStartRef.current = null;
+      onCloseMobileSidebar();
+    }
+  };
+
+  const handleSidebarTouchEnd = () => {
+    sidebarTouchStartRef.current = null;
+  };
+
   return (
     <>
       <div className={`fixed inset-0 z-[130] transition-opacity duration-300 md:hidden ${isMobileSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="absolute inset-0 bg-black/40" onClick={onCloseMobileSidebar} aria-hidden="true" />
-        <aside className={`absolute top-0 left-0 h-full w-[min(300px,86vw)] bg-white dark:bg-[#171717] shadow-2xl transform transition-transform duration-300 ease-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside 
+          className={`absolute top-0 left-0 h-full w-[min(300px,86vw)] bg-white dark:bg-[#171717] shadow-2xl transform transition-transform duration-300 ease-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          onTouchStart={handleSidebarTouchStart}
+          onTouchMove={handleSidebarTouchMove}
+          onTouchEnd={handleSidebarTouchEnd}
+        >
           <SidebarPanel
             activeItem={activeItem}
             onItemClick={handleMobileItemClick}

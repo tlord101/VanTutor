@@ -334,7 +334,12 @@ const AppUpdateDropModal: React.FC<{
     );
 };
 
-const normalizeRouteSegment = (segment: string): string => (segment || '').toLowerCase().replace(/-/g, '_');
+const normalizeRouteSegment = (segment: string): string => {
+    const s = (segment || '').toLowerCase().replace(/-/g, '_');
+    if (s === 'studyguide') return 'study_guide';
+    if (s === 'notebooks') return 'study_guide';
+    return s;
+};
 
 const ALLOWED_ROUTE_ITEMS = new Set([
     'dashboard',
@@ -789,6 +794,17 @@ const App: React.FC = () => {
                 } catch {}
                 return next;
             });
+        }
+    }, []);
+
+    const handleOpenMenu = useCallback(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setIsMobileSidebarOpen(true);
+        } else {
+            setIsDesktopSidebarCollapsed(false);
+            try {
+                window.localStorage?.setItem('avelut_sidebar_collapsed', 'false');
+            } catch {}
         }
     }, []);
     const [pendingMessengerChatId, setPendingMessengerChatId] = useState<string | null>(null);
@@ -1846,7 +1862,7 @@ const App: React.FC = () => {
                             onConversationsUpdate={setRecentConversations}
                             activeConversationId={activeConversationId}
                             onSelectConversation={setActiveConversationId}
-                            onOpenMenu={handleToggleMenu}
+                            onOpenMenu={handleOpenMenu}
                         />
                     )}
                 </div>
