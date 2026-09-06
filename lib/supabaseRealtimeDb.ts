@@ -476,13 +476,62 @@ async function loadPath(path: string): Promise<any> {
     }
   }
 
-  if (parts[0] === 'study_partners' && parts.length === 2) {
-    const { data } = await supabase.from('study_partners').select('partner_id').eq('user_id', parts[1]);
-    const map: Record<string, boolean> = {};
-    (data || []).forEach((row: any) => {
-      map[row.partner_id] = true;
-    });
-    return map;
+  if (parts[0] === 'study_partners') {
+    if (parts.length === 2) {
+      const userId = parts[1];
+      try {
+        const { data, error } = await supabase
+          .from('study_partners')
+          .select('partner_id, user_id')
+          .or(`user_id.eq.${userId},partner_id.eq.${userId}`);
+        const map: Record<string, boolean> = {};
+        if (!error && data) {
+          data.forEach((row: any) => {
+            const otherId = row.user_id === userId ? row.partner_id : row.user_id;
+            if (otherId) map[otherId] = true;
+          });
+        }
+        return map;
+      } catch {
+        return getLocalCache(path) || {};
+      }
+    }
+    if (parts.length === 3) {
+      const [, userId, targetId] = parts;
+      try {
+        const { data, error } = await supabase
+          .from('study_partners')
+          .select('user_id')
+          .or(`and(user_id.eq.${userId},partner_id.eq.${targetId}),and(user_id.eq.${targetId},partner_id.eq.${userId})`)
+          .limit(1);
+        if (!error && data && data.length > 0) return true;
+      } catch {}
+      const cachedList = getLocalCache(`study_partners/${userId}`);
+      return !!cachedList?.[targetId];
+    }
+  }
+
+  if (parts[0] === 'partner_requests') {
+    if (parts.length === 2) {
+      const userId = parts[1];
+      try {
+        const { data, error } = await supabase
+          .from('app_kv')
+          .select('value')
+          .eq('key', `partner_requests/${userId}`)
+          .maybeSingle();
+        if (!error && data?.value) {
+          setLocalCache(path, data.value);
+          return data.value;
+        }
+      } catch {}
+      return getLocalCache(path) || {};
+    }
+    if (parts.length === 3) {
+      const [, userId, targetId] = parts;
+      const userReqs = await loadPath(`partner_requests/${userId}`);
+      return userReqs?.[targetId] ?? null;
+    }
   }
 
   if (parts[0] === 'users' && parts[2] === 'blocked_users' && parts.length === 3) {
@@ -649,6 +698,52 @@ export function onValue(r: DbRef, callback: (snap: any) => void): Unsub {
     }
   }
 
+  if (parts[0] === 'study_partners' && parts.length >= 2) {
+    const userId = parts[1];
+    const chName = `study_partners:${userId}`;
+    let ch = channelByPath.get(chName);
+    if (!ch) {
+      ch = supabase
+        .channel(chName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'study_partners' },
+          async () => {
+            const list = await loadPath(`study_partners/${userId}`);
+            notify(`study_partners/${userId}`, list);
+            if (parts.length === 3) {
+              notify(path, !!list?.[parts[2]]);
+            }
+          }
+        )
+        .subscribe();
+      channelByPath.set(chName, ch);
+    }
+  }
+
+  if (parts[0] === 'partner_requests' && parts.length >= 2) {
+    const userId = parts[1];
+    const chName = `partner_requests:${userId}`;
+    let ch = channelByPath.get(chName);
+    if (!ch) {
+      ch = supabase
+        .channel(chName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'app_kv', filter: `key=eq.partner_requests/${userId}` },
+          async (payload: any) => {
+            const updatedMap = payload?.new?.value || (await loadPath(`partner_requests/${userId}`)) || {};
+            notify(`partner_requests/${userId}`, updatedMap);
+            if (parts.length === 3) {
+              notify(path, updatedMap?.[parts[2]] ?? null);
+            }
+          }
+        )
+        .subscribe();
+      channelByPath.set(chName, ch);
+    }
+  }
+
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing') {
     const chatId = parts[1];
     const chName = `typing:${chatId}`;
@@ -735,6 +830,86 @@ export async function set(r: DbRef, value: any): Promise<void> {
   if (parts[0] === 'users' && parts[2] === 'blocked_users' && parts.length === 4) {
     await supabase.from('user_blocks').upsert({ user_id: parts[1], blocked_id: parts[3] });
     return;
+  }
+
+  if (parts[0] === 'study_partners' && parts.length === 3) {
+    const [, userId, targetId] = parts;
+    if (value === null || value === false) {
+      try {
+        await supabase
+          .from('study_partners')
+          .delete()
+          .or(`and(user_id.eq.${userId},partner_id.eq.${targetId}),and(user_id.eq.${targetId},partner_id.eq.${userId})`);
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] delete study_partners error', e);
+      }
+    } else {
+      try {
+        const { error } = await supabase.from('study_partners').upsert(
+          { user_id: userId, partner_id: targetId },
+          { onConflict: 'user_id,partner_id' }
+        );
+        if (error) {
+          await supabase.from('study_partners').upsert(
+            { user_id: targetId, partner_id: userId },
+            { onConflict: 'user_id,partner_id' }
+          );
+        }
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] upsert study_partners error', e);
+      }
+    }
+    const p1 = await loadPath(`study_partners/${userId}`);
+    setLocalCache(`study_partners/${userId}`, p1);
+    notify(`study_partners/${userId}`, p1);
+    notify(`study_partners/${userId}/${targetId}`, value !== null && value !== false);
+
+    const p2 = await loadPath(`study_partners/${targetId}`);
+    setLocalCache(`study_partners/${targetId}`, p2);
+    notify(`study_partners/${targetId}`, p2);
+    notify(`study_partners/${targetId}/${userId}`, value !== null && value !== false);
+    return;
+  }
+
+  if (parts[0] === 'partner_requests') {
+    if (parts.length === 3) {
+      const [, userId, targetId] = parts;
+      const current = { ...((await loadPath(`partner_requests/${userId}`)) || {}) };
+      if (value === null) {
+        delete current[targetId];
+      } else {
+        current[targetId] = value;
+      }
+      setLocalCache(`partner_requests/${userId}`, current);
+      notify(`partner_requests/${userId}`, current);
+      notify(`partner_requests/${userId}/${targetId}`, value);
+      try {
+        await supabase.from('app_kv').upsert({
+          key: `partner_requests/${userId}`,
+          value: current,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] persist partner_requests error', e);
+      }
+      return;
+    }
+    if (parts.length === 2) {
+      const userId = parts[1];
+      const nextVal = value || {};
+      setLocalCache(`partner_requests/${userId}`, nextVal);
+      notify(`partner_requests/${userId}`, nextVal);
+      try {
+        await supabase.from('app_kv').upsert({
+          key: `partner_requests/${userId}`,
+          value: nextVal,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] persist partner_requests error', e);
+      }
+      return;
+    }
   }
 
   if (parts[0] === 'reports') {

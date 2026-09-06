@@ -96,11 +96,23 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
 
     const sendPartnerRequest = async (targetUser: UserProfile) => {
         if (!auth.currentUser || !userProfile) return;
+        const now = Date.now();
+        // Optimistic UI update
+        setPartnerRequests(prev => ({
+            ...prev,
+            [targetUser.uid]: {
+                status: 'sent',
+                senderName: userProfile.display_name || 'User',
+                senderId: auth.currentUser!.uid,
+                receiverId: targetUser.uid,
+                timestamp: now
+            }
+        }));
+
         try {
             const myRequestRef = dbRef(db, `partner_requests/${auth.currentUser.uid}/${targetUser.uid}`);
             const theirRequestRef = dbRef(db, `partner_requests/${targetUser.uid}/${auth.currentUser.uid}`);
 
-            const now = Date.now();
             await set(myRequestRef, {
                 status: 'sent',
                 senderName: userProfile.display_name || 'User',
@@ -116,27 +128,46 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                 timestamp: now
             });
 
-            const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
-            await set(notifRef, {
-                id: notifRef.key,
-                title: 'New Study Partner Request',
-                message: `${userProfile.display_name || 'A user'} sent you a study partner request!`,
-                type: 'study_partner_request',
-                is_read: false,
-                timestamp: now,
-                action_buttons: [
-                    { label: 'View Request', action: 'navigate', route: 'study_partners' }
-                ]
-            });
+            try {
+                const notifRef = push(dbRef(db, `notifications/${targetUser.uid}`));
+                await set(notifRef, {
+                    id: notifRef.key,
+                    title: 'New Study Partner Request',
+                    message: `${userProfile.display_name || 'A user'} sent you a study partner request!`,
+                    type: 'study_partner_request',
+                    is_read: false,
+                    timestamp: now,
+                    action_buttons: [
+                        { label: 'View Request', action: 'navigate', route: 'study_partners' }
+                    ]
+                });
+            } catch (notifErr) {
+                console.warn('[StudyPartners] notification dispatch non-fatal:', notifErr);
+            }
+
             addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
         } catch (err: any) {
             console.error('Failed to send partner request:', err);
+            // Revert optimistic update on failure
+            setPartnerRequests(prev => {
+                const copy = { ...prev };
+                delete copy[targetUser.uid];
+                return copy;
+            });
             addToast('Failed to send request: ' + err.message, 'error');
         }
     };
 
     const acceptPartnerRequest = async (targetUser: UserProfile) => {
         if (!auth.currentUser) return;
+        // Optimistic UI update
+        setStudyPartners(prev => ({ ...prev, [targetUser.uid]: true }));
+        setPartnerRequests(prev => {
+            const copy = { ...prev };
+            delete copy[targetUser.uid];
+            return copy;
+        });
+
         try {
             const myPartnerRef = dbRef(db, `study_partners/${auth.currentUser.uid}/${targetUser.uid}`);
             const theirPartnerRef = dbRef(db, `study_partners/${targetUser.uid}/${auth.currentUser.uid}`);
@@ -156,18 +187,25 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
     };
 
     const declinePartnerRequest = async (targetUid: string) => {
-         if (!auth.currentUser) return;
+        if (!auth.currentUser) return;
+        // Optimistic UI update
+        setPartnerRequests(prev => {
+            const copy = { ...prev };
+            delete copy[targetUid];
+            return copy;
+        });
+
         try {
             const myRequestRef = dbRef(db, `partner_requests/${auth.currentUser.uid}/${targetUid}`);
             const theirRequestRef = dbRef(db, `partner_requests/${targetUid}/${auth.currentUser.uid}`);
             await set(myRequestRef, null);
             await set(theirRequestRef, null);
-            addToast('Request declined.', 'info');
+            addToast('Request declined / cancelled.', 'info');
         } catch (err: any) {
             console.error('Failed to decline request:', err);
             addToast('Error declining request.', 'error');
         }
-    }
+    };
 
     const filteredUsers = useMemo(() => {
         let users = allUsers.filter(u => u.uid !== auth.currentUser?.uid);
@@ -252,7 +290,15 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                                             {isPartner ? (
                                                 <span className="text-xs font-bold text-[#002D62] bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl">✓ Connected</span>
                                             ) : req?.status === 'sent' ? (
-                                                <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl">Pending</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">Pending</span>
+                                                    <button onClick={() => declinePartnerRequest(u.uid)} className="text-[11px] font-semibold text-slate-500 hover:text-red-500 transition px-1.5 py-1">Cancel</button>
+                                                </div>
+                                            ) : req?.status === 'received' ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <button onClick={() => declinePartnerRequest(u.uid)} className="text-xs font-bold text-[#6C757D] dark:text-gray-400 bg-neutral-100 hover:bg-neutral-200 px-3 py-1.5 rounded-xl transition">Decline</button>
+                                                    <button onClick={() => acceptPartnerRequest(u)} className="text-xs font-black text-white bg-[#0066FF] hover:bg-[#0055D4] px-3 py-1.5 rounded-xl transition shadow-sm">Accept</button>
+                                                </div>
                                             ) : (
                                                 <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#0066FF] hover:bg-[#0055D4] px-4 py-2 rounded-xl transition shadow-sm">Connect</button>
                                             )}

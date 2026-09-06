@@ -90,6 +90,9 @@ export const SettingsScreen: React.FC<SettingsProps> = ({
   const [isResetEmailSending, setIsResetEmailSending] = useState(false);
   const { addToast } = useToast();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   useEffect(() => {
     setIsNotificationSwitchOn(userProfile.notifications_enabled);
   }, [userProfile.notifications_enabled]);
@@ -153,6 +156,12 @@ export const SettingsScreen: React.FC<SettingsProps> = ({
     }
   };
 
+  const matchSearch = (title: string, subtitle?: string) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return title.toLowerCase().includes(q) || (subtitle && subtitle.toLowerCase().includes(q));
+  };
+
   return (
     <div className="bg-[#F0F2F5] dark:bg-black min-h-full animate-in fade-in duration-300">
       {/* WhatsApp-style top header bar */}
@@ -167,11 +176,36 @@ export const SettingsScreen: React.FC<SettingsProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="text-[20px] font-medium text-neutral-900 dark:text-white flex-1">Settings</h1>
-        <button type="button" className="p-1 text-neutral-500" aria-label="Search">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+        {isSearchOpen ? (
+          <input
+            type="text"
+            placeholder="Search settings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoFocus
+            className="flex-1 bg-transparent text-[16px] text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none"
+          />
+        ) : (
+          <h1 className="text-[20px] font-medium text-neutral-900 dark:text-white flex-1">Settings</h1>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setIsSearchOpen(!isSearchOpen);
+            if (isSearchOpen) setSearchQuery('');
+          }}
+          className="p-1 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition"
+          aria-label="Search"
+        >
+          {isSearchOpen ? (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          )}
         </button>
       </div>
 
@@ -200,151 +234,218 @@ export const SettingsScreen: React.FC<SettingsProps> = ({
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m0 14v1m8-9h1M3 12h1m15.364 6.364l.707.707M4.929 4.929l.707.707m12.728 0l.707-.707M4.929 19.071l.707-.707" />
-            </svg>
+            <ChevronRight />
           </div>
         </button>
       </div>
 
       {/* Credits / billing quick card */}
-      <div className="bg-white dark:bg-[#1F2C34] mt-2.5">
-        <div className="px-4 py-3 flex items-center justify-between">
+      <div
+        onClick={() => onNavigate('billing')}
+        role="button"
+        tabIndex={0}
+        className="bg-white dark:bg-[#1F2C34] mt-2.5 cursor-pointer active:bg-neutral-50 dark:active:bg-white/5 transition-colors"
+      >
+        <div className="px-4 py-3.5 flex items-center justify-between">
           <div>
             <p className="text-[12px] font-medium text-neutral-500 uppercase tracking-wide">Credits balance</p>
-            <p className="text-2xl font-semibold text-neutral-900 dark:text-white mt-0.5">
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-0.5">
               {userProfile.ai_credits_balance ?? 0}
             </p>
           </div>
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-700 dark:text-neutral-200 capitalize">
-            {userProfile.subscription_status || 'Free'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-700 dark:text-neutral-200 capitalize">
+              {userProfile.subscription_status || 'Free'}
+            </span>
+            <ChevronRight />
+          </div>
         </div>
       </div>
 
-      {/* Main settings list – WhatsApp rows */}
-      <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
-        <SettingsRow
-          icon={<i className="bi bi-phone text-lg" />}
-          title="Linked devices"
-          subtitle="Use Avelut on other devices"
-          onClick={() => onNavigate('user_profile')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-patch-check text-lg" />}
-          title="Avelut Verified"
-          subtitle="Get a verified badge and other benefits"
-          onClick={() => onNavigate('billing')}
-        />
-      </div>
-
-      <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
-        <SettingsRow
-          icon={<i className="bi bi-key text-lg" />}
-          title="Account"
-          subtitle="Security notifications, change number"
-          onClick={() => onNavigate('user_profile')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-lock text-lg" />}
-          title="Privacy"
-          subtitle="Blocked accounts, disappearing messages"
-          onClick={() => onNavigate('user_profile')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-list-ul text-lg" />}
-          title="Lists"
-          subtitle="Manage people and groups"
-          onClick={() => onNavigate('history')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-chat-left-text text-lg" />}
-          title="Chats"
-          subtitle="Theme, wallpapers, chat history"
-          onClick={() => onNavigate('history')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-palette text-lg" />}
-          title="Appearance"
-          subtitle="Chat theme, app icon, app theme"
-          rightElement={
-            <Switch checked={mode === 'dark'} onChange={(c) => setMode(c ? 'dark' : 'light')} />
-          }
-        />
-        <SettingsRow
-          icon={<i className="bi bi-bell text-lg" />}
-          title="Notifications"
-          subtitle="Message, group & call tones"
-          rightElement={
-            <Switch
-              checked={isNotificationSwitchOn}
-              onChange={handleNotificationToggle}
-              disabled={isNotificationSaving}
+      {/* Profile & Academic Details */}
+      {(matchSearch('Profile Details', 'Display name, avatar, bio & contact') ||
+        matchSearch('Academic Information', 'School, department, academic level') ||
+        matchSearch('Avelut Pro & Verification', 'Get verified badge, unlimited AI tokens & perks')) && (
+        <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
+          {matchSearch('Profile Details', 'Display name, avatar, bio & contact') && (
+            <SettingsRow
+              icon={<i className="bi bi-person text-lg" />}
+              title="Profile Details"
+              subtitle="Display name, avatar, bio & contact"
+              onClick={() => onNavigate('user_profile')}
             />
-          }
-        />
-        <SettingsRow
-          icon={<i className="bi bi-arrow-repeat text-lg" />}
-          title="Storage and data"
-          subtitle="Network usage, auto-download"
-          onClick={() => onNavigate('billing')}
-        />
-      </div>
+          )}
+          {matchSearch('Academic Information', 'School, department, academic level') && (
+            <SettingsRow
+              icon={<i className="bi bi-mortarboard text-lg" />}
+              title="Academic Information"
+              subtitle={
+                userProfile.department_id || userProfile.level
+                  ? `${userProfile.department_id ? userProfile.department_id.replace(/_/g, ' ') : ''}${userProfile.department_id && userProfile.level ? ' • ' : ''}${userProfile.level ? userProfile.level + ' Level' : ''}`
+                  : 'School, department, academic level'
+              }
+              onClick={() => onNavigate('user_profile')}
+            />
+          )}
+          {matchSearch('Avelut Pro & Verification', 'Get verified badge, unlimited AI tokens & perks') && (
+            <SettingsRow
+              icon={<i className="bi bi-patch-check text-lg text-[#009EE2]" />}
+              title="Avelut Pro & Verification"
+              subtitle="Get verified badge, unlimited AI tokens & perks"
+              onClick={() => onNavigate('billing')}
+            />
+          )}
+        </div>
+      )}
 
-      <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
-        <SettingsRow
-          icon={<i className="bi bi-credit-card text-lg" />}
-          title="Billing & plans"
-          subtitle="Credits, subscriptions, payments"
-          onClick={() => onNavigate('billing')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-question-circle text-lg" />}
-          title="Help"
-          subtitle="Guides and support"
-          onClick={() => onNavigate('help')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-chat-square-quote text-lg" />}
-          title="Feedback"
-          subtitle="Tell us what to improve"
-          onClick={() => onNavigate('feedback')}
-        />
-        <SettingsRow
-          icon={<i className="bi bi-shield-lock text-lg" />}
-          title="Password"
-          subtitle={isResetEmailSending ? 'Sending…' : 'Send a reset link to your email'}
-          onClick={handlePasswordReset}
-        />
-      </div>
+      {/* Study Network & History */}
+      {(matchSearch('Study Partners', 'Find classmates & manage connection requests') ||
+        matchSearch('Study History & AI Logs', 'Past conversations, tutorials, and notes') ||
+        matchSearch('Study Guide & Courses', 'Browse curriculum, syllabus & unit progress') ||
+        matchSearch('My Notebooks', 'Saved study notes and summaries')) && (
+        <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
+          {matchSearch('Study Partners', 'Find classmates & manage connection requests') && (
+            <SettingsRow
+              icon={<i className="bi bi-people text-lg" />}
+              title="Study Partners"
+              subtitle="Find classmates & manage connection requests"
+              onClick={() => onNavigate('study_partners')}
+            />
+          )}
+          {matchSearch('Study History & AI Logs', 'Past conversations, tutorials, and notes') && (
+            <SettingsRow
+              icon={<i className="bi bi-clock-history text-lg" />}
+              title="Study History & AI Logs"
+              subtitle="Past conversations, tutorials, and notes"
+              onClick={() => onNavigate('history')}
+            />
+          )}
+          {matchSearch('Study Guide & Courses', 'Browse curriculum, syllabus & unit progress') && (
+            <SettingsRow
+              icon={<i className="bi bi-book text-lg" />}
+              title="Study Guide & Courses"
+              subtitle="Browse curriculum, syllabus & unit progress"
+              onClick={() => onNavigate('study_guide')}
+            />
+          )}
+          {matchSearch('My Notebooks', 'Saved study notes and summaries') && (
+            <SettingsRow
+              icon={<i className="bi bi-journal-text text-lg" />}
+              title="My Notebooks"
+              subtitle="Saved study notes and summaries"
+              onClick={() => onNavigate('notebooks')}
+            />
+          )}
+        </div>
+      )}
 
-      <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
-        <a
-          href="/t&c"
-          className="w-full flex items-center gap-4 px-4 py-3.5 text-left active:bg-neutral-100 dark:active:bg-white/5 transition-colors text-neutral-900 dark:text-white"
-        >
-          <div className="w-9 h-9 rounded-full bg-neutral-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 text-neutral-600 dark:text-neutral-300">
-            <i className="bi bi-file-text text-lg" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="font-medium text-[16px] block">Terms & Conditions</span>
-          </div>
-          <ChevronRight />
-        </a>
-        <a
-          href="https://www.avelut.xyz/policy"
-          className="w-full flex items-center gap-4 px-4 py-3.5 text-left active:bg-neutral-100 dark:active:bg-white/5 transition-colors text-neutral-900 dark:text-white"
-        >
-          <div className="w-9 h-9 rounded-full bg-neutral-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 text-neutral-600 dark:text-neutral-300">
-            <i className="bi bi-shield-check text-lg" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="font-medium text-[16px] block">Privacy Policy</span>
-          </div>
-          <ChevronRight />
-        </a>
-      </div>
+      {/* App Preferences */}
+      {(matchSearch('Appearance', 'Chat theme, app icon, app theme') ||
+        matchSearch('Push Notifications', 'Alerts for messages, requests & updates') ||
+        matchSearch('Billing & Plans', 'Top-up AI credits, view plans & invoices')) && (
+        <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
+          {matchSearch('Appearance', 'Chat theme, app icon, app theme') && (
+            <SettingsRow
+              icon={<i className="bi bi-moon-stars text-lg" />}
+              title="Appearance"
+              subtitle={mode === 'dark' ? 'Dark theme active' : 'Light theme active'}
+              rightElement={
+                <Switch checked={mode === 'dark'} onChange={(c) => setMode(c ? 'dark' : 'light')} />
+              }
+            />
+          )}
+          {matchSearch('Push Notifications', 'Alerts for messages, requests & updates') && (
+            <SettingsRow
+              icon={<i className="bi bi-bell text-lg" />}
+              title="Push Notifications"
+              subtitle="Alerts for messages, requests & updates"
+              rightElement={
+                <Switch
+                  checked={isNotificationSwitchOn}
+                  onChange={handleNotificationToggle}
+                  disabled={isNotificationSaving}
+                />
+              }
+            />
+          )}
+          {matchSearch('Billing & Plans', 'Top-up AI credits, view plans & invoices') && (
+            <SettingsRow
+              icon={<i className="bi bi-credit-card text-lg" />}
+              title="Billing & Plans"
+              subtitle="Top-up AI credits, view plans & invoices"
+              onClick={() => onNavigate('billing')}
+            />
+          )}
+        </div>
+      )}
 
+      {/* Security & Support */}
+      {(matchSearch('Password & Security', 'Send password reset link to your email') ||
+        matchSearch('Help & Support', 'User guides, FAQs & interactive tour') ||
+        matchSearch('Send Feedback', 'Report issues or suggest features')) && (
+        <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
+          {matchSearch('Password & Security', 'Send password reset link to your email') && (
+            <SettingsRow
+              icon={<i className="bi bi-shield-lock text-lg" />}
+              title="Password & Security"
+              subtitle={isResetEmailSending ? 'Sending reset link…' : 'Send password reset link to your email'}
+              onClick={handlePasswordReset}
+            />
+          )}
+          {matchSearch('Help & Support', 'User guides, FAQs & interactive tour') && (
+            <SettingsRow
+              icon={<i className="bi bi-question-circle text-lg" />}
+              title="Help & Support"
+              subtitle="User guides, FAQs & interactive tour"
+              onClick={() => onNavigate('help')}
+            />
+          )}
+          {matchSearch('Send Feedback', 'Tell us what to improve') && (
+            <SettingsRow
+              icon={<i className="bi bi-chat-square-quote text-lg" />}
+              title="Send Feedback"
+              subtitle="Report issues or suggest features"
+              onClick={() => onNavigate('feedback')}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Terms & Policies */}
+      {(matchSearch('Terms & Conditions') || matchSearch('Privacy Policy')) && (
+        <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
+          {matchSearch('Terms & Conditions') && (
+            <a
+              href="/t&c"
+              className="w-full flex items-center gap-4 px-4 py-3.5 text-left active:bg-neutral-100 dark:active:bg-white/5 transition-colors text-neutral-900 dark:text-white"
+            >
+              <div className="w-9 h-9 rounded-full bg-neutral-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 text-neutral-600 dark:text-neutral-300">
+                <i className="bi bi-file-text text-lg" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-[16px] block">Terms & Conditions</span>
+              </div>
+              <ChevronRight />
+            </a>
+          )}
+          {matchSearch('Privacy Policy') && (
+            <a
+              href="https://www.avelut.xyz/policy"
+              className="w-full flex items-center gap-4 px-4 py-3.5 text-left active:bg-neutral-100 dark:active:bg-white/5 transition-colors text-neutral-900 dark:text-white"
+            >
+              <div className="w-9 h-9 rounded-full bg-neutral-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 text-neutral-600 dark:text-neutral-300">
+                <i className="bi bi-shield-check text-lg" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-[16px] block">Privacy Policy</span>
+              </div>
+              <ChevronRight />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Account Actions */}
       <div className="bg-white dark:bg-[#1F2C34] mt-2.5 divide-y divide-neutral-100 dark:divide-white/5">
         <SettingsRow
           icon={<i className="bi bi-box-arrow-right text-lg" />}

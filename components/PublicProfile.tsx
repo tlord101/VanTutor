@@ -104,23 +104,29 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ targetUid, onNavig
                 timestamp: now
             });
 
-            const notifRef = push(dbRef(db, `notifications/${targetUid}`));
-            await set(notifRef, {
-                id: notifRef.key,
-                title: 'New Study Partner Request',
-                message: `${myName} sent you a study partner request!`,
-                type: 'study_partner_request',
-                is_read: false,
-                timestamp: now,
-                action_buttons: [
-                    { label: 'View Request', action: 'navigate', route: 'study_partners' }
-                ]
-            });
-            
             setConnectionStatus('sent');
+
+            try {
+                const notifRef = push(dbRef(db, `notifications/${targetUid}`));
+                await set(notifRef, {
+                    id: notifRef.key,
+                    title: 'New Study Partner Request',
+                    message: `${myName} sent you a study partner request!`,
+                    type: 'study_partner_request',
+                    is_read: false,
+                    timestamp: now,
+                    action_buttons: [
+                        { label: 'View Request', action: 'navigate', route: 'study_partners' }
+                    ]
+                });
+            } catch (notifErr) {
+                console.warn('[PublicProfile] notification error non-fatal:', notifErr);
+            }
+            
             addToast(`Study partner request sent to ${targetUser.display_name}!`, 'success');
         } catch (err: any) {
             console.error('Failed to send partner request:', err);
+            setConnectionStatus('none');
             addToast('Failed to send request: ' + err.message, 'error');
         }
     };
