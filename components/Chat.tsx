@@ -357,7 +357,21 @@ export const Chat: React.FC<ChatProps> = ({
         const sorted = data.sort((a, b) => b.last_updated_at - a.last_updated_at);
         if (isMounted) setConversations(sorted as ChatConversation[]);
       } else {
-        if (isMounted) setConversations([]);
+        getLocalConversations(userProfile.uid).then((localConvos) => {
+          if (isMounted && localConvos.length > 0) {
+            setConversations(
+              localConvos.map((c) => ({
+                id: c.id,
+                user_id: c.user_id || userProfile.uid,
+                title: c.title || 'New Chat',
+                created_at: c.created_at || 0,
+                last_updated_at: c.last_updated_at || c.created_at || 0,
+              }))
+            );
+          } else if (isMounted) {
+            setConversations([]);
+          }
+        }).catch(() => {});
       }
     });
 
@@ -528,22 +542,59 @@ export const Chat: React.FC<ChatProps> = ({
 
       update(dbRef(db, `chat_conversations/${userProfile.uid}/${currentConvoId}`), { last_updated_at: Date.now() });
 
-      // Build prompt based on mode — simple general AI chatbot style, no emojis
-      const baseStyle = 'You are a helpful, straightforward AI assistant. Respond in a clear, natural, and simple way like a normal general-purpose AI chatbot (similar to ChatGPT). Do not use any emojis, emoji symbols, or decorative icons in your responses under any circumstances. Keep language plain and professional. Use LaTeX math notation when helpful for equations.';
-      let systemModifier = '';
+      // Build prompt based on mode — clean versatile general AI assistant, no unsolicited department blurt-out
+      const baseSystemInstruction = [
+        'You are Avelut, a versatile, smart, helpful, and friendly AI assistant.',
+        'You can help with any topic: everyday conversation, answering questions, writing, coding, math, science, and learning.',
+        '',
+        'Guidelines:',
+        '- Keep responses natural, direct, helpful, and straightforward like ChatGPT.',
+        '- Do not use any emojis, emoji symbols, or decorative icons in your responses under any circumstances.',
+        '- If the user sends a simple greeting (such as "hi", "hello", "hey", "how are you", "good morning"), respond with a simple, friendly, brief reply (e.g. "Hello! How can I help you today?").',
+        '- NEVER mention the user\'s department, school, college, or academic level unless the user specifically asks a question about their department, courses, or academic studies.',
+        '- When formatting equations or mathematical expressions, use standard LaTeX ($...$ for inline, $$...$$ for blocks).',
+      ].join('\n');
+
+      let modeInstruction = '';
       if (selectedMode === 'fast') {
-        systemModifier = baseStyle + ' Provide a brief, direct, and concise response.';
+        modeInstruction = '\nProvide a brief, direct, and concise response.';
       } else if (selectedMode === 'deep') {
-        systemModifier = baseStyle + ' Provide a detailed, step-by-step thorough explanation with examples.';
+        modeInstruction = '\nProvide a detailed, step-by-step thorough explanation with examples.';
       } else if (selectedMode === 'exam') {
-        systemModifier = baseStyle + ' Format response as practice exam questions with explanation and key takeaways.';
-      } else {
-        systemModifier = baseStyle + ' Use the student context provided to deliver an accurate answer.';
+        modeInstruction = '\nFormat response as practice exam questions with explanation and key takeaways.';
       }
 
-      const promptPayload = `${systemModifier}\n\n${courseContext}\n\nUser Question: ${currentInput}`;
+      let optionalContext = '';
+      if (selectedMode === 'context' && userProfile.department_id) {
+        optionalContext = `\n[Optional Student Background - ONLY use if the user specifically asks a question about their academic curriculum or department. NEVER mention this for greetings or general questions: Department: ${userProfile.department_id}, Level: ${userProfile.level || ''}]`;
+      }
 
-      const cachedReply = await getCachedAIResponse(promptPayload, aiModel, courseContext);
+      const fullSystemInstruction = `${baseSystemInstruction}${modeInstruction}${optionalContext}`;
+
+      // Build conversation history for multi-turn context (last 10 non-empty messages)
+      const historyContents = messages
+        .filter((m) => m.text && m.text.trim())
+        .slice(-10)
+        .map((m) => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          parts: [{ text: m.text }],
+        }));
+
+      historyContents.push({
+        role: 'user',
+        parts: [{ text: currentInput }],
+      });
+
+      const aiParams = {
+        model: aiModel,
+        contents: historyContents,
+        config: {
+          systemInstruction: fullSystemInstruction,
+          temperature: 0.7,
+        },
+      };
+
+      const cachedReply = await getCachedAIResponse(currentInput, aiModel, selectedMode);
       let responseText = cachedReply || '';
 
       if (responseText) {
@@ -558,10 +609,7 @@ export const Chat: React.FC<ChatProps> = ({
         }
 
         try {
-          const responseStream = await ai.models.generateContentStream({
-            model: aiModel,
-            contents: [{ role: 'user', parts: [{ text: promptPayload }] }],
-          });
+          const responseStream = await ai.models.generateContentStream(aiParams);
 
           for await (const chunk of responseStream) {
             const chunkText = getResponseText(chunk);
@@ -573,10 +621,7 @@ export const Chat: React.FC<ChatProps> = ({
         } catch (streamErr: any) {
           console.warn('Streaming failed or not supported, falling back to generateContent:', streamErr);
           const aiResult = await attemptApiCall(async () => {
-            const result = await ai.models.generateContent({
-              model: aiModel,
-              contents: [{ role: 'user', parts: [{ text: promptPayload }] }],
-            });
+            const result = await ai.models.generateContent(aiParams);
             const resText = getResponseText(result);
             if (!resText) throw new Error('Avelut AI returned an empty response.');
             return resText;
@@ -595,7 +640,7 @@ export const Chat: React.FC<ChatProps> = ({
         }
 
         if (responseText) {
-          void setCachedAIResponse(promptPayload, aiModel, courseContext, responseText);
+          void setCachedAIResponse(currentInput, aiModel, selectedMode, responseText);
         }
       }
 

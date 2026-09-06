@@ -46,10 +46,31 @@ function setLocalCache(path: string, val: any) {
   }
 }
 
-function makeSnap(value: any) {
+function makeSnap(value: any, key: string | null = null) {
   return {
+    key: key,
     val: () => value ?? null,
-    exists: () => value !== null && value !== undefined,
+    exists: () => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'object') {
+        return Object.keys(value).length > 0;
+      }
+      return true;
+    },
+    forEach: (callback: (child: any) => boolean | void) => {
+      if (value && typeof value === 'object') {
+        for (const [childKey, childVal] of Object.entries(value)) {
+          const childSnap = makeSnap(childVal, childKey);
+          if (callback(childSnap) === true) break;
+        }
+      }
+    },
+    child: (childPath: string) => {
+      if (value && typeof value === 'object') {
+        return makeSnap(value[childPath], childPath);
+      }
+      return makeSnap(null, childPath);
+    },
   };
 }
 
@@ -268,6 +289,68 @@ async function loadPath(path: string): Promise<any> {
         return map;
       }
     } catch {}
+  }
+
+  if (parts[0] === 'chat_conversations') {
+    if (parts.length === 2) {
+      const userId = parts[1];
+      const local = getLocalCache(`chat_conversations/${userId}`) || {};
+      try {
+        const client = supabaseAdmin || supabase;
+        const { data, error } = await client
+          .from('app_kv')
+          .select('key, value')
+          .like('key', `chat_conversations/${userId}/%`);
+        if (!error && data && data.length > 0) {
+          const map: Record<string, any> = { ...local };
+          data.forEach((row: any) => {
+            const cId = row.key.split('/')[2];
+            if (cId && row.value) {
+              map[cId] = row.value;
+            }
+          });
+          setLocalCache(`chat_conversations/${userId}`, map);
+          return map;
+        }
+      } catch {}
+      return Object.keys(local).length > 0 ? local : null;
+    }
+    if (parts.length === 3) {
+      const [, userId, convoId] = parts;
+      const list = (await loadPath(`chat_conversations/${userId}`)) || {};
+      return list[convoId] ?? getLocalCache(path) ?? null;
+    }
+  }
+
+  if (parts[0] === 'chat_messages') {
+    if (parts.length === 2) {
+      const convoId = parts[1];
+      const local = getLocalCache(`chat_messages/${convoId}`) || {};
+      try {
+        const client = supabaseAdmin || supabase;
+        const { data, error } = await client
+          .from('app_kv')
+          .select('key, value')
+          .like('key', `chat_messages/${convoId}/%`);
+        if (!error && data && data.length > 0) {
+          const map: Record<string, any> = { ...local };
+          data.forEach((row: any) => {
+            const mId = row.key.split('/')[2];
+            if (mId && row.value) {
+              map[mId] = row.value;
+            }
+          });
+          setLocalCache(`chat_messages/${convoId}`, map);
+          return map;
+        }
+      } catch {}
+      return Object.keys(local).length > 0 ? local : null;
+    }
+    if (parts.length === 3) {
+      const [, convoId, msgId] = parts;
+      const list = (await loadPath(`chat_messages/${convoId}`)) || {};
+      return list[msgId] ?? getLocalCache(path) ?? null;
+    }
   }
 
   if (parts[0] === 'user_chats' && parts.length === 2) {
@@ -803,6 +886,80 @@ export async function set(r: DbRef, value: any): Promise<void> {
     return;
   }
 
+  if (parts[0] === 'chat_conversations') {
+    if (parts.length === 3) {
+      const [, userId, convoId] = parts;
+      const current = { ...(getLocalCache(`chat_conversations/${userId}`) || {}) };
+      if (value === null) {
+        delete current[convoId];
+      } else {
+        current[convoId] = value;
+      }
+      setLocalCache(`chat_conversations/${userId}`, current);
+      setLocalCache(r.path, value);
+      notify(`chat_conversations/${userId}`, current);
+      notify(r.path, value);
+
+      try {
+        const client = supabaseAdmin || supabase;
+        if (value === null) {
+          await client.from('app_kv').delete().eq('key', r.path);
+        } else {
+          await client.from('app_kv').upsert({
+            key: r.path,
+            value,
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] chat_conversations write error', e);
+      }
+      return;
+    }
+  }
+
+  if (parts[0] === 'chat_messages') {
+    if (parts.length === 3) {
+      const [, convoId, msgId] = parts;
+      const current = { ...(getLocalCache(`chat_messages/${convoId}`) || {}) };
+      if (value === null) {
+        delete current[msgId];
+      } else {
+        current[msgId] = value;
+      }
+      setLocalCache(`chat_messages/${convoId}`, current);
+      setLocalCache(r.path, value);
+      notify(`chat_messages/${convoId}`, current);
+      notify(r.path, value);
+
+      try {
+        const client = supabaseAdmin || supabase;
+        if (value === null) {
+          await client.from('app_kv').delete().eq('key', r.path);
+        } else {
+          await client.from('app_kv').upsert({
+            key: r.path,
+            value,
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        console.warn('[supabaseRealtimeDb] chat_messages write error', e);
+      }
+      return;
+    }
+    if (parts.length === 2 && value === null) {
+      const convoId = parts[1];
+      setLocalCache(`chat_messages/${convoId}`, null);
+      notify(`chat_messages/${convoId}`, null);
+      try {
+        const client = supabaseAdmin || supabase;
+        await client.from('app_kv').delete().like('key', `chat_messages/${convoId}/%`);
+      } catch {}
+      return;
+    }
+  }
+
   if (parts[0] === 'user_chats' && parts.length === 3) {
     const [, userId, chatId] = parts;
     if (value === null) {
@@ -1245,6 +1402,30 @@ export async function update(r: DbRef, values: Record<string, any>): Promise<voi
 
   if (parts[0] === 'chat_meta_data' && parts[2] === 'typing' && parts.length >= 4) {
     await set(r, values);
+    return;
+  }
+
+  if (parts[0] === 'chat_conversations' && parts.length === 3) {
+    const [, userId, convoId] = parts;
+    const parentList = { ...(getLocalCache(`chat_conversations/${userId}`) || {}) };
+    const current = parentList[convoId] || getLocalCache(r.path) || {};
+    const next = { ...current, ...values };
+    parentList[convoId] = next;
+    setLocalCache(`chat_conversations/${userId}`, parentList);
+    setLocalCache(r.path, next);
+    notify(`chat_conversations/${userId}`, parentList);
+    notify(r.path, next);
+
+    try {
+      const client = supabaseAdmin || supabase;
+      await client.from('app_kv').upsert({
+        key: r.path,
+        value: next,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[supabaseRealtimeDb] update chat_conversations error', e);
+    }
     return;
   }
 

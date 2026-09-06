@@ -1,5 +1,5 @@
 import { db, off, onValue, ref as dbRef } from '@/lib/backend';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { UserProfile, ChatConversation } from '../types';
 import { Chat } from './Chat';
 import { getLocalConversations } from '../services/chatStorageService';
@@ -33,19 +33,21 @@ export default function AvelutAI({
     if (!userProfile?.uid || !onConversationsUpdate) return;
     let isMounted = true;
 
-    getLocalConversations(userProfile.uid).then((local) => {
-      if (isMounted && local.length > 0) {
-        onConversationsUpdate(
-          local.map((c) => ({
-            id: c.id,
-            user_id: c.user_id || userProfile.uid,
-            title: c.title || 'New Chat',
-            created_at: c.created_at || 0,
-            last_updated_at: c.last_updated_at || c.created_at || 0,
-          }))
-        );
-      }
-    }).catch(() => {});
+    getLocalConversations(userProfile.uid)
+      .then((local) => {
+        if (isMounted && local.length > 0) {
+          onConversationsUpdate(
+            local.map((c) => ({
+              id: c.id,
+              user_id: c.user_id || userProfile.uid,
+              title: c.title || 'New Chat',
+              created_at: c.created_at || 0,
+              last_updated_at: c.last_updated_at || c.created_at || 0,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
 
     const conversationsRef = dbRef(db, `chat_conversations/${userProfile.uid}`);
     const unsubscribe = onValue(conversationsRef, (snapshot) => {
@@ -58,7 +60,23 @@ export default function AvelutAI({
         const sorted = data.sort((a, b) => b.last_updated_at - a.last_updated_at);
         if (isMounted) onConversationsUpdate(sorted as ChatConversation[]);
       } else {
-        if (isMounted) onConversationsUpdate([]);
+        getLocalConversations(userProfile.uid)
+          .then((local) => {
+            if (isMounted && local.length > 0) {
+              onConversationsUpdate(
+                local.map((c) => ({
+                  id: c.id,
+                  user_id: c.user_id || userProfile.uid,
+                  title: c.title || 'New Chat',
+                  created_at: c.created_at || 0,
+                  last_updated_at: c.last_updated_at || c.created_at || 0,
+                }))
+              );
+            } else if (isMounted) {
+              onConversationsUpdate([]);
+            }
+          })
+          .catch(() => {});
       }
     });
 
@@ -71,7 +89,6 @@ export default function AvelutAI({
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length !== 1) return;
     const target = e.target as HTMLElement | null;
-    // Don't trigger if user is interacting with text inputs or textareas
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
       touchStartRef.current = null;
       return;
@@ -91,7 +108,6 @@ export default function AvelutAI({
     const diffX = currentX - touchStartRef.current.x;
     const diffY = currentY - touchStartRef.current.y;
 
-    // Must be moving rightwards with horizontal movement significantly greater than vertical movement
     if (diffX > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.25) {
       swipeTriggeredRef.current = true;
       touchStartRef.current = null;
@@ -110,7 +126,6 @@ export default function AvelutAI({
     const diffY = currentY - touchStartRef.current.y;
     const elapsed = Date.now() - touchStartRef.current.time;
 
-    // Quick swipe flick to the right
     if (diffX >= 40 && Math.abs(diffX) > Math.abs(diffY) * 1.25 && elapsed < 350) {
       swipeTriggeredRef.current = true;
       onOpenMenu();

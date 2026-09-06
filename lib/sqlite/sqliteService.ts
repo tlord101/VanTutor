@@ -356,18 +356,52 @@ export async function runBatch(statements: string): Promise<void> {
 // =========================================================================
 // IN-MEMORY / LOCAL STORAGE HYBRID FALLBACK FOR ZERO-CRASH TOLERANCE
 // =========================================================================
-const memoryFallbackStore: Record<string, any[]> = {
-  conversations: [],
-  messages: [],
-  app_state: [],
-  exams: [],
-  flashcards: [],
-  past_questions: [],
-  user_materials: [],
-  voice_tutorials: [],
-  ai_semantic_cache: [],
-  sync_queue: []
-};
+function getSavedFallbackStore(): Record<string, any[]> {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem('avelut_sqlite_memory_fallback');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
+          messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+          app_state: Array.isArray(parsed.app_state) ? parsed.app_state : [],
+          exams: Array.isArray(parsed.exams) ? parsed.exams : [],
+          flashcards: Array.isArray(parsed.flashcards) ? parsed.flashcards : [],
+          past_questions: Array.isArray(parsed.past_questions) ? parsed.past_questions : [],
+          user_materials: Array.isArray(parsed.user_materials) ? parsed.user_materials : [],
+          voice_tutorials: Array.isArray(parsed.voice_tutorials) ? parsed.voice_tutorials : [],
+          ai_semantic_cache: Array.isArray(parsed.ai_semantic_cache) ? parsed.ai_semantic_cache : [],
+          sync_queue: Array.isArray(parsed.sync_queue) ? parsed.sync_queue : [],
+        };
+      }
+    } catch {}
+  }
+  return {
+    conversations: [],
+    messages: [],
+    app_state: [],
+    exams: [],
+    flashcards: [],
+    past_questions: [],
+    user_materials: [],
+    voice_tutorials: [],
+    ai_semantic_cache: [],
+    sync_queue: []
+  };
+}
+
+const memoryFallbackStore: Record<string, any[]> = getSavedFallbackStore();
+
+function persistFallbackStore() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem('avelut_sqlite_memory_fallback', JSON.stringify(memoryFallbackStore));
+    } catch (e) {
+      console.warn('[SQLite fallback] localStorage persist warning', e);
+    }
+  }
+}
 
 function runFallbackQuery<T>(sql: string, params: any[]): T[] {
   const lower = sql.toLowerCase();
@@ -456,12 +490,56 @@ function runFallbackQuery<T>(sql: string, params: any[]): T[] {
 
 function runFallbackStatement(sql: string, params: any[]): { changes: number } {
   const lower = sql.toLowerCase();
+  if (lower.includes('update conversations set last_updated_at = ? where id = ?')) {
+    const [timestamp, id] = params;
+    const convo = memoryFallbackStore.conversations.find(c => c.id === id);
+    if (convo) {
+      convo.last_updated_at = timestamp;
+      persistFallbackStore();
+      return { changes: 1 };
+    }
+    return { changes: 0 };
+  }
+  if (lower.includes('update conversations set title = ?')) {
+    const [newTitle, now, id] = params;
+    const convo = memoryFallbackStore.conversations.find(c => c.id === id);
+    if (convo) {
+      convo.title = newTitle;
+      convo.last_updated_at = now;
+      persistFallbackStore();
+      return { changes: 1 };
+    }
+    return { changes: 0 };
+  }
+  if (lower.includes('update conversations set is_deleted = 1')) {
+    const id = params[0];
+    const convo = memoryFallbackStore.conversations.find(c => c.id === id);
+    if (convo) {
+      convo.is_deleted = 1;
+      persistFallbackStore();
+      return { changes: 1 };
+    }
+    return { changes: 0 };
+  }
+  if (lower.includes('update messages set is_deleted = 1')) {
+    const convoId = params[0];
+    let changes = 0;
+    for (const msg of memoryFallbackStore.messages) {
+      if (msg.conversation_id === convoId) {
+        msg.is_deleted = 1;
+        changes++;
+      }
+    }
+    persistFallbackStore();
+    return { changes };
+  }
   if (lower.includes('insert or replace into conversations') || lower.includes('insert into conversations')) {
     const [id, user_id, title, created_at, last_updated_at, sync_status, is_deleted] = params;
     const existingIdx = memoryFallbackStore.conversations.findIndex(c => c.id === id);
     const item = { id, user_id, title, created_at, last_updated_at, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.conversations[existingIdx] = item;
     else memoryFallbackStore.conversations.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into messages') || lower.includes('insert into messages')) {
@@ -470,6 +548,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, conversation_id, user_id, sender, text, attachments_json, image_url, timestamp, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.messages[existingIdx] = item;
     else memoryFallbackStore.messages.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into exams') || lower.includes('insert into exams')) {
@@ -478,6 +557,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, department_id, exam_type, score, total_questions, questions_json, timestamp, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.exams[existingIdx] = item;
     else memoryFallbackStore.exams.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into flashcards') || lower.includes('insert into flashcards')) {
@@ -486,6 +566,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, title, course_id, department_id, level, cards_json, created_at, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.flashcards[existingIdx] = item;
     else memoryFallbackStore.flashcards.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into past_questions') || lower.includes('insert into past_questions')) {
@@ -494,6 +575,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, department_id, level, course_id, year, questions_json, updated_at };
     if (existingIdx >= 0) memoryFallbackStore.past_questions[existingIdx] = item;
     else memoryFallbackStore.past_questions.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into user_materials') || lower.includes('insert into user_materials')) {
@@ -502,6 +584,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, type, title, data_json, created_at, sync_status, is_deleted: is_deleted || 0 };
     if (existingIdx >= 0) memoryFallbackStore.user_materials[existingIdx] = item;
     else memoryFallbackStore.user_materials.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into voice_tutorials') || lower.includes('insert into voice_tutorials')) {
@@ -510,6 +593,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { id, user_id, course_id, topic_id, concept_idx, sub_step, is_completed: is_completed || 0, blueprint_json, updated_at, sync_status: sync_status || 'synced' };
     if (existingIdx >= 0) memoryFallbackStore.voice_tutorials[existingIdx] = item;
     else memoryFallbackStore.voice_tutorials.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into app_state') || lower.includes('insert into app_state')) {
@@ -518,6 +602,7 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { key, user_id, category, payload_json, updated_at, sync_status };
     if (existingIdx >= 0) memoryFallbackStore.app_state[existingIdx] = item;
     else memoryFallbackStore.app_state.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into ai_semantic_cache')) {
@@ -526,21 +611,25 @@ function runFallbackStatement(sql: string, params: any[]): { changes: number } {
     const item = { query_hash, query_text, course_key, context_type, result_json, hit_count, created_at, expires_at };
     if (idx >= 0) memoryFallbackStore.ai_semantic_cache[idx] = item;
     else memoryFallbackStore.ai_semantic_cache.push(item);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('insert or replace into sync_queue') || lower.includes('insert into sync_queue')) {
     const [id, entity_type, entity_id, action, payload_json, retry_count, created_at, last_error] = params;
     memoryFallbackStore.sync_queue.push({ id, entity_type, entity_id, action, payload_json, retry_count, created_at, last_error });
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('delete from sync_queue')) {
     const id = params[0];
     memoryFallbackStore.sync_queue = memoryFallbackStore.sync_queue.filter(q => q.id !== id);
+    persistFallbackStore();
     return { changes: 1 };
   }
   if (lower.includes('delete from app_state')) {
     const key = params[0];
     memoryFallbackStore.app_state = memoryFallbackStore.app_state.filter(s => s.key !== key);
+    persistFallbackStore();
     return { changes: 1 };
   }
   return { changes: 0 };
