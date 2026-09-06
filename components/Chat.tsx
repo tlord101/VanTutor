@@ -738,12 +738,12 @@ export const Chat: React.FC<ChatProps> = ({
                         {timeAgo(msg.timestamp)}
                       </span>
                     </div>
-                    <div className="w-full text-[16px] sm:text-[17px] leading-relaxed text-neutral-900 dark:text-neutral-100 prose prose-neutral dark:prose-invert max-w-none prose-p:my-3 prose-headings:my-4 prose-pre:my-3">
+                    <div className="w-full font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em] font-normal text-[#24292F] dark:text-[#E2E8F0] prose prose-neutral dark:prose-invert max-w-none prose-p:my-3 prose-p:leading-[1.75] prose-headings:my-4 prose-headings:font-bold prose-headings:tracking-tight prose-pre:my-3">
                       {!msg.text ? (
                         <div className="flex items-center gap-1.5 py-1">
-                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce" />
-                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.2s]" />
-                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.4s]" />
+                          <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce" />
+                          <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.2s]" />
+                          <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.4s]" />
                         </div>
                       ) : (
                         <ReactMarkdown
@@ -765,9 +765,9 @@ export const Chat: React.FC<ChatProps> = ({
                     <img src="/logo_icon.png" alt="Avelut" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce" />
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.2s]" />
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.4s]" />
+                    <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce" />
+                    <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.2s]" />
+                    <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.4s]" />
                   </div>
                 </div>
               </div>

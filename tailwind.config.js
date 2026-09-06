@@ -12,6 +12,7 @@ export default {
       fontFamily: {
         sans: ['Nunito', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         serif: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        reading: ['"Plus Jakarta Sans"', 'Literata', 'Geist', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
       keyframes: {
         typing: {

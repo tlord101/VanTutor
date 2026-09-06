@@ -12,6 +12,7 @@ import { readCachedJson, writeCachedJson, clearCachedKey } from '../utils/cache'
 import { LimitExceededModal } from './LimitExceededModal';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useToast } from '../hooks/useToast';
+import { useApiLimiter } from '../hooks/useApiLimiter';
 import { XIcon } from './icons/XIcon';
 import { TypingIndicator } from './TypingIndicator';
 import type { Course, Topic, UserProfile } from '../types';
@@ -79,6 +80,7 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
 }) => {
   const { settings: appSettings } = useAppSettings();
   const { addToast } = useToast();
+  const { attemptApiCall } = useApiLimiter();
 
   const cacheKey = `avelut_course_chat_${userProfile?.uid || 'anon'}_${course.course_id}_${topic.topic_id}`;
 
@@ -88,7 +90,7 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
 
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [streamingBotText, setStreamingBotText] = useState<string | null>(null);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [expandedUserMessageIds, setExpandedUserMessageIds] = useState<Set<string>>(new Set());
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -202,10 +204,10 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
 
   // Keep scrolled to bottom during streaming and on message updates
   useEffect(() => {
-    if (messages.length > 0 || streamingBotText !== null) {
+    if (messages.length > 0) {
       scrollToBottom('smooth');
     }
-  }, [messages, streamingBotText, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   // Auto-initiate first Socratic bite-sized step if chat is empty
   useEffect(() => {
@@ -220,49 +222,78 @@ export const CourseChatTutor: React.FC<CourseChatTutorProps> = ({
     if (!ai) return;
 
     setIsSending(true);
-    const starterPrompt = `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).
-TOPIC: "${topic.topic_name}"
-TOPIC OVERVIEW: "${topic.topic_context || topic.start_point || 'Core principles of ' + topic.topic_name}"
+    const starterAiMsgId = `msg_ai_${Date.now()}`;
+    const initialPlaceholder: CourseChatTutorMessage = {
+      id: starterAiMsgId,
+      sender: 'assistant',
+      text: '',
+      timestamp: Date.now(),
+    };
+    setMessages([initialPlaceholder]);
+    setStreamingMsgId(starterAiMsgId);
 
-TASK:
-Begin the first bite-sized step of teaching this topic to the student.
-1. Welcome the student in 1 friendly sentence.
-2. Give a brief, intuitive real-world analogy introducing "${topic.topic_name}".
-3. End with a 1-sentence engaging question asking if they are ready to dive into the core principle.
+    const socraticSystemPrompt = [
+      `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).`,
+      `TOPIC: "${topic.topic_name}"`,
+      `TOPIC OVERVIEW: "${topic.topic_context || topic.start_point || 'Core principles of ' + topic.topic_name}"`,
+      '',
+      'TASK: Begin the first bite-sized step of teaching this topic to the student.',
+      '1. Welcome the student warmly in 1 short sentence.',
+      '2. Give an intuitive real-world Nigerian analogy introducing the topic (e.g. POS charges, Danfo bus speeds, NEPA power vs. generator fuel, market prices, recharge cards).',
+      '3. Conclude with 1 engaging question asking if they are ready to explore the core principle.',
+      '4. Keep under 120 words. Format math formulas with LaTeX ($...$). Do not use any emojis.',
+      '5. Provide your response directly without internal reasoning monologues.',
+    ].join('\n');
 
-STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do not lecture or dump info. Format math using LaTeX ($...$).`;
+    const aiParams = {
+      model: 'qwen/qwen3.7-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `Hello! I am ready to learn "${topic.topic_name}" for ${course.course_name}. Please begin our first step.` }],
+        },
+      ],
+      config: {
+        systemInstruction: socraticSystemPrompt,
+        temperature: 0.35,
+        maxOutputTokens: 2048,
+      },
+    };
 
+    let streamedText = '';
     try {
-      setStreamingBotText('');
-      const responseStream = await ai.models.generateContentStream({
-        model: 'qwen/qwen3.7-flash',
-        contents: starterPrompt,
-        config: { temperature: 0.3, maxOutputTokens: 250 },
-      });
-
-      let streamedText = '';
+      const responseStream = await ai.models.generateContentStream(aiParams);
       for await (const chunk of responseStream) {
         const chunkText = getResponseText(chunk);
-        streamedText += chunkText;
-        setStreamingBotText(streamedText);
+        if (chunkText) {
+          streamedText += chunkText;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === starterAiMsgId ? { ...m, text: streamedText } : m))
+          );
+        }
       }
-
-      const initialAiMsg: CourseChatTutorMessage = {
-        id: `msg_ai_${Date.now()}`,
-        sender: 'assistant',
-        text: streamedText || `Welcome to ${topic.topic_name}! Let's master this topic step by step. Ready to start?`,
-        timestamp: Date.now(),
-      };
-
-      const updated = [initialAiMsg];
-      setMessages(updated);
-      writeCachedJson(cacheKey, updated, userProfile?.uid);
     } catch (err) {
-      console.warn('[CourseChatTutor] Starter error:', err);
-    } finally {
-      setIsSending(false);
-      setStreamingBotText(null);
+      console.warn('[CourseChatTutor] Starter stream error, falling back:', err);
+      const fallbackResult = await attemptApiCall(async () => {
+        const res = await ai.models.generateContent(aiParams);
+        return getResponseText(res);
+      });
+      if (fallbackResult.success && fallbackResult.data) {
+        streamedText = fallbackResult.data.trim();
+      }
     }
+
+    if (!streamedText.trim()) {
+      streamedText = `Welcome to **${topic.topic_name}** for ${course.course_name}!\n\nLet's master this topic step by step. Ready to begin?`;
+    }
+
+    setMessages((prev) => {
+      const updated = prev.map((m) => (m.id === starterAiMsgId ? { ...m, text: streamedText } : m));
+      writeCachedJson(cacheKey, updated, userProfile?.uid);
+      return updated;
+    });
+    setIsSending(false);
+    setStreamingMsgId(null);
   };
 
   const handleClearChat = async () => {
@@ -324,82 +355,153 @@ STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do 
       }
     }
 
+    const now = Date.now();
+    const userMsgId = `msg_user_${now}`;
+    const aiMsgId = `msg_ai_${now + 1}`;
+
     const userMessage: CourseChatTutorMessage = {
-      id: `msg_user_${Date.now()}`,
+      id: userMsgId,
       sender: 'user',
       text: textToSend,
-      timestamp: Date.now(),
+      timestamp: now,
       attachments: attachedData.length > 0 ? attachedData : undefined,
     };
 
-    const nextMessages = [...messages, userMessage];
+    const aiPlaceholderMsg: CourseChatTutorMessage = {
+      id: aiMsgId,
+      sender: 'assistant',
+      text: '',
+      timestamp: now + 1,
+    };
+
+    // Optimistically update messages with both user message and thinking tutor placeholder
+    const nextMessages = [...messages, userMessage, aiPlaceholderMsg];
     setMessages(nextMessages);
     setInputValue('');
     setAttachments([]);
     setShowAttachmentMenu(false);
     setIsSending(true);
-    setStreamingBotText('');
+    setStreamingMsgId(aiMsgId);
 
     if (inputElementRef.current) {
       inputElementRef.current.style.height = 'auto';
     }
 
-    // Build chat prompt
-    const conversationHistory = nextMessages
-      .map((m) => `${m.sender === 'user' ? 'Student' : 'Tutor'}: ${m.text}`)
-      .join('\n\n');
+    const socraticSystemPrompt = [
+      `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).`,
+      `TOPIC: "${topic.topic_name}"`,
+      `TOPIC OVERVIEW: "${topic.topic_context || topic.start_point || 'Core principles of ' + topic.topic_name}"`,
+      '',
+      'CRITICAL SOCRATIC TEACHING RULES:',
+      '1. STEP-BY-STEP PROGRESSION: Teach one small, bite-sized step at a time. Never dump entire textbook chapters or long walls of text.',
+      '2. CHECK FOR UNDERSTANDING: Conclude your explanation with a quick question, thought experiment, or check-for-understanding to keep the student actively thinking.',
+      '3. RELATABLE REAL-WORLD EXAMPLES: When giving examples, use familiar everyday Nigerian scenarios (e.g. POS charges, market trade, Danfo speeds, NEPA light vs. generator fuel, boiling kettle/jollof rice, recharge cards).',
+      '4. MATH & FORMULAS: Render all equations, formulas, and math variables cleanly using LaTeX ($...$ inline or $$...$$ block).',
+      '5. TABLES & HEADINGS: Use clear markdown headings (##, ###), bold text for emphasis, and structured markdown tables when comparing concepts.',
+      '6. CONCISE: Keep explanations punchy, friendly, and digestible (< 180 words per reply unless student requests a full worked problem).',
+      '7. DIRECT RESPONSE: Provide your response directly. Do not output internal monologues or emojis.',
+    ].join('\n');
 
-    const promptText = `You are AVELUT Socratic Course Tutor for "${course.course_name}" (${course.course_code || ''}).
-TOPIC: "${topic.topic_name}"
-TOPIC OVERVIEW: "${topic.topic_context || topic.start_point || 'Core principles of ' + topic.topic_name}"
+    // Build multi-turn history from previous messages (last 8 completed messages)
+    const historyContents = messages
+      .filter((m) => m.text && m.text.trim())
+      .slice(-8)
+      .map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        parts: [{ text: m.text }],
+      }));
 
-CRITICAL SOCRATIC TEACHING RULES:
-1. STEP-BY-STEP PROGRESSION: Teach one small, bite-sized step at a time. Never dump entire textbook chapters.
-2. CHECK FOR UNDERSTANDING: Conclude your explanation with a quick question, thought experiment, or check-for-understanding to keep the student actively thinking.
-3. RELATABLE REAL-WORLD EXAMPLES: When giving examples, use familiar everyday Nigerian scenarios (e.g. POS charges, market trade, Danfo speeds, NEPA light vs. generator fuel, boiling kettle/jollof rice, recharge cards).
-4. MATH & FORMULAS: Render all equations, formulas, and math variables cleanly using LaTeX ($...$ inline or $$...$$ block).
-5. TABLES & HEADINGS: Use clear markdown headings (##, ###), bold text for emphasis, and structured markdown tables when comparing concepts.
-6. CONCISE: Keep explanations punchy, friendly, and digestible (< 180 words per reply unless student requests a full worked problem).
+    const latestUserParts: any[] = [...inlineParts];
+    if (textToSend) {
+      latestUserParts.push({ text: textToSend });
+    } else if (latestUserParts.length === 0) {
+      latestUserParts.push({ text: '(Student requested clarification on this topic)' });
+    }
 
-CONVERSATION HISTORY:
-${conversationHistory}
+    historyContents.push({
+      role: 'user',
+      parts: latestUserParts,
+    });
 
-STUDENT'S LATEST MESSAGE:
-${textToSend || '(Student attached image)'}`;
+    const aiParams = {
+      model: 'qwen/qwen3.7-flash',
+      contents: historyContents,
+      config: {
+        systemInstruction: socraticSystemPrompt,
+        temperature: 0.35,
+        maxOutputTokens: 2048,
+      },
+    };
 
+    let streamedText = '';
     try {
-      const parts = [...inlineParts, { text: promptText }];
-      const responseStream = await ai.models.generateContentStream({
-        model: 'qwen/qwen3.7-flash',
-        contents: [{ role: 'user', parts }],
-        config: { temperature: 0.35, maxOutputTokens: 600 },
-      });
+      const responseStream = await ai.models.generateContentStream(aiParams);
 
-      let streamedText = '';
       for await (const chunk of responseStream) {
         const chunkText = getResponseText(chunk);
-        streamedText += chunkText;
-        setStreamingBotText(streamedText);
+        if (chunkText) {
+          streamedText += chunkText;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedText } : m))
+          );
+        }
       }
+    } catch (streamErr: any) {
+      console.warn('[CourseChatTutor] Stream failed or interrupted, falling back to generateContent:', streamErr);
+      const fallbackResult = await attemptApiCall(async () => {
+        const result = await ai.models.generateContent(aiParams);
+        const resText = getResponseText(result);
+        if (!resText) throw new Error('Course Tutor returned an empty response.');
+        return resText;
+      });
 
-      const aiMsg: CourseChatTutorMessage = {
-        id: `msg_ai_${Date.now()}`,
-        sender: 'assistant',
-        text: streamedText,
-        timestamp: Date.now(),
-      };
-
-      const finalMessages = [...nextMessages, aiMsg];
-      setMessages(finalMessages);
-      writeCachedJson(cacheKey, finalMessages, userProfile?.uid);
-      await deductAICredits(userProfile.uid, cost, 'Course Chat Tutor', appSettings);
-    } catch (err: any) {
-      console.error('[CourseChatTutor] Send error:', err);
-      addToast(err?.message || 'Failed to get response. Please try again.', 'error');
-    } finally {
-      setIsSending(false);
-      setStreamingBotText(null);
+      if (fallbackResult.success && fallbackResult.data) {
+        streamedText = fallbackResult.data.trim();
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedText } : m))
+        );
+      } else {
+        const errMsg = fallbackResult.message || streamErr?.message || 'Could not reach tutor server';
+        streamedText = `I apologize, but I had trouble processing your question (${errMsg}). Please check your connection and send your question again.`;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedText } : m))
+        );
+      }
     }
+
+    // Safety check: if stream ended with empty text (e.g. reasoning model consumed without content)
+    if (!streamedText.trim()) {
+      console.warn('[CourseChatTutor] Empty stream text, executing non-streaming fallback...');
+      const fallbackResult = await attemptApiCall(async () => {
+        const result = await ai.models.generateContent(aiParams);
+        const resText = getResponseText(result);
+        if (!resText) throw new Error('Course Tutor returned an empty response.');
+        return resText;
+      });
+
+      if (fallbackResult.success && fallbackResult.data) {
+        streamedText = fallbackResult.data.trim();
+      } else {
+        streamedText = `Let's take a look at ${topic.topic_name}. What specific concept or step would you like to explore next?`;
+      }
+      setMessages((prev) =>
+        prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedText } : m))
+      );
+    }
+
+    // Persist and deduct credits
+    setMessages((prev) => {
+      const final = prev.map((m) => (m.id === aiMsgId ? { ...m, text: streamedText } : m));
+      writeCachedJson(cacheKey, final, userProfile?.uid);
+      return final;
+    });
+
+    if (streamedText.trim() && userProfile?.uid) {
+      await deductAICredits(userProfile.uid, cost, 'Course Chat Tutor', appSettings).catch(console.warn);
+    }
+
+    setIsSending(false);
+    setStreamingMsgId(null);
   };
 
   const handleSend = handleSendMessage;
@@ -439,7 +541,7 @@ ${textToSend || '(Student attached image)'}`;
       const activePart = text.slice(lastPunctuationIdx + (text[lastPunctuationIdx] === '\n' ? 1 : 2));
 
       return (
-        <div className="space-y-1">
+        <div className="space-y-1 font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em]">
           {completedPart && (
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
@@ -450,7 +552,7 @@ ${textToSend || '(Student attached image)'}`;
             </ReactMarkdown>
           )}
           {activePart && (
-            <div className="inline-block text-[#002D62] dark:text-[#60A5FA] font-semibold tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.4)] animate-fade-in transition-all duration-300">
+            <div className="inline-block text-[#002D62] dark:text-[#60A5FA] font-medium tracking-normal drop-shadow-[0_0_10px_rgba(0,102,255,0.25)] animate-fade-in transition-all duration-300">
               <span>{activePart}</span>
               <span className="inline-block w-2 h-4 sm:w-2.5 sm:h-5 ml-1 bg-[#0066FF] rounded-xs animate-pulse align-middle shadow-[0_0_8px_#0066FF]" />
             </div>
@@ -461,10 +563,9 @@ ${textToSend || '(Student attached image)'}`;
 
     const hasCompletedPart = text.length > 0;
     const completedPart = text;
-    const activePart = '';
 
     return (
-      <div className="space-y-1">
+      <div className="space-y-1 font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em]">
         {hasCompletedPart && (
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
@@ -480,20 +581,20 @@ ${textToSend || '(Student attached image)'}`;
 
   const markdownComponents = (isUser: boolean) => ({
     h1: ({ node, ...props }: any) => (
-      <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight" {...props} />
+      <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white mt-4 mb-2 tracking-tight" {...props} />
     ),
     h2: ({ node, ...props }: any) => (
       <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] dark:text-white mt-3.5 mb-1.5 tracking-tight border-b border-[#E3E9F1] dark:border-slate-800 pb-1" {...props} />
     ),
     h3: ({ node, ...props }: any) => (
-      <h3 className="text-base sm:text-lg font-bold text-[#002D62] dark:text-[#60A5FA] mt-3 mb-1" {...props} />
+      <h3 className="text-base sm:text-lg font-semibold text-[#0066FF] dark:text-[#60A5FA] mt-3 mb-1" {...props} />
     ),
     h4: ({ node, ...props }: any) => (
-      <h4 className="text-sm sm:text-base font-bold text-[#0F172A] dark:text-white mt-2.5 mb-1" {...props} />
+      <h4 className="text-sm sm:text-base font-semibold text-[#0F172A] dark:text-white mt-2.5 mb-1" {...props} />
     ),
-    p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+    p: ({ node, ...props }: any) => <p className="mb-3 last:mb-0 leading-[1.75]" {...props} />,
     strong: ({ node, ...props }: any) => (
-      <strong className={isUser ? 'font-bold text-white' : 'font-bold text-[#0F172A] dark:text-white'} {...props} />
+      <strong className={isUser ? 'font-bold text-white' : 'font-semibold text-[#0F172A] dark:text-white'} {...props} />
     ),
     code: ({ node, inline, ...props }: any) =>
       inline ? (
@@ -504,9 +605,9 @@ ${textToSend || '(Student attached image)'}`;
     blockquote: ({ node, ...props }: any) => (
       <blockquote className={`border-l-4 p-3 rounded-r-xl my-2.5 text-xs sm:text-sm leading-relaxed ${isUser ? 'border-blue-300 bg-white/10 text-white' : 'border-[#0066FF] bg-blue-50/70 dark:bg-blue-950/40 text-slate-800 dark:text-slate-200'}`} {...props} />
     ),
-    ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF]" {...props} />,
-    ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium" {...props} />,
-    li: ({ node, ...props }: any) => <li className="leading-relaxed" {...props} />,
+    ul: ({ node, ...props }: any) => <ul className="mb-3 last:mb-0 list-disc pl-5 space-y-1.5 marker:text-[#0066FF] leading-[1.7]" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="mb-3 last:mb-0 list-decimal pl-5 space-y-1.5 marker:text-[#0066FF] font-medium leading-[1.7]" {...props} />,
+    li: ({ node, ...props }: any) => <li className="leading-[1.75]" {...props} />,
     a: ({ node, ...props }: any) => <a className={`${isUser ? 'text-blue-200 underline' : 'text-[#0066FF] underline hover:text-[#002D62]'}`} target="_blank" rel="noopener noreferrer" {...props} />,
     table: ({ node, ...props }: any) => (
       <div className="w-full my-3.5 overflow-x-auto [scrollbar-width:thin] rounded-2xl border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
@@ -541,17 +642,32 @@ ${textToSend || '(Student attached image)'}`;
             const isUser = message.sender === 'user';
             const isLongUserMsg = isUser && (message.text.length > 220 || (message.text.match(/\n/g) || []).length >= 4);
             const isExpanded = expandedUserMessageIds.has(message.id);
+            const isCurrentlyStreaming = streamingMsgId === message.id;
 
             return (
               <div
                 key={message.id}
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full animate-fade-in`}
               >
+                {!isUser && (
+                  <div className="flex items-center gap-2 mb-1.5 px-1">
+                    <div className="w-6 h-6 rounded-full bg-[#0066FF]/10 dark:bg-blue-900/40 flex items-center justify-center p-0.5 shrink-0 border border-[#0066FF]/20">
+                      <img src="/logo_icon.png" alt="Avelut Tutor" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="text-[12px] font-bold text-[#002D62] dark:text-[#60A5FA]">
+                      Course Tutor
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {topic.topic_name}
+                    </span>
+                  </div>
+                )}
+
                 <div
                   className={`p-4 sm:p-5 rounded-2xl leading-relaxed text-sm ${
                     isUser
                       ? 'min-w-[33%] max-w-[85%] sm:max-w-[76%] rounded-3xl bg-[#002D62] text-white shadow-xs rounded-tr-none'
-                      : 'w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base'
+                      : 'w-full text-slate-800 dark:text-slate-100 bg-transparent px-1 sm:px-2 py-1'
                   }`}
                 >
                   {/* User Attachments */}
@@ -622,41 +738,36 @@ ${textToSend || '(Student attached image)'}`;
                         </div>
                       )}
                     </div>
+                  ) : !message.text ? (
+                    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 shadow-2xs w-fit animate-fade-in">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-[#64748B] dark:text-slate-400">
+                        Course Tutor is preparing your lesson...
+                      </span>
+                    </div>
+                  ) : isCurrentlyStreaming ? (
+                    <div className="w-full font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em] font-normal text-[#24292F] dark:text-[#E2E8F0]">
+                      {renderStreamingContent(message.text)}
+                    </div>
                   ) : (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={markdownComponents(false)}
-                    >
-                      {formatLatexMath(message.text)}
-                    </ReactMarkdown>
+                    <div className="w-full font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em] font-normal text-[#24292F] dark:text-[#E2E8F0]">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={markdownComponents(false)}
+                      >
+                        {formatLatexMath(message.text)}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
-
-          {/* Live Streaming Bot Message */}
-          {streamingBotText ? (
-            <div className="w-full my-3 px-1 sm:px-2 flex flex-col items-start animate-fade-in">
-              <div className="w-full text-slate-800 dark:text-slate-100 bg-transparent text-[15px] sm:text-base leading-relaxed tracking-normal">
-                {renderStreamingContent(streamingBotText)}
-              </div>
-            </div>
-          ) : isSending ? (
-            <div className="w-full my-3 px-1 sm:px-2 flex flex-col items-start animate-fade-in">
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E3E9F1] dark:border-slate-800 shadow-2xs">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0066FF] animate-bounce" />
-                </div>
-                <span className="text-xs sm:text-sm font-semibold text-[#64748B] dark:text-slate-400">
-                  Course Tutor is preparing your lesson...
-                </span>
-              </div>
-            </div>
-          ) : null}
 
           <div ref={messagesEndRef} />
         </div>

@@ -407,7 +407,7 @@ ${messageText}`;
                       className={`leading-relaxed text-[17px] sm:text-[18px] relative ${
                         isUser
                           ? 'p-4 sm:p-5 min-w-[33%] max-w-[85%] sm:max-w-[75%] bg-[#0F172A] text-white shadow-xs rounded-2xl rounded-tr-none text-base'
-                          : 'w-full bg-transparent text-[#0F172A] dark:text-slate-100 border-0 shadow-none px-1 py-2 text-[17px] sm:text-[18px]'
+                          : 'w-full bg-transparent font-reading text-[15.5px] sm:text-[16.5px] leading-[1.75] tracking-[-0.011em] font-normal text-[#24292F] dark:text-[#E2E8F0] border-0 shadow-none px-1 py-2'
                       }`}
                     >
                       {isUser ? (
