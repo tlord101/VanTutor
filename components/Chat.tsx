@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
 import { db, ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from '../firebase';
 import type { UserProfile, Message, ChatConversation } from '../types';
@@ -199,11 +199,20 @@ interface ChatProps {
   onNavigate?: (tab: string) => void;
   onOpenMenu?: () => void;
   setCustomHeaderConfig?: (config: any) => void;
+  activeConversationId?: string | null;
+  onSelectConversation?: (id: string | null) => void;
 }
 
-export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu, setCustomHeaderConfig }) => {
+export const Chat: React.FC<ChatProps> = ({ 
+  userProfile, 
+  onNavigate, 
+  onOpenMenu, 
+  setCustomHeaderConfig,
+  activeConversationId: propActiveConversationId,
+  onSelectConversation,
+}) => {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(propActiveConversationId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -222,33 +231,88 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
   const geminiModel = getFeatureModel('chat_interaction', appSettings);
   const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
+  useEffect(() => {
+    if (propActiveConversationId !== undefined) {
+      setActiveConversationId(propActiveConversationId);
+    }
+  }, [propActiveConversationId]);
+
+  const handleNewChat = useCallback(() => {
+    setActiveConversationId(null);
+    setMessages([]);
+    onSelectConversation?.(null);
+  }, [onSelectConversation]);
+
+  const handleClearCurrentChat = useCallback(() => {
+    if (messages.length === 0) return;
+    setModalState({
+      isOpen: true,
+      title: 'Clear Messages',
+      message: 'Are you sure you want to clear all messages in this conversation? This cannot be undone.',
+      confirmText: 'Clear',
+      onConfirm: async () => {
+        setMessages([]);
+        if (activeConversationId) {
+          try {
+            await remove(dbRef(db, `chat_messages/${activeConversationId}`));
+          } catch (e) {
+            console.error('Error clearing messages in db:', e);
+          }
+        }
+        setModalState((s) => ({ ...s, isOpen: false }));
+        addToast('Messages cleared', 'info');
+      },
+    });
+  }, [messages.length, activeConversationId, addToast]);
+
+  const handleDeleteCurrentChat = useCallback(() => {
+    if (!activeConversationId) return;
+    setModalState({
+      isOpen: true,
+      title: 'Delete Conversation',
+      message: 'Are you sure you want to delete this conversation? All chat history for this topic will be permanently removed.',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await deleteLocalConversation(activeConversationId);
+          await remove(dbRef(db, `chat_conversations/${userProfile.uid}/${activeConversationId}`));
+          await remove(dbRef(db, `chat_messages/${activeConversationId}`));
+          setActiveConversationId(null);
+          setMessages([]);
+          onSelectConversation?.(null);
+          addToast('Conversation deleted', 'info');
+        } catch (e) {
+          console.error('Error deleting conversation:', e);
+          addToast('Failed to delete conversation', 'error');
+        } finally {
+          setIsDeleting(false);
+          setModalState((s) => ({ ...s, isOpen: false }));
+        }
+      },
+    });
+  }, [activeConversationId, userProfile.uid, onSelectConversation, addToast]);
+
   // Dynamically configure main App Header for Avelut AI
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
     setCustomHeaderConfig({
-      leftActions: <LeftMenuButton onClick={onOpenMenu} />,
-      rightActions: (
-        <RightPillControl
-          onNewChat={handleNewChat}
-          onOpenHistory={onOpenMenu}
-          onDeleteChat={handleDeleteCurrentChat}
-          onClearMessages={handleClearCurrentChat}
-          hasActiveChat={Boolean(activeConversationId)}
-          hasMessages={messages.length > 0}
-        />
-      ),
       hideTitle: true,
       title: null,
       hideDefaultRightActions: true,
       hideProfileAvatar: true,
       className: 'absolute top-0 left-0 right-0 z-40 bg-transparent border-none px-4 sm:px-6 md:px-8 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 pointer-events-none [&>*]:pointer-events-auto',
+      onNewChat: handleNewChat,
+      onClearChat: handleClearCurrentChat,
+      onDeleteChat: handleDeleteCurrentChat,
+      hasActiveChat: Boolean(activeConversationId),
+      hasMessages: messages.length > 0,
     });
     return () => {
       setCustomHeaderConfig(null);
     };
   }, [
     setCustomHeaderConfig,
-    onOpenMenu,
     handleNewChat,
     handleDeleteCurrentChat,
     handleClearCurrentChat,
@@ -362,11 +426,6 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
-
-  const handleNewChat = () => {
-    setActiveConversationId(null);
-    setMessages([]);
-  };
 
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || input;
