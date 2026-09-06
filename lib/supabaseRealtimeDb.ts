@@ -544,7 +544,7 @@ export async function set(r: DbRef, value: any): Promise<void> {
         ...(value.timestamp ? { timestamp: value.timestamp } : {}),
       };
       try {
-        await supabase.from('notifications').upsert({
+        const payload = {
           id: notifId,
           user_id: userId,
           title: value.title ?? null,
@@ -553,9 +553,13 @@ export async function set(r: DbRef, value: any): Promise<void> {
           metadata_json: metadata,
           action_url: value.action_url || value.actionUrl || null,
           is_read: value.is_read ?? false,
-        });
+        };
+        const { error: insErr } = await supabase.from('notifications').insert(payload);
+        if (insErr) {
+          await supabase.from('notifications').update(payload).eq('id', notifId);
+        }
       } catch (e) {
-        console.warn('[supabaseRealtimeDb] upsert notification error', e);
+        console.warn('[supabaseRealtimeDb] notification write error', e);
       }
     }
     setLocalCache(`notifications/${userId}/${notifId}`, value);

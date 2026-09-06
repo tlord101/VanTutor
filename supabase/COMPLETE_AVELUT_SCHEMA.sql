@@ -500,6 +500,8 @@ DROP POLICY IF EXISTS "Users can manage their own exam history" ON public.exam_h
 CREATE POLICY "Users can manage their own exam history" ON public.exam_history FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Notifications
+DROP POLICY IF EXISTS "notifications_own" ON public.notifications;
+DROP POLICY IF EXISTS notifications_own ON public.notifications;
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON public.notifications;
 DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
 DROP POLICY IF EXISTS "Anyone can insert notifications" ON public.notifications;
