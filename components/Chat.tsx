@@ -301,7 +301,7 @@ export const Chat: React.FC<ChatProps> = ({
       title: null,
       hideDefaultRightActions: true,
       hideProfileAvatar: true,
-      className: 'absolute top-0 left-0 right-0 z-40 bg-transparent border-none px-4 sm:px-6 md:px-8 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 pointer-events-none [&>*]:pointer-events-auto',
+      className: 'absolute top-0 left-0 right-0 z-40 flex items-center justify-between bg-transparent border-none px-4 sm:px-6 md:px-8 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 pointer-events-none [&>*]:pointer-events-auto',
       onNewChat: handleNewChat,
       onClearChat: handleClearCurrentChat,
       onDeleteChat: handleDeleteCurrentChat,

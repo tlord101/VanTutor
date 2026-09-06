@@ -128,6 +128,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                                 unreadMessagesCount={unreadMessagesCount}
                                 onConversationsUpdate={onConversationsUpdate}
                                 onOpenMenu={onOpenMenu}
+                                activeConversationId={activeConversationId}
+                                onSelectConversation={onSelectConversation}
                             />
                         );
                     case 'notebooks':

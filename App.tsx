@@ -1762,7 +1762,7 @@ const App: React.FC = () => {
 
             <FloatingMenuButton
                 onClick={handleToggleMenu}
-                visible={activeItem !== 'messenger' && activeItem !== 'chat'}
+                visible={false}
             />
 
             <Sidebar
@@ -1789,6 +1789,7 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
+                    activeItem={activeItem}
                     currentPageLabel={typeof customHeaderConfig?.title === 'string' ? customHeaderConfig.title : currentPageLabel}
                     title={typeof customHeaderConfig?.title !== 'string' ? customHeaderConfig?.title : undefined}
                     unreadCount={unreadCount}
@@ -1806,11 +1807,16 @@ const App: React.FC = () => {
                     hideProfileAvatar={customHeaderConfig?.hideProfileAvatar !== undefined ? customHeaderConfig.hideProfileAvatar : !!customHeaderConfig}
                     onNavigate={(route) => setActiveItem(route)}
                     onLogoutClick={handleLogout}
+                    onNewChat={customHeaderConfig?.onNewChat || (() => { setActiveConversationId(null); setActiveItem('chat'); })}
+                    onClearChat={customHeaderConfig?.onClearChat}
+                    onDeleteChat={customHeaderConfig?.onDeleteChat}
+                    hasActiveChat={customHeaderConfig?.hasActiveChat ?? Boolean(activeConversationId)}
+                    hasMessages={customHeaderConfig?.hasMessages ?? false}
                 />
                 <div 
                     id="main-scroll-container"
                     className={
-                        activeItem === 'chat' || activeItem === 'messenger' || activeItem === 'voice_tutorial' || activeItem === 'study_guide'
+                        activeItem === 'chat' || activeItem === 'dashboard' || activeItem === 'messenger' || activeItem === 'voice_tutorial' || activeItem === 'study_guide'
                         ? "flex-1 min-h-0 overflow-hidden flex flex-col"
                         : "flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden content-with-bottom-nav isolate"
                     }
@@ -1838,6 +1844,9 @@ const App: React.FC = () => {
                             onMarkAsRead={handleMarkNotificationRead}
                             onMarkAllAsRead={handleMarkAllNotificationsRead}
                             onConversationsUpdate={setRecentConversations}
+                            activeConversationId={activeConversationId}
+                            onSelectConversation={setActiveConversationId}
+                            onOpenMenu={handleToggleMenu}
                         />
                     )}
                 </div>
@@ -1866,7 +1875,7 @@ const App: React.FC = () => {
                       setActiveItem('visual_solver');
                   }
               }}
-              isVisible={activeItem !== 'chat' && activeItem !== 'voice_tutorial' && !customHeaderConfig?.hideBottomNav}
+              isVisible={activeItem !== 'chat' && activeItem !== 'dashboard' && activeItem !== 'voice_tutorial' && !customHeaderConfig?.hideBottomNav}
               userProfile={userProfile}
             />
             <GuidedTour 

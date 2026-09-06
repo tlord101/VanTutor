@@ -56,7 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isAiPage = activeItem === 'chat';
+  const isAiPage = activeItem === 'chat' || activeItem === 'dashboard';
+  const isFloating = className?.includes('absolute') || className?.includes('fixed');
 
   // Handle click outside and Escape key to close dropdown
   useEffect(() => {
@@ -84,11 +85,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header 
-      className={
-        className
+      className={`z-40 flex items-center justify-between w-full ${
+        isFloating
           ? className
-          : 'sticky top-0 z-40 flex-shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-neutral-200/60 dark:border-white/5'
-      }
+          : `sticky top-0 flex-shrink-0 px-3 sm:px-6 md:px-8 py-2.5 ${
+              className || 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-neutral-200/60 dark:border-white/5'
+            }`
+      }`}
     >
       {/* Left Slot: Menu Hamburger Circular Button */}
       <div className="flex items-center gap-2 min-w-[40px] shrink-0">
