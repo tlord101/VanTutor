@@ -771,6 +771,26 @@ const App: React.FC = () => {
         return window.localStorage.getItem('avelut_admin_authenticated') === 'true';
     });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            return window.localStorage?.getItem('avelut_sidebar_collapsed') === 'true';
+        }
+        return false;
+    });
+
+    const handleToggleMenu = useCallback(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setIsMobileSidebarOpen(prev => !prev);
+        } else {
+            setIsDesktopSidebarCollapsed(prev => {
+                const next = !prev;
+                try {
+                    window.localStorage?.setItem('avelut_sidebar_collapsed', String(next));
+                } catch {}
+                return next;
+            });
+        }
+    }, []);
     const [pendingMessengerChatId, setPendingMessengerChatId] = useState<string | null>(null);
 
     const currentPageLabel = activeItem === 'messenger' 
@@ -1742,7 +1762,7 @@ const App: React.FC = () => {
 
             <FloatingMenuButton
                 onClick={handleToggleMenu}
-                visible={false}
+                visible={activeItem !== 'messenger' && activeItem !== 'chat'}
             />
 
             <Sidebar
@@ -1769,7 +1789,6 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
-                    activeItem={activeItem}
                     currentPageLabel={typeof customHeaderConfig?.title === 'string' ? customHeaderConfig.title : currentPageLabel}
                     title={typeof customHeaderConfig?.title !== 'string' ? customHeaderConfig?.title : undefined}
                     unreadCount={unreadCount}
@@ -1787,14 +1806,6 @@ const App: React.FC = () => {
                     hideProfileAvatar={customHeaderConfig?.hideProfileAvatar !== undefined ? customHeaderConfig.hideProfileAvatar : !!customHeaderConfig}
                     onNavigate={(route) => setActiveItem(route)}
                     onLogoutClick={handleLogout}
-                    onNewChat={customHeaderConfig?.onNewChat || (() => {
-                        setActiveConversationId(null);
-                        setActiveItem('chat');
-                    })}
-                    onClearChat={customHeaderConfig?.onClearChat}
-                    onDeleteChat={customHeaderConfig?.onDeleteChat}
-                    hasActiveChat={customHeaderConfig?.hasActiveChat ?? Boolean(activeConversationId)}
-                    hasMessages={customHeaderConfig?.hasMessages ?? false}
                 />
                 <div 
                     id="main-scroll-container"

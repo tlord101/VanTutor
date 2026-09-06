@@ -409,9 +409,4 @@ export interface HeaderConfig {
   hideDefaultRightActions?: boolean;
   hideProfileAvatar?: boolean;
   className?: string;
-  onNewChat?: () => void;
-  onClearChat?: () => void;
-  onDeleteChat?: () => void;
-  hasActiveChat?: boolean;
-  hasMessages?: boolean;
 }
