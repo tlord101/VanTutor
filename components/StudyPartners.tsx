@@ -15,6 +15,9 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
     const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState<'find' | 'requests'>('find');
     const [searchQuery, setSearchQuery] = useState('');
+    const [scopeFilter, setScopeFilter] = useState<'all' | 'my_school' | 'my_college'>('all');
+    const [schoolFilter, setSchoolFilter] = useState<string>('all');
+    const [levelFilter, setLevelFilter] = useState<string>('all');
     
     const [allUsers, setAllUsers] = useState<UserProfile[]>(() => 
         readCachedJson<UserProfile[]>(`messenger_users_v2`, [])
@@ -207,14 +210,57 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
         }
     };
 
+    const availableSchools = useMemo(() => {
+        const setOfSchools = new Set<string>();
+        allUsers.forEach(u => {
+            if (u.school_id) setOfSchools.add(u.school_id);
+        });
+        return Array.from(setOfSchools).sort();
+    }, [allUsers]);
+
     const filteredUsers = useMemo(() => {
         let users = allUsers.filter(u => u.uid !== auth.currentUser?.uid);
+
+        // Scope filter
+        if (scopeFilter === 'my_school' && userProfile.school_id) {
+            users = users.filter(u => u.school_id === userProfile.school_id);
+        } else if (scopeFilter === 'my_college' && userProfile.college_id) {
+            users = users.filter(u => u.college_id === userProfile.college_id);
+        }
+
+        // Specific school filter
+        if (schoolFilter !== 'all') {
+            users = users.filter(u => u.school_id === schoolFilter);
+        }
+
+        // Academic Level filter
+        if (levelFilter !== 'all') {
+            users = users.filter(u => u.level === levelFilter || (u.level && u.level.startsWith(levelFilter)));
+        }
+
+        // Universal Search: Name, Department, School, College, Level
         if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            users = users.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.department_id || '').toLowerCase().includes(q));
+            const q = searchQuery.toLowerCase().trim();
+            users = users.filter(u => {
+                const name = (u.display_name || '').toLowerCase();
+                const dept = (u.department_id || '').toLowerCase();
+                const deptReadable = dept.replace(/_/g, ' ');
+                const school = (u.school_id || '').toLowerCase();
+                const schoolReadable = school.replace(/_/g, ' ');
+                const college = (u.college_id || '').toLowerCase();
+                const collegeReadable = college.replace(/_/g, ' ');
+                const level = (u.level || '').toLowerCase();
+                const levelReadable = `${level} level`;
+
+                return name.includes(q) ||
+                       dept.includes(q) || deptReadable.includes(q) ||
+                       school.includes(q) || schoolReadable.includes(q) ||
+                       college.includes(q) || collegeReadable.includes(q) ||
+                       level.includes(q) || levelReadable.includes(q);
+            });
         }
         return users;
-    }, [allUsers, searchQuery]);
+    }, [allUsers, searchQuery, scopeFilter, schoolFilter, levelFilter, userProfile.school_id, userProfile.college_id]);
 
     const sentRequests = Object.values(partnerRequests).filter((req: any) => req.status === 'sent');
     const receivedRequests = Object.values(partnerRequests).filter((req: any) => req.status === 'received');
@@ -233,7 +279,7 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
                 </button>
                 <div className="flex-1">
                     <h1 className="text-xl font-black text-[#212529] dark:text-white">Study Partners</h1>
-                    <p className="text-xs font-semibold text-[#6C757D] dark:text-gray-400">Build your academic network</p>
+                    <p className="text-xs font-semibold text-[#6C757D] dark:text-gray-400">Discover and connect with students across any school and faculty</p>
                 </div>
             </div>
 
@@ -262,53 +308,202 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                 {activeTab === 'find' ? (
                     <>
-                        <div className="relative max-w-2xl mx-auto">
-                            <input
-                                type="text"
-                                placeholder="Search by name or department..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-white dark:bg-black text-sm font-semibold text-[#212529] dark:text-white px-5 py-4 rounded-2xl border border-[#E9ECEF] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#009EE2]/30 focus:border-[#009EE2] transition shadow-sm placeholder:text-[#ADB5BD]"
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#ADB5BD]">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div className="max-w-2xl mx-auto space-y-3">
+                            {/* Search Input */}
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, university, college, department, or level..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="w-full bg-white dark:bg-[#0A0A0A] text-sm font-semibold text-slate-900 dark:text-white pl-10 pr-10 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-[#0066FF] transition placeholder:text-slate-400"
+                                />
+                                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                </div>
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Filters Bar */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200/60 dark:border-white/5 text-xs">
+                                    <button
+                                        onClick={() => { setScopeFilter('all'); setSchoolFilter('all'); }}
+                                        className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                                            scopeFilter === 'all' && schoolFilter === 'all'
+                                                ? 'bg-white dark:bg-[#0A0A0A] text-[#0066FF]'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                        }`}
+                                    >
+                                        All Universities
+                                    </button>
+                                    {userProfile.school_id && (
+                                        <button
+                                            onClick={() => { setScopeFilter('my_school'); setSchoolFilter('all'); }}
+                                            className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer capitalize ${
+                                                scopeFilter === 'my_school'
+                                                    ? 'bg-white dark:bg-[#0A0A0A] text-[#0066FF]'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                            }`}
+                                        >
+                                            My Campus
+                                        </button>
+                                    )}
+                                    {userProfile.college_id && (
+                                        <button
+                                            onClick={() => { setScopeFilter('my_college'); setSchoolFilter('all'); }}
+                                            className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer capitalize ${
+                                                scopeFilter === 'my_college'
+                                                    ? 'bg-white dark:bg-[#0A0A0A] text-[#0066FF]'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                            }`}
+                                        >
+                                            My Faculty
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {availableSchools.length > 1 && scopeFilter === 'all' && (
+                                        <select
+                                            value={schoolFilter}
+                                            onChange={e => setSchoolFilter(e.target.value)}
+                                            className="bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-xl py-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0066FF] capitalize cursor-pointer"
+                                        >
+                                            <option value="all">Any School ({availableSchools.length})</option>
+                                            {availableSchools.map(sch => (
+                                                <option key={sch} value={sch}>
+                                                    {sch.replace(/_/g, ' ')}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    <select
+                                        value={levelFilter}
+                                        onChange={e => setLevelFilter(e.target.value)}
+                                        className="bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-xl py-1 px-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0066FF] cursor-pointer"
+                                    >
+                                        <option value="all">Any Level</option>
+                                        <option value="100">100 Level</option>
+                                        <option value="200">200 Level</option>
+                                        <option value="300">300 Level</option>
+                                        <option value="400">400 Level</option>
+                                        <option value="500">500 Level</option>
+                                        <option value="600">600 Level</option>
+                                        <option value="Postgraduate">Postgraduate</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="max-w-2xl mx-auto space-y-3">
+                        {/* User List */}
+                        <div className="max-w-2xl mx-auto space-y-2.5">
                             {filteredUsers.map(u => {
                                 const isPartner = studyPartners[u.uid] === true;
                                 const req = partnerRequests[u.uid];
                                 return (
-                                    <div key={u.uid} className="flex items-center gap-4 p-4 bg-white dark:bg-black border border-[#E9ECEF] dark:border-white/10 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => onNavigate(`public_profile_${u.uid}`)}>
-                                        <Avatar className="w-12 h-12 rounded-full shrink-0 object-cover border border-[#E9ECEF] dark:border-white/10" photo_url={u.photo_url} display_name={u.display_name || 'User'} />
-                                        <div className="min-w-0 flex-1">
-                                            <h4 className="font-bold text-base text-[#212529] dark:text-white truncate">{u.display_name}</h4>
-                                            {u.department_id && <p className="text-xs text-[#6C757D] dark:text-gray-400 font-medium truncate mt-0.5">{u.department_id.replace(/_/g, ' ')}</p>}
+                                    <div
+                                        key={u.uid}
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-white dark:bg-[#0A0A0A] border border-slate-200/80 dark:border-white/10 rounded-2xl hover:border-slate-300 dark:hover:border-white/20 transition cursor-pointer"
+                                        onClick={() => onNavigate(`public_profile_${u.uid}`)}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <Avatar
+                                                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 object-cover border border-slate-200 dark:border-white/10"
+                                                photo_url={u.photo_url}
+                                                display_name={u.display_name || 'User'}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                                                    {u.display_name}
+                                                </h4>
+                                                
+                                                {/* Institutional Context Badges */}
+                                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                    {u.school_id && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-[#0066FF] dark:text-blue-300 border border-blue-100 dark:border-blue-900/30 capitalize">
+                                                            <span>🏛️</span>
+                                                            <span className="truncate max-w-[130px]">{u.school_id.replace(/_/g, ' ')}</span>
+                                                        </span>
+                                                    )}
+                                                    {u.college_id && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/5 capitalize">
+                                                            <span>🏢</span>
+                                                            <span className="truncate max-w-[120px]">{u.college_id.replace(/_/g, ' ')}</span>
+                                                        </span>
+                                                    )}
+                                                    {u.department_id && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/5 capitalize">
+                                                            <span>📚</span>
+                                                            <span className="truncate max-w-[140px]">{u.department_id.replace(/_/g, ' ')}</span>
+                                                        </span>
+                                                    )}
+                                                    {u.level && (
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/30">
+                                                            {u.level}L
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="shrink-0" onClick={e => e.stopPropagation()}>
+
+                                        {/* Action Controls */}
+                                        <div className="shrink-0 flex items-center justify-end" onClick={e => e.stopPropagation()}>
                                             {isPartner ? (
-                                                <span className="text-xs font-bold text-[#002D62] bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl">✓ Connected</span>
+                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-xl">
+                                                    ✓ Connected
+                                                </span>
                                             ) : req?.status === 'sent' ? (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">Pending</span>
-                                                    <button onClick={() => declinePartnerRequest(u.uid)} className="text-[11px] font-semibold text-slate-500 hover:text-red-500 transition px-1.5 py-1">Cancel</button>
+                                                    <span className="text-xs font-bold text-slate-600 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-2.5 py-1.5 rounded-xl">
+                                                        Pending
+                                                    </span>
+                                                    <button
+                                                        onClick={() => declinePartnerRequest(u.uid)}
+                                                        className="text-[11px] font-bold text-slate-500 hover:text-red-500 transition px-2 py-1 cursor-pointer"
+                                                    >
+                                                        Cancel
+                                                    </button>
                                                 </div>
                                             ) : req?.status === 'received' ? (
                                                 <div className="flex items-center gap-1.5">
-                                                    <button onClick={() => declinePartnerRequest(u.uid)} className="text-xs font-bold text-[#6C757D] dark:text-gray-400 bg-neutral-100 hover:bg-neutral-200 px-3 py-1.5 rounded-xl transition">Decline</button>
-                                                    <button onClick={() => acceptPartnerRequest(u)} className="text-xs font-black text-white bg-[#0066FF] hover:bg-[#0055D4] px-3 py-1.5 rounded-xl transition shadow-sm">Accept</button>
+                                                    <button
+                                                        onClick={() => declinePartnerRequest(u.uid)}
+                                                        className="text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                                    >
+                                                        Decline
+                                                    </button>
+                                                    <button
+                                                        onClick={() => acceptPartnerRequest(u)}
+                                                        className="text-xs font-bold text-white bg-[#0066FF] hover:bg-[#0055D4] px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                                    >
+                                                        Accept
+                                                    </button>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => sendPartnerRequest(u)} className="text-xs font-black uppercase tracking-wider text-white bg-[#0066FF] hover:bg-[#0055D4] px-4 py-2 rounded-xl transition shadow-sm">Connect</button>
+                                                <button
+                                                    onClick={() => sendPartnerRequest(u)}
+                                                    className="text-xs font-bold text-white bg-[#0066FF] hover:bg-[#0055D4] px-3.5 py-1.5 rounded-xl transition cursor-pointer"
+                                                >
+                                                    Connect
+                                                </button>
                                             )}
                                         </div>
                                     </div>
                                 );
                             })}
                             {filteredUsers.length === 0 && (
-                                <div className="text-center py-10">
-                                    <p className="text-[#6C757D] dark:text-gray-400 font-medium text-sm">No users found.</p>
+                                <div className="text-center py-10 bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-2xl p-6">
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">No students found matching your criteria.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try searching by university name, college, department, or level.</p>
                                 </div>
                             )}
                         </div>

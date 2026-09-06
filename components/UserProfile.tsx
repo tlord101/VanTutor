@@ -48,6 +48,15 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   const [editSchoolId, setEditSchoolId] = useState(userProfile.school_id || '');
   const [editCollegeId, setEditCollegeId] = useState(userProfile.college_id || '');
   const [editDepartmentId, setEditDepartmentId] = useState(userProfile.department_id || '');
+  const [editLevel, setEditLevel] = useState(userProfile.level || '100');
+
+  const startEditingAcademics = () => {
+    setEditSchoolId(userProfile.school_id || '');
+    setEditCollegeId(userProfile.college_id || '');
+    setEditDepartmentId(userProfile.department_id || '');
+    setEditLevel(userProfile.level || '100');
+    setIsEditingAcademics(true);
+  };
 
   const [referralCodeInput, setReferralCodeInput] = useState('');
   const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
@@ -210,7 +219,8 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
       const result = await onProfileUpdate({
           school_id: editSchoolId,
           college_id: editCollegeId,
-          department_id: editDepartmentId
+          department_id: editDepartmentId,
+          level: editLevel
       });
       if (result.success) {
           addToast('Academic details updated successfully!', 'success');
@@ -327,9 +337,9 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 pb-24 lg:pb-8 animate-fade-in text-slate-900 dark:text-slate-100">
-        {/* Cover Photo */}
-        <div className="relative w-full h-48 sm:h-64 bg-slate-800 shrink-0">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-black pb-20 sm:pb-8 animate-fade-in text-slate-900 dark:text-slate-100">
+        {/* Cover Photo - Compact Banner */}
+        <div className="relative w-full h-28 sm:h-36 bg-gradient-to-r from-slate-800 to-slate-900 shrink-0 overflow-hidden border-b border-slate-200 dark:border-white/10">
             {userProfile.cover_photo && (
                 <img src={userProfile.cover_photo} alt="Cover" className="w-full h-full object-cover" />
             )}
@@ -337,17 +347,13 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
             <input type="file" ref={coverInputRef} hidden accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
             
             {uploadProgress.type === 'cover' && (
-                <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center backdrop-blur-sm transition-all duration-300">
-                    <div className="w-64 bg-white dark:bg-slate-900 p-4 rounded-2xl backdrop-blur-md shadow-xl border border-white/30 dark:border-slate-800 flex flex-col items-center gap-3 transform scale-100">
-                        <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center mb-1 text-amber-500">
-                            <i className="bi bi-cloud-arrow-up-fill text-2xl animate-bounce"></i>
+                <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center backdrop-blur-sm transition-all duration-200">
+                    <div className="w-56 bg-white dark:bg-[#0A0A0A] p-3 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center gap-2">
+                        <i className="bi bi-cloud-arrow-up-fill text-xl text-[#0066FF] animate-bounce"></i>
+                        <div className="w-full bg-slate-200 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-[#0066FF] h-1.5 rounded-full transition-all duration-200" style={{ width: `${Math.max(5, uploadProgress.progress)}%` }}></div>
                         </div>
-                        <div className="w-full bg-black/30 rounded-full h-2.5 overflow-hidden ring-1 ring-black/10">
-                            <div className="bg-amber-500 h-2.5 rounded-full transition-all duration-300 ease-out relative" style={{ width: `${Math.max(5, uploadProgress.progress)}%` }}>
-                                <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
-                            </div>
-                        </div>
-                        <p className="text-slate-900 dark:text-white text-xs font-black tracking-widest uppercase mt-1">Uploading... {Math.max(5, Math.round(uploadProgress.progress))}%</p>
+                        <p className="text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">Uploading... {Math.max(5, Math.round(uploadProgress.progress))}%</p>
                     </div>
                 </div>
             )}
@@ -355,123 +361,108 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
             <button
                 onClick={() => coverInputRef.current?.click()}
                 disabled={isSaving}
-                className="absolute bottom-4 right-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm text-slate-900 dark:text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-white dark:hover:bg-slate-800 transition flex items-center gap-2 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-20 bg-white/90 dark:bg-black/80 backdrop-blur-md text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-900 transition flex items-center gap-1.5 border border-slate-200 dark:border-white/10 cursor-pointer"
             >
-                <i className="bi bi-camera-fill text-amber-500 text-sm"></i>
-                <span>{userProfile.cover_photo ? 'Edit Cover' : 'Add Cover'}</span>
+                <i className="bi bi-camera text-slate-600 dark:text-slate-300 text-xs"></i>
+                <span>{userProfile.cover_photo ? 'Change Cover' : 'Add Cover'}</span>
             </button>
         </div>
 
-        {/* Profile Info Area */}
-        <div className="relative px-4 sm:px-8 max-w-5xl mx-auto w-full -mt-16 sm:-mt-20 z-10">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-8">
+        {/* Profile Info Header */}
+        <div className="relative px-4 sm:px-6 max-w-4xl mx-auto w-full -mt-10 sm:-mt-12 z-10">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 mb-4">
                 {/* Avatar */}
-                <div className="relative group">
-                    <div className="rounded-full p-1 bg-white dark:bg-slate-900 shadow-xl">
-                        <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white dark:border-slate-800" photo_url={userProfile.photo_url} display_name={userProfile.display_name || 'User'} />
+                <div className="relative group shrink-0">
+                    <div className="rounded-full p-1 bg-white dark:bg-black border border-slate-200 dark:border-white/10">
+                        <Avatar className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover" photo_url={userProfile.photo_url} display_name={userProfile.display_name || 'User'} />
                     </div>
                     
                     <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />
 
                     {uploadProgress.type === 'avatar' && (
-                        <div className="absolute inset-0 z-20 bg-black/50 rounded-full flex items-center justify-center flex-col gap-1 backdrop-blur-sm border-4 border-white/20 overflow-hidden group-hover:opacity-100">
-                            <div className="relative w-16 h-16 flex items-center justify-center">
-                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                    <circle className="text-white/20 stroke-current" strokeWidth="8" cx="50" cy="50" r="40" fill="transparent"></circle>
-                                    <circle className="text-amber-500 progress-ring__circle stroke-current transition-all duration-300 ease-out" strokeWidth="8" strokeLinecap="round" cx="50" cy="50" r="40" fill="transparent" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * uploadProgress.progress) / 100}></circle>
-                                </svg>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-white text-[10px] font-black">{Math.round(uploadProgress.progress)}%</span>
-                                </div>
-                            </div>
+                        <div className="absolute inset-0 z-20 bg-black/60 rounded-full flex items-center justify-center flex-col gap-1 backdrop-blur-sm">
+                            <span className="text-white text-[11px] font-bold">{Math.round(uploadProgress.progress)}%</span>
                         </div>
                     )}
 
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSaving}
-                        className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-[#0066FF] text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-[#0055D4] transition border-2 border-white dark:border-white/10 opacity-90 group-hover:opacity-100 cursor-pointer font-bold"
+                        className="absolute bottom-0 right-0 bg-[#0066FF] text-white w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-[#0055D4] transition border-2 border-white dark:border-black cursor-pointer"
+                        title="Upload Avatar"
                     >
-                        <i className="bi bi-camera-fill text-base"></i>
+                        <i className="bi bi-camera text-xs font-bold"></i>
                     </button>
                 </div>
 
-                {/* Name & Basic Info */}
-                <div className="flex-1 text-center sm:text-left mb-2 sm:mb-6">
+                {/* Name & Quick Info */}
+                <div className="flex-1 text-center sm:text-left">
                     {isEditingName ? (
-                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
                             <input
                                 type="text"
                                 value={newDisplayName}
                                 onChange={(e) => setNewDisplayName(e.target.value)}
-                                className="w-full sm:w-64 bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-xl py-2 px-4 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-[#0066FF] focus:outline-none shadow-sm"
+                                className="w-full sm:w-60 bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-xl py-1.5 px-3 text-slate-900 dark:text-white font-bold text-sm focus:ring-1 focus:ring-[#0066FF] focus:outline-none"
                                 disabled={isSaving}
                             />
-                            <div className="flex gap-2">
-                                <button onClick={handleSaveName} disabled={isSaving || newDisplayName.trim() === ''} className="px-5 py-2 bg-[#0066FF] text-white rounded-xl text-sm font-black shadow-sm hover:bg-[#0055D4] transition disabled:opacity-50 cursor-pointer">
+                            <div className="flex gap-1.5">
+                                <button onClick={handleSaveName} disabled={isSaving || newDisplayName.trim() === ''} className="px-3 py-1.5 bg-[#0066FF] text-white rounded-xl text-xs font-bold hover:bg-[#0055D4] transition disabled:opacity-50 cursor-pointer">
                                     Save
                                 </button>
-                                <button onClick={handleCancelEdit} disabled={isSaving} className="px-5 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition disabled:opacity-50 cursor-pointer">
+                                <button onClick={handleCancelEdit} disabled={isSaving} className="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition cursor-pointer">
                                     Cancel
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col sm:flex-row items-center gap-3">
-                            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                                <span>{userProfile.display_name}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-center sm:justify-start">
+                            <div className="flex items-center gap-2 justify-center sm:justify-start">
+                                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                                    {userProfile.display_name}
+                                </h1>
                                 <VerificationBadge status={userProfile.subscription_status} />
-                            </h1>
-                            <button onClick={() => setIsEditingName(true)} className="px-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer flex items-center gap-1.5">
-                                <i className="bi bi-pencil text-xs"></i>
-                                <span>Edit Name</span>
+                            </div>
+                            <button onClick={() => setIsEditingName(true)} className="inline-flex items-center gap-1 self-center sm:self-auto px-2.5 py-1 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-white/10 transition cursor-pointer">
+                                <i className="bi bi-pencil text-[11px]"></i>
+                                <span>Edit</span>
                             </button>
                         </div>
                     )}
-                    <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-2">{user?.email}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">{user?.email}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Bio & Contact */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">About Me</h3>
-                        <textarea
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            placeholder="Tell others about yourself, your interests, or study habits..."
-                            className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 min-h-[120px] resize-none"
-                            disabled={isSaving}
-                        />
-
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-6 mb-4">Contact Information</h3>
-                        <textarea
-                            value={contactDetails}
-                            onChange={(e) => setContactDetails(e.target.value)}
-                            placeholder="Add links to your social media or ways to contact you..."
-                            className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 min-h-[100px] resize-none"
-                            disabled={isSaving}
-                        />
-
-                        <div className="mt-4 flex justify-end">
-                            <button onClick={handleSaveBioAndContact} disabled={isSaving} className="px-6 py-2.5 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer">
-                                Save Profile Info
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Academic Details</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Left Column: Academic Profile & About */}
+                <div className="lg:col-span-2 space-y-4">
+                    {/* Academic Profile Card */}
+                    <div className="bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                                <i className="bi bi-mortarboard text-[#0066FF] text-base"></i>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Academic Details</h3>
+                            </div>
                             {!isEditingAcademics ? (
-                                <button onClick={() => setIsEditingAcademics(true)} className="text-xs font-bold text-[#0066FF] hover:text-[#0055D4] cursor-pointer">Edit</button>
+                                <button
+                                    onClick={startEditingAcademics}
+                                    className="px-3 py-1 rounded-lg text-xs font-bold text-[#0066FF] hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 transition cursor-pointer flex items-center gap-1"
+                                >
+                                    <i className="bi bi-pencil-square text-xs"></i>
+                                    <span>Edit Academic Info</span>
+                                </button>
                             ) : (
-                                <button onClick={() => setIsEditingAcademics(false)} className="text-xs font-bold text-slate-400 hover:text-slate-300 cursor-pointer">Cancel</button>
+                                <button
+                                    onClick={() => setIsEditingAcademics(false)}
+                                    className="px-3 py-1 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
                             )}
                         </div>
+
                         {isEditingAcademics ? (
-                            <div className="space-y-4">
+                            <div className="space-y-4 pt-1">
                                 <SchoolHierarchySelector
                                     schoolId={editSchoolId}
                                     setSchoolId={setEditSchoolId}
@@ -480,181 +471,235 @@ export const UserProfileScreen: React.FC<UserProfileProps> = ({ user, userProfil
                                     departmentId={editDepartmentId}
                                     setDepartmentId={setEditDepartmentId}
                                 />
-                                <button 
-                                    onClick={handleSaveAcademics}
-                                    disabled={isSaving || !editSchoolId || !editCollegeId || !editDepartmentId}
-                                    className="w-full mt-4 px-6 py-2.5 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-sm font-black shadow-sm transition disabled:opacity-50 cursor-pointer"
-                                >
-                                    Save Academic Info
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Department</p>
-                                        <p className="text-slate-900 dark:text-white font-bold text-sm mt-0.5">{isDepartmentLoading ? 'Loading...' : departmentName}</p>
+
+                                {/* Academic Level Picker */}
+                                <div className="space-y-1.5 pt-1">
+                                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                        <i className="bi bi-layers text-[#0066FF]"></i>
+                                        <span>Select Academic Level</span>
+                                    </label>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                                        {['100', '200', '300', '400', '500', '600', 'Postgraduate'].map(lvl => (
+                                            <button
+                                                key={lvl}
+                                                type="button"
+                                                onClick={() => setEditLevel(lvl)}
+                                                className={`py-2 px-2 rounded-xl text-xs font-bold transition border cursor-pointer text-center ${
+                                                    editLevel === lvl
+                                                        ? 'bg-[#0066FF] text-white border-[#0066FF]'
+                                                        : 'bg-slate-50 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
+                                                }`}
+                                            >
+                                                {lvl === 'Postgraduate' ? 'Postgraduate' : `${lvl} Level`}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 gap-3">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Level</p>
-                                    </div>
-                                    {isLevelsLoading ? (
-                                        <span className="text-slate-500 dark:text-slate-400 text-sm font-semibold">Loading...</span>
-                                    ) : (
-                                        <select
-                                            value={userProfile.level || ''}
-                                            onChange={handleLevelChange}
-                                            disabled={isSaving || levels.length === 0}
-                                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-4 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm cursor-pointer"
-                                        >
-                                            {levels.length > 0 ? (
-                                                levels.map((level) => (
-                                                    <option key={level} value={level}>{level} Level</option>
-                                                ))
-                                            ) : (
-                                                <option value={userProfile.level} disabled>{userProfile.level} Level</option>
-                                            )}
-                                        </select>
-                                    )}
+
+                                <div className="flex gap-2 justify-end pt-2 border-t border-slate-100 dark:border-white/5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingAcademics(false)}
+                                        disabled={isSaving}
+                                        className="px-3.5 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={handleSaveAcademics}
+                                        disabled={isSaving || !editSchoolId || !editCollegeId || !editDepartmentId}
+                                        className="px-4 py-1.5 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {isSaving ? 'Saving...' : 'Save All Academic Details'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div className="p-3 bg-slate-50/80 dark:bg-white/[0.02] rounded-xl border border-slate-200/60 dark:border-white/5">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Institution / School</p>
+                                    <p className="text-slate-900 dark:text-white font-bold text-xs mt-0.5 capitalize">
+                                        {userProfile.school_id ? userProfile.school_id.replace(/_/g, ' ') : 'Not set'}
+                                    </p>
+                                </div>
+
+                                <div className="p-3 bg-slate-50/80 dark:bg-white/[0.02] rounded-xl border border-slate-200/60 dark:border-white/5">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Faculty / College</p>
+                                    <p className="text-slate-900 dark:text-white font-bold text-xs mt-0.5 capitalize">
+                                        {userProfile.college_id ? userProfile.college_id.replace(/_/g, ' ') : 'Not set'}
+                                    </p>
+                                </div>
+
+                                <div className="p-3 bg-slate-50/80 dark:bg-white/[0.02] rounded-xl border border-slate-200/60 dark:border-white/5">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</p>
+                                    <p className="text-slate-900 dark:text-white font-bold text-xs mt-0.5 capitalize">
+                                        {isDepartmentLoading ? 'Loading...' : (departmentName || (userProfile.department_id ? userProfile.department_id.replace(/_/g, ' ') : 'Not set'))}
+                                    </p>
+                                </div>
+
+                                <div className="p-3 bg-slate-50/80 dark:bg-white/[0.02] rounded-xl border border-slate-200/60 dark:border-white/5">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Academic Level</p>
+                                    <p className="text-slate-900 dark:text-white font-bold text-xs mt-0.5">
+                                        {userProfile.level ? `${userProfile.level} Level` : 'Not set'}
+                                    </p>
                                 </div>
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Right Column: Privacy Settings */}
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-[#0066FF]">
-                                <i className="bi bi-shield-lock text-lg"></i>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-black text-slate-900 dark:text-white">Privacy Settings</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Control your visibility</p>
-                            </div>
+                    {/* About & Contact Card */}
+                    <div className="bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4">
+                        <div>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">About Me</h3>
+                            <textarea
+                                value={bio}
+                                onChange={(e) => setBio(e.target.value)}
+                                placeholder="Tell others about your study habits, academic goals, or interests..."
+                                className="w-full bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 rounded-xl p-3 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#0066FF] min-h-[90px] resize-none"
+                                disabled={isSaving}
+                            />
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
+                        <div>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Contact Information</h3>
+                            <textarea
+                                value={contactDetails}
+                                onChange={(e) => setContactDetails(e.target.value)}
+                                placeholder="Social links or study group contact handles..."
+                                className="w-full bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 rounded-xl p-3 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#0066FF] min-h-[75px] resize-none"
+                                disabled={isSaving}
+                            />
+                        </div>
+
+                        <div className="flex justify-end pt-1">
+                            <button onClick={handleSaveBioAndContact} disabled={isSaving} className="px-4 py-2 bg-[#0066FF] hover:bg-[#0055D4] text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer">
+                                {isSaving ? 'Saving...' : 'Save Profile Info'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Column: Privacy & Referral Settings */}
+                <div className="space-y-4">
+                    {/* Privacy Settings Card */}
+                    <div className="bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10">
+                        <div className="flex items-center gap-2 mb-3">
+                            <i className="bi bi-shield-check text-[#0066FF] text-base"></i>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Privacy & Visibility</h3>
+                        </div>
+
+                        <div className="space-y-2.5">
+                            <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/5">
                                 <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Contact Details</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show contact to public</p>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white">Contact Details</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Visible to students</p>
                                 </div>
                                 <button
                                     onClick={() => handleTogglePrivacy('public_contact')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_contact ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-10 h-5.5 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_contact ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_contact ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-0.5 left-0.5 bg-white w-4.5 h-4.5 rounded-full transition-transform ${privacySettings.public_contact ? 'translate-x-4.5' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
+                            <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/5">
                                 <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">School Info</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show school to public</p>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white">School Info</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Show institution</p>
                                 </div>
                                 <button
                                     onClick={() => handleTogglePrivacy('public_school')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_school ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-10 h-5.5 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_school ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_school ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-0.5 left-0.5 bg-white w-4.5 h-4.5 rounded-full transition-transform ${privacySettings.public_school ? 'translate-x-4.5' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
+                            <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/5">
                                 <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Department</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show department</p>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white">Department</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Show department</p>
                                 </div>
                                 <button
                                     onClick={() => handleTogglePrivacy('public_department')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_department ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-10 h-5.5 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_department ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_department ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-0.5 left-0.5 bg-white w-4.5 h-4.5 rounded-full transition-transform ${privacySettings.public_department ? 'translate-x-4.5' : 'translate-x-0'}`} />
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/10 last:border-0">
+                            <div className="flex items-center justify-between py-2">
                                 <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Level</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Show level to public</p>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white">Academic Level</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Show level</p>
                                 </div>
                                 <button
                                     onClick={() => handleTogglePrivacy('public_level')}
                                     disabled={isSaving}
-                                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_level ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    className={`w-10 h-5.5 rounded-full transition-colors relative cursor-pointer ${privacySettings.public_level ? 'bg-[#0066FF]' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 >
-                                    <span className={`absolute top-1 left-1 bg-white dark:bg-[#0A0A0A] w-4 h-4 rounded-full transition-transform ${privacySettings.public_level ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    <span className={`absolute top-0.5 left-0.5 bg-white w-4.5 h-4.5 rounded-full transition-transform ${privacySettings.public_level ? 'translate-x-4.5' : 'translate-x-0'}`} />
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-[#0066FF]">
-                                <i className="bi bi-gift text-lg"></i>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-black text-slate-900 dark:text-white">Referrals & Rewards</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Earn 500 AI credits</p>
-                            </div>
+                    {/* Referrals & Rewards Card */}
+                    <div className="bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                            <i className="bi bi-gift text-[#0066FF] text-base"></i>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Referrals & Rewards</h3>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border border-slate-100 dark:border-white/10 text-center">
-                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Your Referral Code</p>
-                                <div className="flex items-center justify-center gap-2">
-                                    <span className="text-2xl font-black text-[#0066FF] tracking-widest">{userProfile.referral_code || '---'}</span>
-                                    {userProfile.referral_code && (
-                                        <button onClick={() => {
-                                            navigator.clipboard.writeText(userProfile.referral_code!);
-                                            addToast('Referral code copied!', 'success');
-                                        }} className="p-2 bg-blue-50 text-[#0066FF] dark:bg-blue-950/40 dark:text-blue-300 rounded-lg hover:bg-blue-100 transition cursor-pointer">
-                                            <i className="bi bi-clipboard text-sm"></i>
-                                        </button>
-                                    )}
-                                </div>
-                                <p className="text-xs text-slate-500 mt-2 font-medium">Friends referred: {userProfile.referrals_count || 0}</p>
+                        <div className="bg-slate-50 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/60 dark:border-white/5 text-center">
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Your Referral Code</p>
+                            <div className="flex items-center justify-center gap-2 mt-1">
+                                <span className="text-xl font-black text-[#0066FF] tracking-widest">{userProfile.referral_code || '---'}</span>
+                                {userProfile.referral_code && (
+                                    <button onClick={() => {
+                                        navigator.clipboard.writeText(userProfile.referral_code!);
+                                        addToast('Referral code copied!', 'success');
+                                    }} className="p-1.5 bg-blue-50 dark:bg-blue-950/40 text-[#0066FF] rounded-lg hover:bg-blue-100 transition cursor-pointer">
+                                        <i className="bi bi-clipboard text-xs"></i>
+                                    </button>
+                                )}
                             </div>
-
-                            {!userProfile.referred_by && (
-                                <div className="pt-4 border-t border-slate-100 dark:border-white/10">
-                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Were you referred by a friend?</p>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={referralCodeInput}
-                                            onChange={(e) => setReferralCodeInput(e.target.value)}
-                                            placeholder="Enter their code"
-                                            className="flex-1 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] uppercase"
-                                        />
-                                        <button
-                                            onClick={handleSubmitReferral}
-                                            disabled={isSubmittingReferral || !referralCodeInput.trim()}
-                                            className="px-4 py-2 bg-[#0066FF] text-white rounded-xl text-sm font-black shadow-sm hover:bg-[#0055D4] transition disabled:opacity-50 whitespace-nowrap cursor-pointer"
-                                        >
-                                            {isSubmittingReferral ? '...' : 'Claim'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            {userProfile.referred_by && (
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
-                                    <p className="text-xs font-bold text-emerald-500 flex items-center justify-center gap-1">
-                                        <i className="bi bi-check-circle-fill"></i>
-                                        <span>You've claimed a referral reward!</span>
-                                    </p>
-                                </div>
-                            )}
+                            <p className="text-[11px] text-slate-500 mt-1 font-medium">Referred friends: {userProfile.referrals_count || 0}</p>
                         </div>
+
+                        {!userProfile.referred_by && (
+                            <div className="pt-2 border-t border-slate-100 dark:border-white/5">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Claim a Friend's Referral</p>
+                                <div className="flex gap-1.5">
+                                    <input
+                                        type="text"
+                                        value={referralCodeInput}
+                                        onChange={(e) => setReferralCodeInput(e.target.value)}
+                                        placeholder="Enter code"
+                                        className="flex-1 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#0066FF] uppercase"
+                                    />
+                                    <button
+                                        onClick={handleSubmitReferral}
+                                        disabled={isSubmittingReferral || !referralCodeInput.trim()}
+                                        className="px-3 py-1.5 bg-[#0066FF] text-white rounded-xl text-xs font-bold hover:bg-[#0055D4] transition disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {isSubmittingReferral ? '...' : 'Claim'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {userProfile.referred_by && (
+                            <div className="pt-2 border-t border-slate-100 dark:border-white/5 text-center">
+                                <p className="text-xs font-bold text-emerald-500 flex items-center justify-center gap-1">
+                                    <i className="bi bi-check-circle-fill"></i>
+                                    <span>Referral reward claimed (+500 credits)</span>
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
