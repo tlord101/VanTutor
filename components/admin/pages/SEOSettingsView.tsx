@@ -1,6 +1,5 @@
+import { db, onValue, ref as dbRef, set } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, onValue, set } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 
 interface SEOSettings {

@@ -1,6 +1,5 @@
+import { db, get, ref as dbRef } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, get } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import { parseSchoolHierarchyRoute } from '../utils/routeUtils';
 import { Level1SchoolsHub } from './hierarchy/Level1SchoolsHub';

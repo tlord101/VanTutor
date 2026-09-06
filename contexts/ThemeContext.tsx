@@ -1,7 +1,7 @@
+import { db, get, ref as dbRef, update } from '@/lib/backend';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { supabaseAuthService } from '../services/supabaseAuthService';
-import { db, ref as dbRef, update, get } from '../firebase';
 
 export type Mode = 'light' | 'dark';
 

@@ -1,6 +1,5 @@
+import { db, get, ref as dbRef, set } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, get, set } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import type { AppSettings, EmailConfig, UsageSettings, TierConfig } from '../../../types';
 import { VoiceProviderSelector } from '../primitives/VoiceProviderSelector';
@@ -385,7 +384,7 @@ export const SystemSettingsView: React.FC = () => {
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
                                     <div key={key} className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
-                                        <input type="text" placeholder="e.g. qwen-plus" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                        <input type="text" placeholder="e.g. qwen/qwen3.7-flash" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
                                     </div>
                                 ))}
                             </div>
@@ -423,12 +422,12 @@ export const SystemSettingsView: React.FC = () => {
                         {/* Avelut AI */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                             <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <i className="bi bi-cpu-fill text-amber-500"></i> Avelut AI (Alibaba DashScope)
+                                <i className="bi bi-cpu-fill text-amber-500"></i> Avelut AI (OpenRouter Qwen 3.7 Flash)
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Global Primary Model (e.g. qwen3.7-flash)" value={appSettings.alibaba_model || ''} onChange={e => setAppSettings({...appSettings, alibaba_model: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
-                                <input type="password" placeholder="Alibaba DashScope API Key" value={appSettings.alibaba_api_key || ''} onChange={e => setAppSettings({...appSettings, alibaba_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
-                                <input type="text" placeholder="Visual Solver Model (e.g. qwen-vl-plus)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm md:col-span-2" />
+                                <input type="text" placeholder="Global Primary Model (qwen/qwen3.7-flash)" value={appSettings.openrouter_model || ''} onChange={e => setAppSettings({...appSettings, openrouter_model: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                <input type="password" placeholder="OpenRouter API Key (sk-or-v1-...)" value={appSettings.openrouter_api_key || ''} onChange={e => setAppSettings({...appSettings, openrouter_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                <input type="password" placeholder="Alibaba API Key (for CosyVoice voice synthesis)" value={appSettings.alibaba_api_key || ''} onChange={e => setAppSettings({...appSettings, alibaba_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm md:col-span-2" />
                             </div>
                         </div>
 

@@ -1,10 +1,9 @@
+import { auth, db, push, ref as dbRef, serverTimestamp as firebaseServerTimestamp, set } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
 import type { Notification } from '../types';
 import { StudyGuideIcon } from './icons/StudyGuideIcon';
 import { NotificationBellIcon } from './icons/NotificationBellIcon';
 import { clearDeliveredNotifications } from '../utils/nativeNotifications';
-import { db, auth } from '../firebase';
-import { ref as dbRef, push, set, serverTimestamp as firebaseServerTimestamp } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 
 const Send: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (

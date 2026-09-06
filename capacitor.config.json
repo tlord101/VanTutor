@@ -28,10 +28,6 @@
       "style": "DARK",
       "resizeOnFullScreen": true
     },
-    "FirebaseAuthentication": {
-      "skipNativeAuth": false,
-      "providers": ["google.com"]
-    },
     "CapacitorUpdater": {
       "autoUpdate": false
     }

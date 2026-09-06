@@ -1,9 +1,6 @@
+import { auth, db, equalTo, functions, get, getDownloadURL, orderByChild, query, ref as dbRef, ref as storageRef, storage, type FirebaseUser, update, uploadBytes, uploadBytesResumable } from '@/lib/backend';
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile } from '../types';
-import { auth, storage, db, functions, type FirebaseUser } from '../firebase';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL, uploadBytes } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
-import { ref as dbRef, get, query, orderByChild, equalTo, update } from 'firebase/database';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { useToast } from '../hooks/useToast';
 import { Avatar } from './Avatar';

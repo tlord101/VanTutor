@@ -1,6 +1,5 @@
+import { db, onValue, ref } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
-import { db } from '../../firebase';
-import { ref, onValue } from 'firebase/database';
 
 export const AppDownloadCTA: React.FC = () => {
     const [downloadUrl, setDownloadUrl] = useState<string>('');

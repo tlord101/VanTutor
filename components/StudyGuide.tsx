@@ -1,8 +1,7 @@
+import { db, get, ref as dbRef, update } from '@/lib/backend';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import { createAvelutAI, getResponseText, Type } from '../utils/inference';
-import { db } from '../firebase';
-import { ref as dbRef, update, get } from 'firebase/database';
 import type { UserProfile, Course, Topic, UserProgress } from '../types';
 import { useApiLimiter } from '../hooks/useApiLimiter';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -472,7 +471,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         try {
             const ai = createAvelutAI(appSettings, userProfile);
             if (!ai) throw new Error('Avelut AI is not configured in App Controls.');
-            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
+            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen/qwen3.7-flash';
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
 
@@ -566,7 +565,7 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         setIsExtractingCourses(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
-            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
+            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen/qwen3.7-flash';
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 

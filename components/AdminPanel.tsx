@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { db, storage, auth } from '../firebase';
-import { ref as dbRef, set, push, update, get, remove, query, limitToLast } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage, auth, ref as dbRef, set, push, update, get, remove, query, limitToLast, storageRef, uploadBytes, getDownloadURL } from '../lib/backend';
 import { Type, createAvelutAI } from '../utils/inference';
 import type { UsageSettings } from '../types';
 import { useToast } from '../hooks/useToast';
@@ -32,7 +30,6 @@ import { EmailsView } from './admin/pages/EmailsView';
 import { TicketsView } from './admin/pages/TicketsView';
 import { CoFoundersView } from './admin/pages/CoFoundersView';
 import { SEOSettingsView } from './admin/pages/SEOSettingsView';
-import { FirebaseAuthUsersView } from './admin/pages/FirebaseAuthUsersView';
 import { FeedbackView } from './admin/pages/FeedbackView';
 import { GitHubIntegrationView } from './admin/pages/GitHubIntegrationView';
 import { AppVersionUpdateView } from './admin/pages/AppVersionUpdateView';
@@ -73,7 +70,7 @@ const normalizeCourseStatus = (value?: string) => {
     return normalized ? normalized.slice(0, MAX_COURSE_STATUS_LENGTH) : '';
 };
 
-type AdminTab = 'dashboard' | 'schools' | 'questions' | 'users' | 'firebase-users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
+type AdminTab = 'dashboard' | 'schools' | 'questions' | 'users' | 'departments' | 'app' | 'app-updates' | 'payments' | 'notifications' | 'emails' | 'email-configs' | 'usage-settings' | 'usage-analytics' | 'purchase-logs' | 'tickets' | 'cofounders' | 'seo' | 'feedback' | 'github-integration';
 
 type CourseAdminView =
     | { mode: 'global' }
@@ -84,7 +81,7 @@ type CourseAdminView =
     | { mode: 'manager-list'; departmentId: string; level: string }
     | { mode: 'manager-detail'; departmentId: string; level: string; courseId: string };
 
-const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'schools', 'departments', 'questions', 'users', 'firebase-users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo', 'github-integration'];
+const DEFAULT_VISIBLE_TABS: AdminTab[] = ['dashboard', 'schools', 'departments', 'questions', 'users', 'notifications', 'feedback', 'emails', 'app', 'app-updates', 'payments', 'email-configs', 'usage-settings', 'usage-analytics', 'purchase-logs', 'tickets', 'cofounders', 'seo', 'github-integration'];
 
 const getCourseAdminView = (pathname: string): CourseAdminView => {
     const segments = pathname.split('/').filter(Boolean);
@@ -380,8 +377,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
-    const aiModel = appSettings.alibaba_model || 'qwen3.7-flash';
-    const aiApiKey = (appSettings.alibaba_api_key || '').trim();
+    const aiModel = appSettings.openrouter_model || 'qwen/qwen3.7-flash';
+    const aiApiKey = (appSettings.openrouter_api_key || '').trim();
     const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
     const [isSavingAppSettings, setIsSavingAppSettings] = useState(false);
     const [isTestingAppSettings, setIsTestingAppSettings] = useState(false);
@@ -1314,6 +1311,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const handleSaveAppSettings = async () => {
         const nextSettings = {
             ...appSettingsDraft,
+            primary_ai_provider: 'openrouter',
+            openrouter_model: (appSettingsDraft.openrouter_model || 'qwen/qwen3.7-flash').trim(),
+            openrouter_api_key: (appSettingsDraft.openrouter_api_key || '').trim(),
             alibaba_model: (appSettingsDraft.alibaba_model || 'qwen3.7-flash').trim(),
             alibaba_api_key: (appSettingsDraft.alibaba_api_key || '').trim(),
             paystack_public_key: (appSettingsDraft.paystack_public_key || '').trim(),
@@ -1341,21 +1341,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     const handleTestAvelutSettings = async () => {
-        const modelToTest = (appSettingsDraft.alibaba_model || 'qwen3.7-flash').trim();
-        const apiKeyToTest = (appSettingsDraft.alibaba_api_key || '').trim();
+        const modelToTest = (appSettingsDraft.openrouter_model || 'qwen/qwen3.7-flash').trim();
+        const apiKeyToTest = (appSettingsDraft.openrouter_api_key || '').trim();
         if (!apiKeyToTest) {
-            addToast('Add an Alibaba DashScope API key before running the hello test.', 'error');
+            addToast('Add an OpenRouter API key before running the hello test.', 'error');
             return;
         }
 
         setIsTestingAppSettings(true);
         try {
-            const testClient = createAvelutAI({ alibaba_api_key: apiKeyToTest, alibaba_model: modelToTest });
+            const testClient = createAvelutAI({ openrouter_api_key: apiKeyToTest, openrouter_model: modelToTest });
             const response = await testClient.models.generateContent({
                 model: modelToTest,
                 contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
             });
-            const responseText = (response as any).text || '';
+            const responseText = (response as any).text ? (typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text) : '';
             const preview = (responseText || '').trim();
             if (!preview) {
                 throw new Error('The test returned an empty response.');
@@ -2847,10 +2847,6 @@ FORMAT:
                     currentUserProfile={userProfile}
                     allDepartments={allDepartments}
                 />
-            )}
-
-            {activeTab === 'firebase-users' && (
-                <FirebaseAuthUsersView adminPin="zFhnR7N8xXtUjiN" />
             )}
 
             {(activeTab === 'payments' || activeTab === 'usage-analytics' || activeTab === 'purchase-logs') && (

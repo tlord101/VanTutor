@@ -1,7 +1,6 @@
+import { FirebaseStorage, deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from '@/lib/backend';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem } from '@capacitor/filesystem';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { FirebaseStorage } from 'firebase/storage';
 
 /**
  * Shared, defensive media-upload helpers.

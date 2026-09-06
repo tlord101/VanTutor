@@ -1,7 +1,5 @@
+import { auth as firebaseAuth, db, get, getDownloadURL, push, ref as dbRef, ref as storageRef, set, storage, update, uploadBytes } from '@/lib/backend';
 import { useState, useMemo } from 'react';
-import { db, storage, auth as firebaseAuth } from '../firebase';
-import { ref as dbRef, get, set, update, push } from 'firebase/database';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
 import { createAvelutAI, getResponseText, Type } from '../utils/inference';
 import { useApiLimiter } from './useApiLimiter';
@@ -93,7 +91,7 @@ export const useSharedTextbookUpload = () => {
     const { addToast } = useToast();
     const { attemptApiCall } = useApiLimiter();
     const { settings: appSettings } = useAppSettings();
-    const aiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || 'qwen-plus';
+    const aiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || appSettings?.openrouter_model || 'qwen/qwen3.7-flash';
     const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
 
     const [uploadProgress, setUploadProgress] = useState<{ status: string; percent: number } | null>(null);

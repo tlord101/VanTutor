@@ -1,7 +1,6 @@
+import { db, limitToLast, off, onValue, orderByChild, query, ref as dbRef } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
-import { db } from '../firebase';
-import { ref as dbRef, onValue, off, query, orderByChild, limitToLast } from 'firebase/database';
 import type { UserProfile, LeaderboardEntry } from '../types';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';

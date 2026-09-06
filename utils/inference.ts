@@ -1,5 +1,5 @@
 import type { AppSettings, UserProfile } from '../types';
-import { getAlibabaApiKey } from './appSettings';
+import { getOpenRouterApiKey, getAlibabaApiKey } from './appSettings';
 
 /**
  * Universal JSON Schema Type Enum (replaces @google/genai Type)
@@ -268,32 +268,22 @@ function paramsToChatMessages(params: any): { systemPrompt: string; messages: Ar
   return { systemPrompt, messages };
 }
 
+export const OPENROUTER_MODEL = 'qwen/qwen3.7-flash';
+
 /**
- * Normalizes model names to valid Alibaba DashScope Qwen models
+ * Normalizes model names to OpenRouter Qwen 3.7 Flash
  */
-export function normalizeQwenModelName(model?: string, hasImage: boolean = false): string {
-  if (hasImage) return 'qwen-vl-plus';
-  if (!model || typeof model !== 'string') return 'qwen-plus';
-  const lower = model.toLowerCase().trim();
-  if (lower.includes('turbo') || lower.includes('lite') || lower.includes('flash')) return 'qwen-turbo';
-  if (lower.includes('max') || lower.includes('pro')) return 'qwen-max';
-  if (lower.includes('vl') || lower.includes('vision') || lower.includes('image')) return 'qwen-vl-plus';
-  if (lower === 'qwen-plus' || lower === 'qwen-turbo' || lower === 'qwen-max' || lower === 'qwen-vl-plus' || lower === 'qwen-vl-max') {
-    return lower;
-  }
-  return 'qwen-plus';
+export function normalizeQwenModelName(_model?: string, _hasImage: boolean = false): string {
+  return OPENROUTER_MODEL;
 }
 
 /**
- * Call Alibaba DashScope / OpenAI compatible endpoint (Non-Streaming)
+ * Call OpenRouter endpoint with qwen/qwen3.7-flash (Non-Streaming)
  */
-async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
-  const apiKey = getAlibabaApiKey(appSettings);
+async function callOpenRouterQwen(params: any, appSettings: AppSettings): Promise<any> {
+  const apiKey = getOpenRouterApiKey(appSettings);
   const { messages } = paramsToChatMessages(params);
-  const hasImage = messages.some((m: any) =>
-    Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
-  );
-  const model = normalizeQwenModelName(params?.model || appSettings?.alibaba_model, hasImage);
+  const model = OPENROUTER_MODEL;
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -301,8 +291,8 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
   );
 
   const endpoints = isNative
-    ? ['https://www.avelut.xyz/api/alibaba-chat', '/api/alibaba-chat']
-    : ['/api/alibaba-chat', 'https://www.avelut.xyz/api/alibaba-chat'];
+    ? ['https://openrouter.ai/api/v1/chat/completions', 'https://www.avelut.xyz/api/openrouter-chat', '/api/openrouter-chat']
+    : ['https://openrouter.ai/api/v1/chat/completions', '/api/openrouter-chat', 'https://www.avelut.xyz/api/openrouter-chat'];
 
   const bodyPayload: any = {
     model,
@@ -322,6 +312,8 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://avelut.xyz',
+        'X-Title': 'Avelut AI',
       };
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
@@ -335,7 +327,7 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Alibaba HTTP ${response.status}: ${errorText}`);
+        throw new Error(`OpenRouter HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
@@ -363,19 +355,16 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
     }
   }
 
-  throw lastError || new Error('Alibaba Qwen inference request failed');
+  throw lastError || new Error('OpenRouter Qwen 3.7 Flash inference request failed');
 }
 
 /**
- * Call Alibaba DashScope / OpenAI compatible endpoint with Server-Sent Events (SSE) Streaming
+ * Call OpenRouter endpoint with Server-Sent Events (SSE) Streaming
  */
-async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
-  const apiKey = getAlibabaApiKey(appSettings);
+async function* callOpenRouterQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
+  const apiKey = getOpenRouterApiKey(appSettings);
   const { messages } = paramsToChatMessages(params);
-  const hasImage = messages.some((m: any) =>
-    Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
-  );
-  const model = normalizeQwenModelName(params?.model || appSettings?.alibaba_model, hasImage);
+  const model = OPENROUTER_MODEL;
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -383,8 +372,8 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
   );
 
   const endpoints = isNative
-    ? ['https://www.avelut.xyz/api/alibaba-chat', '/api/alibaba-chat']
-    : ['/api/alibaba-chat', 'https://www.avelut.xyz/api/alibaba-chat'];
+    ? ['https://openrouter.ai/api/v1/chat/completions', 'https://www.avelut.xyz/api/openrouter-chat', '/api/openrouter-chat']
+    : ['https://openrouter.ai/api/v1/chat/completions', '/api/openrouter-chat', 'https://www.avelut.xyz/api/openrouter-chat'];
 
   const bodyPayload: any = {
     model,
@@ -406,6 +395,8 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://avelut.xyz',
+        'X-Title': 'Avelut AI',
       };
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
@@ -421,7 +412,7 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
         break;
       } else {
         const errText = await response.text();
-        throw new Error(`Alibaba SSE HTTP ${response.status}: ${errText}`);
+        throw new Error(`OpenRouter SSE HTTP ${response.status}: ${errText}`);
       }
     } catch (err: any) {
       lastError = err;
@@ -430,8 +421,7 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
   }
 
   if (!response || !response.body) {
-    // Fallback to non-streaming if stream connection fails
-    const fallbackResult = await callAlibabaQwen(params, appSettings);
+    const fallbackResult = await callOpenRouterQwen(params, appSettings);
     yield fallbackResult;
     return;
   }
@@ -451,7 +441,7 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith(':')) continue; // Skip comments/keep-alive
+        if (!trimmed || trimmed.startsWith(':')) continue;
 
         if (trimmed === 'data: [DONE]') {
           return;
@@ -461,26 +451,14 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
           const jsonStr = trimmed.slice(5).trim();
           try {
             const parsed = JSON.parse(jsonStr);
-            
-            // 1. Standard Chat Completions format
+
             const delta = parsed?.choices?.[0]?.delta;
             let deltaText = delta?.content || '';
-            let reasoningText = delta?.reasoning_content || '';
+            let reasoningText = delta?.reasoning || delta?.reasoning_content || '';
+            if (!reasoningText && parsed?.choices?.[0]?.message?.reasoning) {
+              reasoningText = parsed.choices[0].message.reasoning;
+            }
             let finishReason = parsed?.choices?.[0]?.finish_reason || null;
-
-            // 2. OpenAI / DashScope Responses API event format
-            if (parsed?.type === 'response.output_text.delta' && parsed?.delta) {
-              deltaText = parsed.delta;
-            } else if (parsed?.type === 'response.completed') {
-              finishReason = 'stop';
-            }
-
-            // 3. DashScope native output format
-            if (!deltaText && parsed?.output?.choices?.[0]?.message?.content) {
-              deltaText = parsed.output.choices[0].message.content;
-            } else if (!deltaText && parsed?.output?.text) {
-              deltaText = parsed.output.text;
-            }
 
             const usage = parsed?.usage || parsed?.response?.usage;
 
@@ -516,8 +494,8 @@ async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): As
 }
 
 /**
- * Centralized client factory that instantiates the Alibaba Cloud Qwen AI client.
- * Provides high-speed flagship reasoning with Qwen3.7-Flash and SSE streaming.
+ * Centralized client factory that instantiates the OpenRouter Qwen 3.7 Flash AI client.
+ * Provides high-speed flagship reasoning with qwen/qwen3.7-flash and SSE streaming across all features.
  */
 export const createAvelutAI = (
   appSettings: AppSettings,
@@ -526,10 +504,10 @@ export const createAvelutAI = (
   return {
     models: {
       generateContent: async (params: any) => {
-        return await callAlibabaQwen(params, appSettings);
+        return await callOpenRouterQwen(params, appSettings);
       },
       generateContentStream: async (params: any) => {
-        const streamGen = callAlibabaQwenStream(params, appSettings);
+        const streamGen = callOpenRouterQwenStream(params, appSettings);
         const asyncIterable = {
           [Symbol.asyncIterator]: () => streamGen,
           stream: streamGen,
@@ -543,7 +521,7 @@ export const createAvelutAI = (
     },
     interactions: {
       create: async (params: any) => {
-        return await callAlibabaQwen(params, appSettings);
+        return await callOpenRouterQwen(params, appSettings);
       },
     },
   };

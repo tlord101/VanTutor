@@ -1,3 +1,4 @@
+import { auth, db, get, increment, limitToLast, off, onAuthStateChanged, onDisconnect, onValue, push, query, ref as dbRef, remove, serverTimestamp as firebaseServerTimestamp, set, storage, type FirebaseUser, update } from '@/lib/backend';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { readCachedJson, writeCachedJson } from '../utils/cache';
 import type { UserProfile } from '../types';
@@ -7,8 +8,6 @@ import ReactMarkdown from 'react-markdown';
 import { Avatar } from './Avatar';
 import { VerificationBadge } from './VerificationBadge';
 import { StreakBadge } from './StreakBadge';
-import { db, storage, auth, onAuthStateChanged, type FirebaseUser } from '../firebase';
-import { ref as dbRef, onValue, off, set, push, update, onDisconnect, get, remove, serverTimestamp as firebaseServerTimestamp, query, limitToLast, increment } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
 import { playBubbleSound, playReceiveSound } from '../utils/sound';
 import { sourceToBlob, uploadBlobWithRetry, type SourceBlob } from '../utils/mediaUpload';

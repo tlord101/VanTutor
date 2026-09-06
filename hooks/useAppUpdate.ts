@@ -1,9 +1,8 @@
+import { db, get, ref as dbRef } from '@/lib/backend';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { AppUpdate, AppUpdateAvailability } from '@capawesome/capacitor-app-update';
-import { db } from '../firebase';
-import { get, ref as dbRef } from 'firebase/database';
 
 const PLAYSTORE_UPDATE_PATH = 'app_updates/playstore/latest';
 const PLAYSTORE_PACKAGE_ID = 'com.avelut.app';

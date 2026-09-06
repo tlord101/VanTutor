@@ -1,6 +1,5 @@
+import { db, get, ref as dbRef, set, update } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { ref as dbRef, get, update, set } from 'firebase/database';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';

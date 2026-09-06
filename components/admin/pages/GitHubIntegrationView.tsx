@@ -1,6 +1,5 @@
+import { db, onValue, ref, set } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../firebase';
-import { ref, set, onValue } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 
 interface GithubSettings {

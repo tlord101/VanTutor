@@ -270,12 +270,15 @@ export interface UsageSettings {
 }
 
 export type VoiceProvider = 'grok' | 'alibaba' | 'browser';
-export type AIProvider = 'alibaba_qwen';
+export type AIProvider = 'openrouter' | 'alibaba_qwen';
 
 export interface AppSettings {
   show_playstore_modal?: boolean;
   playstore_modal_collect_emails?: boolean;
   primary_ai_provider?: AIProvider;
+  openrouter_api_key?: string;
+  openrouter_model?: string;
+  openrouter_base_url?: string;
   alibaba_api_key?: string;
   alibaba_base_url?: string;
   alibaba_model?: string;

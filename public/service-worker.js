@@ -47,12 +47,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip non-GET requests and Firebase Database / Auth / Functions / API requests
+  // Skip non-GET requests and Supabase / OpenRouter / API requests
   if (
     event.request.method !== 'GET' ||
-    url.origin.includes('firebaseio.com') ||
-    url.origin.includes('googleapis.com') ||
-    url.origin.includes('identitytoolkit') ||
+    url.origin.includes('supabase.co') ||
+    url.origin.includes('openrouter.ai') ||
     url.pathname.includes('/study_guide_messages')
   ) {
     return;

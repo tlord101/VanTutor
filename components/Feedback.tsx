@@ -1,7 +1,6 @@
+import { db, push, ref as dbRef, serverTimestamp, set } from '@/lib/backend';
 import React, { useState } from 'react';
 import type { UserProfile } from '../types';
-import { db } from '../firebase';
-import { ref as dbRef, push, serverTimestamp, set } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 
 interface FeedbackProps {

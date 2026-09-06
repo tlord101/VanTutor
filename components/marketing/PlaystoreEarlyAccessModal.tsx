@@ -1,7 +1,6 @@
+import { db, push, ref, serverTimestamp } from '@/lib/backend';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../../firebase';
-import { ref, push, serverTimestamp } from 'firebase/database';
 import { useAppSettings } from '../../hooks/useAppSettings';
 
 interface PlaystoreModalProps {

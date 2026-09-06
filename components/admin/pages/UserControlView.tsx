@@ -1,6 +1,5 @@
+import { db, ref as dbRef, remove, update } from '@/lib/backend';
 import React, { useState } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, update, remove } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
 import { DEFAULT_USAGE_SETTINGS } from '../../../utils/appSettings';

@@ -1,6 +1,6 @@
+import { db, get, off, onValue, push, ref as dbRef, remove, serverTimestamp, set, update } from '@/lib/backend';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createAvelutAI, getResponseText } from '../utils/inference';
-import { db, ref as dbRef, onValue, off, set, push, get, remove, serverTimestamp, update } from '../firebase';
 import type { UserProfile, Message, ChatConversation } from '../types';
 import { useToast } from '../hooks/useToast';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';

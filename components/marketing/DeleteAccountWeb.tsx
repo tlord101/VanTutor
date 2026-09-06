@@ -1,6 +1,5 @@
+import { db, push, ref as dbRef, serverTimestamp, set } from '@/lib/backend';
 import React, { useState } from 'react';
-import { db } from '../../firebase';
-import { ref as dbRef, push, set, serverTimestamp } from 'firebase/database';
 import { SEOHead } from '../SEOHead';
 import { useToast } from '../../hooks/useToast';
 

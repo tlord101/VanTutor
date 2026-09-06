@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, get, update } from 'firebase/database';
+import { db, ref as dbRef, get, update } from '@/lib/backend';
 import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
@@ -92,12 +91,10 @@ export const HybridCourseDrawer: React.FC<HybridCourseDrawerProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const aiApiKey = appSettings.alibaba_api_key?.trim() || '';
+    const aiApiKey = appSettings.openrouter_api_key?.trim() || appSettings.alibaba_api_key?.trim() || '';
     const aiClient = useRef<any>(null);
     useEffect(() => {
-        if (aiApiKey) {
-            aiClient.current = createAvelutAI(appSettings);
-        }
+        aiClient.current = createAvelutAI(appSettings);
     }, [aiApiKey, appSettings]);
 
     const toggleDeptSelection = (deptId: string) => {
@@ -231,7 +228,7 @@ OUTPUT ONLY A VALID JSON OBJECT:
   ]
 }`;
 
-            const modelName = appSettings.alibaba_model || 'qwen-plus';
+            const modelName = appSettings.openrouter_model || 'qwen/qwen3.7-flash';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [

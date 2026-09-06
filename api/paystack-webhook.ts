@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
+import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
 export type VercelRequest = IncomingMessage & {
   body: any;
@@ -12,13 +14,16 @@ export type VercelResponse = ServerResponse & {
   json: (jsonBody: any) => VercelResponse;
   status: (statusCode: number) => VercelResponse;
 };
-import crypto from 'crypto';
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://eywpksapztzbnthlgfhd.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5d3Brc2FwenR6Ym50aGxnZmhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjc5MzYsImV4cCI6MjEwMzYwMzkzNn0.uLZ-LBLWBmcgZYHnSDkbMV-BJA26I9x-pGDTZZxzyPI';
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 async function getRawBody(req: VercelRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -32,8 +37,6 @@ async function getRawBody(req: VercelRequest): Promise<Buffer> {
 /**
  * Paystack Webhook Handler for Vercel
  * Endpoint: POST /api/paystack-webhook
- *
- * Paystack calls this endpoint when events like `charge.success` occur.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -54,7 +57,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Error reading request body' });
   }
 
-  // 1. Verify Paystack Signature (x-paystack-signature)
   try {
     const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(rawBuffer).digest('hex');
     const signatureHeader = Array.isArray(req.headers['x-paystack-signature'])
@@ -78,13 +80,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid JSON payload' });
   }
 
-  // 2. Process charge.success event
   if (event?.event === 'charge.success') {
     const data = event.data || {};
     const reference = data.reference;
     const metadata = data.metadata || {};
     const customFields = Array.isArray(metadata.custom_fields) ? metadata.custom_fields : [];
-    const paymentLogId = metadata.payment_log_id || metadata.paymentLogId;
 
     const uidField = customFields.find((f: any) => f?.variable_name === 'user_id');
     const typeField = customFields.find((f: any) => f?.variable_name === 'purchase_type');
@@ -98,95 +98,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!uid) {
       console.error('Paystack webhook charge.success missing user_id in metadata');
-      return res.status(200).send('OK'); // Return 200 so Paystack stops retrying
-    }
-
-    const firebaseDbUrl = process.env.VITE_FIREBASE_DATABASE_URL || 'https://tlord-1ab38-default-rtdb.firebaseio.com';
-    const databaseSecret = process.env.FIREBASE_DATABASE_SECRET;
-
-    if (!databaseSecret) {
-      console.warn('FIREBASE_DATABASE_SECRET is missing. Logging webhook transaction for manual sync.');
-      console.log(`Verified payment for user ${uid}, ref: ${reference}, amount: ${verifiedAmountNgn}, type: ${purchaseType}, plan: ${planKey}`);
       return res.status(200).send('OK');
     }
 
     try {
-      // 3. Check if transaction was already processed
-      const checkTxUrl = `${firebaseDbUrl}/processed_transactions/${reference}.json?auth=${databaseSecret}`;
-      const txCheckRes = await fetch(checkTxUrl);
-      const existingTx = await txCheckRes.json();
-
-      if (existingTx && existingTx !== null && existingTx !== 'null') {
-        console.log(`Transaction ${reference} already processed.`);
-        return res.status(200).send('OK');
-      }
-
-      // 4. Update user profile in Firebase Realtime Database
-      const userUrl = `${firebaseDbUrl}/users/${uid}.json?auth=${databaseSecret}`;
-      const userRes = await fetch(userUrl);
-      const currentUser = await userRes.json() || {};
-
-      const updates: Record<string, any> = {
-        is_activated: true,
-        last_payment_reference: reference,
-        last_payment_at: Date.now(),
-      };
-
       if (purchaseType === 'subscription') {
-        const creditAllocations: Record<string, number> = {
-          weekly: 500,
-          basic: 500,
-          monthly: 2500,
-          premium: 2500,
-          semester: 8000,
-        };
-        const creditAlloc = creditAllocations[planKey] || 500;
-        updates.subscription_status = planKey || 'weekly';
-        updates.ai_credits_balance = creditAlloc;
-      } else if (purchaseType === 'additional_credits') {
-        const currentBal = typeof currentUser.ai_credits_balance === 'number' ? currentUser.ai_credits_balance : 0;
-        updates.ai_credits_balance = currentBal + (verifiedAmountNgn || 0);
-      }
+        await supabaseAdmin.from('profiles').update({
+          is_paid_subscriber: true,
+          updated_at: new Date().toISOString(),
+        }).eq('id', uid);
 
-      // Perform user update via PATCH
-      await fetch(userUrl, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-
-      // 5. Record processed transaction
-      await fetch(checkTxUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid,
-          purchaseType,
-          planKey: purchaseType === 'subscription' ? planKey : null,
-          creditAmount: purchaseType === 'additional_credits' ? verifiedAmountNgn : null,
-          reference,
-          timestamp: Date.now(),
-        }),
-      });
-
-      // 6. Update payment log status if ID present
-      if (paymentLogId) {
-        const logUrl = `${firebaseDbUrl}/usage_logs/payments/${paymentLogId}.json?auth=${databaseSecret}`;
-        await fetch(logUrl, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            status: 'success',
-            reference,
-            user_id: uid,
-            last_updated_at: Date.now(),
-          }),
+        await supabaseAdmin.from('subscriptions').upsert({
+          user_id: uid,
+          plan_type: planKey || 'monthly',
+          status: 'active',
+          paystack_reference: reference,
+          starts_at: new Date().toISOString(),
         });
+      } else {
+        const creditMap: Record<number, number> = {
+          500: 500,
+          1000: 1100,
+          2000: 2400,
+          5000: 6500,
+        };
+        const creditsToAdd = creditMap[verifiedAmountNgn] || Math.round(verifiedAmountNgn);
+
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('ai_credits')
+          .eq('id', uid)
+          .maybeSingle();
+
+        const currentCredits = profile?.ai_credits || 0;
+        await supabaseAdmin.from('profiles').update({
+          ai_credits: currentCredits + creditsToAdd,
+          updated_at: new Date().toISOString(),
+        }).eq('id', uid);
       }
 
-      console.log(`Successfully processed Paystack webhook for user ${uid}, ref: ${reference}`);
+      console.log(\Successfully processed Paystack webhook for user \, ref: \\);
     } catch (dbErr) {
-      console.error('Error updating Firebase RTDB from Vercel Webhook:', dbErr);
+      console.error('Error updating Supabase from Vercel Webhook:', dbErr);
       return res.status(500).json({ error: 'Database update failed' });
     }
   }

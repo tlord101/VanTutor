@@ -1,6 +1,5 @@
+import { db, onValue, ref as dbRef, remove, update } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, onValue, update, remove } from 'firebase/database';
 import type { Feedback } from '../../../types';
 import { useToast } from '../../../hooks/useToast';
 

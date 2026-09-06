@@ -1,3 +1,4 @@
+import { auth } from '@/lib/backend';
 import React, { useState, useEffect, useRef } from 'react';
 import { LiveWhiteboardCanvas, BoardElement } from './LiveWhiteboardCanvas';
 import { EquationStepAnimator } from './EquationStepAnimator';
@@ -10,7 +11,6 @@ import { PedagogicalStateMachine } from '../../services/pedagogicalStateMachine'
 import { parseLessonScript, ParsedLessonScript } from '../../utils/lessonScriptParser';
 import { saveTutorialOffline } from '../../services/offlineTutorialStorage';
 import { useToast } from '../../hooks/useToast';
-import { auth } from '../../firebase';
 
 export interface LiveSynchronizedTutorialViewProps {
   topicTitle: string;

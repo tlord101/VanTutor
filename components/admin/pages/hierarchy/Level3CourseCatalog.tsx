@@ -1,6 +1,5 @@
+import { db, get, ref as dbRef, update } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../../firebase';
-import { ref as dbRef, get, update } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { SmartDeleteModal } from '../../primitives/SmartDeleteModal';

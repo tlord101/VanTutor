@@ -1,6 +1,5 @@
+import { db, get, orderByChild, query, ref } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
-import { ref, get, query, orderByChild } from 'firebase/database';
-import { db } from '../../firebase';
 import { SEOHead } from '../SEOHead';
 
 interface CoFounder {

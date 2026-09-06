@@ -1,6 +1,5 @@
+import { db, onValue, push, ref as dbRef, remove, set, update } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, onValue, push, set, remove, update } from 'firebase/database';
 import { useToast } from '../../../hooks/useToast';
 
 interface CoFounder {

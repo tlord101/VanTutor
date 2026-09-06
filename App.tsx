@@ -1,6 +1,6 @@
+import { auth as firebaseAuth, db, firebaseSignOut, get, off, onAuthStateChanged, onDisconnect, onValue, push, ref as dbRef, serverTimestamp, set, type FirebaseUser, update, updateProfile } from '@/lib/backend';
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import { readCachedJson, writeCachedJson, clearCachedKey, initCacheFromSqlite } from './utils/cache';
-import { auth as firebaseAuth, firebaseSignOut, db, onAuthStateChanged, updateProfile, type FirebaseUser, ref as dbRef, onValue, off, set, push, update, onDisconnect, serverTimestamp, get } from './firebase';
 import { DEFAULT_USAGE_SETTINGS } from './utils/appSettings';
 import type { UserProfile, UserProgress, DashboardData, Notification as NotificationType, ExamHistoryItem, Course, DashboardAssessment, HeaderConfig, ChatConversation } from './types';
 import { awardDailyStreak } from './utils/streaks';

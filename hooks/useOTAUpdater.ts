@@ -1,7 +1,6 @@
+import { db, get, onValue, ref as dbRef } from '@/lib/backend';
 import { useState, useEffect, useCallback } from 'react';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
-import { db } from '../firebase';
-import { ref as dbRef, onValue, get } from 'firebase/database';
 import { Capacitor } from '@capacitor/core';
 
 export type OTAUpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready';

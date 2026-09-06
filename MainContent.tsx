@@ -1,6 +1,6 @@
+import { FirebaseUser } from '@/lib/backend';
 import React, { Suspense, lazy } from 'react';
 import { writeCachedJson } from './utils/cache';
-import type { FirebaseUser } from './firebase';
 import type { UserProfile, UserProgress, DashboardData, AppSettings, ChatConversation } from './types';
 import {
     DashboardSkeleton,

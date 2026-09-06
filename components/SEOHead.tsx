@@ -1,6 +1,6 @@
+import { db, onValue, ref as dbRef } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { db, ref as dbRef, onValue } from '../firebase';
 
 interface SEOHeadProps {
     title?: string;

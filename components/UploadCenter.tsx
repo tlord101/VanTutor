@@ -1,8 +1,6 @@
+import { auth as firebaseAuth, createUserWithEmailAndPassword, db, deleteObject, firebaseSignOut, get, getDownloadURL, onAuthStateChanged, onValue, push, ref as dbRef, ref as storageRef, remove, set, signInWithEmailAndPassword, storage, update, uploadBytes } from '@/lib/backend';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createAvelutAI, getResponseText, Type } from '../utils/inference';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, auth as firebaseAuth, firebaseSignOut, onAuthStateChanged, db, storage } from '../firebase';
-import { ref as dbRef, get, onValue, push, set, update, remove } from 'firebase/database';
-import { ref as storageRef, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 import { useToast } from '../hooks/useToast';
 import { getFeatureModel } from '../utils/usage';
 import { useApiLimiter } from '../hooks/useApiLimiter';

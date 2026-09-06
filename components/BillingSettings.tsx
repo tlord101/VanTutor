@@ -1,11 +1,10 @@
+import { db, equalTo, get, orderByChild, query, ref as dbRef } from '@/lib/backend';
 import React, { useState, useEffect } from 'react';
 import type { UserProfile, AppSettings } from '../types';
 import { VerificationBadge } from './VerificationBadge';
 import { DEFAULT_USAGE_SETTINGS } from '../utils/appSettings';
 import { Browser } from '@capacitor/browser';
 import { isNative } from '../utils/capacitorUtils';
-import { db } from '../firebase';
-import { ref as dbRef, query, orderByChild, equalTo, get } from 'firebase/database';
 
 interface BillingSettingsProps {
   userProfile: UserProfile;

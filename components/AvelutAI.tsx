@@ -1,7 +1,7 @@
+import { db, off, onValue, ref as dbRef } from '@/lib/backend';
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, ChatConversation } from '../types';
 import { Chat } from './Chat';
-import { db, ref as dbRef, onValue, off } from '../firebase';
 import { getLocalConversations } from '../services/chatStorageService';
 
 interface AvelutAIProps {

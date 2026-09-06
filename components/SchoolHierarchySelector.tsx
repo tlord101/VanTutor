@@ -310,7 +310,7 @@ Task:
 Return ONLY a valid JSON array of up to 4 university names (e.g. ["University of Lagos", "Federal University of Petroleum Resources Effurun"]). No markdown blocks or commentary.`;
 
       const response = await ai.models.generateContent({
-        model: 'qwen-turbo',
+        model: 'qwen/qwen3.7-flash',
         contents: prompt,
         config: { maxOutputTokens: 200 }
       });
@@ -381,7 +381,7 @@ Task:
 Return ONLY valid JSON.`;
 
       const response = await ai.models.generateContent({
-        model: 'qwen-turbo',
+        model: 'qwen/qwen3.7-flash',
         contents: prompt,
         config: { maxOutputTokens: 250 }
       });

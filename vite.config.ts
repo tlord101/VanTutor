@@ -58,13 +58,6 @@ export default defineConfig(({ command, mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
-          // Full Firebase removal: map SDK import paths → Supabase shims
-          'firebase/app': path.resolve(__dirname, 'lib/shims/firebase-app.ts'),
-          'firebase/auth': path.resolve(__dirname, 'lib/shims/firebase-auth.ts'),
-          'firebase/database': path.resolve(__dirname, 'lib/database.ts'),
-          'firebase/storage': path.resolve(__dirname, 'lib/shims/firebase-storage.ts'),
-          'firebase/functions': path.resolve(__dirname, 'lib/shims/firebase-functions.ts'),
-          'firebase/messaging': path.resolve(__dirname, 'lib/shims/firebase-messaging.ts'),
         }
       },
       build: {

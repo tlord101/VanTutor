@@ -1,11 +1,9 @@
+import { db, get, ref as dbRef, set, update } from '@/lib/backend';
 import React, { useState, useMemo } from 'react';
-import { db } from '../../../../firebase';
-import { ref as dbRef, update, set } from 'firebase/database';
 import { useToast } from '../../../../hooks/useToast';
 import { InlineEditableText } from '../../primitives/InlineEditableText';
 import { SmartDeleteModal } from '../../primitives/SmartDeleteModal';
 import { SlideOverDrawer } from '../../primitives/SlideOverDrawer';
-import { get } from 'firebase/database';
 import { BreadcrumbNavigation } from '../../primitives/BreadcrumbNavigation';
 import { Building2, GraduationCap, Plus, Trash2, ArrowRight, BookOpen, ArrowUpDown, Search, Loader2 } from 'lucide-react';
 

@@ -178,7 +178,7 @@ export class TeachingEngineService {
       });
 
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+        model: this.appSettings.openrouter_model || 'qwen/qwen3.7-flash',
         contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
         config: { responseMimeType: 'application/json', temperature: 0.3 },
       });
@@ -288,7 +288,7 @@ export class TeachingEngineService {
     });
 
     const response = await ai.models.generateContent({
-      model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+      model: this.appSettings.openrouter_model || 'qwen/qwen3.7-flash',
       contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
       config: { responseMimeType: 'application/json', temperature: 0.35 },
     });
@@ -503,7 +503,7 @@ export class TeachingEngineService {
         studentAnswer: params.studentAnswer,
       });
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+        model: this.appSettings.openrouter_model || 'qwen/qwen3.7-flash',
         contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
         config: { responseMimeType: 'application/json', temperature: 0.3 },
       });
@@ -537,7 +537,7 @@ export class TeachingEngineService {
       if (!ai) throw new Error('AI client could not be initialized');
       const prompt = buildFinalTestPrompt({ topic: this.currentStructure.topic, teachingStructure: this.currentStructure });
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+        model: this.appSettings.openrouter_model || 'qwen/qwen3.7-flash',
         contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
         config: { responseMimeType: 'application/json', temperature: 0.25 },
       });
@@ -579,7 +579,7 @@ export class TeachingEngineService {
         studentQuestion: params.studentQuestion,
       });
       const response = await ai.models.generateContent({
-        model: this.appSettings.alibaba_model || 'qwen3.7-flash',
+        model: this.appSettings.openrouter_model || 'qwen/qwen3.7-flash',
         contents: [{ role: 'user', parts: [{ text: `${TEACHING_DIRECTOR_SYSTEM_PROMPT}\n\n${prompt}` }] }],
         config: { responseMimeType: 'application/json', temperature: 0.3 },
       });

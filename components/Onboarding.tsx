@@ -1,5 +1,5 @@
+import { type FirebaseUser } from '@/lib/backend';
 import React, { useState } from 'react';
-import { type FirebaseUser } from '../firebase';
 import { SchoolHierarchySelector } from './SchoolHierarchySelector';
 
 interface OnboardingProps {

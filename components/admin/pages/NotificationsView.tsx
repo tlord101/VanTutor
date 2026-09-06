@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { db, auth } from '../../../firebase';
-import { ref as dbRef, push, update, set } from 'firebase/database';
+import { db, auth, ref as dbRef, push, update, set } from '@/lib/backend';
 import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import type { UserProfile } from '../../../types';
@@ -15,7 +14,7 @@ interface NotificationsViewProps {
 export const NotificationsView: React.FC<NotificationsViewProps> = ({ 
     allUsersList, 
     aiApiKey,
-    aiModel = 'qwen3.7-flash',
+    aiModel = 'qwen/qwen3.7-flash',
     refreshSentNotifications 
 }) => {
     const { addToast } = useToast();
@@ -28,7 +27,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     const [notificationRoute, setNotificationRoute] = useState('dashboard');
     const [isSendingPush, setIsSendingPush] = useState(false);
 
-    const ai = createAvelutAI({ alibaba_api_key: aiApiKey, alibaba_model: aiModel } as any);
+    const ai = createAvelutAI({ openrouter_api_key: aiApiKey, openrouter_model: aiModel } as any);
 
     const notificationRoutes = [
         { value: 'dashboard', label: 'Dashboard' },

@@ -162,13 +162,13 @@ export const DEFAULT_USAGE_SETTINGS = {
     study_guide_extraction: 10,
   },
   feature_models: {
-    visual_solve: 'qwen3.7-flash',
-    chat_interaction: 'qwen3.7-flash',
-    flashcard_generation: 'qwen3.7-flash',
-    ai_quiz_generation: 'qwen3.7-flash',
-    study_guide_lesson: 'qwen3.7-flash',
-    study_guide_extraction: 'qwen3.7-flash',
-    title_generation: 'qwen3.7-flash',
+    visual_solve: 'qwen/qwen3.7-flash',
+    chat_interaction: 'qwen/qwen3.7-flash',
+    flashcard_generation: 'qwen/qwen3.7-flash',
+    ai_quiz_generation: 'qwen/qwen3.7-flash',
+    study_guide_lesson: 'qwen/qwen3.7-flash',
+    study_guide_extraction: 'qwen/qwen3.7-flash',
+    title_generation: 'qwen/qwen3.7-flash',
   },
   additional_prices: {
     live_tutorial_pass: 150,
@@ -183,7 +183,10 @@ export const DEFAULT_USAGE_SETTINGS = {
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  primary_ai_provider: 'alibaba_qwen',
+  primary_ai_provider: 'openrouter',
+  openrouter_api_key: '',
+  openrouter_model: 'qwen/qwen3.7-flash',
+  openrouter_base_url: 'https://openrouter.ai/api/v1',
   alibaba_api_key: '',
   alibaba_base_url: 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
   alibaba_model: 'qwen3.7-flash',
@@ -211,9 +214,34 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
 };
 
 /**
- * Central resolution helper for Alibaba Cloud (DashScope / Model Studio) API Key.
+ * Central resolution helper for OpenRouter API Key.
+ * Priority: AppSettings -> Environment variables -> User hardcoded fallback.
+ */
+export const getOpenRouterApiKey = (appSettings?: AppSettings | Partial<AppSettings> | null): string => {
+  const fromSettings = appSettings?.openrouter_api_key?.trim();
+  if (fromSettings) {
+    return fromSettings;
+  }
+
+  let fromEnv = '';
+  try {
+    const metaEnv = (import.meta as any)?.env;
+    if (metaEnv) {
+      fromEnv = metaEnv.VITE_OPENROUTER_API_KEY || metaEnv.OPENROUTER_API_KEY || '';
+    }
+  } catch (_) {}
+
+  if (!fromEnv && typeof process !== 'undefined' && process?.env) {
+    fromEnv = process.env.VITE_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
+  }
+
+  return fromEnv.trim();
+};
+
+/**
+ * Central resolution helper for Alibaba Cloud (DashScope / Model Studio) API Key for CosyVoice.
  * Order of resolution:
- * 1. Non-empty Firebase app settings `alibaba_api_key`
+ * 1. App settings `alibaba_api_key`
  * 2. Client / environment variables (VITE_ALIBABA_API_KEY / ALIBABA_API_KEY)
  */
 export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings> | null): string => {
@@ -239,6 +267,9 @@ export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({
   primary_ai_provider: raw?.primary_ai_provider || DEFAULT_APP_SETTINGS.primary_ai_provider,
+  openrouter_api_key: (raw?.openrouter_api_key || DEFAULT_APP_SETTINGS.openrouter_api_key || '').toString().trim(),
+  openrouter_model: (raw?.openrouter_model || DEFAULT_APP_SETTINGS.openrouter_model || 'qwen/qwen3.7-flash').toString().trim(),
+  openrouter_base_url: (raw?.openrouter_base_url || DEFAULT_APP_SETTINGS.openrouter_base_url || '').toString().trim(),
   alibaba_api_key: (raw?.alibaba_api_key || DEFAULT_APP_SETTINGS.alibaba_api_key || '').toString().trim(),
   alibaba_base_url: (raw?.alibaba_base_url || DEFAULT_APP_SETTINGS.alibaba_base_url || '').toString().trim(),
   alibaba_model: (raw?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || '').toString().trim(),

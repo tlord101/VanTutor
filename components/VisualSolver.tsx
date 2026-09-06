@@ -1,7 +1,5 @@
+import { db, getDownloadURL, onValue, push, ref as dbRef, ref as storageRef, serverTimestamp, set, storage, update, uploadBytes } from '@/lib/backend';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { db, storage } from '../firebase';
-import { ref as dbRef, onValue, push, set, update, serverTimestamp } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel } from '../utils/usage';
 import { LimitExceededModal } from './LimitExceededModal';
 import { createAvelutAI, getResponseText } from '../utils/inference';

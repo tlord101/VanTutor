@@ -1,7 +1,6 @@
+import { db, push, ref as dbRef, serverTimestamp } from '@/lib/backend';
 import React, { useState } from 'react';
 import { useToast } from '../../hooks/useToast';
-import { db } from '../../firebase';
-import { ref as dbRef, push, serverTimestamp } from 'firebase/database';
 
 export interface FlashcardItem {
   front: string;

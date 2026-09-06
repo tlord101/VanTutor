@@ -1,5 +1,5 @@
+import { auth, db, dbRef, get, increment, onValue, push, set, update } from '@/lib/backend';
 import React, { useState, useEffect, useMemo } from 'react';
-import { db, auth, dbRef, onValue, set, push, update, increment, get } from '../firebase';
 import { UserProfile } from '../types';
 import { Avatar } from './Avatar';
 import { useToast } from '../hooks/useToast';

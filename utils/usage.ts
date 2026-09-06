@@ -139,7 +139,7 @@ export const getFeatureModel = (
   feature: 'visual_solve' | 'chat_interaction' | 'flashcard_generation' | 'study_guide_extraction' | 'ai_quiz_generation' | 'study_guide_lesson' | 'title_generation',
   appSettings?: AppSettings | null
 ): string => {
-  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.alibaba_model || DEFAULT_APP_SETTINGS.alibaba_model || 'qwen3.7-flash';
+  return appSettings?.usage_settings?.feature_models?.[feature] || appSettings?.openrouter_model || DEFAULT_APP_SETTINGS.openrouter_model || 'qwen/qwen3.7-flash';
 };
 
 export const AI_COSTS = {

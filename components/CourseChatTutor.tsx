@@ -235,7 +235,7 @@ STRICT TOKEN CONSTRAINT: Keep total response under 100 words (< 180 tokens). Do 
     try {
       setStreamingBotText('');
       const responseStream = await ai.models.generateContentStream({
-        model: 'qwen-plus',
+        model: 'qwen/qwen3.7-flash',
         contents: starterPrompt,
         config: { temperature: 0.3, maxOutputTokens: 250 },
       });
@@ -370,7 +370,7 @@ ${textToSend || '(Student attached image)'}`;
     try {
       const parts = [...inlineParts, { text: promptText }];
       const responseStream = await ai.models.generateContentStream({
-        model: 'qwen-plus',
+        model: 'qwen/qwen3.7-flash',
         contents: [{ role: 'user', parts }],
         config: { temperature: 0.35, maxOutputTokens: 600 },
       });

@@ -863,7 +863,7 @@ OUTPUT VALID JSON ONLY:
             parts.push({ text: phase === 1 ? phase1Prompt : phase2Prompt });
 
             const result = await aiClient.models.generateContent({
-                model: appSettings?.alibaba_model || 'qwen-plus',
+                model: appSettings?.openrouter_model || 'qwen/qwen3.7-flash',
                 contents: [{ role: 'user', parts }],
                 config: { responseMimeType: 'application/json', temperature: 0.35, maxOutputTokens: 8192 },
             });
@@ -1155,7 +1155,7 @@ At the very end say exactly: "Now, let us continue our lesson."`;
             parts.push({ text: qaPrompt });
 
             const result = await aiClient.models.generateContent({
-                model: appSettings?.alibaba_model || 'qwen-plus',
+                model: appSettings?.openrouter_model || 'qwen/qwen3.7-flash',
                 contents: [{ role: 'user', parts }],
                 config: { temperature: 0.3, maxOutputTokens: 150 },
             });

@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { db } from '../../../firebase';
-import { ref as dbRef, get, update } from 'firebase/database';
+import { db, ref as dbRef, get, update } from '@/lib/backend';
 import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
@@ -37,10 +36,10 @@ export const TopicPurgeManager: React.FC<TopicPurgeManagerProps> = ({
     const [approvedMergesToExecute, setApprovedMergesToExecute] = useState<SuggestedMerge[]>([]);
     const [isExecutingMerge, setIsExecutingMerge] = useState(false);
 
-    const aiApiKey = appSettings.alibaba_api_key?.trim() || '';
+    const aiApiKey = appSettings.openrouter_api_key?.trim() || appSettings.alibaba_api_key?.trim() || '';
     const aiClient = useRef<any>(null);
 
-    if (aiApiKey && !aiClient.current) {
+    if (!aiClient.current) {
         aiClient.current = createAvelutAI(appSettings);
     }
 
@@ -82,7 +81,7 @@ Rules:
   ]
 }`;
 
-            const modelName = appSettings.alibaba_model || 'qwen-plus';
+            const modelName = appSettings.openrouter_model || 'qwen/qwen3.7-flash';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [

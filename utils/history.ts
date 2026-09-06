@@ -1,5 +1,4 @@
-import { ref, push, get, set, serverTimestamp, query, remove } from "firebase/database";
-import { db } from "../firebase";
+import { db, get, push, query, ref, remove, serverTimestamp, set } from '@/lib/backend';
 import {
   saveLocalMaterial,
   getLocalMaterials,

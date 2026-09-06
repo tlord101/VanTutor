@@ -1,7 +1,5 @@
+import { db, deleteObject, get, getDownloadURL, onValue, ref, ref as storageRef, set, storage, uploadBytesResumable } from '@/lib/backend';
 import React, { useState, useRef, useEffect } from 'react';
-import { db, storage } from '../../firebase';
-import { ref, set, get, onValue } from 'firebase/database';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '../../hooks/useToast';
 
 export const AdminUpdates: React.FC = () => {

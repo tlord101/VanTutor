@@ -1,8 +1,6 @@
+import { FirebaseUser, db, push, ref as dbRef, set, update } from '@/lib/backend';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { ref as dbRef, update, push, set } from 'firebase/database';
-import { db } from '../firebase';
-import type { FirebaseUser } from '../firebase';
 
 import type { ToastType } from '../types';
 

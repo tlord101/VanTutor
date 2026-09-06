@@ -176,7 +176,7 @@ RULES:
 ]`;
 
       const response = await ai.models.generateContent({
-        model: 'qwen-plus',
+        model: 'qwen/qwen3.7-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

@@ -1,6 +1,5 @@
+import { auth, db, get, ref as dbRef, set } from '@/lib/backend';
 import React, { useEffect, useState } from 'react';
-import { db, auth } from '../../../firebase';
-import { ref as dbRef, get, set } from 'firebase/database';
 import { Type, createAvelutAI } from '../../../utils/inference';
 import { useToast } from '../../../hooks/useToast';
 import { useAppSettings } from '../../../hooks/useAppSettings';
@@ -99,7 +98,7 @@ Rules:
 Return only JSON with keys: title, message, version_name.`;
 
             const response = await ai.models.generateContent({
-                model: appSettings.alibaba_model || 'qwen-plus',
+                model: appSettings.openrouter_model || 'qwen/qwen3.7-flash',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
                     responseMimeType: 'application/json',
