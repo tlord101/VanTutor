@@ -32,8 +32,14 @@ function versionManifestPlugin(): Plugin {
 }
 
 export default defineConfig(({ command, mode }) => {
+    const env = loadEnv(mode, process.cwd(), '');
     return {
       base: process.env.VERCEL ? '/' : (command === 'build' ? './' : '/'),
+      envPrefix: ['VITE_', 'OPENROUTER_'],
+      define: {
+        'process.env.OPENROUTER_MODEL': JSON.stringify(env.OPENROUTER_MODEL || env.VITE_OPENROUTER_MODEL || 'qwen/qwen3.7-flash'),
+        'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY || env.VITE_OPENROUTER_API_KEY || ''),
+      },
       server: {
         port: 3000,
         host: '0.0.0.0',

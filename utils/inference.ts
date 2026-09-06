@@ -268,13 +268,16 @@ function paramsToChatMessages(params: any): { systemPrompt: string; messages: Ar
   return { systemPrompt, messages };
 }
 
-export const OPENROUTER_MODEL = 'qwen/qwen3.7-flash';
+export const OPENROUTER_MODEL =
+  (typeof import.meta !== 'undefined' && ((import.meta as any)?.env?.OPENROUTER_MODEL || (import.meta as any)?.env?.VITE_OPENROUTER_MODEL)) ||
+  (typeof process !== 'undefined' && (process?.env?.OPENROUTER_MODEL || process?.env?.VITE_OPENROUTER_MODEL)) ||
+  'qwen/qwen3.7-flash';
 
 /**
  * Normalizes model names to OpenRouter Qwen 3.7 Flash
  */
-export function normalizeQwenModelName(_model?: string, _hasImage: boolean = false): string {
-  return OPENROUTER_MODEL;
+export function normalizeQwenModelName(model?: string, _hasImage: boolean = false): string {
+  return model?.trim() || OPENROUTER_MODEL;
 }
 
 /**
@@ -283,7 +286,7 @@ export function normalizeQwenModelName(_model?: string, _hasImage: boolean = fal
 async function callOpenRouterQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getOpenRouterApiKey(appSettings);
   const { messages } = paramsToChatMessages(params);
-  const model = OPENROUTER_MODEL;
+  const model = appSettings?.openrouter_model?.trim() || OPENROUTER_MODEL;
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||
@@ -364,7 +367,7 @@ async function callOpenRouterQwen(params: any, appSettings: AppSettings): Promis
 async function* callOpenRouterQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
   const apiKey = getOpenRouterApiKey(appSettings);
   const { messages } = paramsToChatMessages(params);
-  const model = OPENROUTER_MODEL;
+  const model = appSettings?.openrouter_model?.trim() || OPENROUTER_MODEL;
 
   const isNative = typeof window !== 'undefined' && (
     (window as any).Capacitor?.isNativePlatform?.() ||

@@ -239,6 +239,34 @@ export const getOpenRouterApiKey = (appSettings?: AppSettings | Partial<AppSetti
 };
 
 /**
+ * Central resolution helper for OpenRouter Model.
+ * Resolves with priority:
+ * 1. App settings `openrouter_model`
+ * 2. Environment variables (OPENROUTER_MODEL / VITE_OPENROUTER_MODEL)
+ * 3. Default ('qwen/qwen3.7-flash')
+ */
+export const getOpenRouterModel = (appSettings?: AppSettings | Partial<AppSettings> | null): string => {
+  const fromSettings = appSettings?.openrouter_model?.trim();
+  if (fromSettings) {
+    return fromSettings;
+  }
+
+  let fromEnv = '';
+  try {
+    const metaEnv = (import.meta as any)?.env;
+    if (metaEnv) {
+      fromEnv = metaEnv.OPENROUTER_MODEL || metaEnv.VITE_OPENROUTER_MODEL || '';
+    }
+  } catch (_) {}
+
+  if (!fromEnv && typeof process !== 'undefined' && process?.env) {
+    fromEnv = process.env.OPENROUTER_MODEL || process.env.VITE_OPENROUTER_MODEL || '';
+  }
+
+  return (fromEnv || DEFAULT_APP_SETTINGS.openrouter_model || 'qwen/qwen3.7-flash').trim();
+};
+
+/**
  * Central resolution helper for Alibaba Cloud (DashScope / Model Studio) API Key for CosyVoice.
  * Order of resolution:
  * 1. App settings `alibaba_api_key`
@@ -268,7 +296,7 @@ export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({
   primary_ai_provider: raw?.primary_ai_provider || DEFAULT_APP_SETTINGS.primary_ai_provider,
   openrouter_api_key: (raw?.openrouter_api_key || DEFAULT_APP_SETTINGS.openrouter_api_key || '').toString().trim(),
-  openrouter_model: (raw?.openrouter_model || DEFAULT_APP_SETTINGS.openrouter_model || 'qwen/qwen3.7-flash').toString().trim(),
+  openrouter_model: (raw?.openrouter_model || getOpenRouterModel(raw) || 'qwen/qwen3.7-flash').toString().trim(),
   openrouter_base_url: (raw?.openrouter_base_url || DEFAULT_APP_SETTINGS.openrouter_base_url || '').toString().trim(),
   alibaba_api_key: (raw?.alibaba_api_key || DEFAULT_APP_SETTINGS.alibaba_api_key || '').toString().trim(),
   alibaba_base_url: (raw?.alibaba_base_url || DEFAULT_APP_SETTINGS.alibaba_base_url || '').toString().trim(),

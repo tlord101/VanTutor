@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     };
 
     const messages = body.messages || [];
-    const model = 'qwen/qwen3.7-flash';
+    const model = process.env.OPENROUTER_MODEL || process.env.VITE_OPENROUTER_MODEL || body.model || 'qwen/qwen3.7-flash';
 
     const payload: any = {
       model,
