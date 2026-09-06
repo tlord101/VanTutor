@@ -92,8 +92,43 @@ export function query(r: DbRef, ..._constraints: any[]): DbRef {
 }
 
 async function loadPath(path: string): Promise<any> {
-  if (!isSupabaseConfigured) return null;
+  if (!path || path === 'undefined' || path === 'null') return null;
+
+  if (path === '.info/connected' || path.startsWith('.info/')) {
+    return typeof navigator !== 'undefined' ? navigator.onLine : true;
+  }
+
   const parts = parsePath(path);
+  if (parts.some((p) => p === 'undefined' || p === 'null' || !p)) {
+    return null;
+  }
+
+  if (!isSupabaseConfigured) return null;
+
+  if (parts[0] === 'user_progress' && parts.length >= 2) {
+    const userId = parts[1];
+    try {
+      const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userId);
+      if (!error && data) {
+        const map: Record<string, any> = {};
+        data.forEach((row: any) => {
+          if (row.course_id) {
+            if (!map[row.course_id]) map[row.course_id] = {};
+            if (row.topic_id) {
+              map[row.course_id][row.topic_id] = {
+                status: row.is_mastered ? 'completed' : 'in_progress',
+                completed_boards: row.completed_boards || 0,
+                total_boards: row.total_boards || 10,
+                score: row.score || 0,
+                is_mastered: row.is_mastered,
+              };
+            }
+          }
+        });
+        return map;
+      }
+    } catch {}
+  }
 
   if (parts[0] === 'user_chats' && parts.length === 2) {
     const userId = parts[1];
@@ -292,12 +327,35 @@ export async function get(r: DbRef) {
 
 export function onValue(r: DbRef, callback: (snap: any) => void): Unsub {
   const path = r.path;
+
+  if (path === '.info/connected' || path.startsWith('.info/')) {
+    const handler = () => {
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      callback(makeSnap(isOnline));
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', handler);
+      window.addEventListener('offline', handler);
+      handler();
+      return () => {
+        window.removeEventListener('online', handler);
+        window.removeEventListener('offline', handler);
+      };
+    }
+    callback(makeSnap(true));
+    return () => {};
+  }
+
+  const parts = parsePath(path);
+  if (parts.some((p) => p === 'undefined' || p === 'null' || !p)) {
+    callback(makeSnap(null));
+    return () => {};
+  }
+
   if (!listeners.has(path)) listeners.set(path, new Set());
   listeners.get(path)!.add(callback);
 
   loadPath(path).then((v) => notify(path, v));
-
-  const parts = parsePath(path);
 
   if ((parts[0] === 'messages' || parts[0] === 'private_messages') && parts.length === 2) {
     const chatId = parts[1];
