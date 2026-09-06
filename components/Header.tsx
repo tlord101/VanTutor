@@ -129,9 +129,9 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Center Slot: Centered Title or Empty for AI Chat */}
       <div className="flex-1 flex items-center justify-center min-w-0 px-2 pointer-events-none [&>*]:pointer-events-auto">
-        {hideTitle || isAiPage ? null : title ? (
+        {isAiPage ? null : title ? (
           title
-        ) : React.isValidElement(currentPageLabel) ? (
+        ) : hideTitle ? null : React.isValidElement(currentPageLabel) ? (
           currentPageLabel
         ) : typeof currentPageLabel === 'string' ? (
           <h1 className="text-base sm:text-[17px] font-semibold text-neutral-900 dark:text-white tracking-tight truncate max-w-[200px] sm:max-w-md text-center">
