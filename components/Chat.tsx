@@ -235,8 +235,14 @@ export const Chat: React.FC<ChatProps> = ({
   const aiModel = getFeatureModel('chat_interaction', appSettings);
   const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
+  const isLoadingRef = useRef(isLoading);
+  isLoadingRef.current = isLoading;
+
   useEffect(() => {
     if (propActiveConversationId !== undefined) {
+      if (propActiveConversationId === null && isLoadingRef.current) {
+        return;
+      }
       setActiveConversationId(propActiveConversationId);
     }
   }, [propActiveConversationId]);
@@ -389,21 +395,29 @@ export const Chat: React.FC<ChatProps> = ({
   // Load messages for active conversation
   useEffect(() => {
     if (!activeConversationId) {
-      setMessages([]);
+      if (!isLoadingRef.current) {
+        setMessages([]);
+      }
       return;
     }
 
     let isMounted = true;
     getLocalMessages(activeConversationId).then((localMsgs) => {
       if (isMounted && localMsgs.length > 0) {
-        setMessages(
-          localMsgs.map((m) => ({
+        setMessages((current) => {
+          const localFormatted: Message[] = localMsgs.map((m) => ({
             id: m.id,
             text: m.text,
-            sender: m.sender === 'user' ? 'user' : 'bot',
+            sender: (m.sender === 'user' ? 'user' : 'bot') as 'user' | 'bot',
             timestamp: m.timestamp,
-          }))
-        );
+          }));
+          const existingIds = new Set(localFormatted.map((m) => m.id));
+          const existingTexts = new Set(localFormatted.map((m) => `${m.sender}:${m.text}`));
+          const uniqueCurrent = current.filter(
+            (m) => !existingIds.has(m.id) && !existingTexts.has(`${m.sender}:${m.text}`)
+          );
+          return [...localFormatted, ...uniqueCurrent].sort((a, b) => a.timestamp - b.timestamp);
+        });
       }
     }).catch(() => {});
 
@@ -415,9 +429,20 @@ export const Chat: React.FC<ChatProps> = ({
           data.push({ id: child.key, ...child.val() });
         });
         const sorted = data.sort((a, b) => a.timestamp - b.timestamp);
-        if (isMounted) setMessages(sorted as Message[]);
+        if (isMounted) {
+          setMessages((current) => {
+            const dbTexts = new Set(sorted.map((m: any) => `${m.sender === 'user' ? 'user' : 'bot'}:${m.text}`));
+            const dbIds = new Set(sorted.map((m: any) => m.id));
+            const inFlight = current.filter(
+              (m) => !dbIds.has(m.id) && !dbTexts.has(`${m.sender}:${m.text}`)
+            );
+            return [...sorted, ...inFlight].sort((a, b) => a.timestamp - b.timestamp) as Message[];
+          });
+        }
       } else {
-        if (isMounted) setMessages([]);
+        if (isMounted && !isLoadingRef.current) {
+          setMessages([]);
+        }
       }
     });
 
@@ -468,6 +493,7 @@ export const Chat: React.FC<ChatProps> = ({
           last_updated_at: now,
         });
         setActiveConversationId(currentConvoId);
+        onSelectConversation?.(currentConvoId);
       }
 
       const userMsgId = generateLocalId('msg');
@@ -480,7 +506,14 @@ export const Chat: React.FC<ChatProps> = ({
         timestamp: now,
       });
 
-      setMessages((prev) => [...prev, { id: userMsgId, text: currentInput, sender: 'user', timestamp: now }]);
+      const aiMsgId = generateLocalId('msg');
+
+      // Append user message AND initial empty bot message for instant UI feedback
+      setMessages((prev) => [
+        ...prev,
+        { id: userMsgId, text: currentInput, sender: 'user', timestamp: now },
+        { id: aiMsgId, text: '', sender: 'bot', timestamp: now + 1 },
+      ]);
 
       const messagesRef = dbRef(db, `chat_messages/${currentConvoId}`);
       try {
@@ -513,32 +546,66 @@ export const Chat: React.FC<ChatProps> = ({
       const cachedReply = await getCachedAIResponse(promptPayload, aiModel, courseContext);
       let responseText = cachedReply || '';
 
-      if (!responseText) {
+      if (responseText) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, text: responseText } : m))
+        );
+      } else {
         if (!ai) {
           addToast('Avelut AI is not configured in settings.', 'error');
+          setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
           return;
         }
 
-        const aiResult = await attemptApiCall(async () => {
-          const result = await ai.models.generateContent({
+        try {
+          const responseStream = await ai.models.generateContentStream({
             model: aiModel,
             contents: [{ role: 'user', parts: [{ text: promptPayload }] }],
           });
-          const resText = getResponseText(result);
-          if (!resText) throw new Error('Avelut AI returned an empty response.');
-          return resText;
-        });
 
-        if (!aiResult.success) {
-          addToast(aiResult.message, 'error');
-          return;
+          for await (const chunk of responseStream) {
+            const chunkText = getResponseText(chunk);
+            responseText += chunkText;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aiMsgId ? { ...m, text: responseText } : m))
+            );
+          }
+        } catch (streamErr: any) {
+          console.warn('Streaming failed or not supported, falling back to generateContent:', streamErr);
+          const aiResult = await attemptApiCall(async () => {
+            const result = await ai.models.generateContent({
+              model: aiModel,
+              contents: [{ role: 'user', parts: [{ text: promptPayload }] }],
+            });
+            const resText = getResponseText(result);
+            if (!resText) throw new Error('Avelut AI returned an empty response.');
+            return resText;
+          });
+
+          if (!aiResult.success) {
+            addToast(aiResult.message, 'error');
+            setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
+            return;
+          }
+
+          responseText = (aiResult.data || '').trim();
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiMsgId ? { ...m, text: responseText } : m))
+          );
         }
 
-        responseText = (aiResult.data || '').trim();
-        void setCachedAIResponse(promptPayload, aiModel, courseContext, responseText);
+        if (responseText) {
+          void setCachedAIResponse(promptPayload, aiModel, courseContext, responseText);
+        }
       }
 
-      const aiMsgId = generateLocalId('msg');
+      if (!responseText.trim()) {
+        responseText = 'I apologize, but I could not generate a response. Please try again.';
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, text: responseText } : m))
+        );
+      }
+
       void saveLocalMessage({
         id: aiMsgId,
         conversation_id: currentConvoId,
@@ -547,8 +614,6 @@ export const Chat: React.FC<ChatProps> = ({
         text: responseText,
         timestamp: Date.now(),
       });
-
-      setMessages((prev) => [...prev, { id: aiMsgId, text: responseText, sender: 'bot', timestamp: Date.now() }]);
 
       try {
         push(messagesRef, {
@@ -563,6 +628,8 @@ export const Chat: React.FC<ChatProps> = ({
       void deductAICredits(userProfile.uid, cost, 'AI Chat Assistant', appSettings);
     } catch (err) {
       console.error('Error in chat:', err);
+      addToast('An error occurred while sending your message.', 'error');
+      setMessages((prev) => prev.filter((m) => m.text !== ''));
     } finally {
       setIsLoading(false);
     }
@@ -581,7 +648,7 @@ export const Chat: React.FC<ChatProps> = ({
     <div className="flex-1 flex flex-col h-full w-full bg-white dark:bg-[#121212] overflow-hidden text-neutral-900 dark:text-white">
       {/* MESSAGES / EMPTY STATE AREA */}
       <div className="flex-1 overflow-y-auto px-4 pt-[calc(max(0.875rem,env(safe-area-inset-top))+3.5rem)] pb-6 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isLoading ? (
           <div className="flex-1 h-full min-h-[40vh]" />
         ) : (
           <div className="w-full max-w-3xl mx-auto space-y-8">
@@ -627,18 +694,26 @@ export const Chat: React.FC<ChatProps> = ({
                       </span>
                     </div>
                     <div className="w-full text-[16px] sm:text-[17px] leading-relaxed text-neutral-900 dark:text-neutral-100 prose prose-neutral dark:prose-invert max-w-none prose-p:my-3 prose-headings:my-4 prose-pre:my-3">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                      >
-                        {formatLatexMath(msg.text)}
-                      </ReactMarkdown>
+                      {!msg.text ? (
+                        <div className="flex items-center gap-1.5 py-1">
+                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce" />
+                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.2s]" />
+                          <div className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:-0.4s]" />
+                        </div>
+                      ) : (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                        >
+                          {formatLatexMath(msg.text)}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
             ))}
-            {isLoading && (
+            {isLoading && (messages.length === 0 || messages[messages.length - 1]?.sender === 'user') && (
               <div className="flex justify-start w-full">
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-white/10 flex items-center justify-center p-1 shrink-0">

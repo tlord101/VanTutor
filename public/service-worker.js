@@ -31,10 +31,14 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => {
-      return self.clients.claim().catch((err) => {
-        console.warn('Failed to claim clients during activation:', err);
-      });
+    }).then(async () => {
+      try {
+        if (self.registration?.active === self && self.clients?.claim) {
+          await self.clients.claim();
+        }
+      } catch (_) {
+        // Safe: non-critical if browser has not yet fully transitioned state
+      }
     })
   );
 });
