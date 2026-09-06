@@ -228,7 +228,7 @@ export const Chat: React.FC<ChatProps> = ({
   const { attemptApiCall } = useApiLimiter();
   const { settings: appSettings } = useAppSettings();
 
-  const geminiModel = getFeatureModel('chat_interaction', appSettings);
+  const aiModel = getFeatureModel('chat_interaction', appSettings);
   const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
   useEffect(() => {
@@ -505,7 +505,7 @@ export const Chat: React.FC<ChatProps> = ({
 
       const promptPayload = `${systemModifier}\n\n${courseContext}\n\nUser Question: ${currentInput}`;
 
-      const cachedReply = await getCachedAIResponse(promptPayload, geminiModel, courseContext);
+      const cachedReply = await getCachedAIResponse(promptPayload, aiModel, courseContext);
       let responseText = cachedReply || '';
 
       if (!responseText) {
@@ -516,7 +516,7 @@ export const Chat: React.FC<ChatProps> = ({
 
         const aiResult = await attemptApiCall(async () => {
           const result = await ai.models.generateContent({
-            model: geminiModel,
+            model: aiModel,
             contents: [{ role: 'user', parts: [{ text: promptPayload }] }],
           });
           const resText = getResponseText(result);
@@ -530,7 +530,7 @@ export const Chat: React.FC<ChatProps> = ({
         }
 
         responseText = (aiResult.data || '').trim();
-        void setCachedAIResponse(promptPayload, geminiModel, courseContext, responseText);
+        void setCachedAIResponse(promptPayload, aiModel, courseContext, responseText);
       }
 
       const aiMsgId = generateLocalId('msg');

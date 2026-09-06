@@ -116,13 +116,13 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
         addToast(`Successfully deleted ${selectedTopicIds.size} topic(s).`, 'success');
     };
 
-    const geminiApiKey = appSettings.gemini_api_key?.trim() || '';
+    const aiApiKey = appSettings.alibaba_api_key?.trim() || '';
     const aiClient = useRef<any>(null);
     useEffect(() => {
-        if (geminiApiKey) {
+        if (aiApiKey) {
             aiClient.current = createAvelutAI(appSettings);
         }
-    }, [geminiApiKey, appSettings]);
+    }, [aiApiKey, appSettings]);
 
     const loadCourseData = async () => {
         setIsLoading(true);
@@ -232,7 +232,7 @@ export const Level4CourseStudio: React.FC<Level4CourseStudioProps> = ({
             setExtractionStage('analyzing');
             setExtractionProgress(45);
 
-            // 2. Read File Data URL for Gemini AI
+            // 2. Read File Data URL for Alibaba Qwen AI
             const reader = new FileReader();
             reader.readAsDataURL(file);
             const base64Data = await new Promise<string>((resolve) => {
@@ -260,7 +260,7 @@ RULES:
   ]
 }`;
 
-            const modelName = appSettings.alibaba_model || appSettings.primary_gemini_model || 'qwen-plus';
+            const modelName = appSettings.alibaba_model || 'qwen-plus';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [
@@ -505,7 +505,7 @@ RULES:
                     {course?.course_name || courseId}
                 </h2>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Extract syllabus topics with Gemini AI or build and reorder the syllabus topic tree manually.
+                    Extract syllabus topics with Alibaba Qwen AI or build and reorder the syllabus topic tree manually.
                 </p>
             </div>
 

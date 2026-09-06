@@ -223,7 +223,7 @@ export interface DashboardData {
     understandingScore: number;
     understandingLabel: string;
     backedFacts: string[];
-    geminiAssessment?: DashboardAssessment | null;
+    aiAssessment?: DashboardAssessment | null;
     examHistory: ExamHistoryItem[];
 }
 
@@ -269,14 +269,12 @@ export interface UsageSettings {
   };
 }
 
-export type VoiceProvider = 'grok' | 'alibaba' | 'kitten' | 'gemini' | 'browser';
-export type AIProvider = 'gemini' | 'alibaba_qwen' | 'openai' | 'deepseek' | 'custom';
+export type VoiceProvider = 'grok' | 'alibaba' | 'browser';
+export type AIProvider = 'alibaba_qwen';
 
 export interface AppSettings {
   show_playstore_modal?: boolean;
   playstore_modal_collect_emails?: boolean;
-  primary_gemini_model?: string;
-  gemini_api_key?: string;
   primary_ai_provider?: AIProvider;
   alibaba_api_key?: string;
   alibaba_base_url?: string;
@@ -303,7 +301,6 @@ export interface AppSettings {
   pinecone_api_key?: string;
   pinecone_index_name?: string;
   revenuecat_api_key_android?: string;
-  kittenml_api_key?: string;
 }
 
 // Type for the new Notification System

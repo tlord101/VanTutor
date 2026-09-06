@@ -380,9 +380,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const { settings: appSettings, isLoading: isAppSettingsLoading } = useAppSettings();
-    const geminiModel = appSettings.primary_gemini_model; // Primary model for general tasks
-    const geminiApiKey = appSettings.gemini_api_key.trim();
-    const ai = useMemo(() => (geminiApiKey ? createAvelutAI({ gemini_api_key: geminiApiKey }) : null), [geminiApiKey]);
+    const aiModel = appSettings.alibaba_model || 'qwen3.7-flash';
+    const aiApiKey = (appSettings.alibaba_api_key || '').trim();
+    const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
     const [isSavingAppSettings, setIsSavingAppSettings] = useState(false);
     const [isTestingAppSettings, setIsTestingAppSettings] = useState(false);
     const [appSettingsDraft, setAppSettingsDraft] = useState(appSettings);
@@ -1211,7 +1211,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             const prompt = `Create a short notification title (max 8 words) and a concise notification message (max 200 characters) for a ${notificationType.replace('_', ' ')} to students. Return only a JSON object with keys \"title\" and \"message\".`;
 
             const response = await ai.models.generateContent({
-                model: geminiModel,
+                model: aiModel,
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
                     responseMimeType: "application/json",
@@ -1314,8 +1314,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const handleSaveAppSettings = async () => {
         const nextSettings = {
             ...appSettingsDraft,
-            primary_gemini_model: appSettingsDraft.primary_gemini_model.trim() || DEFAULT_APP_SETTINGS.primary_gemini_model,
-            gemini_api_key: appSettingsDraft.gemini_api_key.trim(),
+            alibaba_model: (appSettingsDraft.alibaba_model || 'qwen3.7-flash').trim(),
+            alibaba_api_key: (appSettingsDraft.alibaba_api_key || '').trim(),
             paystack_public_key: (appSettingsDraft.paystack_public_key || '').trim(),
             custom_user_limit_rpm: appSettingsDraft.custom_user_limit_rpm ?? 10,
             custom_user_limit_tpm: appSettingsDraft.custom_user_limit_tpm ?? 250000,
@@ -1341,16 +1341,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     const handleTestAvelutSettings = async () => {
-        const modelToTest = appSettingsDraft.primary_gemini_model.trim() || DEFAULT_APP_SETTINGS.primary_gemini_model;
-        const apiKeyToTest = appSettingsDraft.gemini_api_key.trim();
+        const modelToTest = (appSettingsDraft.alibaba_model || 'qwen3.7-flash').trim();
+        const apiKeyToTest = (appSettingsDraft.alibaba_api_key || '').trim();
         if (!apiKeyToTest) {
-            addToast('Add an Avelut AI API key before running the hello test.', 'error');
+            addToast('Add an Alibaba DashScope API key before running the hello test.', 'error');
             return;
         }
 
         setIsTestingAppSettings(true);
         try {
-            const testClient = createAvelutAI({ gemini_api_key: apiKeyToTest });
+            const testClient = createAvelutAI({ alibaba_api_key: apiKeyToTest, alibaba_model: modelToTest });
             const response = await testClient.models.generateContent({
                 model: modelToTest,
                 contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
@@ -2875,8 +2875,8 @@ FORMAT:
             {activeTab === 'notifications' && (
                 <NotificationsView
                     allUsersList={scopedUsersList}
-                    geminiApiKey={geminiApiKey}
-                    geminiModel={geminiModel}
+                    aiApiKey={aiApiKey}
+                    aiModel={aiModel}
                     refreshSentNotifications={fetchSentNotifications}
                 />
             )}

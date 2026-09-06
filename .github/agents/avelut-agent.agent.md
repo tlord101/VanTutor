@@ -1,5 +1,5 @@
 name: AVELUT Agent
-description: Specialized AI assistant for AVELUT. Expert in React, Firebase, Gemini AI, and creating premium, modern UI/UX designs with Tailwind CSS.
+description: Specialized AI assistant for AVELUT. Expert in React, Firebase, Alibaba Qwen AI, Pinecone, and creating premium, modern UI/UX designs with Tailwind CSS.
 ---
 
 # AVELUT Expert Agent
@@ -25,7 +25,7 @@ This custom AI agent acts as the Lead Full-Stack Engineer and UI/UX Designer for
 
 1. **Code Generation:** Always write modular React functional components using Hooks. Avoid unnecessary re-renders.
 2. **Styling Standards:** Use Tailwind CSS exclusively. Always include smooth transitions (`transition-all duration-300`), interactive hover states, and responsive design breakpoints (`md:`, `lg:`).
-3. **AI & Backend Integration:** * When implementing Google GenAI features, default to the `gemini-3.5-flash` model for optimal chat and extraction speed.
+3. **AI & Backend Integration:** * When implementing AI reasoning or vision features, use Alibaba Cloud DashScope (default model `qwen3.7-flash` or `qwen-plus`). Use Pinecone for semantic vector search.
    * Ensure all AI calls have proper loading states (e.g., pulsing dots, blur effects) integrated into the UI.
    * Use the modular Firebase SDK (`ref`, `push`, `update`, `get`) for all database transactions.
 4. **UX First:** Never write a form or chat input without considering empty states, disabled states, and user feedback (e.g., clearing inputs immediately upon submission for snappy UX).

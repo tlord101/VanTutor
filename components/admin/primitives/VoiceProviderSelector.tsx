@@ -71,13 +71,13 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50">
           <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-pulse"></span>
           <span className="text-xs font-bold text-[#002D62] dark:text-blue-300">
-            Active: {activeProvider === 'grok' ? 'Grok Altair (xAI)' : activeProvider === 'alibaba' ? 'Alibaba CosyVoice' : activeProvider === 'kitten' ? 'KittenML' : 'Browser'}
+            Active: {activeProvider === 'grok' ? 'Grok Altair (xAI)' : activeProvider === 'alibaba' ? 'Alibaba CosyVoice' : 'Browser'}
           </span>
         </div>
       </div>
 
       {/* Provider Selector Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Grok AI (Altair) */}
         <div
           onClick={() => onChange({ ...appSettings, active_voice_provider: 'grok', studyguide_voice_provider: 'grok', notebook_voice_provider: 'grok' })}
@@ -135,35 +135,6 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
             {isPlayingPreview ? 'Stop Test' : 'Test Alibaba Voice'}
           </button>
         </div>
-
-        {/* KittenML / Local KittenTTS */}
-        <div
-          onClick={() => onChange({ ...appSettings, active_voice_provider: 'kitten', studyguide_voice_provider: 'kitten', notebook_voice_provider: 'kitten' })}
-          className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-            activeProvider === 'kitten'
-              ? 'border-[#0066FF] bg-blue-50/50 dark:bg-blue-950/20 shadow-md ring-2 ring-[#0066FF]/20'
-              : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-slate-50/50 dark:bg-white/[0.02]'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">On-Device / Cloud</span>
-            {activeProvider === 'kitten' && (
-              <span className="px-2 py-0.5 rounded-full bg-[#0066FF] text-white text-[10px] font-black uppercase tracking-wider">Selected</span>
-            )}
-          </div>
-          <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 mb-1">
-            <i className="bi bi-cpu text-[#0066FF]"></i> KittenTTS (Bella)
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Lightweight fallback running on-device or KittenML cloud API.</p>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handlePlayPreview('kitten'); }}
-            className="w-full py-2 px-3 rounded-xl bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <i className={`bi ${isPlayingPreview ? 'bi-stop-fill text-rose-500' : 'bi-play-fill text-[#0066FF]'}`}></i>
-            {isPlayingPreview ? 'Stop Test' : 'Test Kitten Voice'}
-          </button>
-        </div>
       </div>
 
       {/* Feature-Level Routing Overrides */}
@@ -179,7 +150,7 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
             >
               <option value="grok">Grok Altair (xAI)</option>
               <option value="alibaba">Alibaba CosyVoice</option>
-              <option value="kitten">KittenTTS</option>
+              <option value="browser">Browser SpeechSynthesis</option>
             </select>
           </div>
           <div className="space-y-1.5">
@@ -191,7 +162,7 @@ export const VoiceProviderSelector: React.FC<VoiceProviderSelectorProps> = ({
             >
               <option value="grok">Grok Altair (xAI)</option>
               <option value="alibaba">Alibaba CosyVoice</option>
-              <option value="kitten">KittenTTS</option>
+              <option value="browser">Browser SpeechSynthesis</option>
             </select>
           </div>
         </div>

@@ -179,7 +179,7 @@ class RpmRateLimiter {
 const globalRateLimiter = new RpmRateLimiter(10);
 
 /**
- * Safe helper to extract text from a Gemini API response.
+ * Safe helper to extract text from an AI model response.
  * Handles both getter and method versions of .text property.
  */
 export const getResponseText = (response: any): string => {
@@ -204,10 +204,10 @@ export const getResponseText = (response: any): string => {
 };
 
 /**
- * Convert Gemini-style contents/parts to standard OpenAI/Alibaba chat messages
+ * Convert contents/parts to standard OpenAI/Alibaba chat messages
  * Supports both text and multi-modal image content
  */
-function geminiParamsToChatMessages(params: any): { systemPrompt: string; messages: Array<{ role: string; content: any }> } {
+function paramsToChatMessages(params: any): { systemPrompt: string; messages: Array<{ role: string; content: any }> } {
   let systemPrompt = '';
   const messages: Array<{ role: string; content: any }> = [];
 
@@ -289,7 +289,7 @@ export function normalizeQwenModelName(model?: string, hasImage: boolean = false
  */
 async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<any> {
   const apiKey = getAlibabaApiKey(appSettings);
-  const { messages } = geminiParamsToChatMessages(params);
+  const { messages } = paramsToChatMessages(params);
   const hasImage = messages.some((m: any) =>
     Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
   );
@@ -371,7 +371,7 @@ async function callAlibabaQwen(params: any, appSettings: AppSettings): Promise<a
  */
 async function* callAlibabaQwenStream(params: any, appSettings: AppSettings): AsyncGenerator<any, void, unknown> {
   const apiKey = getAlibabaApiKey(appSettings);
-  const { messages } = geminiParamsToChatMessages(params);
+  const { messages } = paramsToChatMessages(params);
   const hasImage = messages.some((m: any) =>
     Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url')
   );

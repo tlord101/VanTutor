@@ -92,13 +92,13 @@ export const HybridCourseDrawer: React.FC<HybridCourseDrawerProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const geminiApiKey = appSettings.gemini_api_key?.trim() || '';
+    const aiApiKey = appSettings.alibaba_api_key?.trim() || '';
     const aiClient = useRef<any>(null);
     useEffect(() => {
-        if (geminiApiKey) {
+        if (aiApiKey) {
             aiClient.current = createAvelutAI(appSettings);
         }
-    }, [geminiApiKey, appSettings]);
+    }, [aiApiKey, appSettings]);
 
     const toggleDeptSelection = (deptId: string) => {
         if (deptId === currentDeptId) return; // Always keep current department selected
@@ -231,7 +231,7 @@ OUTPUT ONLY A VALID JSON OBJECT:
   ]
 }`;
 
-            const modelName = appSettings.alibaba_model || appSettings.primary_gemini_model || 'qwen-plus';
+            const modelName = appSettings.alibaba_model || 'qwen-plus';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [
@@ -430,7 +430,7 @@ OUTPUT ONLY A VALID JSON OBJECT:
             isOpen={isOpen}
             onClose={onClose}
             title="Course Creation Studio"
-            description="Register a single course with cross-listing or bulk upload course forms using Gemini AI."
+            description="Register a single course with cross-listing or bulk upload course forms using Alibaba Qwen AI."
         >
             <div className="space-y-6">
                 {/* Header Toggle Tabs */}
@@ -721,7 +721,7 @@ OUTPUT ONLY A VALID JSON OBJECT:
                                 <p className="font-bold text-sm text-slate-900 dark:text-white">
                                     Drop Departmental Course Form (PDF or Image)
                                 </p>
-                                <p className="text-xs text-slate-400">Gemini AI will extract Code, Title, Units & Level</p>
+                                <p className="text-xs text-slate-400">Alibaba Qwen AI will extract Code, Title, Units & Level</p>
                             </div>
                         </div>
 

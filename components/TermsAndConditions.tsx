@@ -109,7 +109,7 @@ export default function TermsAndConditions() {
                   <li><strong>Textbook Upload Center:</strong> Document processing features enabling users to ground AI context in specific reference materials (RAG).</li>
                 </ul>
                 <p className="text-slate-300 leading-relaxed">
-                  We leverage advanced models (including Google Gemini API) to power our services. You acknowledge that AI capabilities are iterative, and the scope of services is subject to change at our sole discretion.
+                  We leverage advanced models (including Alibaba Cloud DashScope Qwen AI) to power our services. You acknowledge that AI capabilities are iterative, and the scope of services is subject to change at our sole discretion.
                 </p>
               </section>
 

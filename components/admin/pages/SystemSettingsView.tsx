@@ -385,7 +385,7 @@ export const SystemSettingsView: React.FC = () => {
                                 {Object.keys(appSettings.usage_settings?.feature_costs || {}).concat('title_generation').map((key) => (
                                     <div key={key} className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{key.replace(/_/g, ' ')} Model</label>
-                                        <input type="text" placeholder="e.g. gemini-3.1-flash-lite" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                        <input type="text" placeholder="e.g. qwen-plus" value={(appSettings.usage_settings?.feature_models as any)?.[key] || ''} onChange={e => updateUsageSetting('feature_models', key, e.target.value)} className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
                                     </div>
                                 ))}
                             </div>
@@ -423,12 +423,12 @@ export const SystemSettingsView: React.FC = () => {
                         {/* Avelut AI */}
                         <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                             <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <i className="bi bi-cpu-fill text-amber-500"></i> Avelut AI
+                                <i className="bi bi-cpu-fill text-amber-500"></i> Avelut AI (Alibaba DashScope)
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" placeholder="Global Primary Model (e.g. gemini-3.1-flash-lite)" value={appSettings.primary_gemini_model || ''} onChange={e => setAppSettings({...appSettings, primary_gemini_model: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
-                                <input type="password" placeholder="Avelut AI API Key" value={appSettings.gemini_api_key || ''} onChange={e => setAppSettings({...appSettings, gemini_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
-                                <input type="text" placeholder="Visual Solver Model (e.g. gemini-3.1-flash-lite)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm md:col-span-2" />
+                                <input type="text" placeholder="Global Primary Model (e.g. qwen3.7-flash)" value={appSettings.alibaba_model || ''} onChange={e => setAppSettings({...appSettings, alibaba_model: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                <input type="password" placeholder="Alibaba DashScope API Key" value={appSettings.alibaba_api_key || ''} onChange={e => setAppSettings({...appSettings, alibaba_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
+                                <input type="text" placeholder="Visual Solver Model (e.g. qwen-vl-plus)" value={appSettings.usage_settings?.feature_models?.visual_solve || ''} onChange={e => setAppSettings({...appSettings, usage_settings: { ...appSettings.usage_settings, feature_models: { ...appSettings.usage_settings?.feature_models, visual_solve: e.target.value } } as any})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm md:col-span-2" />
                             </div>
                         </div>
 
@@ -481,17 +481,6 @@ export const SystemSettingsView: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <input type="text" placeholder="Index Name" value={appSettings.pinecone_index_name || ''} onChange={e => setAppSettings({...appSettings, pinecone_index_name: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
                                 <input type="password" placeholder="Pinecone API Key" value={appSettings.pinecone_api_key || ''} onChange={e => setAppSettings({...appSettings, pinecone_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
-                            </div>
-                        </div>
-
-                        {/* KittenML Cloud TTS API */}
-                        <div className="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                            <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <i className="bi bi-soundwave text-amber-500"></i> KittenML Official Voice API
-                            </h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">High-speed cloud speech synthesis via `https://api.kittenml.com/v1/audio/speech`.</p>
-                            <div className="grid grid-cols-1 gap-4">
-                                <input type="password" placeholder="KittenML API Key (Bearer Token)" value={appSettings.kittenml_api_key || ''} onChange={e => setAppSettings({...appSettings, kittenml_api_key: e.target.value})} className="p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-amber-500 text-sm" />
                             </div>
                         </div>
                     </div>

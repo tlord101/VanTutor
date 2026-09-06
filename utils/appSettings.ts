@@ -183,8 +183,6 @@ export const DEFAULT_USAGE_SETTINGS = {
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  primary_gemini_model: 'gemini-2.5-flash',
-  gemini_api_key: '',
   primary_ai_provider: 'alibaba_qwen',
   alibaba_api_key: '',
   alibaba_base_url: 'https://ws-o3v6mh0i8y9tqdfx.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
@@ -210,7 +208,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   pinecone_api_key: '',
   pinecone_index_name: '',
   revenuecat_api_key_android: '',
-  kittenml_api_key: '',
 };
 
 /**
@@ -241,8 +238,6 @@ export const getAlibabaApiKey = (appSettings?: AppSettings | Partial<AppSettings
 };
 
 export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefined): AppSettings => ({
-  primary_gemini_model: (raw?.primary_gemini_model || DEFAULT_APP_SETTINGS.primary_gemini_model).toString().trim() || DEFAULT_APP_SETTINGS.primary_gemini_model,
-  gemini_api_key: (raw?.gemini_api_key || DEFAULT_APP_SETTINGS.gemini_api_key).toString().trim(),
   primary_ai_provider: raw?.primary_ai_provider || DEFAULT_APP_SETTINGS.primary_ai_provider,
   alibaba_api_key: (raw?.alibaba_api_key || DEFAULT_APP_SETTINGS.alibaba_api_key || '').toString().trim(),
   alibaba_base_url: (raw?.alibaba_base_url || DEFAULT_APP_SETTINGS.alibaba_base_url || '').toString().trim(),
@@ -254,7 +249,6 @@ export const normalizeAppSettings = (raw: Partial<AppSettings> | null | undefine
   alibaba_voice_name: (raw?.alibaba_voice_name || DEFAULT_APP_SETTINGS.alibaba_voice_name || '').toString().trim(),
   grok_api_key: (raw?.grok_api_key || DEFAULT_APP_SETTINGS.grok_api_key || '').toString().trim(),
   grok_voice_id: (raw?.grok_voice_id || DEFAULT_APP_SETTINGS.grok_voice_id || '').toString().trim(),
-  kittenml_api_key: (raw?.kittenml_api_key || DEFAULT_APP_SETTINGS.kittenml_api_key || '').toString().trim(),
   youtube_api_key: (raw?.youtube_api_key || DEFAULT_APP_SETTINGS.youtube_api_key || '').toString().trim(),
   google_client_id: (raw?.google_client_id || DEFAULT_APP_SETTINGS.google_client_id || '').toString().trim(),
   google_api_key: (raw?.google_api_key || DEFAULT_APP_SETTINGS.google_api_key || '').toString().trim(),

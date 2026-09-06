@@ -185,7 +185,7 @@ export const UploadCenter: React.FC = () => {
   const { attemptApiCall } = useApiLimiter();
   const { settings: appSettings } = useAppSettings();
   const { openPicker } = useGoogleDrivePicker();
-  const geminiModel = getFeatureModel('study_guide_extraction', appSettings);
+  const aiModel = getFeatureModel('study_guide_extraction', appSettings);
   const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
   const [pathname, setPathname] = useState(() => getWindowPathname());
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -525,7 +525,7 @@ FORMAT: { "is_related": true, "unrelated_reason": "", "questions": [ { "question
         const chunkPromises = base64Chunks.map(async (chunkBase64) => {
           return attemptApiCall(async () => {
             const aiResponse = await ai.models.generateContent({
-              model: geminiModel,
+              model: aiModel,
               contents: [{ role: 'user', parts: [{ text: type === 'textbook' ? textbookPrompt : pqPrompt }, { inlineData: { mimeType: 'application/pdf', data: chunkBase64 } }] }],
               config: {
                 responseMimeType: 'application/json',
@@ -774,7 +774,7 @@ Extract all course names and their corresponding course codes (for example: "Ele
 Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 
       const aiResponse = await attemptApiCall(() => ai.models.generateContent({
-        model: geminiModel,
+        model: aiModel,
         contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Chunk } }] }],
         config: {
           responseMimeType: 'application/json',

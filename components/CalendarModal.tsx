@@ -30,7 +30,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, u
     const { addToast } = useToast();
     const { attemptApiCall } = useApiLimiter();
     const { settings: appSettings } = useAppSettings();
-    const geminiModel = getFeatureModel('chat_interaction', appSettings);
+    const aiModel = getFeatureModel('chat_interaction', appSettings);
     const ai = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
     const [timetable, setTimetable] = useState<StudySession[]>([]);
@@ -152,7 +152,7 @@ Return valid JSON as an object with key "sessions" which is an array of objects.
 
             const result = await attemptApiCall(async () => {
                 const response = await ai.models.generateContent({
-                    model: geminiModel,
+                    model: aiModel,
                     contents: [{ role: 'user', parts }],
                     config: {
                         responseMimeType: 'application/json',

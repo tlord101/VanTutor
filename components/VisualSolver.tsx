@@ -876,7 +876,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
 
     const { attemptApiCall } = useApiLimiter();
     const { settings: appSettings } = useAppSettings();
-    const geminiModel = getFeatureModel('visual_solve', appSettings);
+    const aiModel = getFeatureModel('visual_solve', appSettings) || 'qwen-vl-plus';
     const aiClient = useMemo(() => createAvelutAI(appSettings, userProfile), [appSettings, userProfile]);
 
     const cleanupCamera = useCallback(() => {
@@ -994,7 +994,7 @@ export const VisualSolver: React.FC<VisualSolverProps> = ({ userProfile, onStart
         if (!targetImage) return;
 
         // Use live_tutorial cost — this launches a full 10-board voice tutorial pipeline
-        // (Gemini × 2 + Grok TTS × 10 boards), NOT a simple visual_solve scan
+        // (Qwen VL/Text × 2 + Grok TTS × 10 boards), NOT a simple visual_solve scan
         const cost = getFeatureCost('live_tutorial', appSettings);
         const limitCheck = checkAICredits(userProfile, cost, appSettings);
         if (!limitCheck.allowed) {
@@ -1074,7 +1074,7 @@ FORMATTING REQUIREMENT: Present everything vertically line-by-line. Never use ho
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'qwen-vl-plus',
+                    model: aiModel,
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
@@ -1105,7 +1105,7 @@ FORMATTING REQUIREMENT: Present everything vertically line-by-line. Never use ho
             setError(err.message || "Failed to connect to the solver.");
             setCameraState('preview');
         }
-    }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast]);
+    }, [scannedImage, attemptApiCall, customPrompt, aiClient, aiModel, userProfile, appSettings, addToast]);
 
     const handleSolution = useCallback(async (imageOverride?: string) => {
         const targetImage = imageOverride || scannedImage;
@@ -1146,7 +1146,7 @@ CRITICAL FORMATTING & LAYOUT RULES:
         
                 if (!aiClient) throw new Error('AI client not available');
                 const aiResult = await aiClient.models.generateContent({
-                    model: geminiModel || 'qwen-vl-plus',
+                    model: aiModel,
                     config: {
                         thinkingConfig: {
                             thinkingLevel: 'HIGH',
@@ -1177,7 +1177,7 @@ CRITICAL FORMATTING & LAYOUT RULES:
             setError(err.message || "Failed to connect to the solver.");
             setCameraState('preview');
         }
-    }, [scannedImage, attemptApiCall, customPrompt, aiClient, geminiModel, userProfile, appSettings, addToast]);
+    }, [scannedImage, attemptApiCall, customPrompt, aiClient, aiModel, userProfile, appSettings, addToast]);
 
     // Handle clipboard paste of images
     useEffect(() => {

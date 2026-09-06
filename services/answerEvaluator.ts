@@ -239,7 +239,7 @@ import type { LearningQuestion } from '../types/learningQuestion';
 /**
  * Main 2-layer evaluation orchestrator:
  * 1. Checks Layer 1 deterministic evaluation (exact, numeric tolerance, normalized formula).
- * 2. Falls back to Layer 2 Gemini AI model for conceptual and open-ended student answers.
+ * 2. Falls back to Layer 2 Alibaba Qwen AI model for conceptual and open-ended student answers.
  */
 export async function evaluateStudentAnswer(
     question: LearningQuestion,

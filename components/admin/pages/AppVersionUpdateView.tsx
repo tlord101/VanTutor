@@ -99,7 +99,7 @@ Rules:
 Return only JSON with keys: title, message, version_name.`;
 
             const response = await ai.models.generateContent({
-                model: appSettings.primary_gemini_model,
+                model: appSettings.alibaba_model || 'qwen-plus',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
                     responseMimeType: 'application/json',

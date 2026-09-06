@@ -12,7 +12,6 @@ import { checkAICredits, deductAICredits, getFeatureCost, getFeatureModel, hasLi
 import { useSharedTextbookUpload, getCourseMergeKey } from '../hooks/useSharedTextbookUpload';
 import VoiceTutorialPage, { VoiceTutorialSessionData } from './VoiceTutorialPage';
 import CourseChatTutor from './CourseChatTutor';
-import { avelutVoice, VoiceEngineStatus } from '../services/voice/AvelutVoiceEngine';
 import MyNotebooks from './MyNotebooks';
 import { supabaseDataService } from '../services/supabaseDataService';
 
@@ -266,7 +265,6 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     ));
     const [pinnedTopics, setPinnedTopics] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [voiceStatus, setVoiceStatus] = useState<VoiceEngineStatus>(() => avelutVoice.getStatus());
     const [activeTab, setActiveTab] = useState<'courses' | 'notebooks'>('notebooks');
     const [topicVisits, setTopicVisits] = useState<Record<string, number>>(() => {
         if (!userProfile?.uid) return {};
@@ -400,12 +398,6 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Subscribe to Avelut Voice Engine status
-    useEffect(() => {
-        const unsubscribe = avelutVoice.subscribe(setVoiceStatus);
-        return () => unsubscribe();
-    }, []);
-
     // Check for incoming voice tutorial session (e.g. from Visual Scanner Detailed Tutorial)
     useEffect(() => {
         const cachedSession = readCachedJson<VoiceTutorialSessionData | null>('avelut_active_voice_tutorial', null);
@@ -480,12 +472,12 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         try {
             const ai = createAvelutAI(appSettings, userProfile);
             if (!ai) throw new Error('Avelut AI is not configured in App Controls.');
-            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
+            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
 
             const prompt = `Based on this course code/name: "${manualCourseCode}", generate a short, one-line professional course description. Return a JSON object with 'course_name' (guessed full name if possible, else the code), 'course_code' (standardized uppercase code), and 'description'.`;
 
             const callRes = await attemptApiCall(() => ai.models.generateContent({
-                model: geminiModel,
+                model: aiModel,
                 contents: prompt,
                 config: {
                     responseMimeType: 'application/json',
@@ -574,12 +566,12 @@ const StudyGuideContent: React.FC<StudyGuideProps> = ({ userProfile, userProgres
         setIsExtractingCourses(true);
         try {
             const ai = createAvelutAI(appSettings, userProfile);
-            const geminiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
+            const aiModel = getFeatureModel('study_guide_extraction', appSettings) || 'qwen-plus';
             const base64Chunk = await fileToBase64(file);
             const prompt = `Analyze this PDF document. Extract all course names and course codes. Return a JSON object with a 'courses' array, where each item has 'course_name' and 'course_code'.`;
 
             const callRes = await attemptApiCall(() => ai.models.generateContent({
-                model: geminiModel,
+                model: aiModel,
                 contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: 'application/pdf', data: base64Chunk } }] }],
                 config: {
                     responseMimeType: 'application/json',

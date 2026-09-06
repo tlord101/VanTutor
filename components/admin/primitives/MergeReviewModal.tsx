@@ -72,7 +72,7 @@ export const MergeReviewModal: React.FC<MergeReviewModalProps> = ({
                 </div>
 
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    Gemini AI identified redundant and overlapping syllabus topics. Select which merges to approve:
+                    Alibaba Qwen AI identified redundant and overlapping syllabus topics. Select which merges to approve:
                 </p>
 
                 {/* Merges List */}

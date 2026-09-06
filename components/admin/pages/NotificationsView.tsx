@@ -7,15 +7,15 @@ import type { UserProfile } from '../../../types';
 
 interface NotificationsViewProps {
     allUsersList: UserProfile[];
-    geminiApiKey?: string;
-    geminiModel?: string;
+    aiApiKey?: string;
+    aiModel?: string;
     refreshSentNotifications?: () => void;
 }
 
 export const NotificationsView: React.FC<NotificationsViewProps> = ({ 
     allUsersList, 
-    geminiApiKey,
-    geminiModel,
+    aiApiKey,
+    aiModel = 'qwen3.7-flash',
     refreshSentNotifications 
 }) => {
     const { addToast } = useToast();
@@ -28,7 +28,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     const [notificationRoute, setNotificationRoute] = useState('dashboard');
     const [isSendingPush, setIsSendingPush] = useState(false);
 
-    const ai = createAvelutAI({ gemini_api_key: geminiApiKey } as any);
+    const ai = createAvelutAI({ alibaba_api_key: aiApiKey, alibaba_model: aiModel } as any);
 
     const notificationRoutes = [
         { value: 'dashboard', label: 'Dashboard' },
@@ -138,7 +138,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
     };
 
     const handleSuggestAnnouncement = async () => {
-        if (!ai || !geminiModel) {
+        if (!ai || !aiModel) {
             addToast("AI features are unavailable because the Avelut AI API key or model is not configured in App Controls.", "error");
             return;
         }
@@ -147,7 +147,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
             const prompt = `Create a short notification title (max 8 words) and a concise notification message (max 200 characters) for a ${notificationType.replace('_', ' ')} notification to students. Return only a JSON object with keys "title" and "message".`;
 
             const response = await ai.models.generateContent({
-                model: geminiModel,
+                model: aiModel,
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
                     responseMimeType: "application/json",

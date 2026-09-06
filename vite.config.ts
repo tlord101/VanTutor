@@ -32,15 +32,7 @@ function versionManifestPlugin(): Plugin {
 }
 
 export default defineConfig(({ command, mode }) => {
-    const env = loadEnv(mode, process.cwd(), '');
-    const kittenApiKey = env.VITE_KITTENML_API_KEY || env.KITTENML_API_KEY || process.env.VITE_KITTENML_API_KEY || process.env.KITTENML_API_KEY || '';
-
     return {
-      define: {
-        'import.meta.env.VITE_KITTENML_API_KEY': JSON.stringify(kittenApiKey),
-        'process.env.VITE_KITTENML_API_KEY': JSON.stringify(kittenApiKey),
-        'process.env.KITTENML_API_KEY': JSON.stringify(kittenApiKey),
-      },
       base: process.env.VERCEL ? '/' : (command === 'build' ? './' : '/'),
       server: {
         port: 3000,

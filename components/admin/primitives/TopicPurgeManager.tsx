@@ -37,10 +37,10 @@ export const TopicPurgeManager: React.FC<TopicPurgeManagerProps> = ({
     const [approvedMergesToExecute, setApprovedMergesToExecute] = useState<SuggestedMerge[]>([]);
     const [isExecutingMerge, setIsExecutingMerge] = useState(false);
 
-    const geminiApiKey = appSettings.gemini_api_key?.trim() || '';
+    const aiApiKey = appSettings.alibaba_api_key?.trim() || '';
     const aiClient = useRef<any>(null);
 
-    if (geminiApiKey && !aiClient.current) {
+    if (aiApiKey && !aiClient.current) {
         aiClient.current = createAvelutAI(appSettings);
     }
 
@@ -82,7 +82,7 @@ Rules:
   ]
 }`;
 
-            const modelName = appSettings.alibaba_model || appSettings.primary_gemini_model || 'qwen-plus';
+            const modelName = appSettings.alibaba_model || 'qwen-plus';
             const response = await aiClient.current.models.generateContent({
                 model: modelName,
                 contents: [
@@ -137,7 +137,7 @@ Rules:
                 addToast(`AI found ${formattedMerges.length} potential merge suggestion(s).`, 'success');
             }
         } catch (error: any) {
-            console.error('Error analyzing topics with Gemini AI:', error);
+            console.error('Error analyzing topics with Alibaba Qwen AI:', error);
             addToast('AI topic analysis failed: ' + error.message, 'error');
         } finally {
             setIsAnalyzing(false);

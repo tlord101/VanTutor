@@ -93,7 +93,7 @@ export const useSharedTextbookUpload = () => {
     const { addToast } = useToast();
     const { attemptApiCall } = useApiLimiter();
     const { settings: appSettings } = useAppSettings();
-    const geminiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || 'qwen-plus';
+    const aiModel = appSettings?.usage_settings?.feature_models?.study_guide_extraction || 'qwen-plus';
     const ai = useMemo(() => createAvelutAI(appSettings, null), [appSettings]);
 
     const [uploadProgress, setUploadProgress] = useState<{ status: string; percent: number } | null>(null);
@@ -186,7 +186,7 @@ FORMAT: { "syllabus": [ { "topic_name": "...", "topic_id": "...", "topic_context
                 const chunkPromises = base64Chunks.map(async (chunkBase64) => {
                     return attemptApiCall(async () => {
                         const aiResponse = await ai.models.generateContent({
-                            model: geminiModel,
+                            model: aiModel,
                             contents: [{ role: 'user', parts: [{ text: textbookPrompt }, { inlineData: { mimeType: 'application/pdf', data: chunkBase64 } }] }],
                             config: {
                                 responseMimeType: 'application/json',
