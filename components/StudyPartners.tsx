@@ -69,9 +69,10 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
     useEffect(() => {
         const fetchMissingProfiles = async () => {
             const missingIds = new Set<string>();
-            Object.values(partnerRequests).forEach((req: any) => {
-                if (req.senderId && !allUsers.find(u => u.uid === req.senderId) && !missingProfiles[req.senderId]) missingIds.add(req.senderId);
-                if (req.receiverId && !allUsers.find(u => u.uid === req.receiverId) && !missingProfiles[req.receiverId]) missingIds.add(req.receiverId);
+            const safeUsers = Array.isArray(allUsers) ? allUsers : Object.values(allUsers || {});
+            Object.values(partnerRequests || {}).forEach((req: any) => {
+                if (req?.senderId && !safeUsers.find(u => u?.uid === req.senderId) && !missingProfiles[req.senderId]) missingIds.add(req.senderId);
+                if (req?.receiverId && !safeUsers.find(u => u?.uid === req.receiverId) && !missingProfiles[req.receiverId]) missingIds.add(req.receiverId);
             });
 
             if (missingIds.size > 0) {
@@ -209,16 +210,18 @@ export const StudyPartners: React.FC<StudyPartnersProps> = ({ userProfile, onNav
         }
     };
 
+    const safeAllUsers = useMemo(() => (Array.isArray(allUsers) ? allUsers : (allUsers && typeof allUsers === 'object' ? Object.values(allUsers) : [])), [allUsers]);
+
     const availableSchools = useMemo(() => {
         const setOfSchools = new Set<string>();
-        allUsers.forEach(u => {
-            if (u.school_id) setOfSchools.add(u.school_id);
+        safeAllUsers.forEach(u => {
+            if (u?.school_id) setOfSchools.add(u.school_id);
         });
         return Array.from(setOfSchools).sort();
-    }, [allUsers]);
+    }, [safeAllUsers]);
 
     const filteredUsers = useMemo(() => {
-        let users = allUsers.filter(u => u.uid !== auth.currentUser?.uid);
+        let users = safeAllUsers.filter(u => u && u.uid !== auth.currentUser?.uid);
 
         // Scope filter
         if (scopeFilter === 'my_school' && userProfile.school_id) {

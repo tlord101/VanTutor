@@ -521,8 +521,6 @@ const TutorialDisplay: React.FC<TutorialDisplayProps> = ({ scannedImage, tutoria
         }
     };
 
-    const partnersList = allUsers.filter(u => studyPartners[u.uid] === true);
-    const filteredPartners = partnersList.filter(u => u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
         <div className="absolute inset-0 z-40 flex items-end justify-center bg-slate-950/60 backdrop-blur-md p-0 sm:p-3 animate-fade-in">

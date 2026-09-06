@@ -84,6 +84,12 @@ const createFallbackChatUser = (uid = ''): UserProfile => ({
   notifications_enabled: false,
 });
 
+const ensureArray = <T = any>(val: any): T[] => {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') return Object.values(val) as T[];
+  return [];
+};
+
 const MESSENGER_CACHE_VERSION = 'v1';
 
 const getMessengerCacheKey = (uid: string, suffix: string) => `avelut_messenger_${MESSENGER_CACHE_VERSION}_${uid}_${suffix}`;
@@ -407,36 +413,39 @@ const PartnerManagementModal: React.FC<PartnerManagementModalProps> = ({
   const [discoverySearch, setDiscoverySearch] = useState('');
 
   const currentUserId = auth.currentUser?.uid || '';
+  const safeAllUsers = useMemo(() => ensureArray<UserProfile>(allUsers), [allUsers]);
+  const safeStudyPartners = useMemo(() => (studyPartners && typeof studyPartners === 'object' && !Array.isArray(studyPartners)) ? studyPartners : {}, [studyPartners]);
+  const safePartnerRequests = useMemo(() => (partnerRequests && typeof partnerRequests === 'object' && !Array.isArray(partnerRequests)) ? partnerRequests : {}, [partnerRequests]);
 
   const studyMatesList = useMemo(() => {
-    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    const list = safeAllUsers.filter(u => u && safeStudyPartners[u.uid] === true);
     if (!matesSearch.trim()) return list;
     const q = matesSearch.toLowerCase();
     return list.filter(u =>
-      (u.display_name || '').toLowerCase().includes(q) ||
-      (u.department_id || '').toLowerCase().includes(q)
+      (u?.display_name || '').toLowerCase().includes(q) ||
+      (u?.department_id || '').toLowerCase().includes(q)
     );
-  }, [allUsers, studyPartners, matesSearch]);
+  }, [safeAllUsers, safeStudyPartners, matesSearch]);
 
   const receivedRequests = useMemo(() => {
-    return Object.values(partnerRequests).filter((req: any) => req.status === 'received');
-  }, [partnerRequests]);
+    return Object.values(safePartnerRequests).filter((req: any) => req?.status === 'received');
+  }, [safePartnerRequests]);
 
   const sentRequests = useMemo(() => {
-    return Object.values(partnerRequests).filter((req: any) => req.status === 'sent');
-  }, [partnerRequests]);
+    return Object.values(safePartnerRequests).filter((req: any) => req?.status === 'sent');
+  }, [safePartnerRequests]);
 
   const discoveryUsers = useMemo(() => {
-    let list = allUsers.filter(u => u.uid !== currentUserId);
+    let list = safeAllUsers.filter(u => u && u.uid !== currentUserId);
     if (discoverySearch.trim()) {
       const q = discoverySearch.toLowerCase();
       list = list.filter(u =>
-        (u.display_name || '').toLowerCase().includes(q) ||
-        (u.department_id || '').toLowerCase().includes(q)
+        (u?.display_name || '').toLowerCase().includes(q) ||
+        (u?.department_id || '').toLowerCase().includes(q)
       );
     }
     return list;
-  }, [allUsers, currentUserId, discoverySearch]);
+  }, [safeAllUsers, currentUserId, discoverySearch]);
 
   if (!isOpen) return null;
 
@@ -470,7 +479,7 @@ const PartnerManagementModal: React.FC<PartnerManagementModalProps> = ({
             <i className="bi bi-people-fill text-base"></i>
             <span>Study Mates</span>
             <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 font-semibold">
-              {Object.keys(studyPartners).filter(k => studyPartners[k] === true).length}
+              {Object.keys(safeStudyPartners).filter(k => safeStudyPartners[k] === true).length}
             </span>
           </button>
 
@@ -1091,10 +1100,10 @@ const AvelutMessageInput: React.FC<AvelutInputProps> = ({
 export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: string | null; onNavigate?: (tab: string) => void; setCustomHeaderConfig?: (config: any) => void }> = ({ userProfile, initialChatId = null, onNavigate, setCustomHeaderConfig }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [activeChat, setActiveChat] = useState<{ chatId: string, otherUser: UserProfile } | null>(null);
-  const [chats, setChats] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), []));
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), []));
-  const [messages, setMessages] = useState<any[]>(() => readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), []));
-  const [isLoading, setIsLoading] = useState(() => chats.length === 0 && allUsers.length === 0);
+  const [chats, setChats] = useState<any[]>(() => ensureArray(readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'chats'), [])));
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => ensureArray<UserProfile>(readCachedJson<UserProfile[]>(getMessengerCacheKey(userProfile.uid, 'all_users'), [])));
+  const [messages, setMessages] = useState<any[]>(() => ensureArray(readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, 'messages_default'), [])));
+  const [isLoading, setIsLoading] = useState(() => (Array.isArray(chats) ? chats.length : 0) === 0 && (Array.isArray(allUsers) ? allUsers.length : 0) === 0);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
@@ -1367,14 +1376,21 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     return () => unsub();
   }, [firebaseUser]);
 
+  const safeChats = useMemo(() => ensureArray(chats), [chats]);
+  const safeAllUsers = useMemo(() => ensureArray<UserProfile>(allUsers), [allUsers]);
+  const safeStudyPartners = useMemo(() => (studyPartners && typeof studyPartners === 'object' && !Array.isArray(studyPartners)) ? studyPartners : {}, [studyPartners]);
+  const safePartnerRequests = useMemo(() => (partnerRequests && typeof partnerRequests === 'object' && !Array.isArray(partnerRequests)) ? partnerRequests : {}, [partnerRequests]);
+
   const activeChats = useMemo(() => {
-    let list = chats.filter(c => {
+    let list = safeChats.filter(c => {
+      if (!c) return false;
       const partnerId = c.otherUserId || c.otherUser?.uid;
-      return studyPartners[partnerId] === true;
+      return safeStudyPartners[partnerId] === true;
     });
     if (chatSearchQuery.trim()) {
       const queryLower = chatSearchQuery.toLowerCase();
       list = list.filter(c => {
+        if (!c) return false;
         const name = (c.otherUser?.display_name || '').toLowerCase();
         const dept = (c.otherUser?.department_id || '').toLowerCase();
         const lastMsg = (getLastMessagePreview(c)).toLowerCase();
@@ -1382,46 +1398,46 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
       });
     }
     return list.sort((a, b) => {
-      const aPinned = pinnedChatIds[a.id] ? 1 : 0;
-      const bPinned = pinnedChatIds[b.id] ? 1 : 0;
+      const aPinned = pinnedChatIds[a?.id] ? 1 : 0;
+      const bPinned = pinnedChatIds[b?.id] ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
-      return (b.timestamp || 0) - (a.timestamp || 0);
+      return (Number(b?.timestamp) || 0) - (Number(a?.timestamp) || 0);
     });
-  }, [chats, studyPartners, chatSearchQuery, pinnedChatIds]);
+  }, [safeChats, safeStudyPartners, chatSearchQuery, pinnedChatIds]);
 
   const confirmedStudyPartnersList = useMemo(() => {
-    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    const list = safeAllUsers.filter(u => u && safeStudyPartners[u.uid] === true);
     if (!partnerMatesSearchQuery.trim()) return list;
     const q = partnerMatesSearchQuery.toLowerCase();
     return list.filter(u =>
-      (u.display_name || '').toLowerCase().includes(q) ||
-      (u.department_id || '').toLowerCase().includes(q)
+      (u?.display_name || '').toLowerCase().includes(q) ||
+      (u?.department_id || '').toLowerCase().includes(q)
     );
-  }, [allUsers, studyPartners, partnerMatesSearchQuery]);
+  }, [safeAllUsers, safeStudyPartners, partnerMatesSearchQuery]);
 
   const receivedRequestsList = useMemo(() => {
-    return Object.values(partnerRequests).filter((req: any) => req.status === 'received');
-  }, [partnerRequests]);
+    return Object.values(safePartnerRequests).filter((req: any) => req?.status === 'received');
+  }, [safePartnerRequests]);
 
   const sentRequestsList = useMemo(() => {
-    return Object.values(partnerRequests).filter((req: any) => req.status === 'sent');
-  }, [partnerRequests]);
+    return Object.values(safePartnerRequests).filter((req: any) => req?.status === 'sent');
+  }, [safePartnerRequests]);
 
   const pendingIncomingCount = receivedRequestsList.length;
 
   const discoveryUsersList = useMemo(() => {
-    let list = allUsers.filter(u => u.uid !== firebaseUser?.uid);
+    let list = safeAllUsers.filter(u => u && u.uid !== firebaseUser?.uid);
     if (discoverySearchQuery.trim()) {
       const q = discoverySearchQuery.toLowerCase();
       list = list.filter(u =>
-        (u.display_name || '').toLowerCase().includes(q) ||
-        (u.department_id || '').toLowerCase().includes(q)
+        (u?.display_name || '').toLowerCase().includes(q) ||
+        (u?.department_id || '').toLowerCase().includes(q)
       );
     }
     return list;
-  }, [allUsers, discoverySearchQuery, firebaseUser]);
+  }, [safeAllUsers, discoverySearchQuery, firebaseUser]);
 
-  const userMap = useMemo(() => new Map(allUsers.map(user => [user.uid, user])), [allUsers]);
+  const userMap = useMemo(() => new Map(safeAllUsers.filter(user => user && user.uid).map(user => [user.uid, user])), [safeAllUsers]);
 
   const userMapRef = useRef(userMap);
   const fetchedUserProfilesRef = useRef(fetchedUserProfiles);
@@ -1439,9 +1455,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
   const getUnreadCountForUser = useCallback((otherUserId: string) => {
     if (!firebaseUser) return 0;
     const chatId = [firebaseUser.uid, otherUserId].sort().join('_');
-    const chat = chats.find(item => item.id === chatId);
+    const chat = safeChats.find(item => item?.id === chatId);
     return chat ? getUnreadCount(chat) : 0;
-  }, [chats, firebaseUser]);
+  }, [safeChats, firebaseUser]);
 
   const ensureChatThreadRecord = useCallback(async (otherUser: UserProfile) => {
     if (!firebaseUser) return null;
@@ -1588,9 +1604,10 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     onValue(userChatsRef, (snap) => {
       const rawVal = snap.val() || {};
       setChats(prevChats => {
+        const safePrev = ensureArray(prevChats);
         const chatList = Object.entries(rawVal).map(([chatId, details]: any) => {
           const otherUserId = details.otherUserId || chatId;
-          const existingChat = prevChats.find(c => c.id === chatId);
+          const existingChat = safePrev.find((c: any) => c && c.id === chatId);
           let otherUser = existingChat?.otherUser;
           if (!otherUser || otherUser.display_name === 'Unknown user') {
             otherUser = userMapRef.current.get(otherUserId) || fetchedUserProfilesRef.current[otherUserId] || createFallbackChatUser(otherUserId);
@@ -1619,15 +1636,16 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             hasIncomingUnread &&
             lastSenderId &&
             lastSenderId !== firebaseUser.uid &&
-            lastMessageTimestamp > 0 &&
-            lastMessageTimestamp !== lastNotifiedTimestamp
+            lastMessageTimestamp > lastNotifiedTimestamp
           ) {
             lastNotificationTimestampRef.current[chat.id] = lastMessageTimestamp;
+            playReceiveSound();
             void showIncomingMessageNotification(chat, getLastMessagePreview(chat));
           }
         });
         unreadCountsRef.current = nextUnreadCounts;
-        return chatList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        return chatList;
       });
       setIsLoading(false);
     });
@@ -1636,30 +1654,30 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
   useEffect(() => {
     if (!firebaseUser) return;
-    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'chats'), chats);
-  }, [chats, firebaseUser, userProfile.uid]);
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'chats'), safeChats);
+  }, [safeChats, firebaseUser, userProfile.uid]);
 
   useEffect(() => {
-    if (!firebaseUser || !allUsers.length) return;
-    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'all_users'), allUsers);
-  }, [allUsers, firebaseUser, userProfile.uid]);
-
-  useEffect(() => {
-    if (!firebaseUser) return;
-    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'study_partners'), studyPartners);
-  }, [studyPartners, firebaseUser, userProfile.uid]);
+    if (!firebaseUser || !safeAllUsers.length) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'all_users'), safeAllUsers);
+  }, [safeAllUsers, firebaseUser, userProfile.uid]);
 
   useEffect(() => {
     if (!firebaseUser) return;
-    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'partner_requests'), partnerRequests);
-  }, [partnerRequests, firebaseUser, userProfile.uid]);
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'study_partners'), safeStudyPartners);
+  }, [safeStudyPartners, firebaseUser, userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, 'partner_requests'), safePartnerRequests);
+  }, [safePartnerRequests, firebaseUser, userProfile.uid]);
 
   const pendingFetches = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!chats.length) return;
-    chats.forEach(async (chat) => {
-      const otherUserId = chat.otherUserId || chat.otherUser?.uid;
+    if (!safeChats.length) return;
+    safeChats.forEach(async (chat) => {
+      const otherUserId = chat?.otherUserId || chat?.otherUser?.uid;
       if (!otherUserId) return;
       const resolvedUser = userMap.get(otherUserId) || fetchedUserProfiles[otherUserId];
       if (!resolvedUser && !pendingFetches.current.has(otherUserId)) {
@@ -1670,17 +1688,17 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
             const u = snapshot.val();
             const profile: UserProfile = {
               uid: otherUserId,
-              display_name: u.displayName || u.display_name || 'Unknown User',
-              photo_url: u.photoURL || u.photo_url || '',
-              is_online: !!u.is_online,
-              last_seen: u.last_seen || 0,
-              department_id: u.department_id || '',
-              level: u.level || '',
-              current_streak: u.current_streak || 0,
-              last_activity_date: u.last_activity_date || Date.now(),
-              notifications_enabled: !!u.notifications_enabled,
-              subscription_status: u.subscription_status || 'free',
-              blocked_users: u.blocked_users || {}
+              display_name: u?.displayName || u?.display_name || 'Unknown User',
+              photo_url: u?.photoURL || u?.photo_url || '',
+              is_online: !!u?.is_online,
+              last_seen: u?.last_seen || 0,
+              department_id: u?.department_id || '',
+              level: u?.level || '',
+              current_streak: u?.current_streak || 0,
+              last_activity_date: u?.last_activity_date || Date.now(),
+              notifications_enabled: !!u?.notifications_enabled,
+              subscription_status: u?.subscription_status || 'free',
+              blocked_users: u?.blocked_users || {}
             };
             setFetchedUserProfiles(prev => {
               const next = { ...prev, [otherUserId]: profile };
@@ -1695,17 +1713,17 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         }
       }
     });
-  }, [chats, userMap, fetchedUserProfiles, userProfile.uid]);
+  }, [safeChats, userMap, fetchedUserProfiles, userProfile.uid]);
 
   useEffect(() => {
-    if (!initialChatId || !chats.length) return;
-    const nextChat = chats.find(chat => chat.id === initialChatId);
+    if (!initialChatId || !safeChats.length) return;
+    const nextChat = safeChats.find(chat => chat?.id === initialChatId);
     if (!nextChat) return;
     const resolvedUser = userMap.get(nextChat.otherUserId) || fetchedUserProfiles[nextChat.otherUserId] || nextChat.otherUser;
     if (activeChat?.chatId !== nextChat.id || activeChat.otherUser?.uid !== resolvedUser?.uid) {
       setActiveChat({ chatId: nextChat.id, otherUser: resolvedUser });
     }
-  }, [initialChatId, chats, activeChat, userMap, fetchedUserProfiles]);
+  }, [initialChatId, safeChats, activeChat, userMap, fetchedUserProfiles]);
 
   useEffect(() => {
     if (!activeChat) {
@@ -1714,7 +1732,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     }
 
     const cached = readCachedJson<any[]>(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), []);
-    setMessages(cached);
+    setMessages(ensureArray(cached));
     setOptimisticMessages([]);
     if (cached.length > 0) {
       setTimeout(() => scrollToBottom('instant' as ScrollBehavior), 30);
@@ -1724,8 +1742,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
     onValue(messagesQuery, (snap) => {
       const cloudMsgs = Object.entries(snap.val() || {}).map(([id, msg]: any) => ({ id, ...msg })).sort((a, b) => a.timestamp - b.timestamp);
       setMessages(prev => {
-        if (prev.length > 0) {
-          const lastPrev = prev[prev.length - 1];
+        const safePrev = ensureArray(prev);
+        if (safePrev.length > 0) {
+          const lastPrev = safePrev[safePrev.length - 1];
           const lastNew = cloudMsgs[cloudMsgs.length - 1];
           if (lastNew && lastNew.id !== lastPrev.id && lastNew.senderId !== firebaseUser?.uid && lastNew.timestamp > lastPrev.timestamp) {
             playReceiveSound();
@@ -1734,7 +1753,7 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
         return cloudMsgs;
       });
 
-      setOptimisticMessages(prev => prev.filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
+      setOptimisticMessages(prev => ensureArray(prev).filter(opt => !cloudMsgs.some(cloud => cloud.timestamp === opt.timestamp)));
 
       setTimeout(() => scrollToBottom(cached.length === 0 ? ('instant' as ScrollBehavior) : 'smooth'), 40);
       if (firebaseUser) {
@@ -1764,11 +1783,13 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
 
   useEffect(() => {
     if (!firebaseUser || !activeChat) return;
-    writeCachedJson(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), messages);
+    writeCachedJson(getMessengerCacheKey(userProfile.uid, `messages_${activeChat.chatId}`), ensureArray(messages));
   }, [activeChat, firebaseUser, messages, userProfile.uid]);
 
   const combinedMessageStream = useMemo(() => {
-    return [...messages, ...optimisticMessages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    const msgs = ensureArray(messages);
+    const optMsgs = ensureArray(optimisticMessages);
+    return [...msgs, ...optMsgs].sort((a, b) => (Number(a?.timestamp) || 0) - (Number(b?.timestamp) || 0));
   }, [messages, optimisticMessages]);
 
   const updateChatMetaFromLatestMessage = async (chatId: string, otherUserId: string) => {
@@ -3577,9 +3598,9 @@ export const Messenger: React.FC<{ userProfile: UserProfile; initialChatId?: str
           setActiveTab={setPartnerModalTab}
           subView={partnerModalSubView}
           setSubView={setPartnerModalSubView}
-          allUsers={allUsers}
-          studyPartners={studyPartners}
-          partnerRequests={partnerRequests}
+          allUsers={safeAllUsers}
+          studyPartners={safeStudyPartners}
+          partnerRequests={safePartnerRequests}
           onOpenChat={(user) => {
             openChatWithUser(user);
             setIsPartnerModalOpen(false);
@@ -3618,12 +3639,14 @@ const ForwardModal: React.FC<ForwardModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const safeAllUsers = useMemo(() => ensureArray<UserProfile>(allUsers), [allUsers]);
+  const safeStudyPartners = useMemo(() => (studyPartners && typeof studyPartners === 'object' && !Array.isArray(studyPartners)) ? studyPartners : {}, [studyPartners]);
   const partnersList = useMemo(() => {
-    const list = allUsers.filter(u => studyPartners[u.uid] === true);
+    const list = safeAllUsers.filter(u => u && safeStudyPartners[u.uid] === true);
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return list.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.department_id || '').toLowerCase().includes(q));
-  }, [allUsers, studyPartners, searchQuery]);
+    return list.filter(u => (u?.display_name || '').toLowerCase().includes(q) || (u?.department_id || '').toLowerCase().includes(q));
+  }, [safeAllUsers, safeStudyPartners, searchQuery]);
   const handleToggleSelect = (uid: string) => {
     setSelectedIds(prev =>
       prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]

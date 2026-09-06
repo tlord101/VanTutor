@@ -95,19 +95,51 @@ export async function migrateLocalStorageToSqlite(): Promise<void> {
 }
 
 /**
+ * Sanitize cached value against expected fallback type to prevent type mismatches
+ * (e.g. object maps or primitives returned when an array is expected).
+ */
+function sanitizeCachedValue<T>(val: any, fallback: T): T {
+  if (val === undefined || val === null) {
+    return fallback;
+  }
+  if (Array.isArray(fallback)) {
+    if (Array.isArray(val)) {
+      return val as unknown as T;
+    }
+    if (val && typeof val === 'object') {
+      return Object.values(val) as unknown as T;
+    }
+    return fallback;
+  }
+  if (typeof fallback === 'object' && fallback !== null) {
+    if (typeof val === 'object' && !Array.isArray(val)) {
+      return val as T;
+    }
+    return fallback;
+  }
+  return val as T;
+}
+
+/**
  * Synchronous JSON read helper from in-memory cache backed by SQLite.
  */
 export function readCachedJson<T = any>(key: string, fallback: T = null as unknown as T): T {
   if (memoryCache.has(key)) {
-    return memoryCache.get(key) as T;
+    const rawVal = memoryCache.get(key);
+    const sanitized = sanitizeCachedValue(rawVal, fallback);
+    if (sanitized !== rawVal) {
+      memoryCache.set(key, sanitized);
+    }
+    return sanitized;
   }
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const raw = window.localStorage.getItem(key);
       if (raw) {
-        const parsed = JSON.parse(raw) as T;
-        memoryCache.set(key, parsed);
-        return parsed;
+        const parsed = JSON.parse(raw);
+        const sanitized = sanitizeCachedValue(parsed, fallback);
+        memoryCache.set(key, sanitized);
+        return sanitized;
       }
     } catch {
       return fallback;
@@ -174,7 +206,12 @@ if (typeof window !== 'undefined') {
  */
 export async function readCachedJsonAsync<T>(key: string, fallback: T): Promise<T> {
   if (memoryCache.has(key)) {
-    return memoryCache.get(key) as T;
+    const rawVal = memoryCache.get(key);
+    const sanitized = sanitizeCachedValue(rawVal, fallback);
+    if (sanitized !== rawVal) {
+      memoryCache.set(key, sanitized);
+    }
+    return sanitized;
   }
   try {
     const rows = await runQuery<{ payload_json: string }>(
@@ -182,9 +219,10 @@ export async function readCachedJsonAsync<T>(key: string, fallback: T): Promise<
       [key]
     );
     if (rows.length > 0 && rows[0].payload_json) {
-      const parsed = JSON.parse(rows[0].payload_json) as T;
-      memoryCache.set(key, parsed);
-      return parsed;
+      const parsed = JSON.parse(rows[0].payload_json);
+      const sanitized = sanitizeCachedValue(parsed, fallback);
+      memoryCache.set(key, sanitized);
+      return sanitized;
     }
   } catch (err) {
     console.warn(`[Cache] Async read error for key ${key}:`, err);
