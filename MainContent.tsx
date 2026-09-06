@@ -77,6 +77,8 @@ interface MainContentProps {
     onMarkAllAsRead?: () => void;
     onConversationsUpdate?: (conversations: ChatConversation[]) => void;
     onOpenMenu?: () => void;
+    activeConversationId?: string | null;
+    onSelectConversation?: (id: string | null) => void;
 }
 
 export const MainContent: React.FC<MainContentProps> = ({
@@ -101,6 +103,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     onMarkAllAsRead,
     onConversationsUpdate,
     onOpenMenu,
+    activeConversationId,
+    onSelectConversation,
 }) => {
     if (!userProfile) return null;
 
@@ -219,6 +223,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                             unreadMessagesCount={unreadMessagesCount}
                             onConversationsUpdate={onConversationsUpdate}
                             onOpenMenu={onOpenMenu}
+                            activeConversationId={activeConversationId}
+                            onSelectConversation={onSelectConversation}
                         />;
                 }
             })()}

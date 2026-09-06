@@ -1741,8 +1741,8 @@ const App: React.FC = () => {
             />
 
             <FloatingMenuButton
-                onClick={() => setIsMobileSidebarOpen(true)}
-                visible={activeItem !== 'messenger'}
+                onClick={handleToggleMenu}
+                visible={activeItem !== 'messenger' && activeItem !== 'chat'}
             />
 
             <Sidebar
@@ -1752,6 +1752,8 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 isMobileSidebarOpen={isMobileSidebarOpen}
                 onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
+                isCollapsed={isDesktopSidebarCollapsed}
+                onToggleCollapse={() => setIsDesktopSidebarCollapsed(prev => !prev)}
                 unreadCount={unreadCount}
                 unreadMessagesCount={unreadMessagesCount}
                 recentConversations={recentConversations}
@@ -1771,7 +1773,7 @@ const App: React.FC = () => {
                     title={typeof customHeaderConfig?.title !== 'string' ? customHeaderConfig?.title : undefined}
                     unreadCount={unreadCount}
                     onNotificationsClick={() => setActiveItem('notifications')}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
+                    onMenuClick={handleToggleMenu}
                     onMessengerClick={() => setActiveItem('messenger')}
                     onCalendarClick={() => setIsCalendarOpen(true)}
                     unreadMessagesCount={unreadMessagesCount}
@@ -1816,7 +1818,6 @@ const App: React.FC = () => {
                             onMarkAsRead={handleMarkNotificationRead}
                             onMarkAllAsRead={handleMarkAllNotificationsRead}
                             onConversationsUpdate={setRecentConversations}
-                            onOpenMenu={() => setIsMobileSidebarOpen(true)}
                         />
                     )}
                 </div>

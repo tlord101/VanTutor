@@ -226,31 +226,35 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
   useEffect(() => {
     if (!setCustomHeaderConfig) return;
     setCustomHeaderConfig({
-      title: (
-        <span className="text-[17px] font-semibold text-neutral-900 dark:text-white tracking-tight">
-          Avelut
-        </span>
-      ),
+      leftActions: <LeftMenuButton onClick={onOpenMenu} />,
       rightActions: (
-        <button
-          type="button"
-          onClick={handleNewChat}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-          title="New chat"
-          aria-label="New chat"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-          </svg>
-        </button>
+        <RightPillControl
+          onNewChat={handleNewChat}
+          onOpenHistory={onOpenMenu}
+          onDeleteChat={handleDeleteCurrentChat}
+          onClearMessages={handleClearCurrentChat}
+          hasActiveChat={Boolean(activeConversationId)}
+          hasMessages={messages.length > 0}
+        />
       ),
+      hideTitle: true,
+      title: null,
       hideDefaultRightActions: true,
       hideProfileAvatar: true,
+      className: 'absolute top-0 left-0 right-0 z-40 bg-transparent border-none px-4 sm:px-6 md:px-8 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 pointer-events-none [&>*]:pointer-events-auto',
     });
     return () => {
       setCustomHeaderConfig(null);
     };
-  }, [setCustomHeaderConfig]);
+  }, [
+    setCustomHeaderConfig,
+    onOpenMenu,
+    handleNewChat,
+    handleDeleteCurrentChat,
+    handleClearCurrentChat,
+    activeConversationId,
+    messages.length,
+  ]);
 
   // Load user conversations
   useEffect(() => {
@@ -512,7 +516,7 @@ export const Chat: React.FC<ChatProps> = ({ userProfile, onNavigate, onOpenMenu,
   return (
     <div className="flex-1 flex flex-col h-full w-full bg-white dark:bg-[#121212] overflow-hidden text-neutral-900 dark:text-white">
       {/* MESSAGES / EMPTY STATE AREA */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 overflow-y-auto px-4 pt-[calc(max(0.875rem,env(safe-area-inset-top))+3.5rem)] pb-6 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {messages.length === 0 ? (
           <div className="flex-1 h-full min-h-[40vh]" />
         ) : (

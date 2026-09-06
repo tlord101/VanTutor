@@ -11,6 +11,8 @@ interface AvelutAIProps {
   unreadMessagesCount?: number;
   onConversationsUpdate?: (conversations: ChatConversation[]) => void;
   onOpenMenu?: () => void;
+  activeConversationId?: string | null;
+  onSelectConversation?: (id: string | null) => void;
 }
 
 /** Avelut AI chat shell — uses unified Grok-style Chat component */
@@ -21,6 +23,8 @@ export default function AvelutAI({
   unreadMessagesCount = 0,
   onConversationsUpdate,
   onOpenMenu,
+  activeConversationId,
+  onSelectConversation,
 }: AvelutAIProps) {
   useEffect(() => {
     if (!userProfile?.uid || !onConversationsUpdate) return;
@@ -68,6 +72,8 @@ export default function AvelutAI({
         onNavigate={onNavigate}
         onOpenMenu={onOpenMenu}
         setCustomHeaderConfig={setCustomHeaderConfig}
+        activeConversationId={activeConversationId}
+        onSelectConversation={onSelectConversation}
       />
     </div>
   );

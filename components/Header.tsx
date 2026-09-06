@@ -86,7 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
                         )}
                     </button>
                 )}
-                {userProfile?.use_personal_token && userProfile?.personal_api_key && (
+                {!leftActions && !hideTitle && userProfile?.use_personal_token && userProfile?.personal_api_key && (
                     <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black tracking-widest uppercase rounded-full border border-amber-500/30">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         AI Token Active
