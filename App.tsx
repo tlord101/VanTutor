@@ -1742,7 +1742,7 @@ const App: React.FC = () => {
 
             <FloatingMenuButton
                 onClick={handleToggleMenu}
-                visible={activeItem !== 'messenger' && activeItem !== 'chat'}
+                visible={false}
             />
 
             <Sidebar
@@ -1769,6 +1769,7 @@ const App: React.FC = () => {
             />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header 
+                    activeItem={activeItem}
                     currentPageLabel={typeof customHeaderConfig?.title === 'string' ? customHeaderConfig.title : currentPageLabel}
                     title={typeof customHeaderConfig?.title !== 'string' ? customHeaderConfig?.title : undefined}
                     unreadCount={unreadCount}
@@ -1786,6 +1787,14 @@ const App: React.FC = () => {
                     hideProfileAvatar={customHeaderConfig?.hideProfileAvatar !== undefined ? customHeaderConfig.hideProfileAvatar : !!customHeaderConfig}
                     onNavigate={(route) => setActiveItem(route)}
                     onLogoutClick={handleLogout}
+                    onNewChat={customHeaderConfig?.onNewChat || (() => {
+                        setActiveConversationId(null);
+                        setActiveItem('chat');
+                    })}
+                    onClearChat={customHeaderConfig?.onClearChat}
+                    onDeleteChat={customHeaderConfig?.onDeleteChat}
+                    hasActiveChat={customHeaderConfig?.hasActiveChat ?? Boolean(activeConversationId)}
+                    hasMessages={customHeaderConfig?.hasMessages ?? false}
                 />
                 <div 
                     id="main-scroll-container"
